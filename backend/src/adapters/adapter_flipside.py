@@ -50,7 +50,7 @@ class AdapterFlipside(AbstractAdapter):
         ## Check query execution
         self.check_query_execution(self.queries_to_load)
 
-        ### RETRIGGER here??
+        ### RETRIGGER here?
         ## all that didn't work, retrigger, then load in next step
 
         ## Load data
