@@ -13,22 +13,6 @@ class AbstractAdapter(ABC):
         - para db_connector: database connection
         """
 
-    # @abstractmethod
-    # def extract(self, load_params:dict) -> pd.DataFrame:
-    #     """
-    #     This function should be used to request the results from a datasource (e.g. API).
-    #     - param load_params: 
-    #     """
-    #     raise NotImplementedError
-
-    # @abstractmethod
-    # def load(self, df) -> None:
-    #     """
-    #     This function should be used to persist our data to our database
-    #     - param df: the transformed dataframe that should be used for the upload
-    #     """
-    #     raise NotImplementedError
-
 class AbstractAdapterRaw(AbstractAdapter):
 
     def __init__(self, name, adapter_params:dict, db_connector):
