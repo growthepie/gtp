@@ -9,6 +9,7 @@ backend/output/
 
 # Airflow stuff
 airflow.cfg
+airflow.db
 airflow/git_version
 airflow/logs/
 airflow/www/static/coverage/
