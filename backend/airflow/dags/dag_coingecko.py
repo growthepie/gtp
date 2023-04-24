@@ -22,7 +22,7 @@ default_args = {
     default_args=default_args,
     dag_id = 'dag_coingecko_v01',
     description = 'Load price, volume, and market_cap from coingecko API for all tracked tokens.',
-    start_date = datetime(2023,4,21),
+    start_date = datetime(2023,4,24),
     schedule = '00 02 * * *'
 )
 

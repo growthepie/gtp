@@ -69,7 +69,7 @@ class AdapterFlipside(AbstractAdapter):
         for query in queries_to_load:
             if days == 'auto':
                 if query.metric_key in ['waa', 'maa']:
-                    day_val = 1500
+                    day_val = 100
                 else:
                     day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
             else:

@@ -35,8 +35,8 @@ flipside_sql = {
             count(DISTINCT from_address) as val
         FROM ethereum.core.fact_transactions
         WHERE
-            block_timestamp::DATE >= dateadd(day, -{{Days}}, current_date())
-            AND block_timestamp::DATE < DATE_TRUNC('week', CURRENT_DATE)
+            block_timestamp::DATE < DATE_TRUNC('week', CURRENT_DATE)
+            AND block_timestamp::DATE >= DATE_TRUNC('week', dateadd(day, -{{Days}}, current_date()))
         GROUP BY
             1
         """
@@ -47,8 +47,8 @@ flipside_sql = {
             count(DISTINCT from_address) as val
         FROM ethereum.core.fact_transactions
         WHERE
-            block_timestamp::DATE >= dateadd(day, -{{Days}}, current_date())
-            AND block_timestamp::DATE < DATE_TRUNC('month', CURRENT_DATE)
+            block_timestamp::DATE < DATE_TRUNC('month', CURRENT_DATE)
+            AND block_timestamp::DATE >= DATE_TRUNC('month', dateadd(day, -{{Days}}, current_date()))
         GROUP BY
             1
         """
