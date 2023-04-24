@@ -133,7 +133,7 @@ class JSONCreation():
         return df
 
     def create_changes_dict(self, df, metric_id, origin_key):
-        # print(f'called create_changes_dict for {metric_id} and {origin_key}')
+        #print(f'called create_changes_dict for {metric_id} and {origin_key}')
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(self.metrics[metric_id]['metric_keys'])), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
         df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
 
@@ -155,7 +155,7 @@ class JSONCreation():
                 if df_tmp[mk].shape[0] < change:
                     change_val = 0
                 else:
-                    change_val = (cur_val - df_tmp[mk].iloc[change]) / df_tmp[mk].iloc[change]
+                    change_val = (cur_val - df_tmp[mk].iloc[change-1]) / df_tmp[mk].iloc[change-1]
                 changes_dict[f'{change}d'].append(change_val)
 
         df_tmp = self.df_rename(df_tmp, metric_id)
