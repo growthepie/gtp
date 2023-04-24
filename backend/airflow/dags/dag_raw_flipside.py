@@ -44,6 +44,7 @@ def etl():
         # extract & load incremmentally
         ad.extract_raw(load_params)
     
+    @task()
     def run_optimism():
         import os
         adapter_params = {
