@@ -19,7 +19,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_sql_v01',
+    dag_id = 'dag_sql_v02',
     description = 'Run some sql aggregations on database.',
     start_date = datetime(2023,4,24),
     schedule = '00 05 * * *'
