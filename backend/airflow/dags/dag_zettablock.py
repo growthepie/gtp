@@ -3,7 +3,6 @@ import getpass
 sys_user = getpass.getuser()
 
 import sys
-import os
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
@@ -30,6 +29,7 @@ default_args = {
 def etl():
     @task()
     def run_aggregates():
+        import os
         adapter_params = {
             'api_key' : os.getenv("ZETTABLOCK_API")
         }

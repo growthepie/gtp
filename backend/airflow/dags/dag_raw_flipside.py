@@ -3,7 +3,6 @@ import getpass
 sys_user = getpass.getuser()
 
 import sys
-import os
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
@@ -30,6 +29,7 @@ default_args = {
 def etl():
     @task()
     def run_arbitrum():
+        import os
         adapter_params = {
             'api_key' : os.getenv("FLIPSIDE_API")
         }
@@ -45,6 +45,7 @@ def etl():
         df = ad.extract_raw(load_params)
     
     def run_optimism():
+        import os
         adapter_params = {
             'api_key' : os.getenv("FLIPSIDE_API")
         }
