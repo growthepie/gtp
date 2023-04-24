@@ -43,7 +43,7 @@ class AdapterRawImx(AbstractAdapterRaw):
             print(f"... start loading {load_type} - with refresh_param: {current_refresh_param}")
             while True:
                 try:
-                    print(f"... IMX {load_type} - #{counter} - Current total: {total_load}. Used refresh_param: {current_refresh_param}")
+                    print(f"... IMX {load_type} - #{counter} - Currently loaded: {type_load}. Used refresh_param: {current_refresh_param}")
                     if cursor != '':
                         url = self.base_url + main_props['url_part'] + current_refresh_param + "&cursor=" + cursor
                     else:
