@@ -20,7 +20,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_raw_flipside_v01',
+    dag_id = 'dag_raw_flipside_v02',
     description = 'Load raw Arbitrum and Optimism transaction data',
     start_date = datetime(2023,4,24),
     schedule = '20 02 * * *'
@@ -42,7 +42,7 @@ def etl():
         db_connector = DbConnector()
         ad = AdapterFlipsideRaw(adapter_params, db_connector)
         # extract & load incremmentally
-        df = ad.extract_raw(load_params)
+        ad.extract_raw(load_params)
     
     def run_optimism():
         import os
@@ -58,8 +58,7 @@ def etl():
         db_connector = DbConnector()
         ad = AdapterFlipsideRaw(adapter_params, db_connector)
         # extract & load incremmentally
-        df = ad.extract_raw(load_params)
-
+        ad.extract_raw(load_params)
 
     run_arbitrum()
     run_optimism()

@@ -9,7 +9,6 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_sql import AdapterSQL
 
-
 default_args = {
     'owner' : 'mseidl',
     'retries' : 2,
