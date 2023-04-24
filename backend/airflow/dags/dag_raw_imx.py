@@ -20,7 +20,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_raw_imx_v01',
+    dag_id = 'dag_raw_imx_v02',
     description = 'Load raw data on withdrawals, deposits, trades, orders_filled, transfers, mints.',
     start_date = datetime(2023,4,24),
     schedule = '30 02 * * *'
@@ -33,16 +33,11 @@ def etl():
             'load_types' : ['withdrawals', 'deposits', 'trades', 'orders_filled', 'transfers', 'mints'],
             'forced_refresh' : 'no',
         }
-        load_params = {
-            'keys' : ['polygon_zkevm_tx'],
-            'block_start' : 'auto', ## 'auto' or a block number as int
-        }
-
        # initialize adapter
         db_connector = DbConnector()
         ad = AdapterRawImx(adapter_params, db_connector)
         # extract & load incremmentally
-        df = ad.extract_raw(load_params)
+        ad.extract_raw()
 
     run_imx()
 
