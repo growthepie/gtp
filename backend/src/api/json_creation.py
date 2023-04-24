@@ -235,6 +235,7 @@ class JSONCreation():
         
         if origin_key == 'all_l2s':
             df_tmp = df.loc[(df.origin_key.isin(chains_list_no_eth)) & (df.metric_key=='user_base_'+aggregation)]
+            df_tmp = df_tmp[['unix', 'value']]
             df_tmp = df_tmp.groupby(pd.Grouper(key='unix')).sum().reset_index()
         elif origin_key == 'ethereum' and aggregation == 'daily':
             df_tmp = df.loc[(df.origin_key=='ethereum') & (df.metric_key=='daa')]
