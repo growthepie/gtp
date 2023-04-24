@@ -3,8 +3,8 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from src.misc.helper_functions import api_get_call, get_df_kpis, upsert_to_kpis, get_missing_days_kpis, prepare_df_kpis
-from src.misc.helper_functions import print_init, print_load, print_extract, print_extract_raw, print_load_raw, dataframe_to_s3
+from src.misc.helper_functions import api_get_call
+from src.misc.helper_functions import print_init, print_extract_raw, dataframe_to_s3
 
 ##disable pandas warnings
 pd.options.mode.chained_assignment = None
@@ -60,7 +60,7 @@ class AdapterRawImx(AbstractAdapterRaw):
                         counter += 1
                         type_load += df.shape[0]
 
-                    if dfMain.shape[0] > 20000:
+                    if dfMain.shape[0] > 10000:
                         print(f"... IMX {load_type} - Loaded to df: {dfMain.shape[0]} rows. Max timestamp: {dfMain.timestamp.max()}")
                         self.load_raw(dfMain, main_props, load_type)
                         dfMain = pd.DataFrame()
