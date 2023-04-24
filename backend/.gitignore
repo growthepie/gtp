@@ -9,6 +9,7 @@ backend/output/
 
 # Airflow stuff
 airflow.cfg
+webserver_config.py
 airflow.db
 airflow/git_version
 airflow/logs/
