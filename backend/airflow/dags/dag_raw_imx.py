@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_raw_imx_v02',
     description = 'Load raw data on withdrawals, deposits, trades, orders_filled, transfers, mints.',
     start_date = datetime(2023,4,24),
-    schedule = '30 02 * * *'
+    schedule = '16 02 * * *'
 )
 
 def etl():

@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_defillama_v01',
     description = 'Load stablecoin mcap.',
     start_date = datetime(2023,4,24),
-    schedule = '05 02 * * *'
+    schedule = '02 02 * * *'
 )
 
 def etl():

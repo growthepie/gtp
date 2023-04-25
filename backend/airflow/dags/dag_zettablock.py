@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_zettablock_v01',
     description = 'Load aggregates metrics such as txcount, daa, fees paid.',
     start_date = datetime(2023,4,24),
-    schedule = '10 02 * * *'
+    schedule = '06 02 * * *'
 )
 
 def etl():

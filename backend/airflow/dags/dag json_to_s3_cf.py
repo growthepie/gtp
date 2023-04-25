@@ -22,7 +22,7 @@ default_args = {
     dag_id = 'dag_json_to_s3_cf_v01',
     description = 'Create json files that are necessary to power the frontend.',
     start_date = datetime(2023,4,24),
-    schedule = '30 05 * * *'
+    schedule = '30 04 * * *'
 )
 
 def etl():

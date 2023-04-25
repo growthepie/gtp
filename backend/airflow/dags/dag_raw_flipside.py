@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_raw_flipside_v02',
     description = 'Load raw Arbitrum and Optimism transaction data',
     start_date = datetime(2023,4,24),
-    schedule = '20 02 * * *'
+    schedule = '15 02 * * *'
 )
 
 def etl():
