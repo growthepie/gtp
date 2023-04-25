@@ -421,6 +421,6 @@ flipside_queries = [
 
 
 flipside_raws = [
-    FlipsideRaw(key = 'arbitrum_tx', table_name = "arbitrum_tx", sql=flipside_sql["arbitrum_transactions"], query_parameters={"block_start": 100000000, "block_end": 100000001}, block_steps=20000, s3_folder="arbitrum")
-    ,FlipsideRaw(key = 'optimism_tx', table_name = "optimism_tx", sql=flipside_sql["optimism_transactions"], query_parameters={"block_start": 100000000, "block_end": 100000001}, block_steps=80000, s3_folder="optimism")
+    FlipsideRaw(key = 'arbitrum_tx', table_name = "arbitrum_tx", sql=flipside_sql["arbitrum_transactions"], query_parameters={"block_start": 100000000, "block_end": 100000001}, block_steps=5000, s3_folder="arbitrum")
+    ,FlipsideRaw(key = 'optimism_tx', table_name = "optimism_tx", sql=flipside_sql["optimism_transactions"], query_parameters={"block_start": 100000000, "block_end": 100000001}, block_steps=20000, s3_folder="optimism")
 ]
