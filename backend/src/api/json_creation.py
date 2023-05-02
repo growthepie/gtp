@@ -121,6 +121,7 @@ class JSONCreation():
             where kpi.origin_key in ({chains_string})
                 and kpi.metric_key in ({metrics_string})
                 and kpi."date" >= '2021-01-01'
+                and kpi."date" < date_trunc('day', now())
         """
 
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
@@ -130,6 +131,9 @@ class JSONCreation():
         ## datetime to unix timestamp using timestamp() function
         df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
         #df.drop(columns=['date'], inplace=True)
+        # fill NaN values with 0
+        df.value.fillna(0, inplace=True)
+
         return df
 
     def create_changes_dict(self, df, metric_id, origin_key):
@@ -351,8 +355,6 @@ class JSONCreation():
                 origin_key = chain.origin_key
                 if origin_key == 'ethereum' and metric == 'tvl':
                     continue
-                # if origin_key == 'imx' and metric == 'fees':
-                #     continue
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]

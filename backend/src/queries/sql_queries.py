@@ -133,6 +133,7 @@ sql_q= {
     left join imx_tokens it on f.token_data_contract_address = it.token_address 
     where "type" = 'protocol'
         and updated_timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
+        and updated_timestamp < date_trunc('day', now())
     group by 1
     order by 1 desc
     """
