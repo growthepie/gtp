@@ -152,10 +152,10 @@ class JSONCreation():
             cur_val = df_tmp[mk].iloc[0]
             changes = [1,7,30,90,180,365]
             for change in changes:
-                if df_tmp[mk].shape[0] < change:
+                if df_tmp[mk].shape[0] <= (change):
                     change_val = 0
                 else:
-                    change_val = (cur_val - df_tmp[mk].iloc[change-1]) / df_tmp[mk].iloc[change-1]
+                    change_val = (cur_val - df_tmp[mk].iloc[change]) / df_tmp[mk].iloc[change]
                 changes_dict[f'{change}d'].append(change_val)
 
         df_tmp = self.df_rename(df_tmp, metric_id)
