@@ -7,6 +7,7 @@ class AdapterMapping(BaseModel):
     name: str
     symbol: Optional[str]
     technology: str ## -, zk, optimistic
+    purpose: str ## is it a general purpose chain, or a specialized one?
     launch_date: Optional[str] ## YYYY-MM-DD
     website: Optional[str]
     block_explorer: Optional[str]
