@@ -199,19 +199,6 @@ class JSONCreation():
         else:
             df_tmp = df.loc[(df.origin_key == origin_key) & (df.metric_key=='user_base_'+aggregation)]
 
-        
-        # max_date = datetime.date.today() - datetime.timedelta(days=1) ## get yesterday's date
-        # if aggregation == 'daily':
-        #     pass
-        # elif aggregation == 'weekly':
-        #     if max_date.weekday() != 6: ## check if max date is a sunday (full week). if not, remove latest week
-        #         df_tmp = df_tmp.loc[df_tmp.date != df_tmp.date.max()]
-        # elif aggregation == 'monthly': 
-        #     if not self.end_of_month(max_date): ## check if max date is the last of the month (full month). if not, remove latest month
-        #         df_tmp = df_tmp.loc[df_tmp.date != df_tmp.date.max()]
-        # else:
-        #     raise NotImplementedError("Only daily, weekly and monthly aggregations are supported")
-
         df_tmp = df_tmp[['date', 'value']]
         df_tmp = df_tmp.groupby(pd.Grouper(key='date')).sum().reset_index()
 
@@ -272,6 +259,7 @@ class JSONCreation():
         dict = {
                     "chain_name": chain.name,
                     "technology": chain.technology,
+                    "purpose": chain.purpose,
                     "user_share": user_share,
                     "data": {
                         "types": [
@@ -388,6 +376,7 @@ class JSONCreation():
                 'name': chain.name,
                 'symbol': chain.symbol,
                 'technology': chain.technology,
+                'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
                 'website': chain.website,
                 'twitter': chain.twitter,
