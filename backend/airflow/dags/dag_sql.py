@@ -19,7 +19,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_sql_v02',
+    dag_id = 'dag_sql_v03',
     description = 'Run some sql aggregations on database.',
     start_date = datetime(2023,4,24),
     schedule = '00 04 * * *'
@@ -64,8 +64,7 @@ def etl():
         # # load
         ad.load(df)
 
-    run_usd_to_eth()
-    run_metrics()
+    run_usd_to_eth(run_metrics())    
 
 etl()
 
