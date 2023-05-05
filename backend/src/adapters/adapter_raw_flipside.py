@@ -68,7 +68,7 @@ class AdapterFlipsideRaw(AbstractAdapterRaw):
                     if resp == False:
                         print(f"...wait for {query.key}.")
                         wait_time += sleeper
-                        if wait_time > 180: ##if wait longer than 3 minutes, retrigger query
+                        if wait_time > 300: ##if wait longer than 5 minutes, retrigger query
                             print(f"waited too long for {query.key}. retriggering")
                             response_json = self.client.create_query(query.sql)
                             query.last_token = response_json.get('token')
