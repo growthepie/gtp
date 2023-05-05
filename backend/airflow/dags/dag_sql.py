@@ -26,13 +26,14 @@ default_args = {
 )
 
 def etl():
+
     @task()
-    def run_usd_to_eth():
+    def run_metrics():
         adapter_params = {
         }
         load_params = {
-            'load_type' : 'usd_to_eth',
-            'days' : 5000, ## days as int
+            'load_type' : 'metrics', ## load metrics such as imx txcount, daa, fees paid and user_base metric
+            'days' : 'auto', ## days as int our 'auto
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
         }
@@ -46,12 +47,12 @@ def etl():
         ad.load(df)
 
     @task()
-    def run_metrics():
+    def run_usd_to_eth(run_metrics:str):
         adapter_params = {
         }
         load_params = {
-            'load_type' : 'metrics', ## load metrics such as imx txcount, daa, fees paid and user_base metric
-            'days' : 'auto', ## days as int our 'auto
+            'load_type' : 'usd_to_eth',
+            'days' : 5000, ## days as int
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
         }
