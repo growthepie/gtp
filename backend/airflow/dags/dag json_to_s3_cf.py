@@ -9,6 +9,8 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.api.json_creation import JSONCreation
 
+api_version = "v_04"
+
 default_args = {
     'owner' : 'mseidl',
     'retries' : 2,
@@ -19,7 +21,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_json_to_s3_cf_v01',
+    dag_id = 'dag_json_to_s3_cf_v02',
     description = 'Create json files that are necessary to power the frontend.',
     start_date = datetime(2023,4,24),
     schedule = '20 04 * * *'
@@ -31,7 +33,7 @@ def etl():
         import os
         db_connector = DbConnector()
 
-        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector)
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_chain_details_jsons(df)
 
@@ -40,7 +42,7 @@ def etl():
         import os
         db_connector = DbConnector()
 
-        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector)
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_metric_details_jsons(df)
 
@@ -49,7 +51,7 @@ def etl():
         import os
         db_connector = DbConnector()
 
-        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector)
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_landingpage_json(df)
 
@@ -58,7 +60,7 @@ def etl():
         import os
         db_connector = DbConnector()
 
-        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector)
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_master_json()
 
     run_create_chain_details()

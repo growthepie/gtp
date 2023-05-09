@@ -7,9 +7,9 @@ from src.misc.helper_functions import upload_json_to_cf_s3
 
 class JSONCreation():
 
-    def __init__(self, s3_bucket, cf_distribution_id, db_connector):
+    def __init__(self, s3_bucket, cf_distribution_id, db_connector, api_version):
         ## Constants
-        self.api_version = 'v0_4'
+        self.api_version = api_version
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
@@ -18,27 +18,32 @@ class JSONCreation():
             'tvl': {
                 'name': 'Total value locked (on chain)',
                 'metric_keys': ['tvl', 'tvl_eth'],
-                'units': ['USD', 'ETH']
+                'units': ['USD', 'ETH'],
+                'avg': False
             }
             ,'txcount': {
                 'name': 'Transaction count',
                 'metric_keys': ['txcount'],
-                'units': ['-']
+                'units': ['-'],
+                'avg': True
             }
             ,'daa': {
                 'name': 'Daily active addresses',
                 'metric_keys': ['daa'],
-                'units': ['-']
+                'units': ['-'],
+                'avg': True
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin market cap',
                 'metric_keys': ['stables_mcap', 'stables_mcap_eth'],
-                'units': ['USD', 'ETH']
+                'units': ['USD', 'ETH'],
+                'avg': False
             }
             ,'fees': {
                 'name': 'Fees paid',
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
-                'units': ['USD', 'ETH']
+                'units': ['USD', 'ETH'],
+                'avg': True
             }
             # ,'rent_paid': {
             #     'name': 'Rent paid',
@@ -157,7 +162,7 @@ class JSONCreation():
             changes = [1,7,30,90,180,365]
             for change in changes:
                 if df_tmp[mk].shape[0] <= (change):
-                    change_val = 0
+                    change_val = None
                 else:
                     change_val = (cur_val - df_tmp[mk].iloc[change]) / df_tmp[mk].iloc[change]
                 changes_dict[f'{change}d'].append(change_val)
@@ -313,6 +318,7 @@ class JSONCreation():
                 metrics_dict[metric] = {
                     'metric_name': self.metrics[metric]['name'],
                     'source': self.db_connector.get_metric_sources(metric, [origin_key]),
+                    'avg': self.metrics[metric]['avg'],
                     'daily': {
                         'types' : mk_list_columns,
                         'data' : mk_list_int
@@ -359,6 +365,7 @@ class JSONCreation():
                     'metric_id': metric,
                     'metric_name': self.metrics[metric]['name'],
                     'source': self.db_connector.get_metric_sources(metric, []),
+                    'avg': self.metrics[metric]['avg'],
                     'chains': chains_dict
                 }
             }
