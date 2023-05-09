@@ -212,6 +212,7 @@ def empty_cloudfront_cache(distrubution_id, path):
             }
         )
         invalidation_id = res['Invalidation']['Id']
+        time.sleep(2)
         #print("Invalidation created successfully with Id: " + invalidation_id)
         return invalidation_id
 
