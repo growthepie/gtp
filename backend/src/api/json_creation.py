@@ -113,6 +113,31 @@ class JSONCreation():
             raise NotImplementedError("Only 1 or 2 units are supported")
         
         return mk_list_int, df_tmp.columns.to_list()
+    
+
+    ## create 7d rolling average over a list of lists where the first element is the date and the second element is the value (necessary for daily_avg field)
+    def create_7d_rolling_avg(self, list_of_lists):
+        avg_list = []
+        if len(list_of_lists[0]) == 2: ## all non USD metrics e.g. txcount
+            for i in range(len(list_of_lists)):
+                if i < 7:
+                    avg_list.append([list_of_lists[i][0], list_of_lists[i][1]])
+                else:
+                    avg = (list_of_lists[i][1] + list_of_lists[i-1][1] + list_of_lists[i-2][1] + list_of_lists[i-3][1] + list_of_lists[i-4][1] + list_of_lists[i-5][1] + list_of_lists[i-6][1]) / 7
+                    ## round to 2 decimals
+                    avg = round(avg, 2)
+                    avg_list.append([list_of_lists[i][0], avg])
+        else: ## all USD metrics e.g. fees that have USD and ETH values
+            for i in range(len(list_of_lists)):
+                if i < 7:
+                    avg_list.append([list_of_lists[i][0], list_of_lists[i][1], list_of_lists[i][2]] )
+                else:
+                    avg_1 = (list_of_lists[i][1] + list_of_lists[i-1][1] + list_of_lists[i-2][1] + list_of_lists[i-3][1] + list_of_lists[i-4][1] + list_of_lists[i-5][1] + list_of_lists[i-6][1]) / 7
+                    avg_2 = (list_of_lists[i][2] + list_of_lists[i-1][2] + list_of_lists[i-2][2] + list_of_lists[i-3][2] + list_of_lists[i-4][2] + list_of_lists[i-5][2] + list_of_lists[i-6][2]) / 7
+    
+                    avg_list.append([list_of_lists[i][0], round(avg_1, 4), round(avg_2, 4)])
+        
+        return avg_list
 
 
     def download_data(self, chains_string, metrics_string):
@@ -165,6 +190,7 @@ class JSONCreation():
                     change_val = None
                 else:
                     change_val = (cur_val - df_tmp[mk].iloc[change]) / df_tmp[mk].iloc[change]
+                    change_val = round(change_val, 4)
                 changes_dict[f'{change}d'].append(change_val)
 
         df_tmp = self.df_rename(df_tmp, metric_id)
@@ -359,6 +385,14 @@ class JSONCreation():
                         'data' : mk_list_int
                     }
                 }
+
+                ## check if metric should be averagd and add 7d rolling avg field
+                if self.metrics[metric]['avg'] == True:
+                    mk_list_int_7d = self.create_7d_rolling_avg(mk_list_int)
+                    chains_dict[origin_key]['daily_7d_rolling'] = {
+                        'types' : mk_list_columns,
+                        'data' : mk_list_int_7d
+                    }
 
             details_dict = {
                 'data': {
