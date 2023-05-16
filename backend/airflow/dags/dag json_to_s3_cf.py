@@ -9,7 +9,7 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.api.json_creation import JSONCreation
 
-api_version = "v_04"
+api_version = "v0_4"
 
 default_args = {
     'owner' : 'mseidl',
