@@ -441,13 +441,13 @@ class JSONCreation():
                     "user_base" : {
                         "metric_name": "Ethereum ecosystem user-base",
                         "source": self.db_connector.get_metric_sources('user_base', []),
-                        "daily": {
-                            "latest_total": self.chain_users(df, 'daily', 'all_l2s'),
-                            "latest_total_comparison": self.create_total_comparison_value(df, 'daily', 'all_l2s'),
-                            "l2_dominance": self.l2_user_share(df, 'daily'),
-                            "l2_dominance_comparison": self.create_user_share_comparison_value(df, 'daily'),
-                            "chains": self.generate_chains_userbase_dict(df, 'daily')
-                            },
+                        # "daily": {
+                        #     "latest_total": self.chain_users(df, 'daily', 'all_l2s'),
+                        #     "latest_total_comparison": self.create_total_comparison_value(df, 'daily', 'all_l2s'),
+                        #     "l2_dominance": self.l2_user_share(df, 'daily'),
+                        #     "l2_dominance_comparison": self.create_user_share_comparison_value(df, 'daily'),
+                        #     "chains": self.generate_chains_userbase_dict(df, 'daily')
+                        #     },
                         "weekly": {
                             "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
                             "latest_total_comparison": self.create_total_comparison_value(df, 'weekly', 'all_l2s'),
@@ -455,13 +455,13 @@ class JSONCreation():
                             "l2_dominance_comparison": self.create_user_share_comparison_value(df, 'weekly'),
                             "chains": self.generate_chains_userbase_dict(df, 'weekly')
                             },
-                        "monthly": {
-                            "latest_total": self.chain_users(df, 'monthly', 'all_l2s'),
-                            "latest_total_comparison": self.create_total_comparison_value(df, 'monthly', 'all_l2s'),
-                            "l2_dominance": self.l2_user_share(df, 'monthly'),
-                            "l2_dominance_comparison": self.create_user_share_comparison_value(df, 'monthly'),
-                            "chains": self.generate_chains_userbase_dict(df, 'monthly')		
-                            }
+                        # "monthly": {
+                        #     "latest_total": self.chain_users(df, 'monthly', 'all_l2s'),
+                        #     "latest_total_comparison": self.create_total_comparison_value(df, 'monthly', 'all_l2s'),
+                        #     "l2_dominance": self.l2_user_share(df, 'monthly'),
+                        #     "l2_dominance_comparison": self.create_user_share_comparison_value(df, 'monthly'),
+                        #     "chains": self.generate_chains_userbase_dict(df, 'monthly')		
+                        #     }
                         }
                     }
                 }
