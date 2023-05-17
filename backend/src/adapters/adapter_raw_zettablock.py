@@ -40,11 +40,11 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
     def trigger_check_extract_queries(self, queries_to_load, block_start):
         for query in queries_to_load:            
-            all_done = False
             dfMain = pd.DataFrame()
             ## get block_start
             if block_start == 'auto':
                 block_start_val = self.db_connector.get_max_block(query.table_name)
+                print(f'Current max block for {query.key} is {block_start_val}')
             else:
                 block_start_val = block_start
 
@@ -69,32 +69,26 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                 if df.shape[0] < 1:
                     print(f'no data with block_start: {block_start_val}')
                     break
+                elif df.block_number.max() == block_start_val:
+                    print(f'no new data with block_start: {block_start_val}')
+                    break
                 else:
                     print(f'...loaded {df.shape[0]} rows for {query.key}')
                     dfMain = pd.concat([dfMain, df])
-                    block_start_val += query.steps
+                    block_start_val = dfMain.block_number.max()
+
+                if dfMain.shape[0] > 80000:
+                    print(f'...loaded more than 100k rows for {query.key}, trigger upload')
+                    self.upload(dfMain, query)
+                    dfMain = pd.DataFrame()
             
+            ## upload remaining data
+            if dfMain.shape[0] > 0:
+                self.upload(dfMain, query)
 
-            dfMain.value = dfMain.value.astype('string')
-            file_name = f"{query.table_name}_{dfMain.block_number.min()}-{dfMain.block_number.max()}"
-
-            ## store locally
-            # dfMain.to_parquet(f"output/raw_data/polygon_zkevm/{file_name}.parquet", index=False)
-            # print(f"...stored file locally: {file_name}.parquet")
-
-            ## upload to s3
-            dataframe_to_s3(f'{query.s3_folder}/{file_name}', dfMain)
-
-            ## prep data for upsert
-            dfMain.rename(columns={'hash': "tx_hash", "from": "from_address", "to": "to_address", "value": "eth_value", "block_time":"block_timestamp"}, inplace=True)
-            dfMain = dfMain[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'receipt_contract_address', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price', 'type']]
-            dfMain['tx_hash'] = dfMain['tx_hash'].str.replace('"', '', regex=False)
-            dfMain['tx_hash'] = dfMain['tx_hash'].str.replace('[', '', regex=False) 
-
-            ## upsert data to db
-            dfMain.set_index('tx_hash', inplace=True)
-            self.db_connector.upsert_table(query.table_name, dfMain)
-            print(f"...upserted {dfMain.shape[0]} rows to {query.table_name} table")
+            print(f'DONE loading raw data for {query.key}')                  
+            
+            
     
     # check response until success or failed is returned
     def wait_till_query_done(self, queryrun_id):
@@ -103,3 +97,24 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
             if res == True:
                 return True
             time.sleep(2)
+
+    def upload(self, df, query):
+        ## drop duplicates based on tx_hash
+        df.drop_duplicates(subset=['hash'], inplace=True)
+
+        df.value = df.value.astype('string')
+        file_name = f"{query.table_name}_{df.block_number.min()}-{df.block_number.max()}"
+
+        ## upload to s3
+        dataframe_to_s3(f'{query.s3_folder}/{file_name}', df)
+
+        ## prep data for upsert
+        df.rename(columns={'hash': "tx_hash", "from": "from_address", "to": "to_address", "value": "eth_value", "block_time":"block_timestamp"}, inplace=True, errors="ignore")
+        df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'receipt_contract_address', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price', 'type']]
+        df['tx_hash'] = df['tx_hash'].str.replace('"', '', regex=False)
+        df['tx_hash'] = df['tx_hash'].str.replace('[', '', regex=False) 
+
+        ## upsert data to db
+        df.set_index('tx_hash', inplace=True)
+        self.db_connector.upsert_table(query.table_name, df)
+        print(f"...upserted {df.shape[0]} rows to {query.table_name} table")

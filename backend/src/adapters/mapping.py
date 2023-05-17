@@ -95,6 +95,23 @@ adapter_mapping = [
         #,defillama_stablecoin=''  ## stables via Flipside
         ,l2beat_tvl_naming='immutablex'
         )
+
+    ,AdapterMapping(
+        origin_key="zksync_era"
+        ,name = "zkSync Era"
+        ,symbol = "-"
+        ,technology = "ZK Rollup"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2023-03-24'
+        ,website='https://zksync.io/'
+        ,block_explorer='https://explorer.zksync.io/'
+        ,twitter='https://twitter.com/zksync'
+
+        #,coingecko_naming="-"
+        #,defillama_stablecoin=''  ## stables via ZEtta?
+        ,l2beat_tvl_naming='zksync-era'
+    )
+
     # ,AdapterMapping(
     #     origin_key="loopring"
     #     ,coingecko_naming="loopring"

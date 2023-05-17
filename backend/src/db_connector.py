@@ -58,7 +58,11 @@ class DbConnector:
                         result = connection.execute(exec_string)
                 for row in result:
                         val = row['val']
-                return val
+                
+                if val == None:
+                        return 0
+                else:
+                        return val
         
         def get_values_in_eth(self, raw_metrics, days): ## also make sure to add new metrics in adapter_sql
                 mk_string = "'" + "', '".join(raw_metrics) + "'"
