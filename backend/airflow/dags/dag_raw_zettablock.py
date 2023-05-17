@@ -34,7 +34,7 @@ def etl():
             'api_key' : os.getenv("ZETTABLOCK_API")
         }
         load_params = {
-            'keys' : ['polygon_zkevm_tx'],
+            'keys' : ['polygon_zkevm_tx', 'zksync_era_tx'],
             'block_start' : 'auto', ## 'auto' or a block number as int
         }
 
