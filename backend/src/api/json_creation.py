@@ -307,8 +307,8 @@ class JSONCreation():
 
         chains_dict = {} 
         for chain in adapter_multi_mapping:
-            if chain == 'zksync_era':
-                continue
+            # if chain.origin_key == 'zksync_era':
+            #     continue
             chains_dict[chain.origin_key] = self.generate_userbase_dict(df, chain, aggregation)
         return chains_dict
     
@@ -378,7 +378,9 @@ class JSONCreation():
                 if origin_key == 'ethereum' and metric == 'tvl':
                     continue
                 if origin_key == 'zksync_era' and metric == 'stables_mcap':
-                    continue
+                   continue
+                # if origin_key == 'zksync_era':
+                #     continue
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]

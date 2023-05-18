@@ -172,6 +172,17 @@ sql_q= {
         block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
         AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
+        UNION ALL
+        
+        SELECT 
+            DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+            from_address as address,
+            'zksync_era' as chain
+        FROM zksync_era_tx
+        WHERE
+        block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+        AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+
     -- IMX   
     UNION ALL
         

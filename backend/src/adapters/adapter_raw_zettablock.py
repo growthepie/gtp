@@ -78,7 +78,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                     block_start_val = dfMain.block_number.max()
 
                 if dfMain.shape[0] > 80000:
-                    print(f'...loaded more than 100k rows for {query.key}, trigger upload')
+                    print(f'...loaded more than 80k rows for {query.key}, trigger upload')
                     self.upload(dfMain, query)
                     dfMain = pd.DataFrame()
             
@@ -113,6 +113,10 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
         df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'receipt_contract_address', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price', 'type']]
         df['tx_hash'] = df['tx_hash'].str.replace('"', '', regex=False)
         df['tx_hash'] = df['tx_hash'].str.replace('[', '', regex=False) 
+
+        ## prepare hex values for upsert
+        for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
+            df[col] = df[col].str.replace('0x', '\\x', regex=False)
 
         ## upsert data to db
         df.set_index('tx_hash', inplace=True)
