@@ -34,7 +34,24 @@ def etl():
             'api_key' : os.getenv("ZETTABLOCK_API")
         }
         load_params = {
-            'keys' : ['polygon_zkevm_tx', 'zksync_era_tx'],
+            'keys' : ['polygon_zkevm_tx'],
+            'block_start' : 'auto', ## 'auto' or a block number as int
+        }
+
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterZettaBlockRaw(adapter_params, db_connector)
+        # extract & load incremmentally
+        df = ad.extract_raw(load_params)
+
+    @task()
+    def run_zksync_era():
+        import os
+        adapter_params = {
+            'api_key' : os.getenv("ZETTABLOCK_API")
+        }
+        load_params = {
+            'keys' : ['zksync_era_tx'],
             'block_start' : 'auto', ## 'auto' or a block number as int
         }
 
@@ -45,5 +62,6 @@ def etl():
         df = ad.extract_raw(load_params)
 
     run_polygon_zkevm()
+    run_zksync_era()
 
 etl()

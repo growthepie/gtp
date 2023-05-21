@@ -77,8 +77,8 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                     dfMain = pd.concat([dfMain, df])
                     block_start_val = dfMain.block_number.max()
 
-                if dfMain.shape[0] > 80000:
-                    print(f'...loaded more than 80k rows for {query.key}, trigger upload')
+                if dfMain.shape[0] > 50000:
+                    print(f'...loaded more than 50k rows for {query.key}, trigger upload')
                     self.upload(dfMain, query)
                     dfMain = pd.DataFrame()
             
@@ -86,8 +86,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
             if dfMain.shape[0] > 0:
                 self.upload(dfMain, query)
 
-            print(f'DONE loading raw data for {query.key}')                  
-            
+            print(f'DONE loading raw data for {query.key}')    
             
     
     # check response until success or failed is returned
@@ -111,12 +110,17 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
         ## prep data for upsert
         df.rename(columns={'hash': "tx_hash", "from": "from_address", "to": "to_address", "value": "eth_value", "block_time":"block_timestamp"}, inplace=True, errors="ignore")
         df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'receipt_contract_address', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price', 'type']]
+        
         df['tx_hash'] = df['tx_hash'].str.replace('"', '', regex=False)
         df['tx_hash'] = df['tx_hash'].str.replace('[', '', regex=False) 
 
         ## prepare hex values for upsert
         for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
-            df[col] = df[col].str.replace('0x', '\\x', regex=False)
+            ## check if column is type string
+            if df[col].dtype == 'string':
+                df[col] = df[col].str.replace('0x', '\\x', regex=False)
+            else:
+                print(f'column {col} is not of type string, but {df[col].dtype}')
 
         ## upsert data to db
         df.set_index('tx_hash', inplace=True)
