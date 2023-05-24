@@ -341,8 +341,8 @@ class JSONCreation():
             for metric in self.metrics:
                 if origin_key == 'ethereum' and metric == 'tvl':
                     continue
-                if origin_key == 'zksync_era' and metric == 'stables_mcap':
-                    continue
+                # if origin_key == 'zksync_era' and metric == 'stables_mcap':
+                #     continue
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]
@@ -379,8 +379,8 @@ class JSONCreation():
                 origin_key = chain.origin_key
                 if origin_key == 'ethereum' and metric == 'tvl':
                     continue
-                if origin_key == 'zksync_era' and metric == 'stables_mcap':
-                   continue
+                # if origin_key == 'zksync_era' and metric == 'stables_mcap':
+                #    continue
                 # if origin_key == 'zksync_era':
                 #     continue
                 mk_list = self.generate_daily_list(df, metric, origin_key)

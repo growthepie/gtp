@@ -415,7 +415,7 @@ flipside_queries = [
 
     ,FlipsideQuery(metric_key = "stables_mcap", origin_key = "imx", sql=flipside_sql["imx_stables"], query_parameters={"Days": 7})
     ,FlipsideQuery(metric_key = "stables_mcap", origin_key = "polygon_zkevm", sql=flipside_sql["polygonzkevm_stables"], query_parameters={"Days": 7})
-    #,FlipsideQuery(metric_key = "stables_mcap", origin_key = "zksync_era", sql=flipside_sql["zksyncera_stables"], query_parameters={"Days": 7})
+    ,FlipsideQuery(metric_key = "stables_mcap", origin_key = "zksync_era", sql=flipside_sql["zksyncera_stables"], query_parameters={"Days": 7})
 ]
 
 
