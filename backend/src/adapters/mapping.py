@@ -89,7 +89,7 @@ adapter_mapping = [
         ,launch_date='2021-03-26'
         ,website='https://www.immutable.com/'
         ,block_explorer='https://immutascan.io/'
-        ,twitter='https://twitter.com/immutableX'
+        ,twitter='https://twitter.com/immutable'
 
         ,coingecko_naming="immutable-x"
         #,defillama_stablecoin=''  ## stables via Flipside
