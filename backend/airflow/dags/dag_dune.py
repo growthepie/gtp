@@ -7,7 +7,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
 from src.db_connector import DbConnector
-from src.adapters.adapter_flipside import AdapterFlipside
+from src.adapters.adapter_dune import AdapterDune
 
 
 default_args = {
@@ -20,9 +20,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_flipside_v01',
+    dag_id = 'dag_dune_v01',
     description = 'Load aggregates metrics such as txcount, daa, fees paid, stablecoin mcap.',
-    start_date = datetime(2023,4,24),
+    start_date = datetime(2023,6,5),
     schedule = '05 02 * * *'
 )
 
@@ -31,17 +31,16 @@ def etl():
     def run_aggregates():
         import os
         adapter_params = {
-            'api_key' : os.getenv("FLIPSIDE_API")
+            'api_key' : os.getenv("DUNE_API")
         }
         load_params = {
-            'origin_keys' : None,
-            'metric_keys' : None,
+            'query_names' : None,
             'days' : 'auto',
         }
 
        # initialize adapter
         db_connector = DbConnector()
-        ad = AdapterFlipside(adapter_params, db_connector)
+        ad = AdapterDune(adapter_params, db_connector)
         # extract
         df = ad.extract(load_params)
         # load

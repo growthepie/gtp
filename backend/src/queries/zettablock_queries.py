@@ -28,6 +28,11 @@ zettablock_queries = [
     ,ZettablockQuery(metric_key = "txcount", origin_key = "zksync_era", query_id='qu17-f35b45c1-5f98-44e0-bcc7-c250739cf908', query_parameters={"Days": 7})
     ,ZettablockQuery(metric_key = "daa", origin_key = "zksync_era", query_id='qu17-99e3c55c-2487-4d67-95fc-5d5500e917b9', query_parameters={"Days": 7})
     ,ZettablockQuery(metric_key = "fees_paid_usd", origin_key = "zksync_era", query_id='qu17-0fca0e9d-d3d8-43ae-871d-80535e7af454', query_parameters={"Days": 7})
+
+    # ## Arbitrum
+    # ,ZettablockQuery(metric_key = "txcount", origin_key = "arbitrum", query_id='qu2-d9bfa3ab-9a7f-4195-b5b7-926657031cf7', query_parameters={"Days": 7})
+    # ,ZettablockQuery(metric_key = "daa", origin_key = "arbitrum", query_id='qu2-2bfae4a0-d1e1-4758-9b1e-e7cf21ac34ab', query_parameters={"Days": 7})
+    # ,ZettablockQuery(metric_key = "fees_paid_usd", origin_key = "arbitrum", query_id='qu2-73510541-5904-4763-a33e-601ea2acfd26', query_parameters={"Days": 7})
 ]
 
 zettablock_raws = [
@@ -36,4 +41,7 @@ zettablock_raws = [
 
     ## zkSync era
     ,ZettablockRaw(key = "zksync_era_tx", table_name = "zksync_era_tx", query_id = 'qu17-0d6b9c22-5df6-4f42-9812-3fd6fbfb40db', steps=2000, s3_folder = "zksync_era")
+
+    # ## Arbitrum
+    # ,ZettablockRaw(key = "arbitrum_tx", table_name = "arbitrum_tx", query_id = 'qu2-02900a44-d99f-4807-bdfe-2c1308e311aa', steps=2000, s3_folder = "arbitrum")
 ]

@@ -109,18 +109,31 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
         ## prep data for upsert
         df.rename(columns={'hash': "tx_hash", "from": "from_address", "to": "to_address", "value": "eth_value", "block_time":"block_timestamp"}, inplace=True, errors="ignore")
-        df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'receipt_contract_address', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price', 'type']]
+
+        if query.key in ['polygon_zkevm_tx', 'zksync_era_tx']:
+            df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'receipt_contract_address', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price', 'type']]
+        elif query.key in ['arbitrum_tx']:
+            df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_used']]
+        else:
+            print(f'key {query.key} not found')
+            raise ValueError
         
         df['tx_hash'] = df['tx_hash'].str.replace('"', '', regex=False)
         df['tx_hash'] = df['tx_hash'].str.replace('[', '', regex=False) 
 
         ## prepare hex values for upsert
         for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
-            ## check if column is type string
-            if df[col].dtype == 'string':
-                df[col] = df[col].str.replace('0x', '\\x', regex=False)
-            else:
-                print(f'column {col} is not of type string, but {df[col].dtype}')
+            ## check if colmn is in df
+            if col in df.columns:            
+                ## check if column is type string
+                if df[col].dtype == 'string':
+                    df[col] = df[col].str.replace('0x', '\\x', regex=False)
+                if df[col].dtype == 'object':
+                    ## change type to str
+                    df[col] = df[col].astype('string')
+                    df[col] = df[col].str.replace('0x', '\\x', regex=False)
+                else:
+                    print(f'column {col} is not of type string, but {df[col].dtype}')
 
         ## upsert data to db
         df.set_index('tx_hash', inplace=True)
