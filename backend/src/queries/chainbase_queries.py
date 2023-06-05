@@ -6,29 +6,54 @@ chainbase_sql = {
     'arbitrum_transactions' : 
     """
         select 
-            BLOCK_NUMBER, BLOCK_TIMESTAMP, BLOCK_HASH, TX_HASH, NONCE, POSITION, ORIGIN_FUNCTION_SIGNATURE, FROM_ADDRESS, 
-            TO_ADDRESS, ETH_VALUE, TX_FEE, GAS_PRICE_BID, GAS_PRICE_PAID, GAS_LIMIT, GAS_USED, CUMULATIVE_GAS_USED, INPUT_DATA, STATUS
-        from arbitrum.core.fact_transactions
+            block_number, 
+            block_timestamp, 
+            block_hash, 
+            transaction_hash as tx_hash, 
+            nonce, 
+            transaction_index as "position", 
+            from_address, 
+            to_address, 
+            value as eth_value,
+            (gas_used / POWER(10,18)) * effective_gas_price as tx_fee,
+            gas_price as gas_price_bid, 
+            effective_gas_price as gas_price_paid, 
+            gas as gas_limit, 
+            gas_used, 
+            cumulative_gas_used, 
+            input as input_data, 
+            status
+        from arbitrum.transactions
         where block_number >= {{block_start}}
         and block_number < {{block_end}}
         order by block_number asc
-
     """
 
     # Optimism raw
     ,'optimism_transactions' : 
     """
         select 
-            BLOCK_NUMBER, BLOCK_TIMESTAMP, BLOCK_HASH, TX_HASH, NONCE, POSITION, ORIGIN_FUNCTION_SIGNATURE, FROM_ADDRESS, TO_ADDRESS, ETH_VALUE, TX_FEE, GAS_PRICE, GAS_LIMIT, 
-            GAS_USED, L1_GAS_PRICE, L1_GAS_USED, L1_FEE_SCALAR, L1_SUBMISSION_BATCH_INDEX, L1_SUBMISSION_TX_HASH, L1_STATE_ROOT_BATCH_INDEX, 
-            L1_STATE_ROOT_TX_HASH, CUMULATIVE_GAS_USED, INPUT_DATA, STATUS
-        from optimism.core.fact_transactions
+            block_number, 
+            block_timestamp, 
+            block_hash, 
+            transaction_hash as tx_hash, 
+            nonce, 
+            transaction_index as "position", 
+            from_address, 
+            to_address, 
+            value as eth_value, 
+            -1 as tx_fee,
+            gas_price, 
+            gas as gas_limit,
+            gas_used,
+            cumulative_gas_used,
+            input as input_data,
+            status
+        from optimism.transactions
         where block_number >= {{block_start}}
         and block_number < {{block_end}}
         order by block_number asc
-
     """
-
 }
 
 class ChainbaseObject():
