@@ -47,7 +47,7 @@ adapter_mapping = [
         ,twitter='https://twitter.com/0xPolygon'
 
         ,coingecko_naming="matic-network"
-        #,defillama_stablecoin=''  ## stables via Flipside
+        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='polygonzkevm'
         )
     ,AdapterMapping(
@@ -92,7 +92,7 @@ adapter_mapping = [
         ,twitter='https://twitter.com/immutable'
 
         ,coingecko_naming="immutable-x"
-        #,defillama_stablecoin=''  ## stables via Flipside
+        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='immutablex'
         )
 
@@ -108,7 +108,7 @@ adapter_mapping = [
         ,twitter='https://twitter.com/zksync'
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via ZEtta?
+        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='zksync-era'
     )
 
@@ -117,11 +117,6 @@ adapter_mapping = [
     #     ,coingecko_naming="loopring"
     #     ,defillama_stablecoin='loopring'
     #     ,l2beat_tvl_naming='loopring'
-    #     )
-    # ,AdapterMapping(
-    #     origin_key='zksync_era'
-    #     ,defillama_stablecoin='' ## stables via Flipside
-    #     ,l2beat_tvl_naming='zksync-era'
     #     )
     # ,AdapterMapping(
     #     origin_key='zksync_lite'

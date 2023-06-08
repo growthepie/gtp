@@ -83,5 +83,5 @@ class ChainbaseRaw(ChainbaseObject):
 
 chainbase_raws = [
     ChainbaseRaw(key = 'arbitrum_tx', table_name = "arbitrum_tx", sql=chainbase_sql["arbitrum_transactions"], query_parameters={"block_start": 100000000, "block_end": 100000001}, block_steps=5000, s3_folder="arbitrum")
-    ,ChainbaseRaw(key = 'optimism_tx', table_name = "optimism_tx", sql=chainbase_sql["optimism_transactions"], query_parameters={"block_start": 100000000, "block_end": 100000001}, block_steps=10000, s3_folder="optimism")
+    ,ChainbaseRaw(key = 'optimism_tx', table_name = "optimism_tx", sql=chainbase_sql["optimism_transactions"], query_parameters={"block_start": 100000000, "block_end": 100000001}, block_steps=5000, s3_folder="optimism")
 ]

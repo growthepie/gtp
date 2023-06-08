@@ -80,38 +80,46 @@ class AdapterChainbaseRaw(AbstractAdapterRaw):
                     dfMain = pd.concat([dfMain,df])
                     print(f"... looping through result set for task {task_id}. On page {next_page}. Loaded {dfMain.shape[0]} rows.")
 
+                    if dfMain.shape[0] > 30000:
+                        self.upload_data(dfMain, query)
+                        block_start_val = dfMain.block_number.max()
+                        dfMain = pd.DataFrame()
+
                 print(f"... finished loading task {task_id} for query. Loaded {dfMain.shape[0]} rows.")
 
-                ## change columns block_number to int
-                dfMain['block_number'] = dfMain['block_number'].astype(int)
+                if dfMain.shape[0] > 0:
+                    self.upload_data(dfMain, query)
+                    ## set new block_start
+                    block_start_val = dfMain.block_number.max()
+                    dfMain = pd.DataFrame()
 
-                file_name = f"{query.table_name}_{dfMain.block_number.min()}-{dfMain.block_number.max()}"
+    def upload_data(self, df, query):
+        ## change columns block_number to int
+            df['block_number'] = df['block_number'].astype(int)
 
-                dataframe_to_s3(f'{query.s3_folder}/{file_name}', dfMain)
+            file_name = f"{query.table_name}_{df.block_number.min()}-{df.block_number.max()}"
 
-                ## some df preps
-                if query.key == 'arbitrum_tx':
-                    dfMain = dfMain[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price_bid', 'gas_price_paid']]
-                    # replace '0x' in columns ['to_address', 'tx_hash', 'from_address'] in df with '\x'
-                    dfMain['to_address'] = dfMain['to_address'].str.replace('0x', '\\x', regex=False)
-                    dfMain['tx_hash'] = dfMain['tx_hash'].str.replace('0x', '\\x', regex=False)
-                    dfMain['from_address'] = dfMain['from_address'].str.replace('0x', '\\x', regex=False)
-                elif query.key == 'optimism_tx':
-                    dfMain = dfMain[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_price', 'gas_used']]
-                    # replace '0x' in columns ['to_address', 'tx_hash', 'from_address'] in df with '\x'
-                    dfMain['to_address'] = dfMain['to_address'].str.replace('0x', '\\x', regex=False)
-                    dfMain['tx_hash'] = dfMain['tx_hash'].str.replace('0x', '\\x', regex=False)
-                    dfMain['from_address'] = dfMain['from_address'].str.replace('0x', '\\x', regex=False)
-                elif query.key == 'ethereum_tx':
-                    raise NotImplementedError(f"Query {query.key} not implemented yet")
-                else:
-                    raise NotImplementedError(f"Query {query.key} not implemented yet")
+            dataframe_to_s3(f'{query.s3_folder}/{file_name}', df)
 
-                ## upsert data to db
-                dfMain.set_index('tx_hash', inplace=True)
-                self.db_connector.upsert_table(query.table_name, dfMain)
-                print(f"...upserted {dfMain.shape[0]} rows to {query.table_name} table")
+            ## some df preps
+            if query.key == 'arbitrum_tx':
+                df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price_bid', 'gas_price_paid']]
+                # replace '0x' in columns ['to_address', 'tx_hash', 'from_address'] in df with '\x'
+                df['to_address'] = df['to_address'].str.replace('0x', '\\x', regex=False)
+                df['tx_hash'] = df['tx_hash'].str.replace('0x', '\\x', regex=False)
+                df['from_address'] = df['from_address'].str.replace('0x', '\\x', regex=False)
+            elif query.key == 'optimism_tx':
+                df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_price', 'gas_used']]
+                # replace '0x' in columns ['to_address', 'tx_hash', 'from_address'] in df with '\x'
+                df['to_address'] = df['to_address'].str.replace('0x', '\\x', regex=False)
+                df['tx_hash'] = df['tx_hash'].str.replace('0x', '\\x', regex=False)
+                df['from_address'] = df['from_address'].str.replace('0x', '\\x', regex=False)
+            elif query.key == 'ethereum_tx':
+                raise NotImplementedError(f"Query {query.key} not implemented yet")
+            else:
+                raise NotImplementedError(f"Query {query.key} not implemented yet")
 
-                ## set new block_start
-                block_start_val = dfMain.block_number.max()
-                dfMain = pd.DataFrame()
+            ## upsert data to db
+            df.set_index('tx_hash', inplace=True)
+            self.db_connector.upsert_table(query.table_name, df)
+            print(f"...upserted {df.shape[0]} rows to {query.table_name} table")
