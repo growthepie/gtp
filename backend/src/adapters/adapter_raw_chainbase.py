@@ -72,7 +72,7 @@ class AdapterChainbaseRaw(AbstractAdapterRaw):
 
                 ## loop through pages and append query results
                 while 'next_page' in res['data']:
-                    time.sleep(1)
+                    time.sleep(2)
                     next_page = res['data']['next_page']
                     payload = json.dumps({"task_id": task_id, "page": next_page})
                     res = api_post_call(self.url, payload=payload, header=self.headers)
