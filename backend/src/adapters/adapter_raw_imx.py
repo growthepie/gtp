@@ -92,7 +92,7 @@ class AdapterRawImx(AbstractAdapterRaw):
                 file_name = f"{main_props['tbl_name']}_{df.order_id.min()}-{df.order_id.max()}"
             else:
                 file_name = f"{main_props['tbl_name']}_{df.transaction_id.min()}-{df.transaction_id.max()}"
-            dataframe_to_s3(f'{load_type}/{file_name}', df)
+            dataframe_to_s3(f'imx/{load_type}/{file_name}', df)
 
             if load_type == 'orders_filled':
                 dfFees = df[['order_id', 'user', 'updated_timestamp', 'fees']]
