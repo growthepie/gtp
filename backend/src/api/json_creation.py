@@ -51,6 +51,12 @@ class JSONCreation():
             #     'units': ['USD', 'ETH'],
             #     'source' : 'Flipside'
             # }
+            ,'txcosts': {
+                'name': 'Transaction costs',
+                'metric_keys': ['txcosts_median_usd', 'txcosts_median_eth'],
+                'units': ['USD', 'ETH'],
+                'avg': True
+            }
         }
 
         #append all values of metric_keys in metrics dict to a list
@@ -341,6 +347,8 @@ class JSONCreation():
             for metric in self.metrics:
                 if origin_key == 'ethereum' and metric == 'tvl':
                     continue
+                if origin_key == 'imx' and metric == 'txcosts':
+                    continue
                 # if origin_key == 'zksync_era' and metric == 'stables_mcap':
                 #     continue
                 mk_list = self.generate_daily_list(df, metric, origin_key)
@@ -378,6 +386,8 @@ class JSONCreation():
             for chain in adapter_mapping:
                 origin_key = chain.origin_key
                 if origin_key == 'ethereum' and metric == 'tvl':
+                    continue
+                if origin_key == 'imx' and metric == 'txcosts':
                     continue
                 # if origin_key == 'zksync_era' and metric == 'stables_mcap':
                 #    continue

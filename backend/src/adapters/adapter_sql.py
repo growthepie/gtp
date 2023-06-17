@@ -31,7 +31,7 @@ class AdapterSQL(AbstractAdapter):
 
         ## aggregation types
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['tvl', 'rent_paid_usd', 'fees_paid_usd', 'stables_mcap']
+            raw_metrics = ['tvl', 'rent_paid_usd', 'fees_paid_usd', 'stables_mcap', 'txcosts_median_usd']
             df = self.db_connector.get_values_in_eth(raw_metrics, days)
         elif load_type == 'metrics':
             origin_keys = load_params['origin_keys']
