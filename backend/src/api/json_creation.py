@@ -141,7 +141,7 @@ class JSONCreation():
                     avg_1 = (list_of_lists[i][1] + list_of_lists[i-1][1] + list_of_lists[i-2][1] + list_of_lists[i-3][1] + list_of_lists[i-4][1] + list_of_lists[i-5][1] + list_of_lists[i-6][1]) / 7
                     avg_2 = (list_of_lists[i][2] + list_of_lists[i-1][2] + list_of_lists[i-2][2] + list_of_lists[i-3][2] + list_of_lists[i-4][2] + list_of_lists[i-5][2] + list_of_lists[i-6][2]) / 7
     
-                    avg_list.append([list_of_lists[i][0], round(avg_1, 4), round(avg_2, 4)])
+                    avg_list.append([list_of_lists[i][0], avg_1, 4, avg_2, 4])
         
         return avg_list
 
