@@ -429,7 +429,16 @@ class JSONCreation():
             print(f'-- DONE -- Metric details export for {metric}')
 
     def create_master_json(self):
-        ## create a master dict
+        exec_string = "SELECT sub_category_key, main_category_name, sub_category_name, main_category_key FROM blockspace_category_mapping"
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+
+        ## create dict with main_category_key as key and main_category_name as value, same for sub_categories
+        main_category_dict = {}
+        sub_category_dict = {}
+        for index, row in df.iterrows():
+            main_category_dict[row['main_category_key']] = row['main_category_name']
+            sub_category_dict[row['sub_category_key']] = row['sub_category_name']
+
         chain_dict = {}
         for chain in adapter_mapping:
             origin_key = chain.origin_key
@@ -447,7 +456,11 @@ class JSONCreation():
         master_dict = {
             'current_version' : self.api_version,
             'chains' : chain_dict,
-            'metrics' : self.metrics
+            'metrics' : self.metrics,
+            'blockspace_categories' : {
+                'main_categories' : main_category_dict,
+                'sub_categories' : sub_category_dict
+            }
         }
 
 
