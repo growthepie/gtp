@@ -3,7 +3,7 @@
 *.pyc
 my_env/
 
-*.ipynb
+nb_gtp_local.ipynb
 backend/output/
 
 
