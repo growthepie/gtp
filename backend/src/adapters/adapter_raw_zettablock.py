@@ -44,11 +44,19 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
             ## get block_start
             if block_start == 'auto':
                 block_start_val = self.db_connector.get_max_block(query.table_name)
-                print(f'Current max block for {query.key} is {block_start_val}')
+                print(f'Current max block for {query.key} in our database is {block_start_val}')
             else:
                 block_start_val = block_start
 
-            ## run this in a loop until no data is returned
+            ## identify current max block
+            max_block_run_id = self.client.trigger_query(query.max_block_query_id)
+            print(f'... finding latest block in ZettaBlock for {query.key} with query_run_id: {max_block_run_id}')
+            time.sleep(3)
+            self.wait_till_query_done(max_block_run_id)
+            block_end = int(self.client.get_query_results(max_block_run_id, single_value=True))
+            print(f'Current max block for {query.key} in ZettaBlock database is {block_end}')
+
+            ## run this in a loop until we reach max_block
             while True:
                 print(f"...start loading raw data for {query.key} with block_start: {block_start_val}")
 
@@ -66,12 +74,16 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                 df = self.client.get_query_results(query.last_run_id)
 
                 ## check if data is returned
-                if df.shape[0] < 1:
-                    print(f'no data with block_start: {block_start_val}')
+                if df.shape[0] == 0:
+                    print(f'...no data returned for {query.key} with block_start: {block_start_val}. Add {query.steps} to block_start and try again')
+                    block_start_val += query.steps
+                elif df.block_number.max() >= block_end:
+                    print(f'reached the end with start: {block_start_val} and end: {df.block_number.max()}')
                     break
                 elif df.block_number.max() == block_start_val:
-                    print(f'no new data with block_start: {block_start_val}')
-                    break
+                    print(f'...loaded {df.shape[0]} rows for {query.key}. No new data though, will add {query.steps} to block_start and try again')
+                    dfMain = pd.concat([dfMain, df])
+                    block_start_val += query.steps
                 else:
                     print(f'...loaded {df.shape[0]} rows for {query.key}')
                     dfMain = pd.concat([dfMain, df])

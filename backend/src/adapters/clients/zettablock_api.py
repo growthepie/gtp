@@ -15,7 +15,7 @@ class ZettaBlock_API():
         }
 
     ## Trigger query and return queryrun id
-    def trigger_query(self, query_id, payload):
+    def trigger_query(self, query_id, payload={}):
 
         query_url = f'{self.base_url}/queries/{query_id}/trigger'
         res = requests.post(query_url, headers=self.header, json=payload)
@@ -36,15 +36,15 @@ class ZettaBlock_API():
         else:
             return False
 
-    def get_query_results(self, queryrun_id, format_json=False):
+    def get_query_results(self, queryrun_id, single_value=False):
         # Fetch result from queryrun id
-        if format_json == False:
+        if single_value == True:
+            queryrun_result_endpoint = f'{self.base_url}/stream/queryruns/{queryrun_id}/result'
+            res = requests.get(queryrun_result_endpoint, headers=self.header)
+            return res.text
+        else: 
             queryrun_result_endpoint = f'{self.base_url}/stream/queryruns/{queryrun_id}/result?includeColumnName=true'
-        else:
-            queryrun_result_endpoint = f'{self.base_url}/stream/queryruns/{queryrun_id}/result?includeColumnName=true&format=json'
-
-        res = requests.get(queryrun_result_endpoint, headers=self.header)
-
-        df = pd.read_csv(io.StringIO(res.text))
-        return df
+            res = requests.get(queryrun_result_endpoint, headers=self.header)
+            df = pd.read_csv(io.StringIO(res.text))
+            return df
 
