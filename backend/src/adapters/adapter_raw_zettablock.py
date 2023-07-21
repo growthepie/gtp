@@ -79,6 +79,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                     block_start_val += query.steps
                 elif df.block_number.max() >= block_end:
                     print(f'reached the end with start: {block_start_val} and end: {df.block_number.max()}')
+                    dfMain = pd.concat([dfMain, df])
                     break
                 elif df.block_number.max() == block_start_val:
                     print(f'...loaded {df.shape[0]} rows for {query.key}. No new data though, will add {query.steps} to block_start and try again')
@@ -121,26 +122,9 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
         ## prep data for upsert
         if query.key == 'polygon_zkevm_tx':
-            df = self.prepare_dataframe_polygon(df)
+            df = self.prepare_dataframe_polygon_zk(df)
         elif query.key == 'zksync_era_tx':            
-            df.rename(columns={'hash': "tx_hash", "from": "from_address", "to": "to_address", "value": "eth_value", "block_time":"block_timestamp"}, inplace=True, errors="ignore")
-            df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'receipt_contract_address', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price', 'type']]
-            df['tx_hash'] = df['tx_hash'].str.replace('"', '', regex=False)
-            df['tx_hash'] = df['tx_hash'].str.replace('[', '', regex=False) 
-
-            ## prepare hex values for upsert
-            for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
-                ## check if colmn is in df
-                if col in df.columns:            
-                    ## check if column is type string
-                    if df[col].dtype == 'string':
-                        df[col] = df[col].str.replace('0x', '\\x', regex=False)
-                    if df[col].dtype == 'object':
-                        ## change type to str
-                        df[col] = df[col].astype('string')
-                        df[col] = df[col].str.replace('0x', '\\x', regex=False)
-                    else:
-                        print(f'column {col} is not of type string, but {df[col].dtype}')
+            df = self.prepare_dataframe_zksync_era(df)
         else:
             print(f'key {query.key} not found')
             raise ValueError        
@@ -151,7 +135,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
         self.db_connector.upsert_table(query.table_name, df)
         print(f"...upserted {df.shape[0]} rows to {query.table_name} table")
 
-    def prepare_dataframe_polygon(self, df):
+    def prepare_dataframe_polygon_zk(self, df):
         # Columns to be used from the dataframe
         cols = ['block_number', 'block_time', 'hash', 'from_address', 'to_address', 'status', 'value', 'gas_limit', 'gas_used', 'gas_price', 'type', 'receipt_contract_address']
 
@@ -169,7 +153,9 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
         # Add native_transfer column True when (input = 0x OR input is empty) and value > 0 then true else false
         df['value'] = df['value'].astype(float) / 1e18
-        df['native_transfer'] = df.apply(lambda x: True if ((x['input'] == '0x' or x['input'] == '') and x['gas_used'] == 21000) else False, axis=1)
+        
+        # Add empty_input column True when input is empty or 0x then true else false
+        df['empty_input'] = df['input'].apply(lambda x: True if (x == '0x' or x == '') else False)
 
         # status column: 1 if status is success, 0 if failed else -1
         df['status'] = df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
@@ -180,7 +166,62 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
         # Handle bytea data type
         for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
             if col in df.columns:
-                df[col] = df[col].str.replace('0x', '\\x', regex=False)
+                if df[col].dtype == 'string':
+                    df[col] = df[col].str.replace('0x', '\\x', regex=False)
+                elif df[col].dtype == 'object':
+                    ## change type to str
+                    df[col] = df[col].astype('string')
+                    df[col] = df[col].str.replace('0x', '\\x', regex=False)
+                else:
+                    print(f'column {col} is not of type string, but {df[col].dtype}')
+            else:
+                print(f"Column {col} not found in dataframe.")
+        
+        # Drop the 'input' column
+        df = df.drop(columns=['input'])
+
+        return df
+    
+
+    def prepare_dataframe_zksync_era(self, df):
+        # Columns to be used from the dataframe
+        cols = ['block_number', 'block_time', 'hash', 'from_address', 'to_address', 'status', 'value', 'gas_limit', 'gas_used', 'gas_price', 'type', 'receipt_contract_address']
+
+        # Filter the dataframe to only include the above columns plus 'input' for calculations
+        df = df.loc[:, cols + ['input']]
+
+        # Rename columns
+        df.rename(columns={'hash': "tx_hash", "block_time":"block_timestamp"}, inplace=True, errors="ignore")
+
+        # Add tx_fee column
+        df['tx_fee'] = df['gas_used'] * df['gas_price']  / 1e18
+
+        # gas_price column: convert to eth
+        df['gas_price'] = df['gas_price'].astype(float) / 1e18
+
+        # value column divide by 1e18 to convert to eth
+        df['value'] = df['value'].astype(float) / 1e18
+
+        # Add empty_input column True when input is empty or 0x then true else false
+        df['empty_input'] = df['input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+        # status column: 1 if status is success, 0 if failed else -1
+        df['status'] = df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+        # Convert block_time to datetime
+        df['block_timestamp'] = pd.to_datetime(df['block_timestamp'])
+
+        # Handle bytea data type
+        for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
+            if col in df.columns:
+                if df[col].dtype == 'string':
+                    df[col] = df[col].str.replace('0x', '\\x', regex=False)
+                elif df[col].dtype == 'object':
+                    ## change type to str
+                    df[col] = df[col].astype('string')
+                    df[col] = df[col].str.replace('0x', '\\x', regex=False)
+                else:
+                    print(f'column {col} is not of type string, but {df[col].dtype}')
             else:
                 print(f"Column {col} not found in dataframe.")
         
