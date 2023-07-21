@@ -131,3 +131,124 @@ class DbConnector:
 
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df['source'].to_list()
+        
+
+        def get_blockspace_contracts(self, chain, days):
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        select
+                                to_address as address,
+                                date_trunc('day', block_timestamp) as date,
+                                sum(tx_fee) as gas_fees_eth,
+                                sum(tx_fee * p.value) as gas_fees_usd,
+                                count(*) as txcount,
+                                count(distinct from_address) as daa,
+                                '{chain}' as origin_key
+                        from {chain}_tx tx 
+                        LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                        where block_timestamp < DATE_TRUNC('day', NOW())
+                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                and empty_input = false -- we don't have to store addresses that received native transfers
+                        group by 1,2
+                        having count(*) > 1
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_blockspace_native_transfers(self, chain, days):
+                ## native transfers: all transactions that have no input data
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        SELECT 
+                                date_trunc('day', block_timestamp) as date,
+                                'native_transfer' as sub_category_key,
+                                '{chain}' as origin_key,
+                                sum(tx_fee) as gas_fees_eth,
+                                sum(tx_fee) * avg(p.value) as gas_fees_usd,
+                                count(*) as txcount,
+                                count(distinct from_address) as daa
+                        FROM {chain}_tx tx 
+                        LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                        where block_timestamp < DATE_TRUNC('day', NOW())
+                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                and empty_input = true
+                        group by 1
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_blockspace_sub_categories(self, chain, days):
+                exec_string = f'''
+                        SELECT 
+                                lower(bl.sub_category_key) as sub_category_key,
+                                '{chain}' as origin_key,
+                                date,
+                                sum(gas_fees_eth) as gas_fees_eth,
+                                sum(gas_fees_usd) as gas_fees_usd,
+                                sum(txcount) as txcount,
+                                sum(daa) as daa
+                        FROM public.blockspace_fact_contract_level cl
+                        inner join blockspace_labels bl on cl.address = bl.address 
+                        where date < DATE_TRUNC('day', NOW())
+                                and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                and bl.origin_key = '{chain}'
+                        group by 1,2,3
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_blockspace_unlabeled(self, chain, days):
+                exec_string = f'''
+                        with labeled_usage as (
+                                SELECT 
+                                        date,
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount
+                                FROM public.blockspace_fact_sub_category_level
+                                where date < DATE_TRUNC('day', NOW())
+                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        and origin_key = '{chain}'
+                                        and sub_category_key <> 'unlabeled'
+                                group by 1
+                        ),
+                        eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        ),
+                        total_usage as (
+                                select 
+                                        date_trunc('day', block_timestamp) as date,
+                                        sum(tx_fee) as gas_fees_eth,
+                                        sum(tx_fee * p.value) as gas_fees_usd, 
+                                        count(*) as txcount
+                                from {chain}_tx tx
+                                left join eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                                where block_timestamp < DATE_TRUNC('day', NOW())
+                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                        group by 1
+                        )
+
+                        select 
+                                t.date,
+                                'unlabeled' as sub_category_key,
+                                '{chain}' as origin_key,
+                                t.gas_fees_eth - l.gas_fees_eth as gas_fees_eth,
+                                t.gas_fees_usd - l.gas_fees_usd as gas_fees_usd,
+                                t.txcount - l.txcount as txcount
+                        from total_usage t
+                        left join labeled_usage l on t.date = l.date
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
