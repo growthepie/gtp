@@ -25,7 +25,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
         keys:list - the name of the table keys to load the data into
         block_start:int - the block where to start loading the data from. Can be set to 'auto'
     """
-    def extract_raw(self, load_params:dict):
+    def extract_raw(self, load_params:dict, if_exists = 'update'):
         ## Set variables
         self.keys = load_params['keys']
         self.block_start = load_params['block_start']
@@ -33,12 +33,12 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
         self.queries_to_load = [x for x in zettablock_raws if x.key in self.keys]
 
         ## Trigger queries
-        df = self.trigger_check_extract_queries(self.queries_to_load, self.block_start)
+        df = self.trigger_check_extract_queries(self.queries_to_load, self.block_start, if_exists)
         return df
 
     ## ----------------- Helper functions --------------------
 
-    def trigger_check_extract_queries(self, queries_to_load, block_start):
+    def trigger_check_extract_queries(self, queries_to_load, block_start, if_exists):
         for query in queries_to_load:            
             dfMain = pd.DataFrame()
             ## get block_start
@@ -92,12 +92,12 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
                 if dfMain.shape[0] > 50000:
                     print(f'...loaded more than 50k rows for {query.key}, trigger upload')
-                    self.upload(dfMain, query)
+                    self.upload(dfMain, query, if_exists)
                     dfMain = pd.DataFrame()
             
             ## upload remaining data
             if dfMain.shape[0] > 0:
-                self.upload(dfMain, query)
+                self.upload(dfMain, query, if_exists)
 
             print(f'DONE loading raw data for {query.key}')    
             
@@ -110,12 +110,12 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                 return True
             time.sleep(2)
 
-    def upload(self, df, query):
+    def upload(self, df, query, if_exists):
         ## drop duplicates based on tx_hash
         df.drop_duplicates(subset=['hash'], inplace=True)
 
         df.value = df.value.astype('string')
-        file_name = f"{query.table_name}_{df.block_number.min()}-{df.block_number.max()}"
+        file_name = f"{query.table_name}_{df.block_number.min()}-{df.block_number.max()}_zettablock"
 
         ## upload to s3
         dataframe_to_s3(f'{query.s3_folder}/{file_name}', df)
@@ -132,7 +132,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
         ## upsert data to db
         df.set_index('tx_hash', inplace=True)
-        self.db_connector.upsert_table(query.table_name, df)
+        self.db_connector.upsert_table(query.table_name, df, if_exists)
         print(f"...upserted {df.shape[0]} rows to {query.table_name} table")
 
     def prepare_dataframe_polygon_zk(self, df):

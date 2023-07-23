@@ -24,7 +24,7 @@ class DbConnector:
                 } 
         )
 
-        def upsert_table(self, table_name:str, df:pd.DataFrame):
+        def upsert_table(self, table_name:str, df:pd.DataFrame, if_exists='update'):
                 batch_size = 100000
                 if df.shape[0] > 0:
                         if df.shape[0] > batch_size:
@@ -33,7 +33,7 @@ class DbConnector:
                                 batch_start = 0
                                 while batch_start < total_length:
                                         batch_end = batch_start + batch_size
-                                        upsert(con=self.engine, df=df.iloc[batch_start:batch_end], table_name=table_name, if_row_exists='update', create_table=False)
+                                        upsert(con=self.engine, df=df.iloc[batch_start:batch_end], table_name=table_name, if_row_exists=if_exists, create_table=False)
                                         print("Batch " + str(batch_end))
                                         batch_start = batch_end
                         else:

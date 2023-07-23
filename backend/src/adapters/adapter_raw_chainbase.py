@@ -97,17 +97,13 @@ class AdapterChainbaseRaw(AbstractAdapterRaw):
         ## change columns block_number to int
             df['block_number'] = df['block_number'].astype(int)
 
-            file_name = f"{query.table_name}_{df.block_number.min()}-{df.block_number.max()}"
+            file_name = f"{query.table_name}_{df.block_number.min()}-{df.block_number.max()}_chainbase"
 
             dataframe_to_s3(f'{query.s3_folder}/{file_name}', df)
 
             ## some df preps
             if query.key == 'arbitrum_tx':
-                df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price_bid', 'gas_price_paid']]
-                # replace '0x' in columns ['to_address', 'tx_hash', 'from_address'] in df with '\x'
-                df['to_address'] = df['to_address'].str.replace('0x', '\\x', regex=False)
-                df['tx_hash'] = df['tx_hash'].str.replace('0x', '\\x', regex=False)
-                df['from_address'] = df['from_address'].str.replace('0x', '\\x', regex=False)
+                df = self.prepare_dataframe_arbitrum(df)
             elif query.key == 'optimism_tx':
                 df = df[['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_price', 'gas_used']]
                 # replace '0x' in columns ['to_address', 'tx_hash', 'from_address'] in df with '\x'
@@ -123,3 +119,37 @@ class AdapterChainbaseRaw(AbstractAdapterRaw):
             df.set_index('tx_hash', inplace=True)
             self.db_connector.upsert_table(query.table_name, df)
             print(f"...upserted {df.shape[0]} rows to {query.table_name} table")
+
+    def prepare_dataframe_arbitrum(self, df):
+        # Columns to be used from the dataframe
+        cols = ['block_number', 'block_timestamp', 'tx_hash', 'from_address', 'to_address', 'tx_fee', 'status', 'eth_value', 'gas_limit', 'gas_used', 'gas_price_paid']
+
+        # Filter the dataframe to only include the above columns plus 'input' for calculations
+        df = df.loc[:, cols + ['input_data']]
+
+        # Rename columns
+        df.rename(columns={'eth_value': "value", "gas_price_paid":"gas_price"}, inplace=True, errors="ignore")
+
+        # Convert block_timestamp to datetime
+        df['block_timestamp'] = pd.to_datetime(df['block_timestamp'])
+
+        # Handle bytea data type
+        for col in ['tx_hash', 'to_address', 'from_address']:
+            if col in df.columns:
+                df[col] = df[col].str.replace('0x', '\\x', regex=False)
+            else:
+                print(f"Column {col} not found in dataframe.")
+
+        # gas_price column: calculate as gas_price_paid / 1e9
+        df['gas_price'] = df['gas_price'].astype(float) / 1e18
+
+        # Add empty_input column True when input is empty or 0x then true else false
+        df['empty_input'] = df['input_data'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+        # status column: 1 if status is success, 0 if failed else -1
+        df['status'] = df['status'].apply(lambda x: 1 if x == '1' else 0 if x == '0' else -1)
+
+        # Drop the 'input' column
+        df = df.drop(columns=['input_data'])
+
+        return df
