@@ -41,7 +41,7 @@ ENABLE_DELETE = True
 # The number of worker nodes you have in Airflow. Will attempt to run this
 # process for however many workers there are so that each worker gets its
 # logs cleared.
-NUMBER_OF_WORKERS = 4
+NUMBER_OF_WORKERS = 2
 DIRECTORIES_TO_DELETE = [BASE_LOG_FOLDER]
 ENABLE_DELETE_CHILD_LOG = Variable.get(
     "airflow_log_cleanup__enable_delete_child_log", "False"
