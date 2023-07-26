@@ -19,7 +19,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_sql_v03',
+    dag_id = 'dag_sql_v04',
     description = 'Run some sql aggregations on database.',
     start_date = datetime(2023,4,24),
     schedule = '00 05 * * *'
@@ -65,7 +65,27 @@ def etl():
         # # load
         ad.load(df)
 
+    @task()
+    def run_blockspace():
+        db_connector = DbConnector()
+
+        adapter_params = {
+        }
+
+        load_params = {
+            'load_type' : 'blockspace', ## usd_to_eth or metrics or blockspace
+            'days' : 'auto', ## days as or auto
+            'origin_keys' : ['arbitrum', 'zksync_era', 'polygon_zkevm'], ## origin_keys as list or None
+        }
+
+        # initialize adapter
+        ad = AdapterSQL(adapter_params, db_connector)
+
+        # extract
+        ad.extract(load_params)
+
     run_usd_to_eth(run_metrics())    
+    run_blockspace()
 
 etl()
 

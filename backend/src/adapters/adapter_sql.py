@@ -3,7 +3,7 @@ import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.queries.sql_queries import sql_queries
-from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis
+from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis, get_missing_days_blockspace
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
 
 ##ToDos: 
@@ -19,7 +19,7 @@ class AdapterSQL(AbstractAdapter):
 
     """
     load_params require the following fields:
-        load_type:str - can be 'usd_to_eth' or 'metrics'
+        load_type:str - can be 'usd_to_eth' or 'metrics' or 'blockspace
         days:str - days of historical data that should be loaded, starting from today.
         origin_keys:list - list of origin_keys
         metric_keys:list - the metrics that should be loaded. If None, all available metrics will be loaded
@@ -51,6 +51,11 @@ class AdapterSQL(AbstractAdapter):
 
             ## Load data
             df = self.extract_data_from_db(self.queries_to_load, days)
+        elif load_type == 'blockspace':
+            origin_keys = load_params['origin_keys']
+            days = load_params['days']
+            self.run_blockspace_queries(origin_keys, days)
+            return None
         else:
             raise ValueError('load_type not supported')
 
@@ -91,3 +96,53 @@ class AdapterSQL(AbstractAdapter):
             dfMain = pd.concat([dfMain, df], ignore_index=True)
             print(f"...query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
         return dfMain
+    
+    def run_blockspace_queries(self, origin_keys, days):
+        for chain in origin_keys:
+            if days == 'auto':
+                days = get_missing_days_blockspace(self.db_connector, chain)
+            else:
+                days = days
+
+            ## aggregate contract data
+            print(f"...aggregating contract data for {chain} and last {days} days...")
+            df = self.db_connector.get_blockspace_contracts(chain, days)
+            df.set_index(['address', 'date', 'origin_key'], inplace=True)
+
+            print(f"...upserting contract data for {chain}. Total rows: {df.shape[0]}...")
+            self.db_connector.upsert_table('blockspace_fact_contract_level', df)
+
+            ## aggregate native transfers
+            print(f"...aggregating native_transfers for {chain} and last {days} days...")
+            df = self.db_connector.get_blockspace_native_transfers(chain, days)
+            df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+
+            print(f"...upserting native_transfers for {chain}. Total rows: {df.shape[0]}...")
+            self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+
+            ## aggregate contract deployments
+            print(f"...aggregating smart_contract_deployments for {chain} and last {days} days...")
+            df = self.db_connector.get_blockspace_contract_deplyments(chain, days)
+            df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+
+            print(f"...upserting smart_contract_deployments for {chain}. Total rows: {df.shape[0]}...")
+            self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+
+            # ALL below needs to be retriggerd when mapping changes (e.g. new addresses got labeled or new categories added etc.)
+            ## aggregate by sub categories
+            print(f"...aggregating sub categories for {chain} and last {days} days...")
+            df = self.db_connector.get_blockspace_sub_categories(chain, days)
+            df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+
+            print(f"...upserting sub categories for {chain}. Total rows: {df.shape[0]}...")
+            self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+
+            ## determine unlabeled usage
+            print(f"...aggregating unlabeled usage for {chain} and last {days} days...")
+            df = self.db_connector.get_blockspace_unlabeled(chain, days)
+            df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+
+            print(f"...upserting unlabeled usage for {chain}. Total rows: {df.shape[0]}...")
+            self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+
+            print(F"Finished loading blockspace queries for {chain}")

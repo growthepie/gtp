@@ -6,7 +6,6 @@ my_env/
 nb_gtp_local.ipynb
 backend/output/
 
-
 # Airflow stuff
 airflow.cfg
 webserver_config.py

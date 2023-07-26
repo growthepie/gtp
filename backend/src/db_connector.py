@@ -51,6 +51,15 @@ class DbConnector:
                         val = row['val']
                 return val
         
+        def get_blockspace_max_date(self, origin_key:str):
+                exec_string = f"SELECT MAX(date) as val FROM blockspace_fact_contract_level WHERE origin_key = '{origin_key}';"
+
+                with self.engine.connect() as connection:
+                        result = connection.execute(exec_string)
+                for row in result:
+                        val = row['val']
+                return val
+        
         def get_max_block(self, table_name:str):
                 exec_string = f"SELECT MAX(block_number) as val FROM {table_name};"
 
@@ -154,7 +163,7 @@ class DbConnector:
                         where block_timestamp < DATE_TRUNC('day', NOW())
                                 and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and empty_input = false -- we don't have to store addresses that received native transfers
-                                and to_address <> '' -- filter out contract creations arbitrum, optimism
+                                and to_address <> '' and to_address is not null -- filter out contract creations arbitrum, optimism
                                 and to_address <> '\\x0000000000000000000000000000000000008006' -- filter out contract creations zksync
                         group by 1,2
                         having count(*) > 1
@@ -176,7 +185,7 @@ class DbConnector:
                                 'native_transfer' as sub_category_key,
                                 '{chain}' as origin_key,
                                 sum(tx_fee) as gas_fees_eth,
-                                sum(tx_fee) * avg(p.value) as gas_fees_usd,
+                                sum(tx_fee * p.value) as gas_fees_usd,
                                 count(*) as txcount,
                                 count(distinct from_address) as daa
                         FROM {chain}_tx tx 
@@ -184,6 +193,37 @@ class DbConnector:
                         where block_timestamp < DATE_TRUNC('day', NOW())
                                 and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and empty_input = true
+                        group by 1
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_blockspace_contract_deplyments(self, chain, days):
+                if chain == 'zksync_era':
+                        to_string = "and to_address = '\\x0000000000000000000000000000000000008006'"
+                else:
+                        to_string = "and to_address = '' or to_address is null"
+
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        SELECT 
+                                date_trunc('day', block_timestamp) as date,
+                                'smart_contract_deployment' as sub_category_key,
+                                '{chain}' as origin_key,
+                                sum(tx_fee) as gas_fees_eth,
+                                sum(tx_fee * p.value) as gas_fees_usd,
+                                count(*) as txcount,
+                                count(distinct from_address) as daa
+                        FROM {chain}_tx tx 
+                        LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                        where block_timestamp < DATE_TRUNC('day', NOW())
+                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                {to_string}
                         group by 1
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
@@ -252,5 +292,61 @@ class DbConnector:
                         from total_usage t
                         left join labeled_usage l on t.date = l.date
                 '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        """
+        This function is used to get the top contracts by category for the blockspace dashboard
+        category_type: main_category or sub_category
+        chain: arbitrum, optimism, polygon_zkevm, etc. OR all
+        days: 7, 30, 90, 180, 365
+        
+        """
+        def get_top_contracts_by_category(self, category_type, category, chain, top_by, days):
+                if chain == 'all':
+                        chain_string = ''
+                else:
+                        chain_string = f"and bl.origin_key = '{chain}'"
+
+                if category_type == 'main_category':
+                        category_string = 'bcm.main_category_key'
+                elif category_type == 'sub_category':
+                        category_string = 'bl.sub_category_key'
+                else:
+                        print('invalid category type')
+                        raise ValueError
+                
+                if top_by == 'gas':
+                        top_by_string = 'gas_fees_eth'
+                elif top_by == 'txcount':
+                        top_by_string = 'txcount'
+
+                exec_string = f'''
+                        SELECT 
+                                cl.address,
+                                cl.origin_key,
+                                bl.contract_name,
+                                bl.project_name,
+                                bl.sub_category_key,
+                                bcm.sub_category_name,
+                                bcm.main_category_key,
+                                bcm.main_category_name,
+                                sum(gas_fees_eth) as gas_fees_eth,
+                                sum(gas_fees_usd) as gas_fees_usd,
+                                sum(txcount) as txcount,
+                                sum(daa) as daa
+                        FROM public.blockspace_fact_contract_level cl
+                        inner join blockspace_labels bl on cl.address = bl.address 
+                        inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
+                        where 
+                                date < DATE_TRUNC('day', NOW())
+                                and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                {chain_string}
+                                and lower({category_string}) = lower('{category}')
+                        group by 1,2,3,4,5,6,7,8
+                        order by {top_by_string} desc
+                        limit 20
+                '''
+
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
