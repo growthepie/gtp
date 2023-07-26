@@ -229,6 +229,31 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        def get_blockspace_total(self, chain, days):
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        select 
+                                date_trunc('day', block_timestamp) as date,
+                                'total_usage' as sub_category_key,
+                                '{chain}' as origin_key,
+                                sum(tx_fee) as gas_fees_eth,
+                                sum(tx_fee * p.value) as gas_fees_usd, 
+                                count(*) as txcount,
+                                count(distinct from_address) as daa
+                        from {chain}_tx tx
+                        left join eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                        where block_timestamp < DATE_TRUNC('day', NOW())
+                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                        group by 1
+                        '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         def get_blockspace_sub_categories(self, chain, days):
                 exec_string = f'''
                         SELECT 
@@ -261,25 +286,21 @@ class DbConnector:
                                 where date < DATE_TRUNC('day', NOW())
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         and origin_key = '{chain}'
-                                        and sub_category_key <> 'unlabeled'
+                                        and sub_category_key <> 'unlabeled' and sub_category_key <> 'total_usage'
                                 group by 1
                         ),
-                        eth_price as (
-                                SELECT "date", value
-                                FROM fact_kpis
-                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
-                        ),
                         total_usage as (
-                                select 
-                                        date_trunc('day', block_timestamp) as date,
-                                        sum(tx_fee) as gas_fees_eth,
-                                        sum(tx_fee * p.value) as gas_fees_usd, 
-                                        count(*) as txcount
-                                from {chain}_tx tx
-                                left join eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
-                                where block_timestamp < DATE_TRUNC('day', NOW())
-                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                        group by 1
+                                SELECT 
+                                        date,
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount
+                                FROM public.blockspace_fact_sub_category_level
+                                where date < DATE_TRUNC('day', NOW())
+                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        and origin_key = '{chain}'
+                                        and sub_category_key = 'total_usage'
+                                group by 1
                         )
 
                         select 
@@ -348,5 +369,107 @@ class DbConnector:
                         limit 20
                 '''
 
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_blockspace_imx(self, days):
+                exec_string = f'''
+                         with 
+                                cte_imx_deposits as (
+                                        select 
+                                                date_trunc('day', "timestamp") as day, 
+                                                'bridge' as sub_category_key,
+                                                Count(*) as txcount                    
+                                        from imx_deposits
+                                        WHERE timestamp < date_trunc('day', now())
+                                                AND timestamp >= date_trunc('day',now()) - interval '{days} days'
+                                        group by 1
+                                ),	
+                                cte_imx_mints as (
+                                                select 
+                                                        date_trunc('day', "timestamp") as day, 
+                                                        'erc721' as sub_category_key,
+                                                        Count(*) as txcount 
+                                                from imx_mints
+                                                WHERE timestamp < date_trunc('day', now())
+                                                        AND timestamp >= date_trunc('day',now()) - interval '{days}  days'
+                                                group by 1
+                                        ),    
+                                cte_imx_trades as (
+                                        select 
+                                                date_trunc('day', "timestamp") as day, 
+                                                'nft_marketplace' as sub_category_key,
+                                                Count(*) as txcount                        
+                                        from imx_trades
+                                        WHERE timestamp < date_trunc('day', now())
+                                                AND timestamp >= date_trunc('day',now()) - interval '{days}  days'
+                                        group by 1
+                                ),    
+                                cte_imx_transfers_erc20 as (
+                                        select 
+                                                date_trunc('day', "timestamp") as day,
+                                                'erc20' as sub_category_key,
+                                                Count(*) as txcount
+                                        from imx_transfers
+                                        WHERE timestamp < date_trunc('day', now())
+                                                AND timestamp >= date_trunc('day',now()) - interval '{days}  days'
+                                                and token_type = 'ERC20'
+                                        group by 1
+                                ),
+                                cte_imx_transfers_erc721 as (
+                                        select 
+                                                date_trunc('day', "timestamp") as day,
+                                                'erc721' as sub_category_key,
+                                                Count(*) as txcount
+                                        from imx_transfers
+                                        WHERE timestamp < date_trunc('day', now())
+                                                AND timestamp >= date_trunc('day',now()) - interval '{days} days'
+                                                and token_type = 'ERC721'
+                                        group by 1
+                                ),
+                                cte_imx_transfers_eth as (
+                                        select 
+                                                date_trunc('day', "timestamp") as day,
+                                                'native_transfer' as sub_category_key,
+                                                Count(*) as txcount
+                                        from imx_transfers
+                                        WHERE timestamp < date_trunc('day', now())
+                                                AND timestamp >= date_trunc('day',now()) - interval '{days} days'
+                                                and token_type = 'ETH'
+                                        group by 1
+                                ),
+                                cte_imx_withdrawals as (
+                                        select 
+                                        date_trunc('day', "timestamp") as day, 
+                                        'bridge' as sub_category_key,
+                                        Count(*) as txcount     
+                                        from imx_withdrawals  
+                                        WHERE timestamp < date_trunc('day', now())
+                                                AND timestamp >= date_trunc('day',now()) - interval '{days} days'
+                                        group by 1
+                                ),
+                                unioned as (
+                                        select * from cte_imx_deposits
+                                        union all
+                                        select * from cte_imx_mints
+                                        union all
+                                        select * from cte_imx_withdrawals
+                                        union all
+                                        select * from cte_imx_trades
+                                        union all
+                                        select * from cte_imx_transfers_erc20 
+                                        union all
+                                        select * from cte_imx_transfers_erc721 
+                                        union all
+                                        select * from cte_imx_transfers_eth
+                                )
+                                select 
+                                        day as date, 
+                                        sub_category_key,
+                                        'imx' as origin_key,
+                                        SUM(txcount) as txcount 
+                                from unioned 
+                                group by 1,2
+                        '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
