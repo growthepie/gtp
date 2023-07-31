@@ -265,10 +265,10 @@ class DbConnector:
                                 sum(txcount) as txcount,
                                 sum(daa) as daa
                         FROM public.blockspace_fact_contract_level cl
-                        inner join blockspace_labels bl on cl.address = bl.address 
+                        inner join blockspace_labels bl on cl.address = bl.address
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                and bl.origin_key = '{chain}'
+                                and bl.origin_key = '{chain}' 
                         group by 1,2,3
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
