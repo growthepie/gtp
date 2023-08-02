@@ -319,7 +319,9 @@ class DbConnector:
         """
         This function is used to get the top contracts by category for the blockspace dashboard
         category_type: main_category or sub_category
+        category: the category key (e.g. dex, unlabeled, etc.)
         chain: arbitrum, optimism, polygon_zkevm, etc. OR all
+        top_by: gas or txcount
         days: 7, 30, 90, 180, 365
         
         """
@@ -356,7 +358,7 @@ class DbConnector:
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount,
-                                        sum(daa) as daa
+                                        round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
                                 left join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                                 where 
@@ -383,7 +385,7 @@ class DbConnector:
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount,
-                                        sum(daa) as daa
+                                        round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
                                 inner join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                                 inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
