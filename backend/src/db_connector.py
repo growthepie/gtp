@@ -327,7 +327,7 @@ class DbConnector:
                 if chain == 'all':
                         chain_string = ''
                 else:
-                        chain_string = f"and bl.origin_key = '{chain}'"
+                        chain_string = f"and cl.origin_key = '{chain}'"
 
                 if category_type == 'main_category':
                         category_string = 'bcm.main_category_key'
@@ -342,32 +342,61 @@ class DbConnector:
                 elif top_by == 'txcount':
                         top_by_string = 'txcount'
 
-                exec_string = f'''
-                        SELECT 
-                                cl.address,
-                                cl.origin_key,
-                                bl.contract_name,
-                                bl.project_name,
-                                bl.sub_category_key,
-                                bcm.sub_category_name,
-                                bcm.main_category_key,
-                                bcm.main_category_name,
-                                sum(gas_fees_eth) as gas_fees_eth,
-                                sum(gas_fees_usd) as gas_fees_usd,
-                                sum(txcount) as txcount,
-                                sum(daa) as daa
-                        FROM public.blockspace_fact_contract_level cl
-                        inner join blockspace_labels bl on cl.address = bl.address 
-                        inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
-                        where 
-                                date < DATE_TRUNC('day', NOW())
-                                and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                {chain_string}
-                                and lower({category_string}) = lower('{category}')
-                        group by 1,2,3,4,5,6,7,8
-                        order by {top_by_string} desc
-                        limit 20
-                '''
+                if category == 'unlabeled':
+                        exec_string = f'''
+                                SELECT 
+                                        cl.address,
+                                        cl.origin_key,
+                                        null as contract_name,
+                                        null as project_name,
+                                        null as sub_category_key,
+                                        null as sub_category_name,
+                                        'unlabeled' as main_category_key,
+                                        'Unlabeled' as main_category_name,
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount,
+                                        sum(daa) as daa
+                                FROM public.blockspace_fact_contract_level cl
+                                left join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                where 
+                                        bl.address is null
+                                        and date < DATE_TRUNC('day', NOW())
+                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        {chain_string}
+                                group by 1,2,3,4,5,6,7,8
+                                order by {top_by_string} desc
+                                limit 20
+                        '''
+
+                else:
+                        exec_string = f'''
+                                SELECT 
+                                        cl.address,
+                                        cl.origin_key,
+                                        bl.contract_name,
+                                        bl.project_name,
+                                        bl.sub_category_key,
+                                        bcm.sub_category_name,
+                                        bcm.main_category_key,
+                                        bcm.main_category_name,
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount,
+                                        sum(daa) as daa
+                                FROM public.blockspace_fact_contract_level cl
+                                inner join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
+                                where 
+                                        date < DATE_TRUNC('day', NOW())
+                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        {chain_string}
+                                        and lower({category_string}) = lower('{category}')
+                                group by 1,2,3,4,5,6,7,8
+                                order by {top_by_string} desc
+                                limit 20
+                        '''
+
 
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
