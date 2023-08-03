@@ -52,7 +52,10 @@ class DbConnector:
                 return val
         
         def get_blockspace_max_date(self, origin_key:str):
-                exec_string = f"SELECT MAX(date) as val FROM blockspace_fact_contract_level WHERE origin_key = '{origin_key}';"
+                if origin_key == 'imx':
+                        exec_string = f"SELECT MAX(date) as val FROM blockspace_fact_sub_category_level WHERE origin_key = '{origin_key}';"                        
+                else:
+                        exec_string = f"SELECT MAX(date) as val FROM blockspace_fact_contract_level WHERE origin_key = '{origin_key}';"
 
                 with self.engine.connect() as connection:
                         result = connection.execute(exec_string)

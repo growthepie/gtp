@@ -106,7 +106,7 @@ class AdapterSQL(AbstractAdapter):
 
             if chain == 'imx':
                 print(f"...aggregating imx data for last {days} days...")
-                df = self.db_connector.get_blockspace_imx(1000)
+                df = self.db_connector.get_blockspace_imx(days)
                 df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
 
                 print(f"...upserting imx data . Total rows: {df.shape[0]}...")

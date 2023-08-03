@@ -153,11 +153,11 @@ def get_missing_days_blockspace(db_connector, origin_key):
     last_date = db_connector.get_blockspace_max_date(origin_key)
     if last_date == None:
         days = 9999
-        print(f"No entry detected in blockspace_fact_contract_level for origin_key: {origin_key}. Set days to {days}.")
+        print(f"No blockspace entry detected for origin_key: {origin_key}. Set days to {days}.")
     else:
         delta = datetime.today().date() - last_date
         days = delta.days + 3 #add 5 just for precaution (in case some data was missing etc.)
-        print(f"Last entry in blockspace_fact_contract_level detected for origin_key: {origin_key} is on {last_date}. Set days to {days}.")
+        print(f"Last blockspace entry for origin_key: {origin_key} is on {last_date}. Set days to {days}.")
     return (days) 
 
 ## prepare df for kpis_daily with input df having day and value columns
