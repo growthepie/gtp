@@ -112,6 +112,22 @@ adapter_mapping = [
         ,l2beat_tvl_naming='zksync-era'
     )
 
+    ,AdapterMapping(
+        origin_key="base"
+        ,name = "Base"
+        ,symbol = "-"
+        ,technology = "Optimistic Rollup"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2023-07-13'
+        ,website='https://base.org/'
+        ,block_explorer='https://basescan.org/'
+        ,twitter='https://twitter.com/BuildOnBase'
+
+        #,coingecko_naming="-"
+        #,defillama_stablecoin=''  ## stables via Dune
+        ,l2beat_tvl_naming='base'
+    )
+
     # ,AdapterMapping(
     #     origin_key="loopring"
     #     ,coingecko_naming="loopring"
