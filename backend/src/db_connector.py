@@ -12,7 +12,7 @@ db_host = os.getenv("DB_HOST")
 db_name = os.getenv("DB_DATABASE")
 
 class DbConnector:
-        def __init__(self):
+        def __init__(self, db_user=db_user, db_passwd=db_passwd, db_host=db_host, db_name=db_name):
             self.url = f"postgresql+psycopg2://{db_user}:{db_passwd}@{db_host}/{db_name}"
             self.engine = sqlalchemy.create_engine(
                 self.url,
