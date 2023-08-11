@@ -303,7 +303,7 @@ class AdapterRPCRaw(AbstractAdapterRaw):
         while block_start < block_finish:
             try:
                 ## with batch (ankr)
-                block_end = block_start + 1000
+                block_end = block_start + 300
                 df = self.getTxDataForBlockRangeBatch(self.url, block_start, block_end, threads, batch_size)
 
                 ## replace nan with 0x0 in columns ['l1GasUsed', 'l1GasPrice', 'l1Fee']
