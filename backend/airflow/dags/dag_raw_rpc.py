@@ -49,31 +49,31 @@ def etl():
         # extract
         ad.extract_raw(load_params)
 
-    # @task()
-    # def run_optimism():
-    #     import os
-    #     adapter_params = {
-    #         'rpc': 'ankr',
-    #         'api_key' : os.getenv("ANKR_API"),
-    #         'chain' : 'optimism'
-    #     }
-    #     load_params = {
-    #         'block_start' : 'auto', ## 'auto' or a block number as int
-    #         #'block_start' : 9137631, ## 'auto' or a block number as int
-    #         'batch_size' : 25,
-    #         'threads' : 1
-    #     }
+    @task()
+    def run_optimism():
+        import os
+        adapter_params = {
+            'rpc': 'ankr',
+            'api_key' : os.getenv("ANKR_API"),
+            'chain' : 'optimism'
+        }
+        load_params = {
+            'block_start' : 'auto', ## 'auto' or a block number as int
+            #'block_start' : 9137631, ## 'auto' or a block number as int
+            'batch_size' : 25,
+            'threads' : 1
+        }
 
-    #    # initialize adapter
-    #     db_connector = DbConnector()
-    #     # initialize adapter
-    #     ad = AdapterRPCRaw(adapter_params, db_connector)
-    #     # extract
-    #     ad.extract_raw(load_params)
+       # initialize adapter
+        db_connector = DbConnector()
+        # initialize adapter
+        ad = AdapterRPCRaw(adapter_params, db_connector)
+        # extract
+        ad.extract_raw(load_params)
 
 
 
     run_base()
-    # run_optimism()
+    run_optimism()
 
 etl()
