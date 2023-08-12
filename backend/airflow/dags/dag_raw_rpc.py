@@ -20,7 +20,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_raw_rpc_v01',
+    dag_id = 'dag_raw_rpc_v02',
     description = 'Load raw tx data from rpc providers',
     start_date = datetime(2023,8,11),
     schedule = '00 */4 * * *'
