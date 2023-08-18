@@ -203,9 +203,11 @@ class DbConnector:
         
         def get_blockspace_contract_deplyments(self, chain, days):
                 if chain == 'zksync_era':
-                        to_string = "and to_address = '\\x0000000000000000000000000000000000008006'"
+                        filter_string = "and to_address = '\\x0000000000000000000000000000000000008006'"
+                elif chain == 'polygon_zkevm':
+                        filter_string = "and receipt_contract_address is not null"
                 else:
-                        to_string = "and to_address = '' or to_address is null"
+                        filter_string = "and to_address = '' or to_address is null"
 
                 exec_string = f'''
                         with eth_price as (
@@ -226,7 +228,7 @@ class DbConnector:
                         LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
                         where block_timestamp < DATE_TRUNC('day', NOW())
                                 and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                {to_string}
+                                {filter_string}
                         group by 1
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
