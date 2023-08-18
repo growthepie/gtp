@@ -274,6 +274,7 @@ class DbConnector:
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and bl.origin_key = '{chain}' 
+                                and cl.origin_key = '{chain}'
                         group by 1,2,3
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
@@ -373,7 +374,7 @@ class DbConnector:
                                         {chain_string}
                                 group by 1,2,3,4,5,6,7,8
                                 order by {top_by_string} desc
-                                limit 20
+                                limit 100
                         '''
 
                 else:
@@ -401,7 +402,7 @@ class DbConnector:
                                         and lower({category_string}) = lower('{category}')
                                 group by 1,2,3,4,5,6,7,8
                                 order by {top_by_string} desc
-                                limit 20
+                                limit 100
                         '''
 
 
