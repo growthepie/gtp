@@ -439,6 +439,14 @@ class JSONCreation():
             main_category_dict[row['main_category_key']] = row['main_category_name']
             sub_category_dict[row['sub_category_key']] = row['sub_category_name']
 
+
+        ## create main_category <> sub_category mapping dict
+        df_mapping = df.groupby(['main_category_key']).agg({'sub_category_key': lambda x: list(x)}).reset_index()
+        mapping_dict = {}
+        for index, row in df_mapping.iterrows():
+            mapping_dict[row['main_category_key']] = row['sub_category_key']
+
+        ## create dict with all chain info
         chain_dict = {}
         for chain in adapter_mapping:
             origin_key = chain.origin_key
@@ -459,7 +467,8 @@ class JSONCreation():
             'metrics' : self.metrics,
             'blockspace_categories' : {
                 'main_categories' : main_category_dict,
-                'sub_categories' : sub_category_dict
+                'sub_categories' : sub_category_dict,
+                'mapping' : mapping_dict,
             }
         }
 
