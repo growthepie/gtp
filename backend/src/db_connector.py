@@ -13,6 +13,7 @@ db_name = os.getenv("DB_DATABASE")
 
 class DbConnector:
         def __init__(self, db_user=db_user, db_passwd=db_passwd, db_host=db_host, db_name=db_name):
+            print(f"Connecting to {db_user}@{db_host}")
             self.url = f"postgresql+psycopg2://{db_user}:{db_passwd}@{db_host}/{db_name}"
             self.engine = sqlalchemy.create_engine(
                 self.url,
@@ -21,7 +22,8 @@ class DbConnector:
                         "keepalives_idle": 30,
                         "keepalives_interval": 10,
                         "keepalives_count": 5,
-                } 
+                },
+                pool_size=20, max_overflow=20
         )
 
         def upsert_table(self, table_name:str, df:pd.DataFrame, if_exists='update'):
@@ -331,6 +333,7 @@ class DbConnector:
         
         """
         def get_top_contracts_by_category(self, category_type, category, chain, top_by, days):
+                date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
                 if chain == 'all':
                         chain_string = ''
                 else:
@@ -369,7 +372,7 @@ class DbConnector:
                                 where 
                                         bl.address is null
                                         and date < DATE_TRUNC('day', NOW())
-                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        {date_string}
                                         {chain_string}
                                 group by 1,2,3,4,5,6,7,8
                                 order by {top_by_string} desc
@@ -396,12 +399,12 @@ class DbConnector:
                                 inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
                                 where 
                                         date < DATE_TRUNC('day', NOW())
-                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        {date_string}
                                         {chain_string}
                                         and lower({category_string}) = lower('{category}')
                                 group by 1,2,3,4,5,6,7,8
                                 order by {top_by_string} desc
-                                limit 20
+                                limit 100
                         '''
 
 
