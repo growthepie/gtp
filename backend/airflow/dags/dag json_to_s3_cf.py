@@ -72,10 +72,19 @@ def etl():
         blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         blockspace_json_creator.create_blockspace_overview_json()
 
+    @task()
+    def run_create_blockspace_category_comparison():
+        import os
+        db_connector = DbConnector()
+
+        blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        blockspace_json_creator.create_blockspace_comparison_json()    
+
     run_create_chain_details()
     run_create_metrics_details()
     run_create_landingpage()
     run_create_master()
     run_create_blockspace_overview()
+    run_create_blockspace_category_comparison()
 
 etl()

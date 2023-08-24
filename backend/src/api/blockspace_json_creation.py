@@ -358,8 +358,8 @@ class BlockspaceJSONCreation():
                 # filter the dataframes accordingly, we'll use the chain_totals_df to calculate the gas_fees_share and txcount_share
                 main_category_df = chain_df.loc[(chain_df.main_category_key == main_category_key)]
 
-                #export to csv
-                main_category_df.to_csv(f'output/{self.api_version}/blockspace_overview_daily_{chain_key}_{main_category_key}.csv')
+                # #export to csv
+                # main_category_df.to_csv(f'output/{self.api_version}/blockspace_overview_daily_{chain_key}_{main_category_key}.csv')
 
                 # create dict for each main_category_key
                 chain_dict["daily"][main_category_key] = {
@@ -462,13 +462,13 @@ class BlockspaceJSONCreation():
         return df
 
 
-    def get_comparison_aggregate_data_all(self):
-        data = {}
+    # def get_comparison_aggregate_data_all(self):
+    #     data = {}
 
-        timeframes = [7, 30, 90, 365]
+    #     timeframes = [7, 30, 90, 365]
 
-        for timeframe in timeframes:
-            main_cat_df = self.get_comparison_aggregate_data_day(timeframe)
+    #     for timeframe in timeframes:
+    #         main_cat_df = self.get_comparison_aggregate_data_day(timeframe)
 
 
     def get_comparison_daily_data(self, days, category_type):
