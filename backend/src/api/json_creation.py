@@ -1,3 +1,4 @@
+import os
 import json
 import datetime
 import pandas as pd
@@ -332,6 +333,8 @@ class JSONCreation():
     
     ##### FILE HANDLERS #####
     def save_to_json(self, data, path):
+        #create directory if not exists
+        os.makedirs(os.path.dirname(f'output/{self.api_version}/{path}.json'), exist_ok=True)
         ## save to file
         with open(f'output/{self.api_version}/{path}.json', 'w') as fp:
             json.dump(data, fp)
@@ -374,8 +377,10 @@ class JSONCreation():
                 }
             }
 
-            #self.save_to_json(details_dict, f'chains/{origin_key}')
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id)
+            if self.s3_bucket == None:
+                self.save_to_json(details_dict, f'chains/{origin_key}')
+            else:
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id)
             print(f'-- DONE -- Chain details export for {origin_key}')
 
     def create_metric_details_jsons(self, df):
@@ -424,8 +429,10 @@ class JSONCreation():
                 }
             }
 
-            #self.save_to_json(details_dict, f'metrics/{metric}')
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
+            if self.s3_bucket == None:
+                self.save_to_json(details_dict, f'metrics/{metric}')
+            else:
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
             print(f'-- DONE -- Metric details export for {metric}')
 
     def create_master_json(self):
@@ -472,9 +479,10 @@ class JSONCreation():
             }
         }
 
-
-        #self.save_to_json(master_dict, 'master')
-        upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/master', master_dict, self.cf_distribution_id)
+        if self.s3_bucket == None:
+            self.save_to_json(master_dict, 'master')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/master', master_dict, self.cf_distribution_id)
 
     def create_landingpage_json(self, df):
         landing_dict = {
@@ -495,8 +503,10 @@ class JSONCreation():
                 }
             }
 
-        #self.save_to_json(landing_dict, 'landing_page')
-        upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
+        if self.s3_bucket == None:
+            self.save_to_json(landing_dict, 'landing_page')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
         print(f'-- DONE -- landingpage export')
 
     def create_all_jsons(self):

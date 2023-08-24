@@ -8,6 +8,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from airflow.decorators import dag, task 
 from src.db_connector import DbConnector
 from src.api.json_creation import JSONCreation
+from src.api.blockspace_json_creation import BlockspaceJSONCreation
 
 api_version = "v1"
 
@@ -63,9 +64,18 @@ def etl():
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_master_json()
 
+    @task()
+    def run_create_blockspace_overview():
+        import os
+        db_connector = DbConnector()
+
+        blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        blockspace_json_creator.create_blockspace_overview_json()
+
     run_create_chain_details()
     run_create_metrics_details()
     run_create_landingpage()
     run_create_master()
+    run_create_blockspace_overview()
 
 etl()
