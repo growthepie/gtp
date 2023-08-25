@@ -587,7 +587,7 @@ class BlockspaceJSONCreation():
         }
 
         # get data for each timeframe
-        timeframes = [7, 30, 90, 180, 365, "max"]
+        timeframes = [7, 30, 180, "max"]
 
         # daily data for max timeframe
         sub_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'sub_category')
@@ -628,7 +628,9 @@ class BlockspaceJSONCreation():
                             # .. top contracts
 
                         ],
-                        "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                        #"types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                        "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
+                    
                     },
                     "data": {
                         "types": ["gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
@@ -640,17 +642,28 @@ class BlockspaceJSONCreation():
                 top_contracts_gas = self.db_connector.get_contracts_category_comparison(main_cat, timeframe)
 
                 if top_contracts_gas.shape[0] > 0:
-                    # calculate txcount_share by dividing txcount by total_txcount for the origin_key
-                    top_contracts_gas['txcount_share'] = top_contracts_gas.apply(lambda x: x['txcount'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['txcount'].values[0], axis=1)
+                    # # calculate txcount_share by dividing txcount by total_txcount for the origin_key
+                    # top_contracts_gas['txcount_share'] = top_contracts_gas.apply(lambda x: x['txcount'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['txcount'].values[0], axis=1)
 
-                    # calculate gas_fees_share by dividing gas_fees_eth by total_gas_fees_eth for the origin_key
-                    top_contracts_gas['gas_fees_share'] = top_contracts_gas.apply(lambda x: x['gas_fees_eth'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['gas_fees_eth'].values[0], axis=1)
+                    # # calculate gas_fees_share by dividing gas_fees_eth by total_gas_fees_eth for the origin_key
+                    # top_contracts_gas['gas_fees_share'] = top_contracts_gas.apply(lambda x: x['gas_fees_eth'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['gas_fees_eth'].values[0], axis=1)
 
                     # top_contracts['address] is [b'^', b'h', b'\xbe', b'\x9a', b'S', b'.', b'\... we need to convert it to a string and add 0x to the beginning
                     top_contracts_gas['address'] = top_contracts_gas['address'].apply(lambda x: '0x' + bytes(x).hex())
+                    
+                    ## Trim values (smaller json size)
+                    # for values in columns "gas_fees_usd" keep only 2 decimals
+                    top_contracts_gas['gas_fees_usd'] = top_contracts_gas['gas_fees_usd'].apply(lambda x: round(x, 2))
+                    # # for values in columns  "gas_fees_share", "txcount_share" keep only 4 decimals
+                    # top_contracts_gas['gas_fees_share'] = top_contracts_gas['gas_fees_share'].apply(lambda x: round(x, 4))
+                    # top_contracts_gas['txcount_share'] = top_contracts_gas['txcount_share'].apply(lambda x: round(x, 4))
+                    # for values in columns "gas_fees_eth" keep only 5 decimals
+                    top_contracts_gas['gas_fees_eth'] = top_contracts_gas['gas_fees_eth'].apply(lambda x: round(x, 5))                                        
 
                     # add top contracts to dict
-                    comparison_dict['data'][main_cat]['aggregated'][timeframe_key]['contracts']['data'] = top_contracts_gas[['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "gas_fees_share", "txcount", "txcount_share"]].values.tolist()
+                    #comparison_dict['data'][main_cat]['aggregated'][timeframe_key]['contracts']['data'] = top_contracts_gas[['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "gas_fees_share", "txcount", "txcount_share"]].values.tolist()
+                    comparison_dict['data'][main_cat]['aggregated'][timeframe_key]['contracts']['data'] = top_contracts_gas[['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount"]].values.tolist()
+
 
                 # add aggregate timeframe data for each chain for each main category
                 for chain in main_cat_agg_df['origin_key'].unique():
