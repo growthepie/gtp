@@ -594,7 +594,6 @@ class BlockspaceJSONCreation():
         main_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'main_category')
 
         for timeframe in timeframes:
-            timeframe_totals_df = self.get_comparison_totals_per_chain_by_timeframe(timeframe)
             sub_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'sub_category')
             main_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'main_category')
             
@@ -612,11 +611,14 @@ class BlockspaceJSONCreation():
                             "list": sub_cat_agg_df[sub_cat_agg_df['main_category_key'] == main_cat]['sub_category_key'].unique().tolist() if main_cat in sub_cat_agg_df['main_category_key'].unique() else [],
                         },
                         "daily": {
-                            "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                            #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                            "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
+                            
                             # daily data for each chain
                         },
                         "daily_7d_rolling":{
-                            "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                            #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                            "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                             # daily data for each chain
                         },
                         "type": "main_category"
@@ -681,11 +683,13 @@ class BlockspaceJSONCreation():
                                 # .. keys for timeframes
                             },
                             "daily": {
-                                "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                                #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                                "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                                 # daily data for each chain
                             },
                             "daily_7d_rolling":{
-                                "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                                #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
+                                "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                                 # daily data for each chain
                             },
                             "type": "main_category"
@@ -736,17 +740,30 @@ class BlockspaceJSONCreation():
                 chain_df = main_cat_daily_df[(main_cat_daily_df['origin_key'] == chain) & (main_cat_daily_df['main_category_key'] == main_cat)]
 
                 if chain_df.shape[0] > 0:
-                    # chain_df.sort_values(by=['unix'], inplace=True, ascending=True)
-                    comparison_dict['data'][main_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'gas_fees_share', 'txcount', 'txcount_share']].values.tolist()
+                    ## for values in column 'gas_fees_eth' keep only 5 decimals
+                    chain_df['gas_fees_eth'] = chain_df['gas_fees_eth'].apply(lambda x: round(x, 5))
+                    ## for values in column 'gas_fees_usd' keep only 2 decimals
+                    chain_df['gas_fees_usd'] = chain_df['gas_fees_usd'].apply(lambda x: round(x, 2))
+                    
+                    #comparison_dict['data'][main_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'gas_fees_share', 'txcount', 'txcount_share']].values.tolist()
+                    comparison_dict['data'][main_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'txcount']].values.tolist()
+                    
                     # calculate rolling 7d average
                     chain_df['7d_gas_fees_eth'] = chain_df['gas_fees_eth'].rolling(7).mean()
                     chain_df['7d_gas_fees_usd'] = chain_df['gas_fees_usd'].rolling(7).mean()
-                    chain_df['7d_gas_fees_share'] = chain_df['gas_fees_share'].rolling(7).mean()
+                    #chain_df['7d_gas_fees_share'] = chain_df['gas_fees_share'].rolling(7).mean()
                     chain_df['7d_txcount'] = chain_df['txcount'].rolling(7).mean()
-                    chain_df['7d_txcount_share'] = chain_df['txcount_share'].rolling(7).mean()
+                    #chain_df['7d_txcount_share'] = chain_df['txcount_share'].rolling(7).mean()
                     # drop nan values
                     chain_df.dropna(inplace=True)
-                    comparison_dict['data'][main_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_gas_fees_share', '7d_txcount', '7d_txcount_share']].values.tolist()
+                    
+                    ## for values in column 'gas_fees_eth' keep only 5 decimals
+                    chain_df['7d_gas_fees_eth'] = chain_df['7d_gas_fees_eth'].apply(lambda x: round(x, 5))
+                    ## for values in column 'gas_fees_usd' keep only 2 decimals
+                    chain_df['7d_gas_fees_usd'] = chain_df['7d_gas_fees_usd'].apply(lambda x: round(x, 2))
+                    
+                    #comparison_dict['data'][main_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_gas_fees_share', '7d_txcount', '7d_txcount_share']].values.tolist()
+                    comparison_dict['data'][main_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_txcount']].values.tolist()
 
                     # add daily data for each chain for each sub category of main category
                     for sub_cat in sub_cat_daily_df[sub_cat_daily_df['main_category_key'] == main_cat]['sub_category_key'].unique():
@@ -754,17 +771,30 @@ class BlockspaceJSONCreation():
                         chain_df = sub_cat_daily_df[(sub_cat_daily_df['origin_key'] == chain) & (sub_cat_daily_df['sub_category_key'] == sub_cat)]
                         
                         if chain_df.shape[0] > 0:
-                            # export csv for debugging
-                            comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'gas_fees_share', 'txcount', 'txcount_share']].values.tolist()
+                            ## for values in column 'gas_fees_eth' keep only 5 decimals
+                            chain_df['gas_fees_eth'] = chain_df['gas_fees_eth'].apply(lambda x: round(x, 5))
+                            ## for values in column 'gas_fees_usd' keep only 2 decimals
+                            chain_df['gas_fees_usd'] = chain_df['gas_fees_usd'].apply(lambda x: round(x, 2))
+
+                            #comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'gas_fees_share', 'txcount', 'txcount_share']].values.tolist()
+                            comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'txcount']].values.tolist()
+                            
                             # calculate rolling 7d average
                             chain_df['7d_gas_fees_eth'] = chain_df['gas_fees_eth'].rolling(7).mean()
                             chain_df['7d_gas_fees_usd'] = chain_df['gas_fees_usd'].rolling(7).mean()
-                            chain_df['7d_gas_fees_share'] = chain_df['gas_fees_share'].rolling(7).mean()
+                            #chain_df['7d_gas_fees_share'] = chain_df['gas_fees_share'].rolling(7).mean()
                             chain_df['7d_txcount'] = chain_df['txcount'].rolling(7).mean()
-                            chain_df['7d_txcount_share'] = chain_df['txcount_share'].rolling(7).mean()
+                            #chain_df['7d_txcount_share'] = chain_df['txcount_share'].rolling(7).mean()
                             # drop nan values
                             chain_df.dropna(inplace=True)
-                            comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_gas_fees_share', '7d_txcount', '7d_txcount_share']].values.tolist()
+
+                            ## for values in column 'gas_fees_eth' keep only 5 decimals
+                            chain_df['7d_gas_fees_eth'] = chain_df['7d_gas_fees_eth'].apply(lambda x: round(x, 5))
+                            ## for values in column 'gas_fees_usd' keep only 2 decimals
+                            chain_df['7d_gas_fees_usd'] = chain_df['7d_gas_fees_usd'].apply(lambda x: round(x, 2))
+
+                            #comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_gas_fees_share', '7d_txcount', '7d_txcount_share']].values.tolist()
+                            comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_txcount']].values.tolist()
 
         if self.s3_bucket == None:
             self.save_to_json(comparison_dict, f'blockspace/category_comparison')
