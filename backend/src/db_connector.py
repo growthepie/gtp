@@ -331,7 +331,7 @@ class DbConnector:
         chain: arbitrum, optimism, polygon_zkevm, etc. OR all
         top_by: gas or txcount
         days: 7, 30, 90, 180, 365
-        
+        @TODO technically this method can be simplified because it is only used for blockspace overview
         """
         def get_top_contracts_by_category(self, category_type, category, chain, top_by, days):
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
@@ -409,6 +409,60 @@ class DbConnector:
                         '''
 
 
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        """
+        special function for the blockspace category comparison dashboard
+        it returns the top 50 contracts by gas fees for the given main category
+        and the top 10 contracts by gas fees for each sub category in the main category
+        
+        """
+        def get_contracts_category_comparison(self, main_category, days):
+                date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
+                exec_string = f'''
+                        with top_contracts as (
+                                SELECT 
+                                        cl.address,
+                                        cl.origin_key,
+                                        bl.contract_name,
+                                        bl.project_name,
+                                        bl.sub_category_key,
+                                        bcm.sub_category_name,
+                                        bcm.main_category_key,
+                                        bcm.main_category_name,
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount,
+                                        round(avg(daa)) as daa
+                                FROM public.blockspace_fact_contract_level cl
+                                inner join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
+                                where 
+                                        date < DATE_TRUNC('day', NOW())
+                                        {date_string}
+                                        and bcm.main_category_key = lower('{main_category}')
+                                group by 1,2,3,4,5,6,7,8
+                                order by gas_fees_eth  desc
+                                ),
+                                
+                        top_contracts_sub_category_and_origin_key as (
+                                SELECT
+                                address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
+                                FROM (
+                                SELECT
+                                ROW_NUMBER() OVER (PARTITION BY sub_category_key, origin_key ORDER BY gas_fees_eth) AS r,
+                                t.*
+                                FROM
+                                top_contracts t) x
+                                WHERE
+                                x.r <= 10
+                                )
+                                
+                        select * from (select * from top_contracts order by gas_fees_eth desc limit 50) a
+                        union
+                        select * from top_contracts_sub_category_and_origin_key
+                '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
