@@ -22,7 +22,7 @@ default_args = {
     dag_id = 'dag_sql_v04',
     description = 'Run some sql aggregations on database.',
     start_date = datetime(2023,4,24),
-    schedule = '00 05 * * *'
+    schedule = '00 04 * * *'
 )
 
 def etl():

@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_raw_chainbase_v02',
     description = 'Load raw arbitrum transaction data',
     start_date = datetime(2023,6,5),
-    schedule = '00 03 * * *'
+    schedule = '30 */3 * * *'
 )
 
 def etl():

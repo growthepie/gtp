@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_raw_rpc_v02',
     description = 'Load raw tx data from rpc providers',
     start_date = datetime(2023,8,11),
-    schedule = '00 */4 * * *'
+    schedule = '00 */3 * * *'
 )
 
 def etl():
