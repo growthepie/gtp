@@ -46,12 +46,18 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True
             }
-            # ,'rent_paid': {
-            #     'name': 'Rent paid',
-            #     'metric_keys': ['rent_paid_usd', 'rent_paid_eth'],
-            #     'units': ['USD', 'ETH'],
-            #     'source' : 'Flipside'
-            # }
+            ,'rent_paid': {
+                'name': 'Rent paid to L1',
+                'metric_keys': ['rent_paid_usd', 'rent_paid_eth'],
+                'units': ['USD', 'ETH'],
+                'avg': True
+            }
+            ,'profit': {
+                'name': 'Profit',
+                'metric_keys': ['profit_usd', 'profit_eth'],
+                'units': ['USD', 'ETH'],
+                'avg': True
+            }
             ,'txcosts': {
                 'name': 'Transaction costs',
                 'metric_keys': ['txcosts_median_usd', 'txcosts_median_eth'],
@@ -348,10 +354,11 @@ class JSONCreation():
             origin_key = chain.origin_key
             metrics_dict = {}
             for metric in self.metrics:
-                if origin_key == 'ethereum' and metric == 'tvl':
+                if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                     continue
-                if origin_key == 'imx' and metric == 'txcosts':
+                if origin_key == 'imx' and metric in ['txcosts', 'rent_paid', 'profit']:
                     continue
+                
                 # if origin_key == 'zksync_era' and metric == 'stables_mcap':
                 #     continue
                 mk_list = self.generate_daily_list(df, metric, origin_key)
@@ -390,9 +397,9 @@ class JSONCreation():
             chains_dict = {}    
             for chain in adapter_mapping:
                 origin_key = chain.origin_key
-                if origin_key == 'ethereum' and metric == 'tvl':
+                if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                     continue
-                if origin_key == 'imx' and metric == 'txcosts':
+                if origin_key == 'imx' and metric in ['txcosts', 'rent_paid', 'profit']:
                     continue
                 # if origin_key == 'zksync_era' and metric == 'stables_mcap':
                 #    continue

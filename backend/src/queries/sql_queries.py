@@ -255,6 +255,31 @@ sql_q= {
     GROUP BY 1,2 
     ORDER BY 1 DESC
     """
+
+    ## profit usd
+    , 'profit_usd': """
+        with tmp as (
+        SELECT 
+                date,
+                origin_key,
+                SUM(CASE WHEN metric_key = 'rent_paid_usd' THEN value END) AS rent_paid_usd,
+                SUM(CASE WHEN metric_key = 'fees_paid_usd' THEN value END) AS fees_paid_usd
+        FROM fact_kpis
+        WHERE metric_key = 'rent_paid_usd' or metric_key = 'fees_paid_usd'
+                AND date >= date_trunc('day',now()) - interval '{{Days}} days'
+                AND date < date_trunc('day', now())
+        GROUP BY 1,2
+        )
+
+        SELECT
+                date as day, 
+                origin_key,
+                fees_paid_usd - rent_paid_usd as value 
+        FROM tmp
+        WHERE rent_paid_usd > 0 and fees_paid_usd > 0
+        ORDER BY 1 desc
+
+        """
 }
 
 
@@ -287,6 +312,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "imx", sql=sql_q["imx_daa"], query_parameters={"Days": 7})
     #,SQLQuery(metric_key = "new_addresses", origin_key = "imx", sql=sql_q["ethereum_new_addresses"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "imx", sql=sql_q["imx_fees_paid_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "profit_usd", origin_key = "multi", sql=sql_q["profit_usd"], query_parameters={"Days": 7})
 
     # ,SQLQuery(metric_key = "user_base_daily", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7, "aggregation": "day"})
     ,SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4, "aggregation": "week"})
