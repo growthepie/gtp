@@ -65,6 +65,15 @@ def etl():
         json_creator.create_master_json()
 
     @task()
+    def run_create_fundamentals():
+        import os
+        db_connector = DbConnector()
+
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_all_data()
+        json_creator.create_fundamentals_json()
+
+    @task()
     def run_create_blockspace_overview():
         import os
         db_connector = DbConnector()
@@ -84,6 +93,7 @@ def etl():
     run_create_metrics_details()
     run_create_landingpage()
     run_create_master()
+    run_create_fundamentals()
     run_create_blockspace_overview()
     run_create_blockspace_category_comparison()
 

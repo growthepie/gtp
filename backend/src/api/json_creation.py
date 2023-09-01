@@ -516,9 +516,24 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
         print(f'-- DONE -- landingpage export')
 
+    def create_fundamentals_json(self, df):
+        df = df[['metric_key', 'origin_key', 'date', 'value']]
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        ## filter out metric_keys 'maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa'
+        df = df[~df.metric_key.isin(['maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa'])]
+        ## put dataframe into a json string
+        fundamentals_dict = df.to_dict(orient='records')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fundamentals_dict, 'fundamentals')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals', fundamentals_dict, self.cf_distribution_id)
+
     def create_all_jsons(self):
         df = self.get_all_data()
         self.create_chain_details_jsons(df)
         self.create_metric_details_jsons(df)
         self.create_master_json()
         self.create_landingpage_json(df)
+        self.create_fundamentals_json(df)
