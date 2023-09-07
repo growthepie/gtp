@@ -71,7 +71,7 @@ def etl():
 
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
-        json_creator.create_fundamentals_json()
+        json_creator.create_fundamentals_json(df)
 
     @task()
     def run_create_blockspace_overview():
