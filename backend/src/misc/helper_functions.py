@@ -236,7 +236,8 @@ def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id):
     s3.put_object(
         Bucket=bucket, 
         Key=f'{path_name}.json',
-        Body=details_json
+        Body=details_json,
+        ContentType='application/json'
     )
 
     print(f'... uploaded to {path_name}')
