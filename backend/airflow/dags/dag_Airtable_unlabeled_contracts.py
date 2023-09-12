@@ -7,7 +7,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task
 from src.db_connector import DbConnector
-import misc.airtable_functions as at
+import src.misc.airtable_functions as at
 from eth_utils import to_checksum_address
 
 
@@ -35,16 +35,20 @@ def etl():
     def read_airtable():
         # read current airtable
         df = at.read_all_airtable()
-        df['added_on_time'] = datetime.now()
-        # initialize adapter
-        db_connector = DbConnector()
-        db_connector.upsert_table('blockspace_labels' ,df)
+        if df == False:
+            print("Nothing to upload")
+        else:
+            df['added_on_time'] = datetime.now()
+            df.set_index(['address', 'origin_key'], inplace=True)
+            # initialize db connection
+            db_connector = DbConnector()
+            db_connector.upsert_table('blockspace_labels' ,df)
 
     @task()
     def write_airtable():
         # delete every row in airtable
         at.clear_all_airtable()
-        # initialize adapter
+        # db connection
         db_connector = DbConnector()
         # get top unlabelled contracts
         df = db_connector.get_unlabelled_contracts('10', '7')

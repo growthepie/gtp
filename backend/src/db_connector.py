@@ -592,7 +592,7 @@ class DbConnector:
                                 origin_key 
                         FROM ranked_contracts 
                         WHERE row_num <= {number_of_contracts} 
-                        ORDER BY origin_key, row_num;"
+                        ORDER BY origin_key, row_num
     
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
