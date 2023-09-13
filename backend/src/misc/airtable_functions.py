@@ -32,7 +32,9 @@ def push_to_airtable(df):
 
 
 def clear_all_airtable():
+
     print('Starting to delete all records from Airtable...')
+    
     #get record IDs to delete
     c_ids = [c['id'] for c in at.get('Unlabeled Contracts')['records']]
 
@@ -49,8 +51,8 @@ def read_all_airtable():
     data = pd.DataFrame([c['fields'] for c in at.get('Unlabeled Contracts')['records']])
 
     if 'sub_category_key' not in data.columns:
-        print('nothing labeled here...')
-        return False
+        print('no new labelled contracts found in the airtable.')
+        return
 
     #show only contracts that have been labeled
     data = data[data['sub_category_key'].notnull()]
