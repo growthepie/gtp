@@ -15,7 +15,7 @@ from eth_utils import to_checksum_address
 default_args = {
     'owner' : 'lorenz',
     'retries' : 2,
-    'email' : ['lorenz@growthepie.xyz'],
+    'email' : ['lorenz@growthepie.xyz', 'manish@growthepie.xyz', 'matthias@growthepie.xyz'],
     'email_on_failure': True,
     'retry_delay' : timedelta(minutes=15)
 }
@@ -35,7 +35,7 @@ def etl():
     def read_airtable():
         # read current airtable
         df = at.read_all_airtable()
-        if df == False:
+        if df is None:
             print("Nothing to upload")
         else:
             df['added_on_time'] = datetime.now()
@@ -51,7 +51,7 @@ def etl():
         # db connection
         db_connector = DbConnector()
         # get top unlabelled contracts
-        df = db_connector.get_unlabelled_contracts('10', '7')
+        df = db_connector.get_unlabelled_contracts('20', '7')
         df['address'] = df['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
         # write to airtable
         at.push_to_airtable(df)
