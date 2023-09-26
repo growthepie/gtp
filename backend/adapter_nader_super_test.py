@@ -1,5 +1,5 @@
 import os
-from src.adapters.adapter_nader_super import BaseNodeAdapter
+from src.adapters.adapter_nader_super import NodeAdapter
 from src.db_connector import DbConnector
 adapter_params = {
     'rpc': 'local_node',
@@ -10,8 +10,8 @@ adapter_params = {
 # Initialize DbConnector
 db_connector = DbConnector()
 
-# Initialize BaseNodeAdapter
-adapter = BaseNodeAdapter(adapter_params, db_connector)
+# Initialize NodeAdapter
+adapter = NodeAdapter(adapter_params, db_connector)
 
 # Test database connectivity
 if not adapter.check_db_connection():
@@ -28,7 +28,7 @@ else:
 # Test run method
 load_params = {
     'block_start': 'auto',
-    'batch_size': 1,
-    'threads': 1,
+    'batch_size': 250,
+    'threads': 15,
 }
 adapter.extract_raw(load_params)

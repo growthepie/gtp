@@ -9,7 +9,7 @@ import botocore
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-class BaseNodeAdapter(AbstractAdapterRaw):
+class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("RPC-Raw", adapter_params, db_connector)
         
@@ -201,7 +201,7 @@ class BaseNodeAdapter(AbstractAdapterRaw):
             return
         
         if not self.w3 or not self.w3.is_connected():
-            print("Not connected to a Base node.")
+            print("Not connected to a node.")
             return
 
         latest_block = self.get_latest_block(self.w3)
