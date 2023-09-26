@@ -101,8 +101,10 @@ class BaseNodeAdapter(AbstractAdapterRaw):
             for col in df.columns:
                 if df[col].dtype == 'object':
                     df[col] = df[col].astype('string')
+                    df[col] = df[col].str.encode('utf-8', errors='replace').str.decode('utf-8')
+
                     
-            df.to_parquet(filename+".parquet")
+            df.to_parquet(filename+".parquet", index=False, encoding="utf-8")
             print(f"Saved data for blocks {block_start} to {block_end} to {filename}!")
 
             ## upload to S3 under the chain folder

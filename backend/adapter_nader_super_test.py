@@ -28,7 +28,7 @@ else:
 # Test run method
 load_params = {
     'block_start': 'auto',
-    'batch_size': 250,
-    'threads': 15,
+    'batch_size': 1,
+    'threads': 1,
 }
 adapter.extract_raw(load_params)

@@ -34,10 +34,10 @@ class BaseNodeAdapter(AbstractAdapterRaw):
     def connect_to_node(self):
         w3 = Web3(Web3.HTTPProvider(self.url))
         if w3.is_connected():
-            print("Successfully connected to Base node.")
+            print("Successfully connected to node.")
             return w3
         else:
-            print("Failed to connect to Base node.")
+            print("Failed to connect to node.")
             return None
         
     def connect_to_s3(self):
