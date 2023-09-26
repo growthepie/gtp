@@ -72,40 +72,24 @@ class BaseNodeAdapter(AbstractAdapterRaw):
     
     def fetch_data_for_range(self, w3, block_start, block_end):
         print(f"Fetching data for blocks {block_start} to {block_end}...")
-        all_tx = []
-        all_receipts = []
+        all_transaction_details = []
 
         try:
             # Loop through each block in the range
             for block_num in range(block_start, block_end + 1):
                 print(f"Fetching transactions and receipts for block {block_num}...")
-                block = w3.eth.get_block(block_num)
+                block = w3.eth.get_block(block_num, full_transactions=True)  # Added full_transactions=True
+                
+                # Fetch transaction details for the block using the new function
+                transaction_details = fetch_block_transaction_details(w3, block)
+                
+                all_transaction_details.extend(transaction_details)
 
-                # Get the timestamp for the block
-                timestamp = get_block_timestamp(w3, block_num)
-            
-                # Collect transactions and receipts for this block
-                txs = get_transactions_for_block(w3, block)
-                receipts = get_transaction_receipts_for_block(w3, block)
-            
-                # Add the block timestamp to the transaction DataFrame
-                txs['block_timestamp'] = timestamp
+            # Convert list of dictionaries to DataFrame
+            df = pd.DataFrame(all_transaction_details)
 
-                all_tx.append(txs)
-                all_receipts.append(receipts)
+            return df
 
-            # Concatenate all transactions and receipts dataframes
-            df_tx = pd.concat(all_tx, ignore_index=True)
-            df_receipts = pd.concat(all_receipts, ignore_index=True)
-
-            # Merge the dataframes based on the transaction hash
-            print(f"Merging transactions and receipts from block {block_start} to {block_end}...")
-            merged_df = pd.merge(df_tx, df_receipts, left_on='hash', right_on='transactionHash', how='inner')
-            merged_df['transactionHash'] = merged_df['transactionHash'].apply(lambda x: x.hex() if isinstance(x, bytes) else x)
-            merged_df['hash'] = merged_df['hash'].apply(lambda x: x.hex() if isinstance(x, bytes) else x)
-
-            return merged_df
-        
         except Exception as e:
             print(f"An error occurred: {e}")
             raise e
@@ -143,10 +127,10 @@ class BaseNodeAdapter(AbstractAdapterRaw):
         print("Preprocessing dataframe...")
         # Define a mapping of old columns to new columns
         column_mapping = {
-            'blockNumber_x': 'block_number',
+            'blockNumber': 'block_number',
             'hash': 'tx_hash',
-            'from_x': 'from_address',
-            'to_x': 'to_address',
+            'from': 'from_address',
+            'to': 'to_address',
             'gasPrice': 'gas_price',
             'gas': 'gas_limit',
             'gasUsed': 'gas_used',
@@ -270,36 +254,31 @@ class BaseNodeAdapter(AbstractAdapterRaw):
             
 ## ----------------- Helper functions --------------------
 
-def get_block_timestamp(w3, block_num):
-    block = w3.eth.get_block(block_num)
-    return block.timestamp
-
-def get_transactions_for_block(w3, block):
-    transactions = []
-    for tx_hash in block['transactions']:
-        tx = w3.eth.get_transaction(tx_hash)
-        transactions.append(dict(tx))
+def fetch_block_transaction_details(w3, block):
+    transaction_details = []
+    block_timestamp = block['timestamp']  # Get the block timestamp
     
-    # Convert the list of transactions into a pandas DataFrame
-    df = pd.DataFrame(transactions)
-    return df
-
-def get_transaction_receipts_for_block(w3, block):
-    receipts = []
-    for tx_hash in block['transactions']:
+    for tx in block['transactions']:
+        tx_hash = tx['hash']
         receipt = w3.eth.get_transaction_receipt(tx_hash)
-        # Convert the main receipt AttributeDict to a standard dictionary
-        receipt_dict = dict(receipt)
-
-        # Convert each log entry in the 'logs' field to a standard dictionary
-        receipt_dict['logs'] = [dict(log) for log in receipt['logs']]
-
-        # Append the modified receipt to the list
-        receipts.append(receipt_dict)
-
-    # Convert the list of receipts into a pandas DataFrame
-    df = pd.DataFrame(receipts)
-    return df
+        
+        # Convert the receipt and transaction to dictionary if it is not
+        if not isinstance(receipt, dict):
+            receipt = dict(receipt)
+        if not isinstance(tx, dict):
+            tx = dict(tx)
+        
+        # Merge transaction and receipt dictionaries
+        merged_dict = {**receipt, **tx}
+        
+        # Add or update specific fields
+        merged_dict['hash'] = tx['hash'].hex()
+        merged_dict['block_timestamp'] = block_timestamp
+        
+        # Add the transaction receipt dictionary to the list
+        transaction_details.append(merged_dict)
+        
+    return transaction_details
 
 def delete_local_file(filename):
     try:
