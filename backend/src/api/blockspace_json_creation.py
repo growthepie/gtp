@@ -1,5 +1,5 @@
 import os
-import json
+import simplejson as json
 import datetime
 import pandas as pd
 
@@ -279,7 +279,7 @@ class BlockspaceJSONCreation():
         os.makedirs(os.path.dirname(f'output/{self.api_version}/{path}.json'), exist_ok=True)
         ## save to file
         with open(f'output/{self.api_version}/{path}.json', 'w') as fp:
-            json.dump(data, fp)
+            json.dump(data, fp, ignore_nan=True)
 
     ##### JSON GENERATION METHODS #####
 
