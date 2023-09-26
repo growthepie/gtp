@@ -692,7 +692,7 @@ class BlockspaceJSONCreation():
                                 "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                                 # daily data for each chain
                             },
-                            "type": "main_category"
+                            "type": "sub_category"
                         }
 
                     comparison_dict['data'][main_cat]['subcategories'][sub_cat]['aggregated'][timeframe_key] = {

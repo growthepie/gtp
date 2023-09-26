@@ -349,6 +349,8 @@ class DbConnector:
                         print('invalid category type')
                         raise ValueError
                 
+                category_clause = f"and lower({category_string}) = lower('{category}')" if category != 'all' else ''
+                
                 if top_by == 'gas':
                         top_by_string = 'gas_fees_eth'
                 elif top_by == 'txcount':
@@ -403,7 +405,7 @@ class DbConnector:
                                         date < DATE_TRUNC('day', NOW())
                                         {date_string}
                                         {chain_string}
-                                        and lower({category_string}) = lower('{category}')
+                                        {category_clause}
                                 group by 1,2,3,4,5,6,7,8
                                 order by {top_by_string} desc
                                 limit 100
@@ -412,6 +414,106 @@ class DbConnector:
 
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+
+        """
+        This function is used to get the top contracts by category for the landing page's top 6 contracts section. It returns the top 6 contracts by gas fees for all categories and also returns the change in the top_by metric for the given contract and time period.
+        top_by: gas or txcount
+        days: 1, 7, 30, 90, 180, 365
+        """
+        def get_top_contracts_for_all_chains_with_change(self, top_by, days, limit=6):
+                if top_by == 'gas':
+                        top_by_string = 'gas_fees_eth'
+                elif top_by == 'txcount':
+                        top_by_string = 'txcount'
+                elif top_by == 'daa':
+                        top_by_string = 'daa'
+
+
+                exec_string = f'''
+                        -- get top 6 contracts by gas fees for all chains for the given time period
+                        with top_contracts as (
+                                SELECT
+                                        cl.address,
+                                        cl.origin_key,
+                                        bl.contract_name,
+                                        bl.project_name,
+                                        bl.sub_category_key,
+                                        bcm.sub_category_name,
+                                        bcm.main_category_key,
+                                        bcm.main_category_name,
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount,
+                                        round(avg(daa)) as daa
+                                FROM public.blockspace_fact_contract_level cl
+                                join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
+                                join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key)
+                                where
+                                        date < DATE_TRUNC('day', NOW())
+                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                group by 1,2,3,4,5,6,7,8
+                                order by {top_by_string} desc
+                                limit {limit}
+                        ),
+                        -- get the change in the gas_fees_eth, gas_fees_usd, txcount, and daa for the given contracts for the time period before the selected time period
+                        prev as (
+                                SELECT
+                                        cl.address,
+                                        cl.origin_key,
+                                        bl.contract_name,
+                                        bl.project_name,
+                                        bl.sub_category_key,
+                                        bcm.sub_category_name,
+                                        bcm.main_category_key,
+                                        bcm.main_category_name,
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount,
+                                        round(avg(daa)) as daa
+                                FROM public.blockspace_fact_contract_level cl
+                                join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
+                                join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key)
+                                where
+                                        date < DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days*2} days')
+                                        and cl.address in (select address from top_contracts)
+                                group by 1,2,3,4,5,6,7,8
+                        )
+                        -- join the two tables together to get the change in the top_by metric for the given contracts
+                        select
+                                tc.address,
+                                tc.origin_key,
+                                tc.contract_name,
+                                tc.project_name,
+                                tc.sub_category_key,
+                                tc.sub_category_name,
+                                tc.main_category_key,
+                                tc.main_category_name,
+                                tc.gas_fees_eth,
+                                tc.gas_fees_usd,
+                                tc.txcount,
+                                tc.daa,
+                                tc.gas_fees_eth - p.gas_fees_eth as gas_fees_eth_change,
+                                tc.gas_fees_usd - p.gas_fees_usd as gas_fees_usd_change,
+                                tc.txcount - p.txcount as txcount_change,
+                                tc.daa - p.daa as daa_change,
+                                p.gas_fees_eth as prev_gas_fees_eth,
+                                p.gas_fees_usd as prev_gas_fees_usd,
+                                p.txcount as prev_txcount,
+                                p.daa as prev_daa,
+                                ROUND(((tc.gas_fees_eth - p.gas_fees_eth) / p.gas_fees_eth)::numeric, 4) as gas_fees_eth_change_percent,
+                                ROUND(((tc.gas_fees_usd - p.gas_fees_usd) / p.gas_fees_usd)::numeric, 4) as gas_fees_usd_change_percent,
+                                ROUND(((tc.txcount - p.txcount) / p.txcount)::numeric, 4) as txcount_change_percent,
+                                ROUND(((tc.daa - p.daa) / p.daa)::numeric, 4) as daa_change_percent
+                        from top_contracts tc
+                        left join prev p on tc.address = p.address
+                '''
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+
+                return df
+                
         
         """
         special function for the blockspace category comparison dashboard

@@ -24,9 +24,9 @@ json_creation = JSONCreation(s3_bucket=None, cf_distribution_id=None, db_connect
 blockspace_json_creation = BlockspaceJSONCreation(s3_bucket=None, cf_distribution_id=None, db_connector=db_connector, api_version='v1')
 
 # Create JSONs
-# print('Creating Master, Landing Page, Metrics, and Chains JSONs...')
-# json_creation.create_all_jsons()
+print('Creating Master, Landing Page, Metrics, and Chains JSONs...')
+json_creation.create_all_jsons()
 
 # Create Blockspace JSONs
-print('Creating Blockspace JSONs...')
-blockspace_json_creation.create_all_jsons()
+# print('Creating Blockspace JSONs...')
+# blockspace_json_creation.create_all_jsons()
