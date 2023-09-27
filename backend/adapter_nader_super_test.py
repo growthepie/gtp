@@ -1,5 +1,5 @@
 import os
-from src.adapters.adapter_nader_super import NodeAdapter
+from src.adapters.adapter_raw_gtp import NodeAdapter
 from src.db_connector import DbConnector
 adapter_params = {
     'rpc': 'local_node',
