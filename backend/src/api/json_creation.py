@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 from src.adapters.mapping import adapter_mapping, AdapterMapping
-from src.misc.helper_functions import upload_json_to_cf_s3, convert_df_addresses
+from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
 
 class JSONCreation():
 
@@ -594,7 +594,7 @@ class JSONCreation():
             contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, limit=6)
             # replace NaNs with Nones
             contracts = contracts.replace({np.nan: None})
-            contracts = convert_df_addresses(contracts, ['address'])
+            contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
             
             landing_dict['data']['top_contracts'][f"{days}d"] = {
                 "data": contracts[

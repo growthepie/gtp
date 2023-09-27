@@ -4,7 +4,7 @@ import datetime
 import pandas as pd
 
 from src.adapters.mapping import adapter_mapping, AdapterMapping
-from src.misc.helper_functions import upload_json_to_cf_s3
+from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
 
 class BlockspaceJSONCreation():
 
@@ -315,10 +315,6 @@ class BlockspaceJSONCreation():
             chain_timeframe_overview_dfs = {}
             for timeframe in overview_timeframes:
                 chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([chain_key] if chain_key != 'all_l2s' else chain_keys[:-1], timeframe)
-            
-
-            # print(chain_key)
-            # print(chain_df)
 
             # get the chain_name from the adapter_mapping array
             chain_name = [x.name for x in adapter_mapping if x.origin_key ==
@@ -352,14 +348,9 @@ class BlockspaceJSONCreation():
                 }
             }
 
-            # create dict for each main_category_key
-            # main_category_dict = {}
             for main_category_key in main_category_keys:
                 # filter the dataframes accordingly, we'll use the chain_totals_df to calculate the gas_fees_share and txcount_share
                 main_category_df = chain_df.loc[(chain_df.main_category_key == main_category_key)]
-
-                # #export to csv
-                # main_category_df.to_csv(f'output/{self.api_version}/blockspace_overview_daily_{chain_key}_{main_category_key}.csv')
 
                 # create dict for each main_category_key
                 chain_dict["daily"][main_category_key] = {
@@ -394,8 +385,8 @@ class BlockspaceJSONCreation():
                     chain_arg = chain_key if chain_key != 'all_l2s' else "all"
 
                     top_contracts_gas = self.db_connector.get_top_contracts_by_category('main_category', main_category_key, chain_arg, 'gas', timeframe)
-                    # top_contracts['address] is [b'^', b'h', b'\xbe', b'\x9a', b'S', b'.', b'\... we need to convert it to a string and add 0x to the beginning
-                    top_contracts_gas['address'] = top_contracts_gas['address'].apply(lambda x: '0x' + bytes(x).hex())
+                    # convert address to checksummed string 
+                    top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
 
                     chain_dict["overview"][timeframe_key][main_category_key]['contracts'] = {
                         "data": top_contracts_gas[
@@ -460,16 +451,6 @@ class BlockspaceJSONCreation():
         df.fillna(0, inplace=True)
 
         return df
-
-
-    # def get_comparison_aggregate_data_all(self):
-    #     data = {}
-
-    #     timeframes = [7, 30, 90, 365]
-
-    #     for timeframe in timeframes:
-    #         main_cat_df = self.get_comparison_aggregate_data_day(timeframe)
-
 
     def get_comparison_daily_data(self, days, category_type):
         date_where = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ""
@@ -547,9 +528,6 @@ class BlockspaceJSONCreation():
         # sort by unix timestamp
         df.sort_index(inplace=True, ascending=True)
 
-        # export csv
-        # df.to_csv(f'./blockspace_daily_{days}d.csv', index=False)
-
         return df
 
     def get_comparison_totals_per_chain_by_timeframe(self, timeframe):
@@ -611,13 +589,10 @@ class BlockspaceJSONCreation():
                             "list": sub_cat_agg_df[sub_cat_agg_df['main_category_key'] == main_cat]['sub_category_key'].unique().tolist() if main_cat in sub_cat_agg_df['main_category_key'].unique() else [],
                         },
                         "daily": {
-                            #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
                             "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
-                            
                             # daily data for each chain
                         },
                         "daily_7d_rolling":{
-                            #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
                             "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                             # daily data for each chain
                         },
@@ -630,7 +605,6 @@ class BlockspaceJSONCreation():
                             # .. top contracts
 
                         ],
-                        #"types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
                         "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                     
                     },
@@ -642,28 +616,18 @@ class BlockspaceJSONCreation():
 
                 # get top contracts for main category
                 top_contracts_gas = self.db_connector.get_contracts_category_comparison(main_cat, timeframe)
+                # convert address to checksummed string 
+                top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
 
                 if top_contracts_gas.shape[0] > 0:
-                    # # calculate txcount_share by dividing txcount by total_txcount for the origin_key
-                    # top_contracts_gas['txcount_share'] = top_contracts_gas.apply(lambda x: x['txcount'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['txcount'].values[0], axis=1)
-
-                    # # calculate gas_fees_share by dividing gas_fees_eth by total_gas_fees_eth for the origin_key
-                    # top_contracts_gas['gas_fees_share'] = top_contracts_gas.apply(lambda x: x['gas_fees_eth'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['gas_fees_eth'].values[0], axis=1)
-
-                    # top_contracts['address] is [b'^', b'h', b'\xbe', b'\x9a', b'S', b'.', b'\... we need to convert it to a string and add 0x to the beginning
-                    top_contracts_gas['address'] = top_contracts_gas['address'].apply(lambda x: '0x' + bytes(x).hex())
-                    
                     ## Trim values (smaller json size)
+
                     # for values in columns "gas_fees_usd" keep only 2 decimals
                     top_contracts_gas['gas_fees_usd'] = top_contracts_gas['gas_fees_usd'].apply(lambda x: round(x, 2))
-                    # # for values in columns  "gas_fees_share", "txcount_share" keep only 4 decimals
-                    # top_contracts_gas['gas_fees_share'] = top_contracts_gas['gas_fees_share'].apply(lambda x: round(x, 4))
-                    # top_contracts_gas['txcount_share'] = top_contracts_gas['txcount_share'].apply(lambda x: round(x, 4))
                     # for values in columns "gas_fees_eth" keep only 5 decimals
                     top_contracts_gas['gas_fees_eth'] = top_contracts_gas['gas_fees_eth'].apply(lambda x: round(x, 5))                                        
 
                     # add top contracts to dict
-                    #comparison_dict['data'][main_cat]['aggregated'][timeframe_key]['contracts']['data'] = top_contracts_gas[['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "gas_fees_share", "txcount", "txcount_share"]].values.tolist()
                     comparison_dict['data'][main_cat]['aggregated'][timeframe_key]['contracts']['data'] = top_contracts_gas[['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount"]].values.tolist()
 
 
@@ -683,12 +647,10 @@ class BlockspaceJSONCreation():
                                 # .. keys for timeframes
                             },
                             "daily": {
-                                #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
                                 "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                                 # daily data for each chain
                             },
                             "daily_7d_rolling":{
-                                #"types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
                                 "types": ["unix", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                                 # daily data for each chain
                             },
@@ -696,36 +658,11 @@ class BlockspaceJSONCreation():
                         }
 
                     comparison_dict['data'][main_cat]['subcategories'][sub_cat]['aggregated'][timeframe_key] = {
-                        # "contracts": {
-                        #     "data":[
-                        #         # .. top contracts
-                        #     ],
-                        #     "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
-                        # },
                         "data": {
                             "types": ["gas_fees_absolute_eth", "gas_fees_absolute_usd", "gas_fees_share", "txcount_absolute", "txcount_share"]
                             # .. data for each chain
                         }
                     }
-
-                    # # get top contracts for sub category
-                    # top_contracts_gas = self.db_connector.get_top_contracts_by_category('sub_category', sub_cat, 'all', 'gas', timeframe)
-
-                    # if top_contracts_gas.shape[0] > 0:
-                    #     # calculate txcount_share by dividing txcount by total_txcount for the origin_key
-                    #     top_contracts_gas['txcount_share'] = top_contracts_gas.apply(lambda x: x['txcount'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['txcount'].values[0], axis=1)
-
-                    #     # calculate gas_fees_share by dividing gas_fees_eth by total_gas_fees_eth for the origin_key
-                    #     top_contracts_gas['gas_fees_share'] = top_contracts_gas.apply(lambda x: x['gas_fees_eth'] / timeframe_totals_df[timeframe_totals_df['origin_key'] == x['origin_key']]['gas_fees_eth'].values[0], axis=1)
-                        
-                    #     # top_contracts['address] is [b'^', b'h', b'\xbe', b'\x9a', b'S', b'.', b'\... we need to convert it to a string and add 0x to the beginning
-                    #     top_contracts_gas['address'] = top_contracts_gas['address'].apply(lambda x: '0x' + bytes(x).hex())
-
-                    #     # only keep top 10
-                    #     # top_contracts_gas = top_contracts_gas.head(10)
-
-                    #     # add top contracts to dict
-                    #     comparison_dict['data'][main_cat]['subcategories'][sub_cat]['aggregated'][timeframe_key]['contracts']['data'] = top_contracts_gas[['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "gas_fees_share", "txcount", "txcount_share"]].values.tolist()
 
                     # add aggregate timeframe data for each chain for each sub category
                     for chain in sub_cat_agg_df['origin_key'].unique():
@@ -745,15 +682,13 @@ class BlockspaceJSONCreation():
                     ## for values in column 'gas_fees_usd' keep only 2 decimals
                     chain_df['gas_fees_usd'] = chain_df['gas_fees_usd'].apply(lambda x: round(x, 2))
                     
-                    #comparison_dict['data'][main_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'gas_fees_share', 'txcount', 'txcount_share']].values.tolist()
                     comparison_dict['data'][main_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'txcount']].values.tolist()
                     
                     # calculate rolling 7d average
                     chain_df['7d_gas_fees_eth'] = chain_df['gas_fees_eth'].rolling(7).mean()
                     chain_df['7d_gas_fees_usd'] = chain_df['gas_fees_usd'].rolling(7).mean()
-                    #chain_df['7d_gas_fees_share'] = chain_df['gas_fees_share'].rolling(7).mean()
                     chain_df['7d_txcount'] = chain_df['txcount'].rolling(7).mean()
-                    #chain_df['7d_txcount_share'] = chain_df['txcount_share'].rolling(7).mean()
+
                     # drop nan values
                     chain_df.dropna(inplace=True)
                     
@@ -762,7 +697,6 @@ class BlockspaceJSONCreation():
                     ## for values in column 'gas_fees_usd' keep only 2 decimals
                     chain_df['7d_gas_fees_usd'] = chain_df['7d_gas_fees_usd'].apply(lambda x: round(x, 2))
                     
-                    #comparison_dict['data'][main_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_gas_fees_share', '7d_txcount', '7d_txcount_share']].values.tolist()
                     comparison_dict['data'][main_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_txcount']].values.tolist()
 
                     # add daily data for each chain for each sub category of main category
@@ -776,15 +710,13 @@ class BlockspaceJSONCreation():
                             ## for values in column 'gas_fees_usd' keep only 2 decimals
                             chain_df['gas_fees_usd'] = chain_df['gas_fees_usd'].apply(lambda x: round(x, 2))
 
-                            #comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'gas_fees_share', 'txcount', 'txcount_share']].values.tolist()
                             comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily'][chain] = chain_df[['unix', 'gas_fees_eth', 'gas_fees_usd', 'txcount']].values.tolist()
                             
                             # calculate rolling 7d average
                             chain_df['7d_gas_fees_eth'] = chain_df['gas_fees_eth'].rolling(7).mean()
                             chain_df['7d_gas_fees_usd'] = chain_df['gas_fees_usd'].rolling(7).mean()
-                            #chain_df['7d_gas_fees_share'] = chain_df['gas_fees_share'].rolling(7).mean()
                             chain_df['7d_txcount'] = chain_df['txcount'].rolling(7).mean()
-                            #chain_df['7d_txcount_share'] = chain_df['txcount_share'].rolling(7).mean()
+
                             # drop nan values
                             chain_df.dropna(inplace=True)
 

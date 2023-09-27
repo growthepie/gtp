@@ -28,5 +28,5 @@ print('Creating Master, Landing Page, Metrics, and Chains JSONs...')
 json_creation.create_all_jsons()
 
 # Create Blockspace JSONs
-# print('Creating Blockspace JSONs...')
-# blockspace_json_creation.create_all_jsons()
+print('Creating Blockspace JSONs...')
+blockspace_json_creation.create_all_jsons()

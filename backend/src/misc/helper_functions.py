@@ -176,7 +176,7 @@ def prepare_df_kpis(df, metric_key, origin_key):
         return df
 
 ## convert df address columns to checksummed addresses
-def convert_df_addresses(df, address_cols):
+def db_addresses_to_checksummed_addresses(df, address_cols):
     for col in address_cols:
         df[col] = df[col].apply(lambda x: eth_utils.to_checksum_address(bytes(x)))
     return df
