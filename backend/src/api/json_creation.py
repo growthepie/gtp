@@ -2,9 +2,10 @@ import os
 import simplejson as json
 import datetime
 import pandas as pd
+import numpy as np
 
 from src.adapters.mapping import adapter_mapping, AdapterMapping
-from src.misc.helper_functions import upload_json_to_cf_s3
+from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
 
 class JSONCreation():
 
@@ -20,49 +21,57 @@ class JSONCreation():
                 'name': 'Total value locked (on chain)',
                 'metric_keys': ['tvl', 'tvl_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': False
+                'avg': False,
+                'all_l2s_aggregate': 'sum'
             }
             ,'txcount': {
                 'name': 'Transaction count',
                 'metric_keys': ['txcount'],
                 'units': ['-'],
-                'avg': True
+                'avg': True,
+                'all_l2s_aggregate': 'sum'
             }
             ,'daa': {
                 'name': 'Daily active addresses',
                 'metric_keys': ['daa'],
                 'units': ['-'],
-                'avg': True
+                'avg': True,
+                'aggregate': 'sum'
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin market cap',
                 'metric_keys': ['stables_mcap', 'stables_mcap_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': False
+                'avg': False,
+                'all_l2s_aggregate': 'sum'
             }
             ,'fees': {
                 'name': 'Fees paid',
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': True
+                'avg': True,
+                'all_l2s_aggregate': 'sum'
             }
             ,'rent_paid': {
                 'name': 'Rent paid to L1',
                 'metric_keys': ['rent_paid_usd', 'rent_paid_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': True
+                'avg': True,
+                'all_l2s_aggregate': 'sum'
             }
             ,'profit': {
                 'name': 'Profit',
                 'metric_keys': ['profit_usd', 'profit_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': True
+                'avg': True,
+                'all_l2s_aggregate': 'sum'
             }
             ,'txcosts': {
                 'name': 'Transaction costs',
                 'metric_keys': ['txcosts_median_usd', 'txcosts_median_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': True
+                'avg': True,
+                'all_l2s_aggregate': 'weighted_mean'
             }
         }
 
@@ -337,6 +346,66 @@ class JSONCreation():
         val = (current - previous) / previous 
         return round(val,4)
     
+    ## This method generates a dict containing aggregate daily values for all_l2s (all chains except Ethereum) for a specific metric_id
+    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False):
+        metric = self.metrics[metric_id]
+        mks = metric['metric_keys']
+
+        # filter df for all_l2s (all chains except Ethereum)
+        df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks))]
+        
+        # group by unix and metric_key and sum up the values or calculate the mean (depending on the metric)
+        if metric['all_l2s_aggregate'] == 'sum':
+            df_tmp = df_tmp.groupby(['date', 'unix', 'metric_key']).sum().reset_index()
+        elif metric['all_l2s_aggregate'] == 'weighted_mean':
+            ## calculate weighted mean based on txcount of each chain
+            # get txcount of each chain
+            df_txcount = df.loc[(df.origin_key!='ethereum') & (df.metric_key=='txcount')]
+
+            # merge txcount df with df_tmp
+            df_tmp = df_tmp.merge(df_txcount[['date', 'origin_key', 'value']], on=['date', 'origin_key'], how='left', suffixes=('', '_txcount'))
+
+            # calculate weighted mean by multiplying the value of each chain with the txcount of that chain and then summing up all values and dividing by the sum of all txcounts
+            df_tmp['value'] = df_tmp['value'] * df_tmp['value_txcount']
+            df_tmp = df_tmp.groupby(['date', 'unix', 'metric_key']).sum().reset_index()
+            df_tmp['value'] = df_tmp['value'] / df_tmp['value_txcount']
+
+            # drop value_txcount column
+            df_tmp.drop(columns=['value_txcount'], inplace=True)
+
+        df_tmp = df_tmp.loc[df_tmp.metric_key.isin(mks), ["unix", "value", "metric_key"]].pivot(index='unix', columns='metric_key', values='value').reset_index()
+        df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
+        df_tmp.columns.name = None
+
+        df_tmp = self.df_rename(df_tmp, metric_id, True)
+
+        mk_list = df_tmp.values.tolist()
+
+        if len(self.metrics[metric_id]['units']) == 1:
+            mk_list_int = [[int(i[0]),i[1]] for i in mk_list]
+        elif len(self.metrics[metric_id]['units']) == 2:
+            mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list]
+        else:
+            raise NotImplementedError("Only 1 or 2 units are supported")
+        
+        if rolling_avg == True:
+            mk_list_int = self.create_7d_rolling_avg(mk_list_int)
+        
+        chains_list_no_eth = self.chains_list.copy()
+        chains_list_no_eth.remove('ethereum')
+
+        dict = {
+            "metric_name": self.metrics[metric_id]['name'],
+            "source": self.db_connector.get_metric_sources(metric_id, chains_list_no_eth),
+            "avg": "true",
+            "daily": {
+                "types": df_tmp.columns.to_list(),
+                "data": mk_list_int
+            }
+        }
+
+        return dict
+    
     ##### FILE HANDLERS #####
     def save_to_json(self, data, path):
         #create directory if not exists
@@ -506,8 +575,32 @@ class JSONCreation():
                             "chains": self.generate_chains_userbase_dict(df, 'weekly')
                             }
                         }
-                    }
+                    },
+                "all_l2s": {
+                    "chain_id": "all_l2s",
+                    "chain_name": "All L2s",
+                    "symbol": "-",
+                    "metrics": {}
+                },
+                "top_contracts": {
                 }
+            }
+        }
+
+        for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'txcosts']:
+            landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
+
+        for days in [1,7,30,90,180,365]:
+            contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, limit=6)
+            # replace NaNs with Nones
+            contracts = contracts.replace({np.nan: None})
+            contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
+            
+            landing_dict['data']['top_contracts'][f"{days}d"] = {
+                "data": contracts[
+                    ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+                ].values.tolist(),
+                "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
             }
 
         if self.s3_bucket == None:

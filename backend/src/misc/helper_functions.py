@@ -7,6 +7,7 @@ import unicodedata
 from datetime import datetime
 import boto3
 import os
+import eth_utils
 
 ## API interaction functions
 def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_characters=False, as_json=True):
@@ -173,6 +174,12 @@ def prepare_df_kpis(df, metric_key, origin_key):
         df.drop(df[df.date == today].index, inplace=True, errors='ignore')
         df.value.fillna(0, inplace=True)
         return df
+
+## convert df address columns to checksummed addresses
+def db_addresses_to_checksummed_addresses(df, address_cols):
+    for col in address_cols:
+        df[col] = df[col].apply(lambda x: eth_utils.to_checksum_address(bytes(x)))
+    return df
 
 ## Some simple Adapter print functions
 def clean_params(params:dict):
