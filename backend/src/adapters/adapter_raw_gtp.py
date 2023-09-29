@@ -7,39 +7,37 @@ from src.adapters.abstract_adapters import AbstractAdapterRaw
 from src.misc.helper_functions import print_init, dataframe_to_s3
 import botocore
 import pandas as pd
-from concurrent.futures import ThreadPoolExecutor
-from threading import Lock
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-class BaseNodeAdapter(AbstractAdapterRaw):
+class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("RPC-Raw", adapter_params, db_connector)
         
         self.rpc = adapter_params['rpc']
         self.chain = adapter_params['chain']
         self.url = adapter_params['node_url']
-        self.table_name = f'{self.chain}_tx_nader'    
-                    
+        self.table_name = f'{self.chain}_tx'    
+        #self.table_name = f'{self.chain}_tx_nader'    
         # Initialize Web3 connection
         self.w3 = self.connect_to_node()
         
         # Initialize S3 connection
         self.s3_connection, self.bucket_name = self.connect_to_s3()
-        
-        print_init(self.name, self.adapter_params)
-        
+                
     def extract_raw(self, load_params:dict):
         self.block_start = load_params['block_start']
         self.batch_size = load_params['batch_size']
         self.threads = load_params['threads']
-        self.run_threaded(self.block_start, self.batch_size, self.threads)
+        self.run(self.block_start, self.batch_size, self.threads)
         print(f"FINISHED loading raw tx data for {self.chain}.")
 
     def connect_to_node(self):
         w3 = Web3(Web3.HTTPProvider(self.url))
         if w3.is_connected():
+            print("Successfully connected to node.")
             return w3
         else:
-            print("Failed to connect to Base node.")
+            print("Failed to connect to node.")
             return None
         
     def connect_to_s3(self):
@@ -74,38 +72,23 @@ class BaseNodeAdapter(AbstractAdapterRaw):
     
     def fetch_data_for_range(self, w3, block_start, block_end):
         print(f"Fetching data for blocks {block_start} to {block_end}...")
-        all_tx = []
-        all_receipts = []
+        all_transaction_details = []
 
         try:
             # Loop through each block in the range
             for block_num in range(block_start, block_end + 1):
-                block = w3.eth.get_block(block_num)
+                block = w3.eth.get_block(block_num, full_transactions=True)  # Added full_transactions=True
+                
+                # Fetch transaction details for the block using the new function
+                transaction_details = fetch_block_transaction_details(w3, block)
+                
+                all_transaction_details.extend(transaction_details)
 
-                # Get the timestamp for the block
-                timestamp = get_block_timestamp(w3, block_num)
-            
-                # Collect transactions and receipts for this block
-                txs = get_transactions_for_block(w3, block)
-                receipts = get_transaction_receipts_for_block(w3, block)
-            
-                # Add the block timestamp to the transaction DataFrame
-                txs['block_timestamp'] = timestamp
+            # Convert list of dictionaries to DataFrame
+            df = pd.DataFrame(all_transaction_details)
 
-                all_tx.append(txs)
-                all_receipts.append(receipts)
+            return df
 
-            # Concatenate all transactions and receipts dataframes
-            df_tx = pd.concat(all_tx, ignore_index=True)
-            df_receipts = pd.concat(all_receipts, ignore_index=True)
-
-            # Merge the dataframes based on the transaction hash
-            merged_df = pd.merge(df_tx, df_receipts, left_on='hash', right_on='transactionHash', how='inner')
-            merged_df['transactionHash'] = merged_df['transactionHash'].apply(lambda x: x.hex() if isinstance(x, bytes) else x)
-            merged_df['hash'] = merged_df['hash'].apply(lambda x: x.hex() if isinstance(x, bytes) else x)
-
-            return merged_df
-        
         except Exception as e:
             print(f"An error occurred: {e}")
             raise e
@@ -124,8 +107,10 @@ class BaseNodeAdapter(AbstractAdapterRaw):
             dataframe_to_s3(f'{file_key}', df)
             # Check if the file exists in S3 and delete the local file if it does
             if s3_file_exists(self.s3_connection, self.bucket_name, file_key+".parquet"):
+                print(f"File {file_key} uploaded to S3 bucket {self.bucket_name}. Deleting local file...")
                 delete_local_file(filename+".parquet")
             else:
+                print(f"File {file_key} not found in S3 bucket {self.bucket_name}. Local file not deleted.")
                 raise Exception(f"File {file_key} not uploaded to S3 bucket {self.bucket_name}. Stopping execution.")
     
     def prep_dataframe(self, df):
@@ -137,10 +122,10 @@ class BaseNodeAdapter(AbstractAdapterRaw):
 
         # Define a mapping of old columns to new columns
         column_mapping = {
-            'blockNumber_x': 'block_number',
+            'blockNumber': 'block_number',
             'hash': 'tx_hash',
-            'from_x': 'from_address',
-            'to_x': 'to_address',
+            'from': 'from_address',
+            'to': 'to_address',
             'gasPrice': 'gas_price',
             'gas': 'gas_limit',
             'gasUsed': 'gas_used',
@@ -206,8 +191,7 @@ class BaseNodeAdapter(AbstractAdapterRaw):
 
         return filtered_df    
        
-    def run_threaded(self, block_start, batch_size, threads):
-        
+    def run(self, block_start, batch_size, threads):
         if not self.check_db_connection():
             print("Database is not connected.")
             return
@@ -217,7 +201,7 @@ class BaseNodeAdapter(AbstractAdapterRaw):
             return
         
         if not self.w3 or not self.w3.is_connected():
-            print("Not connected to a Base node.")
+            print("Not connected to a node.")
             return
 
         latest_block = self.get_latest_block(self.w3)
@@ -225,81 +209,74 @@ class BaseNodeAdapter(AbstractAdapterRaw):
             print("Could not fetch the latest block.")
             return
 
-        # Fetch the last processed block from the database if block_start is not provided
-        
         if block_start == 'auto':
             block_start = self.db_connector.get_max_block(self.table_name)  
         else:
             block_start = int(block_start)
 
         print(f"Running with start block {block_start} and latest block {latest_block}")
-        
-        # Create a lock object to serialize access to shared resources
-        lock = Lock()
 
-        # Use ThreadPoolExecutor to execute blocks in parallel
         with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = []
+            
             for current_start in range(block_start, latest_block + 1, batch_size):
-                # Calculate the current end block
                 current_end = current_start + batch_size - 1
                 if current_end > latest_block:
                     current_end = latest_block
 
-                executor.submit(self.fetch_and_save_data_for_range_threaded, current_start, current_end, lock)
+                futures.append(executor.submit(self.fetch_and_process_range, current_start, current_end))
 
-    def fetch_and_save_data_for_range_threaded(self, block_start, block_end, lock):
-        try:
-            df = self.fetch_data_for_range(self.w3, block_start, block_end)
-
-            # Lock the critical section to safely save data and update the database
-            with lock:
-                self.save_data_for_range(df, block_start, block_end)
-
-                df_prep = self.prep_dataframe(df)
-                df_prep.drop_duplicates(subset=['tx_hash'], inplace=True)
-                df_prep.set_index('tx_hash', inplace=True)
-                df_prep.index.name = 'tx_hash'
-                
+            # Wait for all threads to complete and handle any exceptions
+            for future in as_completed(futures):
                 try:
-                    self.db_connector.upsert_table(self.table_name, df_prep)
+                    future.result()
                 except Exception as e:
-                    print(f"Error upserting data to {self.table_name} table. {e}")
-                    raise e
+                    print(f"Thread raised an exception: {e}")
+
+    def fetch_and_process_range(self, current_start, current_end):
+
+        df = self.fetch_data_for_range(self.w3, current_start, current_end)
+        self.save_data_for_range(df, current_start, current_end)
+        
+        df_prep = self.prep_dataframe(df)
+        df_prep.drop_duplicates(subset=['tx_hash'], inplace=True)
+        df_prep.set_index('tx_hash', inplace=True)
+        df_prep.index.name = 'tx_hash'
+        
+        try:
+            self.db_connector.upsert_table(self.table_name, df_prep)
+            print("Data inserted successfully.")
         except Exception as e:
-            print(f"An error occurred: {e}")
-            
+            print(f"Error upserting data to {self.table_name} table. {e}")
+            raise e
+        
 ## ----------------- Helper functions --------------------
 
-def get_block_timestamp(w3, block_num):
-    block = w3.eth.get_block(block_num)
-    return block.timestamp
-
-def get_transactions_for_block(w3, block):
-    transactions = []
-    for tx_hash in block['transactions']:
-        tx = w3.eth.get_transaction(tx_hash)
-        transactions.append(dict(tx))
+def fetch_block_transaction_details(w3, block):
+    transaction_details = []
+    block_timestamp = block['timestamp']  # Get the block timestamp
     
-    # Convert the list of transactions into a pandas DataFrame
-    df = pd.DataFrame(transactions)
-    return df
-
-def get_transaction_receipts_for_block(w3, block):
-    receipts = []
-    for tx_hash in block['transactions']:
+    for tx in block['transactions']:
+        tx_hash = tx['hash']
         receipt = w3.eth.get_transaction_receipt(tx_hash)
-        # Convert the main receipt AttributeDict to a standard dictionary
-        receipt_dict = dict(receipt)
-
-        # Convert each log entry in the 'logs' field to a standard dictionary
-        receipt_dict['logs'] = [dict(log) for log in receipt['logs']]
-
-        # Append the modified receipt to the list
-        receipts.append(receipt_dict)
-
-    # Convert the list of receipts into a pandas DataFrame
-    df = pd.DataFrame(receipts)
-    return df
+        
+        # Convert the receipt and transaction to dictionary if it is not
+        if not isinstance(receipt, dict):
+            receipt = dict(receipt)
+        if not isinstance(tx, dict):
+            tx = dict(tx)
+        
+        # Merge transaction and receipt dictionaries
+        merged_dict = {**receipt, **tx}
+        
+        # Add or update specific fields
+        merged_dict['hash'] = tx['hash'].hex()
+        merged_dict['block_timestamp'] = block_timestamp
+        
+        # Add the transaction receipt dictionary to the list
+        transaction_details.append(merged_dict)
+        
+    return transaction_details
 
 def delete_local_file(filename):
     try:

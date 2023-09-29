@@ -1,17 +1,17 @@
 import os
-from src.adapters.adapter_nader import BaseNodeAdapter
+from src.adapters.adapter_raw_gtp import NodeAdapter
 from src.db_connector import DbConnector
 adapter_params = {
     'rpc': 'local_node',
-    'chain': 'base',
-    'node_url': os.getenv("BASE_NODE"),
+    'chain': 'zora',
+    'node_url': os.getenv("ZORA_RPC"),
 }
 
 # Initialize DbConnector
 db_connector = DbConnector()
 
-# Initialize BaseNodeAdapter
-adapter = BaseNodeAdapter(adapter_params, db_connector)
+# Initialize NodeAdapter
+adapter = NodeAdapter(adapter_params, db_connector)
 
 # Test database connectivity
 if not adapter.check_db_connection():
@@ -28,8 +28,7 @@ else:
 # Test run method
 load_params = {
     'block_start': 'auto',
-    'batch_size': 10,
-    'threads': 5,
+    'batch_size': 250,
+    'threads': 15,
 }
-
 adapter.extract_raw(load_params)

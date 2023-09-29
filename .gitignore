@@ -17,3 +17,5 @@ airflow/www/*.log
 airflow-webserver.pid
 standalone_admin_password.txt
 warnings.txt
+
+venv/
