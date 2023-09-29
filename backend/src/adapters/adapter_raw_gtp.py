@@ -8,6 +8,8 @@ from src.misc.helper_functions import print_init, dataframe_to_s3
 import botocore
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from web3 import Web3, HTTPProvider
+from web3.middleware import geth_poa_middleware
 
 class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -32,13 +34,17 @@ class NodeAdapter(AbstractAdapterRaw):
         print(f"FINISHED loading raw tx data for {self.chain}.")
 
     def connect_to_node(self):
-        w3 = Web3(Web3.HTTPProvider(self.url))
+        w3 = Web3(HTTPProvider(self.url))
+        
+        # Apply the geth POA middleware to the Web3 instance
+        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        
         if w3.is_connected():
             print("Successfully connected to node.")
             return w3
         else:
             print("Failed to connect to node.")
-            return None
+            raise ConnectionError("Failed to connect to the node.")
         
     def connect_to_s3(self):
         try:
@@ -47,7 +53,7 @@ class NodeAdapter(AbstractAdapterRaw):
             bucket_name = os.getenv("S3_LONG_TERM_BUCKET")
 
             if not aws_access_key_id or not aws_secret_access_key or not bucket_name:
-                raise ValueError("AWS access key ID, secret access key, or bucket name not found in environment variables.")
+                raise EnvironmentError("AWS access key ID, secret access key, or bucket name not found in environment variables.")
 
             s3 = boto3.client('s3',
                               aws_access_key_id=aws_access_key_id,
@@ -55,7 +61,7 @@ class NodeAdapter(AbstractAdapterRaw):
             return s3, bucket_name
         except Exception as e:
             print("An error occurred while connecting to S3:", str(e))
-            return None, None
+            raise ConnectionError(f"An error occurred while connecting to S3: {str(e)}")
     
     def check_s3_connection(self):
         return self.s3_connection is not None
@@ -98,9 +104,12 @@ class NodeAdapter(AbstractAdapterRaw):
             filename = f"{self.chain}_tx_{block_start}_{block_end}_nader"
             for col in df.columns:
                 if df[col].dtype == 'object':
-                    df[col] = df[col].astype('string')
-                    
-            df.to_parquet(filename+".parquet")
+                    try:
+                        df[col] = df[col].apply(str)
+                    except Exception as e:
+                        raise e
+
+            df.to_parquet(filename+".parquet")  
 
             ## upload to S3 under the chain folder
             file_key = f"{self.chain}_nader/{filename}"
@@ -193,21 +202,18 @@ class NodeAdapter(AbstractAdapterRaw):
        
     def run(self, block_start, batch_size, threads):
         if not self.check_db_connection():
-            print("Database is not connected.")
-            return
+            raise ConnectionError("Database is not connected.")
 
         if not self.check_s3_connection():
-            print("S3 is not connected.")
-            return
-        
+            raise ConnectionError("S3 is not connected.")
+
         if not self.w3 or not self.w3.is_connected():
-            print("Not connected to a node.")
-            return
+            raise ConnectionError("Not connected to a node.")
 
         latest_block = self.get_latest_block(self.w3)
         if latest_block is None:
             print("Could not fetch the latest block.")
-            return
+            raise ValueError("Could not fetch the latest block.")
 
         if block_start == 'auto':
             block_start = self.db_connector.get_max_block(self.table_name)  
