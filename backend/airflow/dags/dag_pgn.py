@@ -1,19 +1,19 @@
-from datetime import datetime,timedelta
 import getpass
 import os
-from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.db_connector import DbConnector
 sys_user = getpass.getuser()
 
 import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
+from src.adapters.adapter_raw_gtp import NodeAdapter
+from src.db_connector import DbConnector
 from airflow.decorators import dag, task 
 
 default_args = {
     'owner' : 'nader',
     'retries' : 2,
-    'email' : ['nader@growthepie.xyz'],
+    'email' : ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
     'email_on_failure': True,
     'retry_delay' : timedelta(minutes=5)
 }
