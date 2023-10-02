@@ -123,19 +123,19 @@ sql_q= {
     """
 
     ,'imx_fees_paid_usd': """
-    SELECT 
-        date_trunc('day', "updated_timestamp") as day,
-        SUM((amount::decimal / power(10,it.decimals)) * pd.price_usd) as val
-    FROM public.imx_fees f
-    left join prices_daily pd 
-        on date_trunc('day', "updated_timestamp") = pd."date" 
-        and f.token_data_contract_address = pd.token_address 
-    left join imx_tokens it on f.token_data_contract_address = it.token_address 
-    where "type" = 'protocol'
-        and updated_timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
-        and updated_timestamp < date_trunc('day', now())
-    group by 1
-    order by 1 desc
+        SELECT 
+                date_trunc('day', "updated_timestamp") as day,
+                SUM((amount::decimal / power(10,it.decimals)) * pd.price_usd) as val
+        FROM public.imx_fees f
+        left join prices_daily pd 
+                on date_trunc('day', "updated_timestamp") = pd."date" 
+                and f.token_data_contract_address = pd.token_address 
+        left join imx_tokens it on f.token_data_contract_address = it.token_address 
+        where "type" = 'protocol'
+                and updated_timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
+                and updated_timestamp < date_trunc('day', now())
+        group by 1
+        order by 1 desc
     """
 
     ## multichain users
@@ -280,6 +280,140 @@ sql_q= {
         ORDER BY 1 desc
 
         """
+
+## Zora & PGN 
+
+    ,'zora_fees_paid_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        zora_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.zora_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+        z.day,
+        z.total_tx_fee * e.price_usd AS fees_paid_usd
+        --,z.total_tx_fee AS fees_paid_eth
+        FROM zora_tx_filtered z
+        LEFT JOIN eth_price e ON z.day = e."date"
+        ORDER BY z.day DESC
+    """
+
+    ,'pgn_fees_paid_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        pgn_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.pgn_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                pgn.day,
+                pgn.total_tx_fee * e.price_usd AS fees_paid_usd
+        --,pgn.total_tx_fee AS fees_paid_eth
+        FROM pgn_tx_filtered pgn
+        LEFT JOIN eth_price e ON pgn.day = e."date"
+        ORDER BY pgn.day DESC
+    """
+
+    ,'zora_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS txcount
+        FROM public.zora_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'pgn_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS txcount
+        FROM public.pgn_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'zora_daa': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(distinct from_address) AS DAA 
+        FROM public.zora_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'pgn_daa': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(distinct from_address) AS DAA 
+        FROM public.pgn_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'zora_txcosts_median_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        zora_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.zora_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.median_tx_fee * e.price_usd as txcosts_median_usd
+                --,z.median_tx_fee as txcosts_median_eth
+        FROM zora_median z
+        LEFT JOIN eth_price e ON z.day = e."date"
+        ORDER BY z.day DESC
+    """
+
+    ,'pgn_txcosts_median_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        pgn_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.pgn_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                pgn.day,
+                pgn.median_tx_fee * e.price_usd as txcosts_median_usd
+                --,pgn.median_tx_fee as txcosts_median_eth
+        FROM pgn_median pgn
+        LEFT JOIN eth_price e ON pgn.day = e."date"
+        ORDER BY pgn.day DESC
+    """
 }
 
 
@@ -318,4 +452,14 @@ sql_queries = [
     ,SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4, "aggregation": "week"})
     # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4*12, "aggregation": "month"})
 
+    ## Zora & PGN
+    ,SQLQuery(metric_key = "txcount", origin_key = "zora", sql=sql_q["zora_txcount"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcount", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "zora", sql=sql_q["zora_daa"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_daa"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "zora", sql=sql_q["zora_fees_paid_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "zora", sql=sql_q["zora_txcosts_median_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_usd"], query_parameters={"Days": 7})
+    
 ]
