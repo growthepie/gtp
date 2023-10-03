@@ -19,7 +19,7 @@ class AdapterSQL(AbstractAdapter):
 
     """
     load_params require the following fields:
-        load_type:str - can be 'usd_to_eth' or 'metrics' or 'blockspace
+        load_type:str - can be 'usd_to_eth' or 'metrics' or 'blockspace' or 'profit'
         days:str - days of historical data that should be loaded, starting from today.
         origin_keys:list - list of origin_keys
         metric_keys:list - the metrics that should be loaded. If None, all available metrics will be loaded
@@ -33,6 +33,10 @@ class AdapterSQL(AbstractAdapter):
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
             raw_metrics = ['tvl', 'rent_paid_usd', 'profit_usd', 'fees_paid_usd', 'stables_mcap', 'txcosts_median_usd']
             df = self.db_connector.get_values_in_eth(raw_metrics, days)
+        elif load_type == 'profit':
+            days = load_params['days']
+            self.queries_to_load = [x for x in sql_queries if x.metric_key == 'profit_usd']
+            df = self.extract_data_from_db(self.queries_to_load, days)
         elif load_type == 'metrics':
             origin_keys = load_params['origin_keys']
             metric_keys = load_params['metric_keys']
@@ -48,6 +52,9 @@ class AdapterSQL(AbstractAdapter):
                 self.queries_to_load = [x for x in self.queries_to_load if x.metric_key in metric_keys]
             else:
                 self.queries_to_load = self.queries_to_load
+
+                ## remove queries that are have metric_key = 'profit_usd' since this should be triggered afterwards
+                self.queries_to_load = [x for x in self.queries_to_load if x.metric_key != 'profit_usd']
 
             ## Load data
             df = self.extract_data_from_db(self.queries_to_load, days)

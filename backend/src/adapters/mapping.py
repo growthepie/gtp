@@ -128,6 +128,38 @@ adapter_mapping = [
         ,l2beat_tvl_naming='base'
     )
 
+    ,AdapterMapping(
+        origin_key="zora"
+        ,name = "Zora Network"
+        ,symbol = "-"
+        ,technology = "Optimistic Rollup"
+        ,purpose = 'NFTs'
+        ,launch_date='2023-06-21'
+        ,website='https://zora.co/'
+        ,block_explorer='https://explorer.zora.energy/'
+        ,twitter='https://twitter.com/ourzora'
+
+        #,coingecko_naming="-"
+        #,defillama_stablecoin=''  ## stables via Dune
+        ,l2beat_tvl_naming='zora'
+    )
+
+    ,AdapterMapping(
+        origin_key="gitcoin_pgn"
+        ,name="Public Goods Network"
+        ,symbol = "-"
+        ,technology = "Optimistic Rollup"
+        ,purpose = 'Public Goods Funding'
+        ,launch_date='2023-07-26'
+        ,website='https://gitcoin.co/'
+        ,block_explorer='https://explorer.publicgoods.network'
+        ,twitter="gitcoin"
+
+        #,coingecko_naming="-"
+        #,defillama_stablecoin=''  ## stables via Dune
+        ,l2beat_tvl_naming='publicgoodsnetwork'
+    )
+
     # ,AdapterMapping(
     #     origin_key="loopring"
     #     ,coingecko_naming="loopring"

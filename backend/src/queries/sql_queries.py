@@ -11,7 +11,7 @@ sql_q= {
                 group by 1
                 order by 1
         ),	
-    cte_imx_mints as (
+        cte_imx_mints as (
                 select 
                         date_trunc('day', "timestamp") as day, Count(*) as value, 'mints' as tx_type
                 from imx_mints
@@ -20,7 +20,7 @@ sql_q= {
                 group by 1
                 order by 1
         ),    
-    cte_imx_trades as (
+        cte_imx_trades as (
                 select 
                         date_trunc('day', "timestamp") as day, Count(*) as value, 'trades' as tx_type
                 from imx_trades
@@ -140,121 +140,121 @@ sql_q= {
 
     ## multichain users
     ,'user_base_xxx': """
-    with raw_data as (   
-        SELECT 
-            DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-            from_address as address,
-            'arbitrum' as chain
-        FROM arbitrum_tx
-        WHERE
-        block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-        AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Days}} days')
-        
-        UNION ALL
-        
-        SELECT 
-            DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-            from_address as address,
-            'optimism' as chain
-        FROM optimism_tx
-        WHERE
-        block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-        AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
-        
-        UNION ALL
-        
-        SELECT 
-            DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-            from_address as address,
-            'polygon_zkevm' as chain
-        FROM polygon_zkevm_tx 
-        WHERE
-        block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-        AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+        with raw_data as (   
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'arbitrum' as chain
+                FROM arbitrum_tx
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Days}} days')
+                
+                UNION ALL
+                
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'optimism' as chain
+                FROM optimism_tx
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+                
+                UNION ALL
+                
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'polygon_zkevm' as chain
+                FROM polygon_zkevm_tx 
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
-        UNION ALL
-        
-        SELECT 
-            DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-            from_address as address,
-            'zksync_era' as chain
-        FROM zksync_era_tx
-        WHERE
-        block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-        AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+                UNION ALL
+                
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'zksync_era' as chain
+                FROM zksync_era_tx
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
-        UNION ALL
-        
-        SELECT 
-            DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-            from_address as address,
-            'base' as chain
-        FROM base_tx
-        WHERE
-        block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-        AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+                UNION ALL
+                
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'base' as chain
+                FROM base_tx
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
-    -- IMX   
-    UNION ALL
-        
-        SELECT 
-            DATE_TRUNC('{{aggregation}}', "timestamp") AS day,
-            "user" as address,
-            'imx' as chain
-        FROM imx_deposits id 
-        WHERE
-        "timestamp" < DATE_TRUNC('{{aggregation}}', NOW())
-        AND "timestamp" >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
-        
-    UNION ALL
+        -- IMX   
+        UNION ALL
+                
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', "timestamp") AS day,
+                "user" as address,
+                'imx' as chain
+                FROM imx_deposits id 
+                WHERE
+                "timestamp" < DATE_TRUNC('{{aggregation}}', NOW())
+                AND "timestamp" >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+                
+        UNION ALL
+                
+                select 
+                        date_trunc('{{aggregation}}', "timestamp") as day 
+                        , "sender" as address
+                        , 'imx' as chain
+                from imx_withdrawals  
+                WHERE timestamp < date_trunc('{{aggregation}}', now())
+                        AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+
+        union all 
         
         select 
-                date_trunc('{{aggregation}}', "timestamp") as day 
-                , "sender" as address
-                , 'imx' as chain
-        from imx_withdrawals  
-        WHERE timestamp < date_trunc('{{aggregation}}', now())
-                AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
-
-    union all 
-    
-    select 
-                date_trunc('{{aggregation}}', "updated_timestamp") as day 
+                        date_trunc('{{aggregation}}', "updated_timestamp") as day 
+                        , "user" as address
+                        , 'imx' as chain
+                from imx_orders   
+                WHERE updated_timestamp < date_trunc('{{aggregation}}', now())
+                        AND updated_timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+                        
+        union all 
+        
+        select 
+                date_trunc('{{aggregation}}', "timestamp") as day
                 , "user" as address
                 , 'imx' as chain
-        from imx_orders   
-        WHERE updated_timestamp < date_trunc('{{aggregation}}', now())
-                AND updated_timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+                from imx_transfers
+                WHERE timestamp < date_trunc('{{aggregation}}', now())
+                        AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
                 
-    union all 
-    
-    select 
-            date_trunc('{{aggregation}}', "timestamp") as day
-            , "user" as address
-            , 'imx' as chain
-        from imx_transfers
-        WHERE timestamp < date_trunc('{{aggregation}}', now())
-                AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
-        
-    )
-    ,chain_info as (
-        SELECT 
-            day,
-            address,
-            CASE WHEN count(distinct chain) > 1 THEN 'multiple' ELSE MAX(chain) END as origin_key
-        FROM raw_data
-        GROUP BY 1,2
-    )
+        )
+        ,chain_info as (
+                SELECT 
+                day,
+                address,
+                CASE WHEN count(distinct chain) > 1 THEN 'multiple' ELSE MAX(chain) END as origin_key
+                FROM raw_data
+                GROUP BY 1,2
+        )
 
-    SELECT
-    day,
-    origin_key,
-    COUNT(DISTINCT address) AS val
-    FROM
-    chain_info
-    GROUP BY 1,2 
-    ORDER BY 1 DESC
-    """
+        SELECT
+                day,
+                origin_key,
+                COUNT(DISTINCT address) AS val
+        FROM
+                chain_info
+        GROUP BY 1,2 
+        ORDER BY 1 DESC
+        """
 
     ## profit usd
     , 'profit_usd': """
@@ -298,8 +298,8 @@ sql_q= {
                 GROUP BY 1
         )
         SELECT
-        z.day,
-        z.total_tx_fee * e.price_usd AS fees_paid_usd
+                z.day,
+                z.total_tx_fee * e.price_usd AS value
         --,z.total_tx_fee AS fees_paid_eth
         FROM zora_tx_filtered z
         LEFT JOIN eth_price e ON z.day = e."date"
@@ -322,7 +322,7 @@ sql_q= {
         )
         SELECT
                 pgn.day,
-                pgn.total_tx_fee * e.price_usd AS fees_paid_usd
+                pgn.total_tx_fee * e.price_usd AS value
         --,pgn.total_tx_fee AS fees_paid_eth
         FROM pgn_tx_filtered pgn
         LEFT JOIN eth_price e ON pgn.day = e."date"
@@ -332,7 +332,7 @@ sql_q= {
     ,'zora_txcount': """
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
-                COUNT(*) AS txcount
+                COUNT(*) AS value
         FROM public.zora_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
@@ -342,7 +342,7 @@ sql_q= {
     ,'pgn_txcount': """
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
-                COUNT(*) AS txcount
+                COUNT(*) AS value
         FROM public.pgn_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
@@ -352,7 +352,7 @@ sql_q= {
     ,'zora_daa': """
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
-                COUNT(distinct from_address) AS DAA 
+                COUNT(distinct from_address) AS value 
         FROM public.zora_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
@@ -362,7 +362,7 @@ sql_q= {
     ,'pgn_daa': """
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
-                COUNT(distinct from_address) AS DAA 
+                COUNT(distinct from_address) AS value 
         FROM public.pgn_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
@@ -385,7 +385,7 @@ sql_q= {
         )
         SELECT
                 z.day,
-                z.median_tx_fee * e.price_usd as txcosts_median_usd
+                z.median_tx_fee * e.price_usd as value
                 --,z.median_tx_fee as txcosts_median_eth
         FROM zora_median z
         LEFT JOIN eth_price e ON z.day = e."date"
@@ -408,7 +408,7 @@ sql_q= {
         )
         SELECT
                 pgn.day,
-                pgn.median_tx_fee * e.price_usd as txcosts_median_usd
+                pgn.median_tx_fee * e.price_usd as value
                 --,pgn.median_tx_fee as txcosts_median_eth
         FROM pgn_median pgn
         LEFT JOIN eth_price e ON pgn.day = e."date"
@@ -441,16 +441,11 @@ class SQLQuery(SQLObject):
         self.last_execution_loaded = None
 
 sql_queries = [
-    ## Layer 1s
+    ## IMX
     SQLQuery(metric_key = "txcount", origin_key = "imx", sql=sql_q["imx_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "imx", sql=sql_q["imx_daa"], query_parameters={"Days": 7})
     #,SQLQuery(metric_key = "new_addresses", origin_key = "imx", sql=sql_q["ethereum_new_addresses"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "imx", sql=sql_q["imx_fees_paid_usd"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "profit_usd", origin_key = "multi", sql=sql_q["profit_usd"], query_parameters={"Days": 7})
-
-    # ,SQLQuery(metric_key = "user_base_daily", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7, "aggregation": "day"})
-    ,SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4, "aggregation": "week"})
-    # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4*12, "aggregation": "month"})
 
     ## Zora & PGN
     ,SQLQuery(metric_key = "txcount", origin_key = "zora", sql=sql_q["zora_txcount"], query_parameters={"Days": 7})
@@ -462,4 +457,12 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "zora", sql=sql_q["zora_txcosts_median_usd"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_usd"], query_parameters={"Days": 7})
     
+
+    ## Multichain
+    ,SQLQuery(metric_key = "profit_usd", origin_key = "multi", sql=sql_q["profit_usd"], query_parameters={"Days": 7})
+    # ,SQLQuery(metric_key = "user_base_daily", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7, "aggregation": "day"})
+    ,SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4, "aggregation": "week"})
+    # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4*12, "aggregation": "month"})
+
+   
 ]

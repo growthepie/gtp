@@ -47,7 +47,26 @@ def etl():
         ad.load(df)
 
     @task()
-    def run_usd_to_eth(run_metrics:str):
+    def run_profit(run_metrics:str):
+        adapter_params = {
+        }
+        load_params = {
+            'load_type' : 'profit', ## calculate profit based on rent and fees
+            'days' : 'auto', ## days as int our 'auto
+            'origin_keys' : None, ## origin_keys as list or None
+            'metric_keys' : None, ## metric_keys as list or None
+        }
+
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterSQL(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # # load
+        ad.load(df)
+
+    @task()
+    def run_usd_to_eth(run_profit:str):
         adapter_params = {
         }
         load_params = {
@@ -84,7 +103,7 @@ def etl():
         # extract
         ad.extract(load_params)
 
-    run_usd_to_eth(run_metrics())    
+    run_usd_to_eth(run_profit(run_metrics()))    
     run_blockspace()
 
 etl()

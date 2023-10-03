@@ -56,8 +56,10 @@ class AdapterDune(AbstractAdapter):
         df['date'] = df['day'].apply(pd.to_datetime)
         df['date'] = df['date'].dt.date
         df.drop(['day'], axis=1, inplace=True)
+        df['value'] = df['value'].replace('<nil>', 0)
         df.value.fillna(0, inplace=True)
-
+        df['value'] = df['value'].astype(float)
+        
         return df
 
     def extract_data(self, queries_to_load, days):
