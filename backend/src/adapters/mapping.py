@@ -152,7 +152,7 @@ adapter_mapping = [
         ,purpose = 'Public Goods Funding'
         ,launch_date='2023-07-26'
         ,website='https://gitcoin.co/'
-        ,block_explorer='https://explorer.publicgoods.network'
+        ,block_explorer='https://explorer.publicgoods.network/'
         ,twitter="gitcoin"
 
         #,coingecko_naming="-"

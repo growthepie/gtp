@@ -18,8 +18,10 @@ def push_to_airtable(df):
     urls_base = df['address'].loc[df['origin_key'] == 'base'].apply(lambda x: f'https://basescan.org/address/{x}')
     urls_zksync_era = df['address'].loc[df['origin_key'] == 'zksync_era'].apply(lambda x: f'https://explorer.zksync.io/address/{x}')
     urls_polygon_zkevm = df['address'].loc[df['origin_key'] == 'polygon_zkevm'].apply(lambda x: f'https://zkevm.polygonscan.com/address/{x}')
+    urls_zora = df['address'].loc[df['origin_key'] == 'zora'].apply(lambda x: f'https://explorer.zora.energy/address/{x}')
+    urls_gitcoin_pgn = df['address'].loc[df['origin_key'] == 'gitcoin_pgn'].apply(lambda x: f'https://explorer.publicgoods.network/address/{x}')
     #urls_ = df['address'].loc[df['origin_key'] == ''].apply(lambda x: f'{x}')
-    df['Blockexplorer'] = pd.concat([urls_arbitrum, urls_optimism, urls_base, urls_zksync_era, urls_polygon_zkevm])
+    df['Blockexplorer'] = pd.concat([urls_arbitrum, urls_optimism, urls_base, urls_zksync_era, urls_polygon_zkevm, urls_zora, urls_gitcoin_pgn])
 
     #convert df to dict of rows
     contracts = df.to_dict(orient='records')

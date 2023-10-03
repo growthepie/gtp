@@ -51,7 +51,7 @@ def etl():
         # db connection
         db_connector = DbConnector()
         # get top unlabelled contracts
-        df = db_connector.get_unlabelled_contracts('20', '7')
+        df = db_connector.get_unlabelled_contracts('20', '30')
         df['address'] = df['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
         # write to airtable
         at.push_to_airtable(df)
