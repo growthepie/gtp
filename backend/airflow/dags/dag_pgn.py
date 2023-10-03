@@ -31,7 +31,7 @@ def adapter_nader_super():
     def run_nader_super():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'pgn',
+            'chain': 'gitcoin_pgn',
             'node_url': os.getenv("PGN_RPC"),
         }
 

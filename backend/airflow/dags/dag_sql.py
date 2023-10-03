@@ -94,7 +94,7 @@ def etl():
         load_params = {
             'load_type' : 'blockspace', ## usd_to_eth or metrics or blockspace
             'days' : 'auto', ## days as or auto
-            'origin_keys' : ['arbitrum', 'optimism', 'base', 'zksync_era', 'polygon_zkevm', 'imx'], ## origin_keys as list or None
+            'origin_keys' : ['arbitrum', 'optimism', 'base', 'zksync_era', 'polygon_zkevm', 'zora', 'gitcoin_pgn', 'imx'], ## origin_keys as list or None
         }
 
         # initialize adapter
