@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_pgn',
     description = 'Load raw tx data from local node',
     start_date = datetime(2023,9,1),
-    schedule = '00 */3 * * *'
+    schedule = '10 */3 * * *'
 )
 
 def adapter_nader_super():
