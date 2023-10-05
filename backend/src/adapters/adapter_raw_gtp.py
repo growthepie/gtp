@@ -1,10 +1,9 @@
 import numpy as np
 from web3 import Web3
-from pangres import upsert
 import boto3
 import os
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from src.misc.helper_functions import print_init, dataframe_to_s3
+from src.misc.helper_functions import dataframe_to_s3
 import botocore
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -191,6 +190,10 @@ class NodeAdapter(AbstractAdapterRaw):
                 filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
             else:
                 print(f"Column {col} not found in dataframe.")
+                
+        # Convert "0x4E6F6E65" to None in the 'to_address' column
+        if 'to_address' in filtered_df.columns:
+            filtered_df['to_address'] = filtered_df['to_address'].apply(lambda x: None if x == '\\x4E6F6F6E65' else x)
 
         # gas_price column in eth
         filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
