@@ -171,6 +171,7 @@ class DbConnector:
                                 and empty_input = false -- we don't have to store addresses that received native transfers
                                 and to_address <> '' and to_address is not null -- filter out contract creations arbitrum, optimism
                                 and to_address <> '\\x0000000000000000000000000000000000008006' -- filter out contract creations zksync
+                                and to_address <> '\\x4200000000000000000000000000000000000007' -- filter out some zora transacions
                         group by 1,2
                         having count(*) > 1
                 '''
