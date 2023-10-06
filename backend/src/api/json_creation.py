@@ -425,7 +425,7 @@ class JSONCreation():
             for metric in self.metrics:
                 if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                     continue
-                if origin_key == 'imx' and metric in ['txcosts']:
+                if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
                     continue
                 
                 # if origin_key == 'zksync_era' and metric == 'stables_mcap':
@@ -468,7 +468,7 @@ class JSONCreation():
                 origin_key = chain.origin_key
                 if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                     continue
-                if origin_key == 'imx' and metric in ['txcosts']:
+                if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
                     continue
                 # if origin_key == 'zksync_era' and metric == 'stables_mcap':
                 #    continue
