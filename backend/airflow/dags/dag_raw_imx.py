@@ -30,7 +30,7 @@ def etl():
     @task()
     def run_imx():
         adapter_params = {
-            'load_types' : ['withdrawals', 'deposits', 'trades', 'orders_filled', 'transfers', 'mints'],
+            'load_types' : ['withdrawals', 'deposits', 'transfers', 'mints'],
             'forced_refresh' : 'no',
         }
        # initialize adapter
