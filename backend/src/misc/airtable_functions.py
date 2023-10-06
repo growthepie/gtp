@@ -36,44 +36,58 @@ def push_to_airtable(df):
 def clear_all_airtable():
 
     print('Starting to delete all records from Airtable...')
-    
-    #get record IDs to delete
-    c_ids = [c['id'] for c in at.get('Unlabeled Contracts')['records']]
 
-    #delete records one by one
-    for i in c_ids:
-        at.delete('Unlabeled Contracts', i)
+    offset = None
+    while True:
+        j = at.get('Unlabeled Contracts', offset = offset)
+
+        #delete records one by one
+        for i in [c['id'] for c in j['records']]:
+            at.delete('Unlabeled Contracts', i)
+        
+        if len(j) == 2:
+            offset = j['offset']
+        else:
+            break
 
     print("All records have been deleted from the table.")
 
 
 def read_all_airtable():
 
-    #get table data and convert to df
-    data = pd.DataFrame([c['fields'] for c in at.get('Unlabeled Contracts')['records']])
+    #get complete airtable and create df
+    df = pd.DataFrame()
+    offset = None
+    while True:
+        j = at.get('Unlabeled Contracts', offset = offset)
+        df = pd.concat([df, pd.DataFrame([c['fields'] for c in j['records']])], ignore_index = True)
+        if len(j) == 2:
+            offset = j['offset']
+        else:
+            break
 
-    if 'sub_category_key' not in data.columns:
+    if 'sub_category_key' not in df.columns:
         print('no new labelled contracts found in the airtable.')
         return
 
     #show only contracts that have been labeled
-    data = data[data['sub_category_key'].notnull()]
-    data = data[data['address'].notnull()]
-    data = data[data['origin_key'].notnull()]
+    df = df[df['sub_category_key'].notnull()]
+    df = df[df['address'].notnull()]
+    df = df[df['origin_key'].notnull()]
 
     #add all needed columns, as api doesn't return empty columns
-    if 'contract_name' not in data.columns:
-        data['contract_name'] = ''
-    if 'project_name' not in data.columns:
-        data['project_name'] = ''
-    if 'labelling_type' not in data.columns:
-        data['labelling_type'] = ''
+    if 'contract_name' not in df.columns:
+        df['contract_name'] = ''
+    if 'project_name' not in df.columns:
+        df['project_name'] = ''
+    if 'labelling_type' not in df.columns:
+        df['labelling_type'] = ''
 
-    #drop not needded columns and clean data
-    data = data[['address', 'origin_key', 'contract_name', 'project_name', 'sub_category_key', 'labelling_type']]
-    data['labelling_type'] = data[data['labelling_type'].notnull()]['labelling_type'].apply(lambda x: x['name'].split()[0])
+    #drop not needded columns and clean df
+    df = df[['address', 'origin_key', 'contract_name', 'project_name', 'sub_category_key', 'labelling_type']]
+    df['labelling_type'] = df[df['labelling_type'].notnull()]['labelling_type'].apply(lambda x: x['name'].split()[0])
 
-    #clean data for db upload
-    data['address'] = data['address'].apply(lambda x: x.replace('0x', '\\x'))
+    #clean df for db upload
+    df['address'] = df['address'].apply(lambda x: x.replace('0x', '\\x'))
 
-    return data
+    return df

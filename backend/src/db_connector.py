@@ -684,7 +684,9 @@ class DbConnector:
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num 
                                 FROM public.blockspace_fact_contract_level cl 
                                 LEFT JOIN blockspace_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
-                                WHERE bl.address IS NULL AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days') 
+                                WHERE bl.address IS NULL 
+                                AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                AND cl.address != decode('4E6F6E65', 'hex') 
                                 GROUP BY cl.address, cl.origin_key
                         )  
                         SELECT 
