@@ -316,7 +316,7 @@ sql_q= {
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         SUM(tx_fee) AS total_tx_fee
-                FROM public.pgn_tx
+                FROM public.gitcoin_pgn_tx
                 WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
                 GROUP BY 1
         )
@@ -343,7 +343,7 @@ sql_q= {
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
                 COUNT(*) AS value
-        FROM public.pgn_tx
+        FROM public.gitcoin_pgn_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
         order by 1 DESC
@@ -363,7 +363,7 @@ sql_q= {
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
                 COUNT(distinct from_address) AS value 
-        FROM public.pgn_tx
+        FROM public.gitcoin_pgn_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
         order by 1 DESC
@@ -402,7 +402,7 @@ sql_q= {
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
-                FROM public.pgn_tx
+                FROM public.gitcoin_pgn_tx
                 WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
                 GROUP BY 1
         )
