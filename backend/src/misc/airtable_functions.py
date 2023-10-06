@@ -37,12 +37,14 @@ def clear_all_airtable():
 
     print('Starting to delete all records from Airtable...')
     
-    #get record IDs to delete
-    c_ids = [c['id'] for c in at.get('Unlabeled Contracts')['records']]
+    while len(at.get('Unlabeled Contracts')['records']) != 0:
 
-    #delete records one by one
-    for i in c_ids:
-        at.delete('Unlabeled Contracts', i)
+        #get record IDs to delete
+        c_ids = [c['id'] for c in at.get('Unlabeled Contracts')['records']]
+
+        #delete records one by one
+        for i in c_ids:
+            at.delete('Unlabeled Contracts', i)
 
     print("All records have been deleted from the table.")
 
