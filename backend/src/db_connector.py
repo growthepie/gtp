@@ -169,9 +169,11 @@ class DbConnector:
                         where block_timestamp < DATE_TRUNC('day', NOW())
                                 and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and empty_input = false -- we don't have to store addresses that received native transfers
-                                and to_address <> '' and to_address is not null -- filter out contract creations arbitrum, optimism
+                                and to_address <> '' 
+                                and to_address is not null -- filter out contract creations arbitrum, optimism
                                 and to_address <> '\\x0000000000000000000000000000000000008006' -- filter out contract creations zksync
                                 and to_address <> '\\x4200000000000000000000000000000000000007' -- filter out some zora transacions
+                                and to_address <> 'None' -- filter out zora and pgn contract creation
                         group by 1,2
                         having count(*) > 1
                 '''
