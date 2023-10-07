@@ -3,7 +3,6 @@ from web3 import Web3
 import boto3
 import os
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from src.misc.helper_functions import dataframe_to_s3
 import botocore
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -18,7 +17,7 @@ class NodeAdapter(AbstractAdapterRaw):
         self.chain = adapter_params['chain']
         self.url = adapter_params['node_url']
         self.table_name = f'{self.chain}_tx'    
-        #self.table_name = f'{self.chain}_tx_nader'    
+        #self.table_name = f'base_tx_nader'    
         # Initialize Web3 connection
         self.w3 = self.connect_to_node()
         
@@ -99,28 +98,31 @@ class NodeAdapter(AbstractAdapterRaw):
             raise e
         
     def save_data_for_range(self, df, block_start, block_end):
-            # Save the merged dataframe to a parquet file
-            filename = f"{self.chain}_tx_{block_start}_{block_end}_nader"
-            for col in df.columns:
-                if df[col].dtype == 'object':
-                    try:
-                        df[col] = df[col].apply(str)
-                    except Exception as e:
-                        raise e
+        # Convert any 'object' dtype columns to string
+        for col in df.columns:
+            if df[col].dtype == 'object':
+                try:
+                    df[col] = df[col].apply(str)
+                except Exception as e:
+                    raise e
 
-            df.to_parquet(filename+".parquet")  
+        # Generate the filename
+        filename = f"{self.chain}_tx_{block_start}_{block_end}.parquet"
+        
+        # Create S3 file path
+        file_key = f"{self.chain}/{filename}"
+        
+        # Use the S3 functionality in pandas to write directly to S3
+        s3_path = f"s3://{self.bucket_name}/{file_key}"
+        df.to_parquet(s3_path, index=False)
 
-            ## upload to S3 under the chain folder
-            file_key = f"{self.chain}_nader/{filename}"
-            dataframe_to_s3(f'{file_key}', df)
-            # Check if the file exists in S3 and delete the local file if it does
-            if s3_file_exists(self.s3_connection, self.bucket_name, file_key+".parquet"):
-                print(f"File {file_key} uploaded to S3 bucket {self.bucket_name}. Deleting local file...")
-                delete_local_file(filename+".parquet")
-            else:
-                print(f"File {file_key} not found in S3 bucket {self.bucket_name}. Local file not deleted.")
-                raise Exception(f"File {file_key} not uploaded to S3 bucket {self.bucket_name}. Stopping execution.")
-    
+        # Check if the file exists in S3
+        if s3_file_exists(self.s3_connection, self.bucket_name, file_key):
+            print(f"File {file_key} uploaded to S3 bucket {self.bucket_name}.")
+        else:
+            print(f"File {file_key} not found in S3 bucket {self.bucket_name}.")
+            raise Exception(f"File {file_key} not uploaded to S3 bucket {self.bucket_name}. Stopping execution.")
+        
     def prep_dataframe(self, df):
         # Ensure the required columns exist, filling with 0 if they don't
         required_columns = ['l1GasUsed', 'l1GasPrice', 'l1FeeScalar']
@@ -184,16 +186,19 @@ class NodeAdapter(AbstractAdapterRaw):
         # status column: 1 if status is success, 0 if failed else -1
         filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
 
+        # replace None in 'to_address' column with empty string
+        if 'to_address' in filtered_df.columns:
+            filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+            filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+
         # Handle bytea data type
         for col in ['tx_hash', 'to_address', 'from_address']:
             if col in filtered_df.columns:
                 filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
             else:
-                print(f"Column {col} not found in dataframe.")
-                
-        # Convert "0x4E6F6E65" to None in the 'to_address' column
-        if 'to_address' in filtered_df.columns:
-            filtered_df['to_address'] = filtered_df['to_address'].apply(lambda x: None if x == '\\x4E6F6F6E65' else x)
+                print(f"Column {col} not found in dataframe.")             
+
+        
 
         # gas_price column in eth
         filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
@@ -286,12 +291,6 @@ def fetch_block_transaction_details(w3, block):
         transaction_details.append(merged_dict)
         
     return transaction_details
-
-def delete_local_file(filename):
-    try:
-        os.remove(filename)
-    except Exception as e:
-        print(f"Error deleting file {filename}. {e}")
 
 def s3_file_exists(s3, bucket_name, file_key):
     try:
