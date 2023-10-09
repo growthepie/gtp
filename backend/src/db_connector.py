@@ -169,10 +169,10 @@ class DbConnector:
                         where block_timestamp < DATE_TRUNC('day', NOW())
                                 and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and empty_input = false -- we don't have to store addresses that received native transfers
+                                and tx_fee > 0 -- no point in counting txs with 0 fees (most likely system tx)
                                 and to_address <> '' 
                                 and to_address is not null -- filter out contract creations arbitrum, optimism
                                 and to_address <> '\\x0000000000000000000000000000000000008006' -- filter out contract creations zksync
-                                and to_address <> '\\x4200000000000000000000000000000000000007' -- filter out some zora transacions
                                 and to_address <> 'None' -- filter out zora and pgn contract creation
                         group by 1,2
                         having count(*) > 1
@@ -260,6 +260,7 @@ class DbConnector:
                         left join eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
                         where block_timestamp < DATE_TRUNC('day', NOW())
                                 and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                and tx_fee > 0 -- no point in counting txs with 0 fees (most likely system tx)
                         group by 1
                         '''
                 df = pd.read_sql(exec_string, self.engine.connect())
