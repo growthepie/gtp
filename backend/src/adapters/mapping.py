@@ -130,7 +130,7 @@ adapter_mapping = [
 
     ,AdapterMapping(
         origin_key="zora"
-        ,name = "Zora Network"
+        ,name = "Zora"
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'NFTs'
