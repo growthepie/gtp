@@ -623,6 +623,19 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals', fundamentals_dict, self.cf_distribution_id)
 
+    def create_contracts_json(self):
+        exec_string = f"""
+            SELECT concat('0x', encode(address, 'hex')) as address, contract_name, project_name, sub_category_key, origin_key
+            FROM public.blockspace_labels;
+        """
+
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        contracts_dict = df.to_dict(orient='records')
+        if self.s3_bucket == None:
+            self.save_to_json(contracts_dict, 'contracts')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/contracts', contracts_dict, self.cf_distribution_id)
+
     def create_all_jsons(self):
         df = self.get_all_data()
         self.create_chain_details_jsons(df)
@@ -630,3 +643,4 @@ class JSONCreation():
         self.create_master_json()
         self.create_landingpage_json(df)
         self.create_fundamentals_json(df)
+        self.create_contracts_json()
