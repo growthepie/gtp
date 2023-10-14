@@ -625,11 +625,13 @@ class JSONCreation():
 
     def create_contracts_json(self):
         exec_string = f"""
-            SELECT concat('0x', encode(address, 'hex')) as address, contract_name, project_name, sub_category_key, origin_key
+            SELECT address, contract_name, project_name, sub_category_key, origin_key
             FROM public.blockspace_labels;
         """
 
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
         contracts_dict = df.to_dict(orient='records')
         if self.s3_bucket == None:
             self.save_to_json(contracts_dict, 'contracts')
