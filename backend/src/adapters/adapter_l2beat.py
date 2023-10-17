@@ -53,7 +53,7 @@ class AdapterL2Beat(AbstractAdapter):
             origin_key = adapter_mapping.origin_key
 
             naming = adapter_mapping.l2beat_tvl_naming
-            url = f"{base_url}{naming}-detailed-tvl.json"           
+            url = f"{base_url}tvl/{naming}.json"           
 
             response_json = api_get_call(url, sleeper=10, retries=20)
             df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
