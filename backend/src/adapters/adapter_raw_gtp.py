@@ -30,7 +30,10 @@ class NodeAdapter(AbstractAdapterRaw):
         self.threads = load_params['threads']
         self.run(self.block_start, self.batch_size, self.threads)
         print(f"FINISHED loading raw tx data for {self.chain}.")
-
+        
+    def set_rpc_url(self, new_url:str):
+        self.node_url = new_url
+        
     def connect_to_node(self):
         w3 = Web3(HTTPProvider(self.url))
         
@@ -81,7 +84,7 @@ class NodeAdapter(AbstractAdapterRaw):
         try:
             # Loop through each block in the range
             for block_num in range(block_start, block_end + 1):
-                block = w3.eth.get_block(block_num, full_transactions=True)  # Added full_transactions=True
+                block = w3.eth.get_block(block_num, full_transactions=True)
                 
                 # Fetch transaction details for the block using the new function
                 transaction_details = fetch_block_transaction_details(w3, block)
@@ -90,8 +93,13 @@ class NodeAdapter(AbstractAdapterRaw):
 
             # Convert list of dictionaries to DataFrame
             df = pd.DataFrame(all_transaction_details)
-
-            return df
+            
+            # if df doesn't have any records, then handle it gracefully
+            if df.empty:
+                print(f"No transactions found for blocks {block_start} to {block_end}.")
+                return None  # Or return an empty df as: return pd.DataFrame()
+            else:
+                return df
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -248,8 +256,13 @@ class NodeAdapter(AbstractAdapterRaw):
                     print(f"Thread raised an exception: {e}")
 
     def fetch_and_process_range(self, current_start, current_end):
-
         df = self.fetch_data_for_range(self.w3, current_start, current_end)
+
+        # Check if df is None or empty, and if so, return early without further processing.
+        if df is None or df.empty:
+            print(f"Skipping blocks {current_start} to {current_end} due to no data.")
+            return
+
         self.save_data_for_range(df, current_start, current_end)
         
         df_prep = self.prep_dataframe(df)
@@ -263,7 +276,7 @@ class NodeAdapter(AbstractAdapterRaw):
         except Exception as e:
             print(f"Error upserting data to {self.table_name} table. {e}")
             raise e
-        
+
 ## ----------------- Helper functions --------------------
 
 def fetch_block_transaction_details(w3, block):
