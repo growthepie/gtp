@@ -130,7 +130,7 @@ adapter_mapping = [
 
     ,AdapterMapping(
         origin_key="zora"
-        ,name = "Zora Network"
+        ,name = "Zora"
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'NFTs'
@@ -151,9 +151,9 @@ adapter_mapping = [
         ,technology = "Optimistic Rollup"
         ,purpose = 'Public Goods Funding'
         ,launch_date='2023-07-26'
-        ,website='https://gitcoin.co/'
+        ,website='https://publicgoods.network/'
         ,block_explorer='https://explorer.publicgoods.network/'
-        ,twitter="gitcoin"
+        ,twitter="https://twitter.com/pgn_eth"
 
         #,coingecko_naming="-"
         #,defillama_stablecoin=''  ## stables via Dune

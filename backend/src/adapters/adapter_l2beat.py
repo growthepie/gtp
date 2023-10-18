@@ -53,15 +53,18 @@ class AdapterL2Beat(AbstractAdapter):
             origin_key = adapter_mapping.origin_key
 
             naming = adapter_mapping.l2beat_tvl_naming
-            url = f"{base_url}{naming}-tvl.json"           
+            url = f"{base_url}tvl/{naming}.json"           
 
             response_json = api_get_call(url, sleeper=10, retries=20)
             df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
 
+            ## only keep the columns 0 (date) and 1 (total tvl)
+            df = df.iloc[:,[0,1]]
+
             df['date'] = pd.to_datetime(df[0],unit='s')
             df['date'] = df['date'].dt.date
             df.drop(df[df[1] == 0].index, inplace=True)
-            df.drop([0,2], axis=1, inplace=True)
+            df.drop([0], axis=1, inplace=True)
             df.rename(columns={1:'value'}, inplace=True)
             df['metric_key'] = 'tvl'
             df['origin_key'] = origin_key
