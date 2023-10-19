@@ -57,7 +57,7 @@ def adapter_nader_super():
         load_params = {
             'block_start': 'auto',
             'batch_size': 150,
-            'threads': 10,
+            'threads': 7,
         }
         adapter.extract_raw(load_params)
 
