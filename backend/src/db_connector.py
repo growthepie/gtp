@@ -527,6 +527,26 @@ class DbConnector:
         """
         def get_contracts_category_comparison(self, main_category, days):
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
+                if main_category.lower() != 'unlabeled':
+                        main_category_string = f"and bcm.main_category_key = lower('{main_category}')" 
+                        sub_category_addition_string = "union select * from top_contracts_sub_category_and_origin_key"
+                        sub_main_string = """
+                                bl.sub_category_key,
+                                bcm.sub_category_name,
+                                bcm.main_category_key,
+                                bcm.main_category_name,
+                        """
+                else:
+                        main_category_string = 'and bcm.main_category_key is null'
+                        sub_category_addition_string = ''
+                        sub_main_string = """
+                                'unlabeled' as sub_category_key,
+                                'Unlabeled' as sub_category_name,
+                                'unlabeled' as main_category_key,
+                                'Unlabeled' as main_category_name,
+                        """
+                
+
                 exec_string = f'''
                         with top_contracts as (
                                 SELECT 
@@ -534,21 +554,18 @@ class DbConnector:
                                         cl.origin_key,
                                         bl.contract_name,
                                         bl.project_name,
-                                        bl.sub_category_key,
-                                        bcm.sub_category_name,
-                                        bcm.main_category_key,
-                                        bcm.main_category_name,
+                                        {sub_main_string}
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                inner join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
-                                inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
+                                left join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
                                 where 
                                         date < DATE_TRUNC('day', NOW())
                                         {date_string}
-                                        and bcm.main_category_key = lower('{main_category}')
+                                        {main_category_string}
                                 group by 1,2,3,4,5,6,7,8
                                 order by gas_fees_eth  desc
                                 ),
@@ -567,9 +584,10 @@ class DbConnector:
                                 )
                                 
                         select * from (select * from top_contracts order by gas_fees_eth desc limit 50) a
-                        union
-                        select * from top_contracts_sub_category_and_origin_key
+                        {sub_category_addition_string}
                 '''
+                print(main_category)
+                print(exec_string)
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
