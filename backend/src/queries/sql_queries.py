@@ -437,10 +437,10 @@ sql_q= {
         ORDER BY pgn.day DESC
     """
         ,'mantle_fees_paid_usd': """
-        WITH mtl_price AS (
+        WITH mnt_price AS (
                 SELECT "date", price_usd
                 FROM public.prices_daily
-                WHERE token_symbol = 'MTL' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         ),
         mantle_tx_filtered AS (
                 SELECT
@@ -453,9 +453,9 @@ sql_q= {
         SELECT
                 mantle.day,
                 mantle.total_tx_fee * e.price_usd AS fees_paid_usd
-        --,mantle.total_tx_fee AS fees_paid_mtl
+        --,mantle.total_tx_fee AS fees_paid_mnt
         FROM mantle_tx_filtered mantle
-        LEFT JOIN mtl_price e ON mantle.day = e."date"
+        LEFT JOIN mnt_price e ON mantle.day = e."date"
         ORDER BY mantle.day DESC
     """
         ,'mantle_txcount': """
@@ -477,10 +477,10 @@ sql_q= {
         order by 1 DESC
     """
         ,'mantle_txcosts_median_usd': """
-        WITH mtl_price AS (
+        WITH mnt_price AS (
                 SELECT "date", price_usd
                 FROM public.prices_daily
-                WHERE token_symbol = 'MTL' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         ),
         mantle_median AS (
                 SELECT
@@ -493,9 +493,9 @@ sql_q= {
         SELECT
                 mantle.day,
                 mantle.median_tx_fee * e.price_usd as txcosts_median_usd
-                --,mantle.median_tx_fee as txcosts_median_mtl
+                --,mantle.median_tx_fee as txcosts_median_mnt
         FROM mantle_median mantle
-        LEFT JOIN mtl_price e ON mantle.day = e."date"
+        LEFT JOIN mnt_price e ON mantle.day = e."date"
         ORDER BY mantle.day DESC
     """
 }
