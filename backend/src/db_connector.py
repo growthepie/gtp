@@ -636,20 +636,20 @@ class DbConnector:
                                         {date_string}
                                         {main_category_string}
                                 group by 1,2,3,4,5,6,7,8
-                                order by gas_fees_eth  desc
+                                order by gas_fees_eth desc
                                 ),
                                 
                         top_contracts_sub_category_and_origin_key as (
                                 SELECT
-                                address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
+                                        address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
                                 FROM (
-                                SELECT
-                                ROW_NUMBER() OVER (PARTITION BY sub_category_key, origin_key ORDER BY gas_fees_eth desc) AS r,
-                                t.*
-                                FROM
-                                top_contracts t) x
+                                        SELECT
+                                                ROW_NUMBER() OVER (PARTITION BY sub_category_key, origin_key ORDER BY gas_fees_eth desc) AS r,
+                                                t.*
+                                        FROM
+                                                top_contracts t) x
                                 WHERE
-                                x.r <= 10
+                                x.r <= 20
                                 )
                                 
                         select * from (select * from top_contracts order by gas_fees_eth desc limit 50) a
