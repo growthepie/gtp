@@ -471,17 +471,17 @@ class DbConnector:
                                         bcm.sub_category_name,
                                         bcm.main_category_key,
                                         bcm.main_category_name,
-                                        sum(gas_fees_eth) as gas_fees_eth,
-                                        sum(gas_fees_usd) as gas_fees_usd,
-                                        sum(txcount) as txcount,
-                                        round(avg(daa)) as daa
+                                        sum(cl.gas_fees_eth) as gas_fees_eth,
+                                        sum(cl.gas_fees_usd) as gas_fees_usd,
+                                        sum(cl.txcount) as txcount,
+                                        round(avg(cl.daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
+                                inner join top_contracts tc on tc.address = cl.address and tc.origin_key = cl.origin_key 
                                 join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
                                 join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key)
                                 where
                                         date < DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days*2} days')
-                                        and cl.address in (select address from top_contracts)
                                 group by 1,2,3,4,5,6,7,8
                         )
                         -- join the two tables together to get the change in the top_by metric for the given contracts
