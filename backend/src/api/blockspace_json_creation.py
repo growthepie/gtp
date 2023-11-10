@@ -381,19 +381,22 @@ class BlockspaceJSONCreation():
                     # if we have any non-zero values, add list of averages for each timeframe
                     if averages.any().any():
                         chain_dict["overview"][timeframe_key][main_category_key]['data'] = averages.values.tolist()[0]
+                    
 
-                    chain_arg = chain_key if chain_key != 'all_l2s' else "all"
+                    ## only add contracts to all field in dicts
+                    if chain_key == 'all_l2s':
 
-                    top_contracts_gas = self.db_connector.get_top_contracts_by_category('main_category', main_category_key, chain_arg, 'gas', timeframe)
-                    # convert address to checksummed string 
-                    top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
+                        top_contracts_gas = self.db_connector.get_contracts_overview(main_category_key, timeframe)
+                        # convert address to checksummed string 
+                        top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
 
-                    chain_dict["overview"][timeframe_key][main_category_key]['contracts'] = {
-                        "data": top_contracts_gas[
-                            ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount"]
-                        ].values.tolist(),
-                        "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
-                    }
+                        chain_dict["overview"][timeframe_key][main_category_key]['contracts'] = {
+                            "data": top_contracts_gas[
+                                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount"]
+                            ].values.tolist(),
+                            "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
+                        }
+
 
             overview_dict['data']['chains'][chain_key] = chain_dict
 
