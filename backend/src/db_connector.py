@@ -330,6 +330,7 @@ class DbConnector:
                 return df
         
         """
+        DEPRECATED (currently not used) - 10.11.23
         This function is used to get the top contracts by category for the blockspace dashboard
         category_type: main_category or sub_category
         category: the category key (e.g. dex, unlabeled, etc.)
@@ -419,6 +420,76 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        """
+        special function for the blockspace overview dashboard
+        it returns the top 100 contracts by gas fees for the given main category
+        and the top 20 contracts by gas fees for each chain in the main category
+        
+        """
+        def get_contracts_overview(self, main_category, days):
+                date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
+                if main_category.lower() != 'unlabeled':
+                        main_category_string = f"and bcm.main_category_key = lower('{main_category}')" 
+                        sub_main_string = """
+                                bl.sub_category_key,
+                                bcm.sub_category_name,
+                                bcm.main_category_key,
+                                bcm.main_category_name,
+                        """
+                else:
+                        main_category_string = 'and bcm.main_category_key is null'
+                        sub_main_string = """
+                                'unlabeled' as sub_category_key,
+                                'Unlabeled' as sub_category_name,
+                                'unlabeled' as main_category_key,
+                                'Unlabeled' as main_category_name,
+                        """
+                
+
+                exec_string = f'''
+                        with top_contracts as (
+                                SELECT 
+                                        cl.address,
+                                        cl.origin_key,
+                                        bl.contract_name,
+                                        bl.project_name,
+                                        {sub_main_string}
+                                        sum(gas_fees_eth) as gas_fees_eth,
+                                        sum(gas_fees_usd) as gas_fees_usd,
+                                        sum(txcount) as txcount,
+                                        round(avg(daa)) as daa
+                                FROM public.blockspace_fact_contract_level cl
+                                left join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
+                                where 
+                                        date < DATE_TRUNC('day', NOW())
+                                        {date_string}
+                                        {main_category_string}
+                                group by 1,2,3,4,5,6,7,8
+                                order by gas_fees_eth  desc
+                                ),
+                                
+                        top_contracts_main_category_and_origin_key as (
+                                SELECT
+                                        address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
+                                FROM (
+                                        SELECT
+                                                ROW_NUMBER() OVER (PARTITION BY main_category_key, origin_key ORDER BY gas_fees_eth desc) AS r,
+                                                t.*
+                                        FROM
+                                                top_contracts t) x
+                                WHERE
+                                        x.r <= 20
+                                )
+                                
+                        select * from (select * from top_contracts order by gas_fees_eth desc limit 100) a
+                        union select * from top_contracts_main_category_and_origin_key
+                '''
+                # print(main_category)
+                # print(exec_string)
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
 
         """
         This function is used to get the top contracts by category for the landing page's top 6 contracts section. It returns the top 6 contracts by gas fees for all categories and also returns the change in the top_by metric for the given contract and time period.
@@ -471,17 +542,17 @@ class DbConnector:
                                         bcm.sub_category_name,
                                         bcm.main_category_key,
                                         bcm.main_category_name,
-                                        sum(gas_fees_eth) as gas_fees_eth,
-                                        sum(gas_fees_usd) as gas_fees_usd,
-                                        sum(txcount) as txcount,
-                                        round(avg(daa)) as daa
+                                        sum(cl.gas_fees_eth) as gas_fees_eth,
+                                        sum(cl.gas_fees_usd) as gas_fees_usd,
+                                        sum(cl.txcount) as txcount,
+                                        round(avg(cl.daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
+                                inner join top_contracts tc on tc.address = cl.address and tc.origin_key = cl.origin_key 
                                 join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
                                 join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key)
                                 where
                                         date < DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days*2} days')
-                                        and cl.address in (select address from top_contracts)
                                 group by 1,2,3,4,5,6,7,8
                         )
                         -- join the two tables together to get the change in the top_by metric for the given contracts
@@ -529,7 +600,6 @@ class DbConnector:
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
                 if main_category.lower() != 'unlabeled':
                         main_category_string = f"and bcm.main_category_key = lower('{main_category}')" 
-                        sub_category_addition_string = "union select * from top_contracts_sub_category_and_origin_key"
                         sub_main_string = """
                                 bl.sub_category_key,
                                 bcm.sub_category_name,
@@ -538,7 +608,6 @@ class DbConnector:
                         """
                 else:
                         main_category_string = 'and bcm.main_category_key is null'
-                        sub_category_addition_string = ''
                         sub_main_string = """
                                 'unlabeled' as sub_category_key,
                                 'Unlabeled' as sub_category_name,
@@ -567,27 +636,27 @@ class DbConnector:
                                         {date_string}
                                         {main_category_string}
                                 group by 1,2,3,4,5,6,7,8
-                                order by gas_fees_eth  desc
+                                order by gas_fees_eth desc
                                 ),
                                 
                         top_contracts_sub_category_and_origin_key as (
                                 SELECT
-                                address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
+                                        address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
                                 FROM (
-                                SELECT
-                                ROW_NUMBER() OVER (PARTITION BY sub_category_key, origin_key ORDER BY gas_fees_eth) AS r,
-                                t.*
-                                FROM
-                                top_contracts t) x
+                                        SELECT
+                                                ROW_NUMBER() OVER (PARTITION BY sub_category_key, origin_key ORDER BY gas_fees_eth desc) AS r,
+                                                t.*
+                                        FROM
+                                                top_contracts t) x
                                 WHERE
-                                x.r <= 10
+                                x.r <= 20
                                 )
                                 
                         select * from (select * from top_contracts order by gas_fees_eth desc limit 50) a
-                        {sub_category_addition_string}
+                        union select * from top_contracts_sub_category_and_origin_key
                 '''
-                print(main_category)
-                print(exec_string)
+                # print(main_category)
+                # print(exec_string)
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         

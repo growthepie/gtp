@@ -213,8 +213,16 @@ class JSONCreation():
                 elif df_tmp[mk].iloc[change] == 0:
                     change_val = None
                 else:
-                    change_val = (cur_val - df_tmp[mk].iloc[change]) / df_tmp[mk].iloc[change]
-                    change_val = round(change_val, 4)
+                    prev_val = df_tmp[mk].iloc[change]
+                    if prev_val < 0 and cur_val > 0:
+                        change_val = None
+                    elif prev_val > 0 and cur_val < 0:
+                        change_val = None
+                    elif prev_val < 0 and cur_val < 0:
+                        change_val = None
+                    else:
+                        change_val = (cur_val - prev_val) / prev_val
+                        change_val = round(change_val, 4)
                 changes_dict[f'{change}d'].append(change_val)
 
         df_tmp = self.df_rename(df_tmp, metric_id)
