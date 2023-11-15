@@ -216,6 +216,17 @@ sql_q= {
                 block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
                 AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
+                UNION ALL
+                
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'linea' as chain
+                FROM linea_tx
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+
         -- IMX   
         UNION ALL
                 
@@ -436,6 +447,73 @@ sql_q= {
         LEFT JOIN eth_price e ON pgn.day = e."date"
         ORDER BY pgn.day DESC
     """
+
+    # Linea
+    ,'linea_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.linea_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'linea_fees_paid_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        linea_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.linea_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.total_tx_fee * e.price_usd AS value
+        --,z.total_tx_fee AS fees_paid_eth
+        FROM linea_tx_filtered z
+        LEFT JOIN eth_price e ON z.day = e."date"
+        ORDER BY z.day DESC
+    """
+
+    ,'linea_daa': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(distinct from_address) AS value 
+        FROM public.linea_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'linea_txcosts_median_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        linea_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.linea_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.median_tx_fee * e.price_usd as value
+                --,z.median_tx_fee as txcosts_median_eth
+        FROM linea_median z
+        LEFT JOIN eth_price e ON z.day = e."date"
+        ORDER BY z.day DESC
+    """
 }
 
 
@@ -479,6 +557,11 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "zora", sql=sql_q["zora_txcosts_median_usd"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_usd"], query_parameters={"Days": 7})
     
+    ## Linea
+    ,SQLQuery(metric_key = "txcount", origin_key = "linea", sql=sql_q["linea_txcount"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "linea", sql=sql_q["linea_daa"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "linea", sql=sql_q["linea_fees_paid_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "linea", sql=sql_q["linea_txcosts_median_usd"], query_parameters={"Days": 7})
 
     ## Multichain
     ,SQLQuery(metric_key = "profit_usd", origin_key = "multi", sql=sql_q["profit_usd"], query_parameters={"Days": 7})
