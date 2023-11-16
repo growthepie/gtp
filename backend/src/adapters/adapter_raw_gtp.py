@@ -30,7 +30,10 @@ class NodeAdapter(AbstractAdapterRaw):
         self.threads = load_params['threads']
         self.run(self.block_start, self.batch_size, self.threads)
         print(f"FINISHED loading raw tx data for {self.chain}.")
-
+        
+    def set_rpc_url(self, new_url:str):
+        self.node_url = new_url
+        
     def connect_to_node(self):
         w3 = Web3(HTTPProvider(self.url))
         
@@ -81,7 +84,7 @@ class NodeAdapter(AbstractAdapterRaw):
         try:
             # Loop through each block in the range
             for block_num in range(block_start, block_end + 1):
-                block = w3.eth.get_block(block_num, full_transactions=True)  # Added full_transactions=True
+                block = w3.eth.get_block(block_num, full_transactions=True)
                 
                 # Fetch transaction details for the block using the new function
                 transaction_details = fetch_block_transaction_details(w3, block)
@@ -90,8 +93,13 @@ class NodeAdapter(AbstractAdapterRaw):
 
             # Convert list of dictionaries to DataFrame
             df = pd.DataFrame(all_transaction_details)
-
-            return df
+            
+            # if df doesn't have any records, then handle it gracefully
+            if df.empty:
+                print(f"No transactions found for blocks {block_start} to {block_end}.")
+                return None  # Or return an empty df as: return pd.DataFrame()
+            else:
+                return df
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -207,7 +215,122 @@ class NodeAdapter(AbstractAdapterRaw):
         filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
 
         return filtered_df    
-       
+
+    def prep_dataframe_scroll(self, df):
+        print("Preprocessing dataframe...")
+        # Define a mapping of old columns to new columns
+        column_mapping = {
+            'blockNumber': 'block_number',
+            'hash': 'tx_hash',
+            'from': 'from_address',
+            'to': 'to_address',
+            'gasPrice': 'gas_price',
+            'gas': 'gas_limit',
+            'gasUsed': 'gas_used',
+            'value': 'value',
+            'status': 'status',
+            'input': 'empty_input',
+            'l1Fee': 'l1_fee',
+            'block_timestamp': 'block_timestamp'
+        }
+
+        # Filter the dataframe to only include the relevant columns
+        filtered_df = df[list(column_mapping.keys())]
+
+        # Rename the columns based on the above mapping
+        filtered_df = filtered_df.rename(columns=column_mapping)
+
+        filtered_df['l1_fee'] = filtered_df['l1_fee'].apply(lambda x: int(x, 16) / 1e18 if x.startswith('0x') else float(x) / 1e18)
+        
+        # Convert columns to numeric if they aren't already
+        filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
+        filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
+        
+        # Calculating the tx_fee
+        filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+        
+        # Convert the 'input' column to boolean to indicate if it's empty or not
+        filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+        # Convert block_timestamp to datetime
+        filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+        # status column: 1 if status is success, 0 if failed else -1
+        filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+        
+        # replace None in 'to_address' column with empty string
+        if 'to_address' in filtered_df.columns:
+            filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+            filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+            
+        # Handle bytea data type
+        for col in ['tx_hash', 'to_address', 'from_address']:
+            if col in filtered_df.columns:
+                filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+            else:
+                print(f"Column {col} not found in dataframe.")
+
+        # gas_price column in eth
+        filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+        # value column divide by 1e18 to convert to eth
+        filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+        return filtered_df  
+    
+    def prep_dataframe_linea(self, df):
+        print("Preprocessing dataframe...")
+        # Define a mapping of old columns to new columns
+        column_mapping = {
+            'blockNumber': 'block_number',
+            'hash': 'tx_hash',
+            'from': 'from_address',
+            'to': 'to_address',
+            'gasPrice': 'gas_price',
+            'gas': 'gas_limit',
+            'gasUsed': 'gas_used',
+            'value': 'value',
+            'status': 'status',
+            'input': 'empty_input',
+            'block_timestamp': 'block_timestamp'
+        }
+
+        # Filter the dataframe to only include the relevant columns
+        filtered_df = df[list(column_mapping.keys())]
+
+        # Rename the columns based on the above mapping
+        filtered_df = filtered_df.rename(columns=column_mapping)
+
+        # Convert columns to numeric if they aren't already
+        filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
+        filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
+        
+        # Calculating the tx_fee
+        filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used'])  / 1e18
+        
+        # Convert the 'input' column to boolean to indicate if it's empty or not
+        filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+        # Convert block_timestamp to datetime
+        filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+        # status column: 1 if status is success, 0 if failed else -1
+        filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+        # Handle bytea data type
+        for col in ['tx_hash', 'to_address', 'from_address']:
+            if col in filtered_df.columns:
+                filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+            else:
+                print(f"Column {col} not found in dataframe.")
+
+        # gas_price column in eth
+        filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+        # value column divide by 1e18 to convert to eth
+        filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+        return filtered_df 
     def run(self, block_start, batch_size, threads):
         if not self.check_db_connection():
             raise ConnectionError("Database is not connected.")
@@ -248,11 +371,22 @@ class NodeAdapter(AbstractAdapterRaw):
                     print(f"Thread raised an exception: {e}")
 
     def fetch_and_process_range(self, current_start, current_end):
-
         df = self.fetch_data_for_range(self.w3, current_start, current_end)
+
+        # Check if df is None or empty, and if so, return early without further processing.
+        if df is None or df.empty:
+            print(f"Skipping blocks {current_start} to {current_end} due to no data.")
+            return
+
         self.save_data_for_range(df, current_start, current_end)
         
-        df_prep = self.prep_dataframe(df)
+        if self.chain == 'linea':
+            df_prep = self.prep_dataframe_linea(df)
+        elif self.chain == 'scroll':
+            df_prep = self.prep_dataframe_scroll(df)
+        else:
+            df_prep = self.prep_dataframe(df)
+            
         df_prep.drop_duplicates(subset=['tx_hash'], inplace=True)
         df_prep.set_index('tx_hash', inplace=True)
         df_prep.index.name = 'tx_hash'
@@ -263,7 +397,7 @@ class NodeAdapter(AbstractAdapterRaw):
         except Exception as e:
             print(f"Error upserting data to {self.table_name} table. {e}")
             raise e
-        
+
 ## ----------------- Helper functions --------------------
 
 def fetch_block_transaction_details(w3, block):

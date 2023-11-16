@@ -19,3 +19,5 @@ standalone_admin_password.txt
 warnings.txt
 
 venv/
+
+/backend/requirements.txt
