@@ -160,6 +160,22 @@ adapter_mapping = [
         ,l2beat_tvl_naming='publicgoodsnetwork'
     )
 
+    ,AdapterMapping(
+        origin_key="linea"
+        ,name="Linea"
+        ,symbol = "-"
+        ,technology = "ZK Rollup"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2023-07-12'
+        ,website='https://linea.build/'
+        ,block_explorer='https://lineascan.build/'
+        ,twitter="https://twitter.com/LineaBuild"
+
+        #,coingecko_naming="linea"
+        ,defillama_stablecoin='Linea'
+        ,l2beat_tvl_naming='linea'
+    )
+
     # ,AdapterMapping(
     #     origin_key="loopring"
     #     ,coingecko_naming="loopring"
