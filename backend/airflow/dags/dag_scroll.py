@@ -20,10 +20,10 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_mantle',
-    description = 'Load raw tx data from local node',
-    start_date = datetime(2023,9,1),
-    schedule = '10 */3 * * *'
+    dag_id = 'dag_scroll',
+    description = 'Load raw tx data from Scroll',
+    start_date = datetime(2023,11,1),
+    schedule = '25 */3 * * *'
 )
 
 def adapter_nader_super():
@@ -31,8 +31,8 @@ def adapter_nader_super():
     def run_nader_super():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'mantle',
-            'node_url': os.getenv("MANTLE_RPC"),
+            'chain': 'scroll',
+            'node_url': os.getenv("SCROLL_RPC"),
         }
 
         # Initialize DbConnector
