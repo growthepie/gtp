@@ -24,7 +24,7 @@ def push_to_airtable(df):
     urls_mantle = df['address'].loc[df['origin_key'] == 'mantle'].apply(lambda x: f'https://mantlescan.info/address/{x}')
     urls_scroll = df['address'].loc[df['origin_key'] == 'scroll'].apply(lambda x: f'https://scroll.l2scan.co/address/{x}')
     #urls_ = df['address'].loc[df['origin_key'] == ''].apply(lambda x: f'{x}')
-    df['Blockexplorer'] = pd.concat([urls_arbitrum, urls_optimism, urls_base, urls_zksync_era, urls_polygon_zkevm, urls_zora, urls_gitcoin_pgn])
+    df['Blockexplorer'] = pd.concat([urls_arbitrum, urls_optimism, urls_base, urls_zksync_era, urls_polygon_zkevm, urls_zora, urls_gitcoin_pgn, urls_linea, urls_mantle, urls_scroll])
 
     #convert df to dict of rows
     contracts = df.to_dict(orient='records')
