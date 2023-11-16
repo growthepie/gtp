@@ -20,6 +20,9 @@ def push_to_airtable(df):
     urls_polygon_zkevm = df['address'].loc[df['origin_key'] == 'polygon_zkevm'].apply(lambda x: f'https://zkevm.polygonscan.com/address/{x}')
     urls_zora = df['address'].loc[df['origin_key'] == 'zora'].apply(lambda x: f'https://explorer.zora.energy/address/{x}')
     urls_gitcoin_pgn = df['address'].loc[df['origin_key'] == 'gitcoin_pgn'].apply(lambda x: f'https://explorer.publicgoods.network/address/{x}')
+    urls_linea = df['address'].loc[df['origin_key'] == 'linea'].apply(lambda x: f'https://lineascan.build/address/{x}')
+    urls_mantle = df['address'].loc[df['origin_key'] == 'mantle'].apply(lambda x: f'https://mantlescan.info/address/{x}')
+    urls_scroll = df['address'].loc[df['origin_key'] == 'scroll'].apply(lambda x: f'https://scroll.l2scan.co/address/{x}')
     #urls_ = df['address'].loc[df['origin_key'] == ''].apply(lambda x: f'{x}')
     df['Blockexplorer'] = pd.concat([urls_arbitrum, urls_optimism, urls_base, urls_zksync_era, urls_polygon_zkevm, urls_zora, urls_gitcoin_pgn])
 
