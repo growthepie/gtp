@@ -435,9 +435,9 @@ class JSONCreation():
                     continue
                 if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
                     continue
+                if origin_key == 'linea' and metric in ['rent_paid', 'profit']:
+                    continue
                 
-                # if origin_key == 'zksync_era' and metric == 'stables_mcap':
-                #     continue
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]
@@ -478,10 +478,9 @@ class JSONCreation():
                     continue
                 if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
                     continue
-                # if origin_key == 'zksync_era' and metric == 'stables_mcap':
-                #    continue
-                # if origin_key == 'zksync_era':
-                #     continue
+                if origin_key == 'linea' and metric in ['rent_paid', 'profit']:
+                    continue
+
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]
