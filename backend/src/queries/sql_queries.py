@@ -513,6 +513,69 @@ sql_q= {
         FROM linea_median z
         LEFT JOIN eth_price e ON z.day = e."date"
         ORDER BY z.day DESC
+        
+   """
+        ,'mantle_fees_paid_usd': """
+        WITH mnt_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        mantle_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.mantle_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                mantle.day,
+                mantle.total_tx_fee * e.price_usd AS fees_paid_usd
+        --,mantle.total_tx_fee AS fees_paid_mnt
+        FROM mantle_tx_filtered mantle
+        LEFT JOIN mnt_price e ON mantle.day = e."date"
+        ORDER BY mantle.day DESC
+    """
+        ,'mantle_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS txcount
+        FROM public.mantle_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+        ,'mantle_daa': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(distinct from_address) AS DAA 
+        FROM public.mantle_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+        ,'mantle_txcosts_median_usd': """
+        WITH mnt_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        mantle_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.mantle_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                mantle.day,
+                mantle.median_tx_fee * e.price_usd as txcosts_median_usd
+                --,mantle.median_tx_fee as txcosts_median_mnt
+        FROM mantle_median mantle
+        LEFT JOIN mnt_price e ON mantle.day = e."date"
+        ORDER BY mantle.day DESC
     """
 }
 
@@ -562,6 +625,12 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "linea", sql=sql_q["linea_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "linea", sql=sql_q["linea_fees_paid_usd"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "linea", sql=sql_q["linea_txcosts_median_usd"], query_parameters={"Days": 7})
+
+    ## Mantle
+    ,SQLQuery(metric_key = "txcount", origin_key = "mantle", sql=sql_q["mantle_txcount"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "mantle", sql=sql_q["mantle_daa"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "mantle", sql=sql_q["mantle_txcosts_median_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "mantle", sql=sql_q["mantle_fees_paid_usd"], query_parameters={"Days": 7})
 
     ## Multichain
     ,SQLQuery(metric_key = "profit_usd", origin_key = "multi", sql=sql_q["profit_usd"], query_parameters={"Days": 7})
