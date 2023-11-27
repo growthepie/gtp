@@ -515,6 +515,7 @@ sql_q= {
         ORDER BY z.day DESC
         
    """
+   ## Mantle
         ,'mantle_fees_paid_usd': """
         WITH mnt_price AS (
                 SELECT "date", price_usd
@@ -531,7 +532,7 @@ sql_q= {
         )
         SELECT
                 mantle.day,
-                mantle.total_tx_fee * e.price_usd AS fees_paid_usd
+                mantle.total_tx_fee * e.price_usd AS value
         --,mantle.total_tx_fee AS fees_paid_mnt
         FROM mantle_tx_filtered mantle
         LEFT JOIN mnt_price e ON mantle.day = e."date"
@@ -540,7 +541,7 @@ sql_q= {
         ,'mantle_txcount': """
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
-                COUNT(*) AS txcount
+                COUNT(*) AS value
         FROM public.mantle_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
@@ -549,7 +550,7 @@ sql_q= {
         ,'mantle_daa': """
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
-                COUNT(distinct from_address) AS DAA 
+                COUNT(distinct from_address) AS value 
         FROM public.mantle_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
@@ -571,7 +572,7 @@ sql_q= {
         )
         SELECT
                 mantle.day,
-                mantle.median_tx_fee * e.price_usd as txcosts_median_usd
+                mantle.median_tx_fee * e.price_usd as value
                 --,mantle.median_tx_fee as txcosts_median_mnt
         FROM mantle_median mantle
         LEFT JOIN mnt_price e ON mantle.day = e."date"
