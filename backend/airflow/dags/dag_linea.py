@@ -6,7 +6,7 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from datetime import datetime,timedelta
-from src.adapters.adapter_raw_gtp import NodeAdapter
+from src.adapters.adapter_raw_gtp import NodeAdapter, MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task 
 
@@ -57,10 +57,15 @@ def adapter_nader_super():
         load_params = {
             'block_start': 'auto',
             'batch_size': 200,
-            'threads': 5,
+            'threads': 4,
         }
-        adapter.extract_raw(load_params)
-
+        
+        try:
+            adapter.extract_raw(load_params)
+        except MaxWaitTimeExceededException as e:
+            print(str(e))
+            raise e 
+        
     run_nader_super()
 
 adapter_nader_super()
