@@ -4,10 +4,16 @@ import boto3
 import os
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 import botocore
+import time
+import random
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import traceback
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
+
+class MaxWaitTimeExceededException(Exception):
+    pass
 
 class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -17,7 +23,7 @@ class NodeAdapter(AbstractAdapterRaw):
         self.chain = adapter_params['chain']
         self.url = adapter_params['node_url']
         self.table_name = f'{self.chain}_tx'    
-        #self.table_name = f'base_tx_nader'    
+        #self.table_name = f'linea_tx_new'    
         # Initialize Web3 connection
         self.w3 = self.connect_to_node()
         
@@ -102,7 +108,6 @@ class NodeAdapter(AbstractAdapterRaw):
                 return df
 
         except Exception as e:
-            print(f"An error occurred: {e}")
             raise e
         
     def save_data_for_range(self, df, block_start, block_end):
@@ -206,8 +211,6 @@ class NodeAdapter(AbstractAdapterRaw):
             else:
                 print(f"Column {col} not found in dataframe.")             
 
-        
-
         # gas_price column in eth
         filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
 
@@ -217,7 +220,6 @@ class NodeAdapter(AbstractAdapterRaw):
         return filtered_df    
 
     def prep_dataframe_scroll(self, df):
-        print("Preprocessing dataframe...")
         # Define a mapping of old columns to new columns
         column_mapping = {
             'blockNumber': 'block_number',
@@ -279,7 +281,6 @@ class NodeAdapter(AbstractAdapterRaw):
         return filtered_df  
     
     def prep_dataframe_linea(self, df):
-        print("Preprocessing dataframe...")
         # Define a mapping of old columns to new columns
         column_mapping = {
             'blockNumber': 'block_number',
@@ -317,6 +318,11 @@ class NodeAdapter(AbstractAdapterRaw):
         # status column: 1 if status is success, 0 if failed else -1
         filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
 
+        # replace None in 'to_address' column with empty string
+        if 'to_address' in filtered_df.columns:
+            filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+            filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+            
         # Handle bytea data type
         for col in ['tx_hash', 'to_address', 'from_address']:
             if col in filtered_df.columns:
@@ -331,6 +337,7 @@ class NodeAdapter(AbstractAdapterRaw):
         filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
 
         return filtered_df 
+    
     def run(self, block_start, batch_size, threads):
         if not self.check_db_connection():
             raise ConnectionError("Database is not connected.")
@@ -369,34 +376,61 @@ class NodeAdapter(AbstractAdapterRaw):
                     future.result()
                 except Exception as e:
                     print(f"Thread raised an exception: {e}")
+                    traceback.print_exc()
 
     def fetch_and_process_range(self, current_start, current_end):
-        df = self.fetch_data_for_range(self.w3, current_start, current_end)
+        base_wait_time = 5   # Base wait time in seconds
+        while True:
+            try:
+                df = self.fetch_data_for_range(self.w3, current_start, current_end)
 
-        # Check if df is None or empty, and if so, return early without further processing.
-        if df is None or df.empty:
-            print(f"Skipping blocks {current_start} to {current_end} due to no data.")
-            return
+                # Check if df is None or empty, and if so, return early without further processing.
+                if df is None or df.empty:
+                    print(f"Skipping blocks {current_start} to {current_end} due to no data.")
+                    return
 
-        self.save_data_for_range(df, current_start, current_end)
-        
-        if self.chain == 'linea':
-            df_prep = self.prep_dataframe_linea(df)
-        elif self.chain == 'scroll':
-            df_prep = self.prep_dataframe_scroll(df)
-        else:
-            df_prep = self.prep_dataframe(df)
-            
-        df_prep.drop_duplicates(subset=['tx_hash'], inplace=True)
-        df_prep.set_index('tx_hash', inplace=True)
-        df_prep.index.name = 'tx_hash'
-        
-        try:
-            self.db_connector.upsert_table(self.table_name, df_prep)
-            print("Data inserted successfully.")
-        except Exception as e:
-            print(f"Error upserting data to {self.table_name} table. {e}")
-            raise e
+                self.save_data_for_range(df, current_start, current_end)
+                
+                if self.chain == 'linea':
+                    df_prep = self.prep_dataframe_linea(df)
+                elif self.chain == 'scroll':
+                    df_prep = self.prep_dataframe_scroll(df)
+                else:
+                    df_prep = self.prep_dataframe(df)
+
+                df_prep.drop_duplicates(subset=['tx_hash'], inplace=True)
+                df_prep.set_index('tx_hash', inplace=True)
+                df_prep.index.name = 'tx_hash'
+                
+                try:
+                    self.db_connector.upsert_table(self.table_name, df_prep)
+                    print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
+                except Exception as e:
+                    print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
+                    raise e
+                break  # Break out of the loop on successful execution
+
+            except Exception as e:
+                print(f"Error processing blocks {current_start} to {current_end}: {e}")
+                base_wait_time = self.handle_retry_exception(current_start, current_end, base_wait_time)
+
+    def handle_retry_exception(self, current_start, current_end, base_wait_time):
+        max_wait_time = 300  # Maximum wait time in seconds
+        wait_time = min(max_wait_time, 2 * base_wait_time)
+
+        # Check if max_wait_time is reached and raise an exception
+        if wait_time >= max_wait_time:
+            raise MaxWaitTimeExceededException(f"Maximum wait time exceeded for blocks {current_start} to {current_end}")
+
+        # Add jitter
+        jitter = random.uniform(0, wait_time * 0.1)
+        wait_time += jitter
+        formatted_wait_time = format(wait_time, ".2f")
+
+        print(f"Retrying for blocks {current_start} to {current_end} after {formatted_wait_time} seconds.")
+        time.sleep(wait_time)
+
+        return wait_time
 
 ## ----------------- Helper functions --------------------
 
