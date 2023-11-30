@@ -5,6 +5,8 @@ import os
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 import botocore
 import time
+import json
+import os
 import random
 import pandas as pd
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -82,7 +84,48 @@ class NodeAdapter(AbstractAdapterRaw):
         except Exception as e:
             print("An error occurred while fetching the latest block:", str(e))
             return None
-    
+
+    def initialize_block_tracking(self):
+        # Path for the JSON file used for block tracking
+        self.block_tracking_file = 'block_tracking.json'
+
+        if not os.path.exists(self.block_tracking_file):
+            # Check the highest block number processed in the database
+            highest_processed_block = self.db_connector.get_max_block(self.table_name)
+            block_states = {}
+
+            # Initialize the JSON file with blocks up to highest_processed_block as 'completed'
+            for block_num in range(0, highest_processed_block + 1, self.batch_size):
+                block_states[f"{block_num}-{min(block_num + self.batch_size - 1, highest_processed_block)}"] = 'completed'
+
+            with open(self.block_tracking_file, 'w') as file:
+                json.dump(block_states, file)
+
+    def update_block_state(self, block_start, block_end, state):
+        # Load the current state
+        with open(self.block_tracking_file, 'r') as file:
+            block_states = json.load(file)
+
+        # Update the state
+        block_states[f"{block_start}-{block_end}"] = state
+
+        # Save the updated state
+        with open(self.block_tracking_file, 'w') as file:
+            json.dump(block_states, file)
+
+    def get_earliest_unprocessed_block(self, latest_block):
+        with open(self.block_tracking_file, 'r') as file:
+            block_states = json.load(file)
+
+        if not block_states:  # If the JSON file was initially empty
+            return self.db_connector.get_max_block(self.table_name) + 1
+
+        for block_range, state in block_states.items():
+            if state != 'completed':
+                return int(block_range.split('-')[0])
+
+        return latest_block  # If all are processed, return the latest block
+       
     def fetch_data_for_range(self, w3, block_start, block_end):
         print(f"Fetching data for blocks {block_start} to {block_end}...")
         all_transaction_details = []
@@ -339,6 +382,8 @@ class NodeAdapter(AbstractAdapterRaw):
         return filtered_df 
     
     def run(self, block_start, batch_size, threads):
+        self.initialize_block_tracking()  # Initialize the block tracking system
+
         if not self.check_db_connection():
             raise ConnectionError("Database is not connected.")
 
@@ -354,7 +399,8 @@ class NodeAdapter(AbstractAdapterRaw):
             raise ValueError("Could not fetch the latest block.")
 
         if block_start == 'auto':
-            block_start = self.db_connector.get_max_block(self.table_name)  
+            #block_start = self.db_connector.get_max_block(self.table_name)  
+            block_start = self.get_earliest_unprocessed_block(latest_block)
         else:
             block_start = int(block_start)
 
@@ -380,6 +426,7 @@ class NodeAdapter(AbstractAdapterRaw):
 
     def fetch_and_process_range(self, current_start, current_end):
         base_wait_time = 5   # Base wait time in seconds
+        self.update_block_state(current_start, current_end, 'processing')
         while True:
             try:
                 df = self.fetch_data_for_range(self.w3, current_start, current_end)
@@ -387,6 +434,7 @@ class NodeAdapter(AbstractAdapterRaw):
                 # Check if df is None or empty, and if so, return early without further processing.
                 if df is None or df.empty:
                     print(f"Skipping blocks {current_start} to {current_end} due to no data.")
+                    self.update_block_state(current_start, current_end, 'completed')
                     return
 
                 self.save_data_for_range(df, current_start, current_end)
@@ -405,11 +453,17 @@ class NodeAdapter(AbstractAdapterRaw):
                 try:
                     self.db_connector.upsert_table(self.table_name, df_prep)
                     print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
+                    self.update_block_state(current_start, current_end, 'completed')
                 except Exception as e:
                     print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
                     raise e
                 break  # Break out of the loop on successful execution
-
+            
+            except MaxWaitTimeExceededException as e:
+                print(f"Maximum wait time exceeded for blocks {current_start} to {current_end}: {e}")
+                self.update_block_state(current_start, current_end, 'failed')
+                break  # Exit loop on max wait time exception
+            
             except Exception as e:
                 print(f"Error processing blocks {current_start} to {current_end}: {e}")
                 base_wait_time = self.handle_retry_exception(current_start, current_end, base_wait_time)
