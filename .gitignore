@@ -22,4 +22,3 @@ venv/
 
 /backend/requirements.txt
 backend/nb_data_load.ipynb
-backend/linea.csv
