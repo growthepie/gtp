@@ -578,6 +578,73 @@ sql_q= {
         LEFT JOIN mnt_price e ON mantle.day = e."date"
         ORDER BY mantle.day DESC
     """
+  ## Scroll
+    ,'scroll_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.scroll_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'scroll_fees_paid_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        scroll_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.scroll_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.total_tx_fee * e.price_usd AS value
+        --,z.total_tx_fee AS fees_paid_eth
+        FROM scroll_tx_filtered z
+        LEFT JOIN eth_price e ON z.day = e."date"
+        ORDER BY z.day DESC
+    """
+
+    ,'scroll_daa': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(distinct from_address) AS value 
+        FROM public.scroll_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+    ,'scroll_txcosts_median_usd': """
+        WITH eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        scroll_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.scroll_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.median_tx_fee * e.price_usd as value
+                --,z.median_tx_fee as txcosts_median_eth
+        FROM scroll_median z
+        LEFT JOIN eth_price e ON z.day = e."date"
+        ORDER BY z.day DESC
+        
+   """
 }
 
 
@@ -632,6 +699,12 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "mantle", sql=sql_q["mantle_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "mantle", sql=sql_q["mantle_txcosts_median_usd"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "mantle", sql=sql_q["mantle_fees_paid_usd"], query_parameters={"Days": 7})
+
+    ## Scroll
+    ,SQLQuery(metric_key = "txcount", origin_key = "scroll", sql=sql_q["scroll_txcount"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "scroll", sql=sql_q["scroll_daa"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "scroll", sql=sql_q["scroll_fees_paid_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "scroll", sql=sql_q["scroll_txcosts_median_usd"], query_parameters={"Days": 7})
 
     ## Multichain
     ,SQLQuery(metric_key = "profit_usd", origin_key = "multi", sql=sql_q["profit_usd"], query_parameters={"Days": 7})
