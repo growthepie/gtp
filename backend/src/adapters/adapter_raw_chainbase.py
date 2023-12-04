@@ -115,6 +115,9 @@ class AdapterChainbaseRaw(AbstractAdapterRaw):
             else:
                 raise NotImplementedError(f"Query {query.key} not implemented yet")
 
+            ## drop duplicates with same tx_hash
+            df.drop_duplicates(subset=['tx_hash'], inplace=True)
+
             ## upsert data to db
             df.set_index('tx_hash', inplace=True)
             self.db_connector.upsert_table(query.table_name, df)
