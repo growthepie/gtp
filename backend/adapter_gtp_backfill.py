@@ -428,12 +428,8 @@ def process_missing_blocks_in_batches(engine, s3_connection, json_file, batch_si
     with open(json_file, 'r') as file:
         missing_block_ranges = json.load(file)
 
-    total_ranges = len(missing_block_ranges)
-    print(f"Total block ranges to process: {total_ranges}")
-
     with ThreadPoolExecutor(max_workers=THREADS) as executor:
         futures = []
-        range_counter = total_ranges  # Initialize a counter for the countdown
 
         for block_range in missing_block_ranges:
             start_block = block_range[0]
@@ -447,8 +443,6 @@ def process_missing_blocks_in_batches(engine, s3_connection, json_file, batch_si
         for future in as_completed(futures):
             try:
                 future.result()
-                range_counter -= 1  # Decrement the counter
-                print(f"Processed a block range. Remaining: {range_counter}")
             except Exception as e:
                 print(f"An error occurred: {e}")
 
