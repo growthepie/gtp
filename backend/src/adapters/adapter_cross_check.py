@@ -20,8 +20,11 @@ class AdapterCrossCheck(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Cross-Check", adapter_params, db_connector)
         self.projects = [x for x in adapter_mapping if x.block_explorer_txcount is not None]
+        # self.headers = {
+        #     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        # }
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36'
         }
         print_init(self.name, self.adapter_params)
 
