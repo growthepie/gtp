@@ -325,9 +325,9 @@ class BlockspaceJSONCreation():
             chain_timeframe_overview_dfs = {}
             for timeframe in overview_timeframes:
                 if origin_key == 'all_l2s':
-                    chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key], timeframe)
-                else:
                     chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview(chain_keys, timeframe)
+                else:
+                    chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key], timeframe)
 
             chain_name = chain.name
 
