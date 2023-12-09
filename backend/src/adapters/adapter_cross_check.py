@@ -3,7 +3,6 @@ import pandas as pd
 import requests
 import io
 from datetime import datetime
-import cloudscraper
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.adapters.mapping import adapter_mapping
@@ -21,10 +20,9 @@ class AdapterCrossCheck(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Cross-Check", adapter_params, db_connector)
         self.projects = [x for x in adapter_mapping if x.block_explorer_txcount is not None]
-        # self.headers = {
-        #     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-        # }
-        self.scraper = cloudscraper.create_scraper()  # returns a CloudScraper instance
+        self.headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+        }
         print_init(self.name, self.adapter_params)
 
     """
@@ -43,8 +41,7 @@ class AdapterCrossCheck(AbstractAdapter):
             print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
             
             if project.block_explorer_type == 'etherscan':
-                #response = requests.get(project.block_explorer_txcount, headers=self.headers)
-                response = self.scraper.get(project.block_explorer_txcount)
+                response = requests.get(project.block_explorer_txcount, headers=self.headers)
                 data = io.StringIO(response.text)
                 df = pd.read_csv(data)
 
@@ -59,8 +56,7 @@ class AdapterCrossCheck(AbstractAdapter):
                 dfMain = pd.concat([dfMain, df], ignore_index=True)
 
             elif project.block_explorer_type == 'blockscout':
-                #response = requests.get('https://zksync2-mainnet.zkscan.io/api/v2/stats/charts/transactions', headers=self.headers)
-                response = self.scraper.get(project.block_explorer_txcount)
+                response = requests.get('https://zksync2-mainnet.zkscan.io/api/v2/stats/charts/transactions', headers=self.headers)
                 df = pd.DataFrame(response.json()['chart_data'])
 
                 df['date'] = pd.to_datetime(df['date'])
