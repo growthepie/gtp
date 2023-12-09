@@ -335,12 +335,10 @@ class JSONCreation():
         return dict
 
     def generate_chains_userbase_dict(self, df, aggregation):       
-        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, technology='-', purpose = '-')] + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, technology='-', purpose='-')]
+        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, exclude_metrics=[], technology='-', purpose = '-')] + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, exclude_metrics=[], technology='-', purpose='-')]
 
         chains_dict = {} 
         for chain in adapter_multi_mapping:
-            # if chain.origin_key == 'zksync_era':
-            #     continue
             chains_dict[chain.origin_key] = self.generate_userbase_dict(df, chain, aggregation)
         return chains_dict
     
@@ -430,15 +428,18 @@ class JSONCreation():
         for chain in adapter_mapping:
             origin_key = chain.origin_key
             if chain.in_api == False:
-                print(f'-- SKIPPED -- Chain details export for {origin_key}. API is set to False')
+                print(f'..skipped -- Chain details export for {origin_key}. API is set to False')
                 continue
 
             metrics_dict = {}
             for metric in self.metrics:
-                if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
+                if metric in chain.exclude_metrics:
+                    print(f'..skipped -- Chain details export for {origin_key} - {metric}. Metric is excluded for this chain')
                     continue
-                if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
-                    continue
+                # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
+                #     continue
+                # if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
+                #     continue
                 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
@@ -477,13 +478,17 @@ class JSONCreation():
             for chain in adapter_mapping:
                 origin_key = chain.origin_key
                 if chain.in_api == False:
-                    print(f'-- SKIPPED -- Metric details export for {origin_key}. API is set to False')
+                    print(f'..skipped -- Metric details export for {origin_key}. API is set to False')
                     continue
 
-                if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
+                if metric in chain.exclude_metrics:
+                    print(f'..skipped -- Metric details export for {origin_key} - {metric}. Metric is excluded for this chain')
                     continue
-                if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
-                    continue
+
+                # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
+                #     continue
+                # if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
+                #     continue
 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
@@ -545,7 +550,7 @@ class JSONCreation():
         for chain in adapter_mapping:
             origin_key = chain.origin_key
             if chain.in_api == False:
-                print(f'-- SKIPPED -- Master json export for {origin_key}. API is set to False')
+                print(f'..skipped -- Master json export for {origin_key}. API is set to False')
                 continue
 
             chain_dict[origin_key] = {

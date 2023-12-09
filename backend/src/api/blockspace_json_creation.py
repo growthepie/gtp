@@ -290,18 +290,22 @@ class BlockspaceJSONCreation():
         main_category_keys = category_mapping['main_category_key'].unique().tolist()
 
         # get all chains and add all_l2s to the list
-        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, technology='-', purpose='-')]
+        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, exclude_metrics=[], technology='-', purpose='-')]
 
         ## put all origin_keys from adapter_mapping in a list where in_api is True
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
 
         #for chain_key in adapter_mapping:
         for chain in adapter_multi_mapping:
             origin_key = chain.origin_key
-            if origin_key == 'ethereum':
-                continue
+            # if origin_key == 'ethereum':
+            #     continue
             if chain.in_api == False:
                 print(f'-- SKIPPED -- Chain blockspace overview export for {origin_key}. API is set to False')
+                continue
+
+            if 'blockspace' in chain.exclude_metrics:
+                print(f'-- SKIPPED -- Chain blockspace overview export for {origin_key}. Blockspace is in exclude_metrics')
                 continue
 
             print(f"Processing {origin_key}")
@@ -573,7 +577,7 @@ class BlockspaceJSONCreation():
         timeframes = [7, 30, 180, "max"]
 
         ## put all origin_keys from adapter_mapping in a list where in_api is True
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
 
         # daily data for max timeframe
         sub_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'sub_category', chain_keys)

@@ -6,10 +6,11 @@ class AdapterMapping(BaseModel):
     origin_key: str
     name: str
     in_api: bool ## True when the chain should be included in the API output
+    exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
 
-    symbol: Optional[str]
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
+    symbol: Optional[str]
     launch_date: Optional[str] ## YYYY-MM-DD
     website: Optional[str]
     block_explorer: Optional[str]
@@ -29,6 +30,7 @@ adapter_mapping = [
         origin_key="ethereum"
         ,name = "Ethereum"
         ,in_api = True
+        ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace']
 
         ,symbol = "ETH"
         ,technology = 'Mainnet'
@@ -47,6 +49,7 @@ adapter_mapping = [
         origin_key="polygon_zkevm"
         ,name = "Polygon zkEVM"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "MATIC"
         ,technology = "ZK Rollup"
@@ -68,6 +71,7 @@ adapter_mapping = [
         origin_key="optimism"
         ,name = "Optimism"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "OP"
         ,technology = "Optimistic Rollup"
@@ -88,6 +92,7 @@ adapter_mapping = [
         origin_key='arbitrum'
         ,name = "Arbitrum One"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "ARB"
         ,technology = "Optimistic Rollup"
@@ -108,6 +113,7 @@ adapter_mapping = [
         origin_key="imx"
         ,name = "Immutable X"
         ,in_api = True
+        ,exclude_metrics = ['txcosts', 'fees', 'profit']
 
         ,symbol = "IMX"
         ,technology = "Validium"
@@ -126,6 +132,7 @@ adapter_mapping = [
         origin_key="zksync_era"
         ,name = "zkSync Era"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "-"
         ,technology = "ZK Rollup"
@@ -147,6 +154,7 @@ adapter_mapping = [
         origin_key="base"
         ,name = "Base"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
@@ -168,6 +176,7 @@ adapter_mapping = [
         origin_key="zora"
         ,name = "Zora"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
@@ -189,6 +198,7 @@ adapter_mapping = [
         origin_key="gitcoin_pgn"
         ,name="Public Goods Network"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
@@ -210,6 +220,7 @@ adapter_mapping = [
         origin_key="linea"
         ,name="Linea"
         ,in_api = True
+        ,exclude_metrics = []
 
         ,symbol = "-"
         ,technology = "ZK Rollup"
@@ -231,6 +242,7 @@ adapter_mapping = [
         origin_key='scroll'
         ,name='Scroll'
         ,in_api = False
+        ,exclude_metrics = []
 
         ,symbol = "-"
         ,technology = "ZK Rollup"
