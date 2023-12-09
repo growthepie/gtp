@@ -20,11 +20,8 @@ class AdapterCrossCheck(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Cross-Check", adapter_params, db_connector)
         self.projects = [x for x in adapter_mapping if x.block_explorer_txcount is not None]
-        # self.headers = {
-        #     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-        # }
         self.headers = {
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.101 Safari/537.36'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         }
         print_init(self.name, self.adapter_params)
 
@@ -44,20 +41,12 @@ class AdapterCrossCheck(AbstractAdapter):
             print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
             
             if project.block_explorer_type == 'etherscan':
-                session = requests.Session()
-                session.headers.update(self.headers)
-
-                response = session.get(project.block_explorer_txcount.replace('?output=csv', ''))
-                print(response)
-                print(response.text)
-
-                response = session.get(project.block_explorer_txcount)
-                #response = requests.get(project.block_explorer_txcount, headers=self.headers)
+                response = requests.get(project.block_explorer_txcount, headers=self.headers)
                 data = io.StringIO(response.text)
                 df = pd.read_csv(data)
 
-                print(response.text)
-                print(df.columns)
+                # print(response.text)
+                # print(df.columns)
 
                 df['date'] = pd.to_datetime(df['Date(UTC)'])
                 df['metric_key'] = 'txcount_explorer'
