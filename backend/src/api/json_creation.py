@@ -335,7 +335,7 @@ class JSONCreation():
         return dict
 
     def generate_chains_userbase_dict(self, df, aggregation):       
-        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', technology='-', purpose = '-')] + [AdapterMapping(origin_key='all_l2s', name='All L2s', technology='-', purpose='-')]
+        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, technology='-', purpose = '-')] + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, technology='-', purpose='-')]
 
         chains_dict = {} 
         for chain in adapter_multi_mapping:
@@ -429,6 +429,10 @@ class JSONCreation():
         ## loop over all chains and generate a chain details json for all chains and with all possible metrics
         for chain in adapter_mapping:
             origin_key = chain.origin_key
+            if chain.in_api == False:
+                print(f'-- SKIPPED -- Chain details export for {origin_key}. API is set to False')
+                continue
+
             metrics_dict = {}
             for metric in self.metrics:
                 if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
@@ -472,6 +476,10 @@ class JSONCreation():
             chains_dict = {}    
             for chain in adapter_mapping:
                 origin_key = chain.origin_key
+                if chain.in_api == False:
+                    print(f'-- SKIPPED -- Metric details export for {origin_key}. API is set to False')
+                    continue
+
                 if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                     continue
                 if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
@@ -536,6 +544,10 @@ class JSONCreation():
         chain_dict = {}
         for chain in adapter_mapping:
             origin_key = chain.origin_key
+            if chain.in_api == False:
+                print(f'-- SKIPPED -- Master json export for {origin_key}. API is set to False')
+                continue
+
             chain_dict[origin_key] = {
                 'name': chain.name,
                 'symbol': chain.symbol,

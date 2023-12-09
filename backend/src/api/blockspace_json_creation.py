@@ -300,25 +300,29 @@ class BlockspaceJSONCreation():
         main_category_keys = category_mapping['main_category_key'].unique().tolist()
 
         # get all chains and add all_l2s to the list
-        chain_keys = self.get_blockspace_chain_keys()
+        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, technology='-', purpose='-')]
 
-        for chain_key in chain_keys:
-            # origin_key = chain_key
-            if chain_key == 'ethereum':
+        #for chain_key in chain_keys:
+        for chain in adapter_multi_mapping:
+            origin_key = chain.origin_key
+            if origin_key == 'ethereum':
+                continue
+            if chain.in_api == False:
+                print(f'-- SKIPPED -- Chain blockspace overview export for {origin_key}. API is set to False')
                 continue
 
-            print(f"Processing {chain_key}")
+
+
+            print(f"Processing {origin_key}")
 
             # get daily data (multiple rows per day - one for each main_category_key)
-            chain_df = self.get_blockspace_overview_daily_data([chain_key] if chain_key != 'all_l2s' else chain_keys[:-1])
+            chain_df = self.get_blockspace_overview_daily_data([origin_key] if origin_key != 'all_l2s' else chain_keys[:-1])
 
             chain_timeframe_overview_dfs = {}
             for timeframe in overview_timeframes:
-                chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([chain_key] if chain_key != 'all_l2s' else chain_keys[:-1], timeframe)
+                chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key] if origin_key != 'all_l2s' else chain_keys[:-1], timeframe)
 
-            # get the chain_name from the adapter_mapping array
-            chain_name = [x.name for x in adapter_mapping if x.origin_key ==
-                        chain_key][0] if chain_key != 'all_l2s' else 'All L2s'
+            chain_name = chain.name
 
             # create dict for each chain
             chain_dict = {
@@ -384,7 +388,7 @@ class BlockspaceJSONCreation():
                     
 
                     ## only add contracts to all field in dicts
-                    if chain_key == 'all_l2s':
+                    if origin_key == 'all_l2s':
 
                         top_contracts_gas = self.db_connector.get_contracts_overview(main_category_key, timeframe)
                         # convert address to checksummed string 
@@ -398,7 +402,7 @@ class BlockspaceJSONCreation():
                         }
 
 
-            overview_dict['data']['chains'][chain_key] = chain_dict
+            overview_dict['data']['chains'][origin_key] = chain_dict
 
         if self.s3_bucket == None:
             self.save_to_json(overview_dict, f'blockspace/overview')
@@ -639,8 +643,6 @@ class BlockspaceJSONCreation():
                     chain_df = main_cat_agg_df[(main_cat_agg_df['origin_key'] == chain) & (main_cat_agg_df['main_category_key'] == main_cat)]
                     if chain_df.shape[0] > 0:
                         comparison_dict['data'][main_cat]['aggregated'][timeframe_key]['data'][chain] = chain_df[['gas_fees_eth', 'gas_fees_usd', 'txcount', 'gas_fees_share', 'txcount_share']].values.tolist()[0]
-
-
 
                 # create dict for each sub category of main category
                 for sub_cat in sub_cat_agg_df[sub_cat_agg_df['main_category_key'] == main_cat]['sub_category_key'].unique():

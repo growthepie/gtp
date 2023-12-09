@@ -5,6 +5,8 @@ from typing import Optional
 class AdapterMapping(BaseModel):
     origin_key: str
     name: str
+    in_api: bool ## True when the chain should be included in the API output
+
     symbol: Optional[str]
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
@@ -17,11 +19,17 @@ class AdapterMapping(BaseModel):
     l2beat_tvl_naming: Optional[str] ## to load tvl
     defillama_stablecoin : Optional[str] ## to load stablecoin tvl
 
+    ## for txcount cross-check with block explorers
+    block_explorer_txcount: Optional[str]
+    block_explorer_type: Optional[str] ## 'etherscan' or 'blockscout'
+
 adapter_mapping = [
     # Layer 1
     AdapterMapping(
         origin_key="ethereum"
         ,name = "Ethereum"
+        ,in_api = True
+
         ,symbol = "ETH"
         ,technology = 'Mainnet'
         ,purpose = 'General Purpose (EVM)'
@@ -38,6 +46,8 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="polygon_zkevm"
         ,name = "Polygon zkEVM"
+        ,in_api = True
+
         ,symbol = "MATIC"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -49,10 +59,16 @@ adapter_mapping = [
         ,coingecko_naming="matic-network"
         #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='polygonzkevm'
+
+        ,block_explorer_txcount='https://zkevm.polygonscan.com/chart/tx?output=csv'
+        ,block_explorer_type='etherscan' 
         )
+
     ,AdapterMapping(
         origin_key="optimism"
         ,name = "Optimism"
+        ,in_api = True
+
         ,symbol = "OP"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -64,10 +80,15 @@ adapter_mapping = [
         ,coingecko_naming="optimism"
         ,defillama_stablecoin='optimism'
         ,l2beat_tvl_naming="optimism"
+
+        ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
+        ,block_explorer_type='etherscan'
         )
     ,AdapterMapping(
         origin_key='arbitrum'
         ,name = "Arbitrum One"
+        ,in_api = True
+
         ,symbol = "ARB"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -79,10 +100,15 @@ adapter_mapping = [
         ,coingecko_naming="arbitrum"
         ,defillama_stablecoin='arbitrum'
         ,l2beat_tvl_naming='arbitrum'
+
+        ,block_explorer_txcount='https://arbiscan.io/chart/tx?output=csv'
+        ,block_explorer_type='etherscan'
         )
     ,AdapterMapping(
         origin_key="imx"
         ,name = "Immutable X"
+        ,in_api = True
+
         ,symbol = "IMX"
         ,technology = "Validium"
         ,purpose = 'Gaming, NFTs'
@@ -99,6 +125,8 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="zksync_era"
         ,name = "zkSync Era"
+        ,in_api = True
+
         ,symbol = "-"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -110,11 +138,16 @@ adapter_mapping = [
         #,coingecko_naming="-"
         #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='zksync-era'
+
+        ,block_explorer_txcount='https://zksync2-mainnet.zkscan.io/api/v2/stats/charts/transactions'
+        ,block_explorer_type='blockscout' 
     )
 
     ,AdapterMapping(
         origin_key="base"
         ,name = "Base"
+        ,in_api = True
+
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -126,11 +159,16 @@ adapter_mapping = [
         #,coingecko_naming="-"
         #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='base'
+
+        ,block_explorer_txcount='https://basescan.org/chart/tx?output=csv'
+        ,block_explorer_type='etherscan'
     )
 
     ,AdapterMapping(
         origin_key="zora"
         ,name = "Zora"
+        ,in_api = True
+
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'NFTs'
@@ -142,11 +180,16 @@ adapter_mapping = [
         #,coingecko_naming="-"
         #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='zora'
+
+        ,block_explorer_txcount='https://explorer.zora.energy/api/v2/stats/charts/transactions'
+        ,block_explorer_type='blockscout'
     )
 
     ,AdapterMapping(
         origin_key="gitcoin_pgn"
         ,name="Public Goods Network"
+        ,in_api = True
+
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'Public Goods Funding'
@@ -158,11 +201,16 @@ adapter_mapping = [
         #,coingecko_naming="-"
         #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='publicgoodsnetwork'
+
+        ,block_explorer_txcount='https://explorer.publicgoods.network/api/v2/stats/charts/transactions'
+        ,block_explorer_type='blockscout'
     )
 
     ,AdapterMapping(
         origin_key="linea"
         ,name="Linea"
+        ,in_api = True
+
         ,symbol = "-"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -174,7 +222,32 @@ adapter_mapping = [
         #,coingecko_naming="linea"
         ,defillama_stablecoin='Linea'
         ,l2beat_tvl_naming='linea'
+
+        ,block_explorer_txcount='https://lineascan.build/chart/tx?output=csv'
+        ,block_explorer_type='etherscan'
     )
+
+    ,AdapterMapping(
+        origin_key='scroll'
+        ,name='Scroll'
+        ,in_api = False
+
+        ,symbol = "-"
+        ,technology = "ZK Rollup"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2023-10-17'
+        ,website='https://scroll.io/'
+        ,block_explorer='https://scrollscan.com/'
+        ,twitter="https://twitter.com/scroll_zkp"
+
+        #,coingecko_naming="scroll"
+        #,defillama_stablecoin='' ## stables via Dune
+        ,l2beat_tvl_naming='scroll'
+
+        ,block_explorer_txcount='https://scrollscan.com/chart/tx?output=csv'
+        ,block_explorer_type='etherscan'
+    )
+
 
     # ,AdapterMapping(
     #     origin_key="loopring"
@@ -182,21 +255,11 @@ adapter_mapping = [
     #     ,defillama_stablecoin='loopring'
     #     ,l2beat_tvl_naming='loopring'
     #     )
-    # ,AdapterMapping(
-    #     origin_key='zksync_lite'
-    #     ,defillama_stablecoin='zksync'
-    #     ,l2beat_tvl_naming='zksync-lite'
-    #     )
 
     # ,AdapterMapping(
     #     origin_key='starknet'
     #     ,defillama_stablecoin='starknet'
     #     ,l2beat_tvl_naming='starknet'
-    #     )
-    # ,AdapterMapping(
-    #     origin_key='aztec_v2'
-    #     ,defillama_stablecoin='aztec'
-    #     ,l2beat_tvl_naming='aztec'
     #     )
 
 ] # end of adapter_mappings
