@@ -45,6 +45,9 @@ class AdapterCrossCheck(AbstractAdapter):
                 data = io.StringIO(response.text)
                 df = pd.read_csv(data)
 
+                print(response.text)
+                print(df.columns)
+
                 df['date'] = pd.to_datetime(df['Date(UTC)'])
                 df['metric_key'] = 'txcount_explorer'
                 df['origin_key'] = project.origin_key
@@ -71,7 +74,7 @@ class AdapterCrossCheck(AbstractAdapter):
         today = datetime.today().strftime('%Y-%m-%d')
         dfMain.drop(dfMain[dfMain.date == today].index, inplace=True, errors='ignore')
         dfMain.value.fillna(0, inplace=True)
-        
+
         dfMain.set_index(['date', 'origin_key', 'metric_key'], inplace=True)
         return dfMain
 
