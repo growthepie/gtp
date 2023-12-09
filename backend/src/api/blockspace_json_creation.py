@@ -302,7 +302,10 @@ class BlockspaceJSONCreation():
         # get all chains and add all_l2s to the list
         adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, technology='-', purpose='-')]
 
-        #for chain_key in chain_keys:
+        ## put all origin_keys from adapter_mapping in a list where in_api is True
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
+
+        #for chain_key in adapter_mapping:
         for chain in adapter_multi_mapping:
             origin_key = chain.origin_key
             if origin_key == 'ethereum':
@@ -311,16 +314,20 @@ class BlockspaceJSONCreation():
                 print(f'-- SKIPPED -- Chain blockspace overview export for {origin_key}. API is set to False')
                 continue
 
-
-
             print(f"Processing {origin_key}")
 
             # get daily data (multiple rows per day - one for each main_category_key)
-            chain_df = self.get_blockspace_overview_daily_data([origin_key] if origin_key != 'all_l2s' else chain_keys[:-1])
+            if origin_key == 'all_l2s':
+                chain_df = self.get_blockspace_overview_daily_data(chain_keys)
+            else:
+                chain_df = self.get_blockspace_overview_daily_data([origin_key])
 
             chain_timeframe_overview_dfs = {}
             for timeframe in overview_timeframes:
-                chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key] if origin_key != 'all_l2s' else chain_keys[:-1], timeframe)
+                if origin_key == 'all_l2s':
+                    chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key], timeframe)
+                else:
+                    chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview(chain_keys, timeframe)
 
             chain_name = chain.name
 
@@ -389,7 +396,6 @@ class BlockspaceJSONCreation():
 
                     ## only add contracts to all field in dicts
                     if origin_key == 'all_l2s':
-
                         top_contracts_gas = self.db_connector.get_contracts_overview(main_category_key, timeframe)
                         # convert address to checksummed string 
                         top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
@@ -562,7 +568,7 @@ class BlockspaceJSONCreation():
         return df
 
 
-
+    ### ToDo: Add check/filters whether chain data should be loaded based on in_api flag
     def create_blockspace_comparison_json(self):
         # create base dict
         comparison_dict = {
