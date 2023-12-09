@@ -625,7 +625,7 @@ class JSONCreation():
         print(f'-- DONE -- landingpage export')
 
     def create_fundamentals_json(self, df):
-        df = df[['metric_key', 'origin_key', 'date', 'value']]
+        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         ## filter out metric_keys 'maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa'

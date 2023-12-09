@@ -258,20 +258,10 @@ class BlockspaceJSONCreation():
 
         return df
 
-
     def get_category_mapping(self):
         exec_string = "SELECT * FROM public.blockspace_category_mapping"
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
         return df
-
-    def get_blockspace_chain_keys(self):
-        exec_string = "SELECT DISTINCT origin_key FROM public.blockspace_fact_sub_category_level"
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
-
-        chain_key_list = df['origin_key'].tolist()
-        chain_key_list.append('all_l2s')
-
-        return chain_key_list
     
     ##### FILE HANDLERS #####
     def save_to_json(self, data, path):
@@ -416,7 +406,7 @@ class BlockspaceJSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/blockspace/overview', overview_dict, self.cf_distribution_id)
         print(f'-- DONE -- Blockspace export for overview')
 
-    def get_comparison_aggregate_data_day(self, days, category_type):
+    def get_comparison_aggregate_data_day(self, days, category_type, origin_keys:list):
         date_where = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ""
     
         sub_category_key_str = ""
@@ -435,6 +425,7 @@ class BlockspaceJSONCreation():
                     {date_where}
                     -- ignore total_usage
                     and sub_category_key != 'total_usage'
+                    and origin_key IN ('{"','".join(origin_keys)}')
                 GROUP BY origin_key
             )
 
@@ -465,9 +456,9 @@ class BlockspaceJSONCreation():
 
         return df
 
-    def get_comparison_daily_data(self, days, category_type):
+    def get_comparison_daily_data(self, days, category_type, origin_keys:list):
         date_where = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ""
-
+        
         sub_category_key_str = ""
         if category_type == 'sub_category':
             sub_category_key_str = "sub_category_key, "  
@@ -485,6 +476,7 @@ class BlockspaceJSONCreation():
                     {date_where}
                     -- ignore total_usage
                     and sub_category_key != 'total_usage'
+                    and origin_key IN ('{"','".join(origin_keys)}')
                 GROUP BY origin_key, date
                 
             ),
@@ -580,13 +572,16 @@ class BlockspaceJSONCreation():
         # get data for each timeframe
         timeframes = [7, 30, 180, "max"]
 
+        ## put all origin_keys from adapter_mapping in a list where in_api is True
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
+
         # daily data for max timeframe
-        sub_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'sub_category')
-        main_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'main_category')
+        sub_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'sub_category', chain_keys)
+        main_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'main_category', chain_keys)
 
         for timeframe in timeframes:
-            sub_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'sub_category')
-            main_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'main_category')
+            sub_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'sub_category', chain_keys)
+            main_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'main_category', chain_keys)
             
             timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
 
@@ -628,7 +623,7 @@ class BlockspaceJSONCreation():
                 }
 
                 # get top contracts for main category
-                top_contracts_gas = self.db_connector.get_contracts_category_comparison(main_cat, timeframe)
+                top_contracts_gas = self.db_connector.get_contracts_category_comparison(main_cat, timeframe, chain_keys)
                 # convert address to checksummed string 
                 top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
 
@@ -685,7 +680,7 @@ class BlockspaceJSONCreation():
         for chain in main_cat_daily_df['origin_key'].unique():
             for main_cat in main_cat_daily_df['main_category_key'].unique():
                 # get daily data for each chain for each main category and sort by unix asc
-                chain_df = main_cat_daily_df[(main_cat_daily_df['origin_key'] == chain) & (main_cat_daily_df['main_category_key'] == main_cat)]
+                chain_df = main_cat_daily_df[(main_cat_daily_df['origin_key'] == chain) & (main_cat_daily_df['main_category_key'] == main_cat)].copy()
 
                 if chain_df.shape[0] > 0:
                     ## for values in column 'gas_fees_eth' keep only 5 decimals
@@ -713,7 +708,7 @@ class BlockspaceJSONCreation():
                     # add daily data for each chain for each sub category of main category
                     for sub_cat in sub_cat_daily_df[sub_cat_daily_df['main_category_key'] == main_cat]['sub_category_key'].unique():
                         # print("daily sub category chain_df", chain, chain_df)
-                        chain_df = sub_cat_daily_df[(sub_cat_daily_df['origin_key'] == chain) & (sub_cat_daily_df['sub_category_key'] == sub_cat)]
+                        chain_df = sub_cat_daily_df[(sub_cat_daily_df['origin_key'] == chain) & (sub_cat_daily_df['sub_category_key'] == sub_cat)].copy()
                         
                         if chain_df.shape[0] > 0:
                             ## for values in column 'gas_fees_eth' keep only 5 decimals
