@@ -44,7 +44,15 @@ class AdapterCrossCheck(AbstractAdapter):
             print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
             
             if project.block_explorer_type == 'etherscan':
-                response = requests.get(project.block_explorer_txcount, headers=self.headers)
+                session = requests.Session()
+                session.headers.update(self.headers)
+
+                response = session.get(project.block_explorer_txcount.replace('?output=csv', ''))
+                print(response)
+                print(response.text)
+
+                response = session.get(project.block_explorer_txcount)
+                #response = requests.get(project.block_explorer_txcount, headers=self.headers)
                 data = io.StringIO(response.text)
                 df = pd.read_csv(data)
 
