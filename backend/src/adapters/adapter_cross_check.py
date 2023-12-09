@@ -2,6 +2,7 @@ import time
 import pandas as pd
 import requests
 import io
+from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.adapters.mapping import adapter_mapping
@@ -66,6 +67,10 @@ class AdapterCrossCheck(AbstractAdapter):
                 raise ValueError('Block Explorer Type not supported')
             
             time.sleep(1)
+        
+        today = datetime.today().strftime('%Y-%m-%d')
+        dfMain.drop(dfMain[dfMain.date == today].index, inplace=True, errors='ignore')
+        dfMain.value.fillna(0, inplace=True)
         
         dfMain.set_index(['date', 'origin_key', 'metric_key'], inplace=True)
         return dfMain
