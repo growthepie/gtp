@@ -596,7 +596,7 @@ class DbConnector:
         and the top 10 contracts by gas fees for each sub category in the main category
         
         """
-        def get_contracts_category_comparison(self, main_category, days):
+        def get_contracts_category_comparison(self, main_category, days, origin_keys:list):
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
                 if main_category.lower() != 'unlabeled':
                         main_category_string = f"and bcm.main_category_key = lower('{main_category}')" 
@@ -633,6 +633,7 @@ class DbConnector:
                                 left join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
                                 where 
                                         date < DATE_TRUNC('day', NOW())
+                                        and cl.origin_key IN ('{"','".join(origin_keys)}')
                                         {date_string}
                                         {main_category_string}
                                 group by 1,2,3,4,5,6,7,8
