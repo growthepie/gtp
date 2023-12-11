@@ -1,11 +1,12 @@
 import os
-from src.adapters.adapter_raw_gtp import NodeAdapter, MaxWaitTimeExceededException
+from src.adapters.adapter_raw_gtp import NodeAdapter
 from src.db_connector import DbConnector
+from src.adapters.adapter_utils import *
 
 adapter_params = {
     'rpc': 'local_node',
-    'chain': 'linea',
-    'node_url': os.getenv("LINEA_RPC"),
+    'chain': 'mantle',
+    'node_url': os.getenv("MANTLE_RPC"),
 }
 
 # Initialize DbConnector
@@ -14,23 +15,11 @@ db_connector = DbConnector()
 # Initialize NodeAdapter
 adapter = NodeAdapter(adapter_params, db_connector)
 
-# Test database connectivity
-if not adapter.check_db_connection():
-    print("Failed to connect to database.")
-else:
-    print("Successfully connected to database.")
-
-# Test S3 connectivity
-if not adapter.check_s3_connection():
-    print("Failed to connect to S3.")
-else:
-    print("Successfully connected to S3.")
-
 # Test run method
 load_params = {
-    'block_start': 786098, # block 5th Nov 
-    'batch_size': 200,
-    'threads': 4,
+    'block_start': 'auto',
+    'batch_size': 150,
+    'threads': 7,
 }
 
 try:
