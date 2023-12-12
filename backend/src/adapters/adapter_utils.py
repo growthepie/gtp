@@ -184,7 +184,7 @@ def prep_dataframe_scroll(df):
     filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
     
     # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18 + filtered_df['l1_fee']
     
     # Convert the 'input' column to boolean to indicate if it's empty or not
     filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
