@@ -1,6 +1,9 @@
-import getpass
-import os
 import sys
+import getpass
+sys_user = getpass.getuser()
+sys.path.append(f"/home/{sys_user}/gtp/backend/")
+
+import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_raw_gtp import NodeAdapter
@@ -8,8 +11,6 @@ from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
-sys_user = getpass.getuser()
-sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 default_args = {
     'owner': 'nader',

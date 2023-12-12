@@ -1,12 +1,12 @@
-import getpass
 import sys
+import getpass
+sys_user = getpass.getuser()
+sys.path.append(f"/home/{sys_user}/gtp/backend/")
+
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.adapters.adapter_utils import *
 from adapter_gtp_backfill_task import backfiller_task
-
-sys_user = getpass.getuser()
-sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 chain_settings = {
     'gitcoin_pgn': {'threads': 15, 'batch_size': 250},
@@ -33,7 +33,7 @@ default_args = {
     schedule_interval=timedelta(days=1)
 )
 def backfiller_dag():
-    chains = ['gitcoin_pgn', 'linea', 'zora', 'scroll', 'mantle', 'base']
+    chains = ['gitcoin_pgn', 'linea', 'zora', 'scroll', 'mantle']
 
     for chain in chains:
         @task(task_id=f'backfill_{chain}')
