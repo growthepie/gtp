@@ -1,31 +1,31 @@
 import getpass
 import os
-sys_user = getpass.getuser()
-
 import sys
+import time
+from datetime import datetime, timedelta
+from src.adapters.adapter_raw_gtp import NodeAdapter
+from src.adapters.adapter_utils import *
+from src.db_connector import DbConnector
+from airflow.decorators import dag, task
+
+sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-from datetime import datetime,timedelta
-from src.adapters.adapter_raw_gtp import NodeAdapter, MaxWaitTimeExceededException
-from src.db_connector import DbConnector
-from airflow.decorators import dag, task 
-
 default_args = {
-    'owner' : 'nader',
-    'retries' : 2,
-    'email' : ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+    'owner': 'nader',
+    'retries': 2,
+    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
     'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
+    'retry_delay': timedelta(minutes=5)
 }
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_linea',
-    description = 'Load raw tx data from local node',
-    start_date = datetime(2023,9,1),
-    schedule = '20 */3 * * *'
+    dag_id='dag_linea',
+    description='Load raw tx data from Linea',
+    start_date=datetime(2023, 9, 1),
+    schedule_interval='20 */3 * * *'
 )
-
 def adapter_nader_super():
     @task()
     def run_nader_super():
@@ -41,31 +41,31 @@ def adapter_nader_super():
         # Initialize NodeAdapter
         adapter = NodeAdapter(adapter_params, db_connector)
 
-        # Test database connectivity
-        if not adapter.check_db_connection():
-            print("Failed to connect to database.")
-        else:
-            print("Successfully connected to database.")
-
-        # Test S3 connectivity
-        if not adapter.check_s3_connection():
-            print("Failed to connect to S3.")
-        else:
-            print("Successfully connected to S3.")
-            
-        # Extract
+        # Initial load parameters
         load_params = {
             'block_start': 'auto',
             'batch_size': 200,
             'threads': 4,
         }
-        
-        try:
-            adapter.extract_raw(load_params)
-        except MaxWaitTimeExceededException as e:
-            print(str(e))
-            raise e 
-        
+
+        while load_params['threads'] > 0:
+            try:
+                adapter.extract_raw(load_params)
+                break  # Break out of the loop on successful execution
+            except MaxWaitTimeExceededException as e:
+                print(str(e))
+                
+                # Reduce threads if possible, stop if it reaches 1
+                if load_params['threads'] > 1:
+                    load_params['threads'] -= 1
+                    print(f"Reducing threads to {load_params['threads']} and retrying.")
+                else:
+                    print("Reached minimum thread count (1)")
+                    raise e 
+
+                # Wait for 5 minutes before retrying
+                time.sleep(300)
+
     run_nader_super()
 
 adapter_nader_super()
