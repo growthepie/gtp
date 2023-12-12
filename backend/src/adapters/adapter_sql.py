@@ -2,6 +2,7 @@ import time
 import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
+from src.adapters.mapping import adapter_mapping
 from src.queries.sql_queries import sql_queries
 from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis, get_missing_days_blockspace
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
@@ -104,6 +105,10 @@ class AdapterSQL(AbstractAdapter):
         return dfMain
     
     def run_blockspace_queries(self, origin_keys, days):
+        if origin_keys is None:
+            origin_keys = [chain.origin_key for chain in adapter_mapping if chain.aggregate_blockspace == True]
+            print(f"...no specific origin_key found, aggregating blockspace for all chains: {origin_keys}...")
+
         for chain in origin_keys:
             if days == 'auto':
                 days = get_missing_days_blockspace(self.db_connector, chain)

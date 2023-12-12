@@ -157,7 +157,7 @@ def get_missing_days_blockspace(db_connector, origin_key):
         print(f"No blockspace entry detected for origin_key: {origin_key}. Set days to {days}.")
     else:
         delta = datetime.today().date() - last_date
-        days = delta.days + 3 #add 5 just for precaution (in case some data was missing etc.)
+        days = delta.days + 5 #add 5 just for precaution (in case some data was missing etc.)
         print(f"Last blockspace entry for origin_key: {origin_key} is on {last_date}. Set days to {days}.")
     return (days) 
 

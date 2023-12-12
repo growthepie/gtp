@@ -7,6 +7,7 @@ class AdapterMapping(BaseModel):
     name: str
     in_api: bool ## True when the chain should be included in the API output
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
+    aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
 
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
@@ -31,6 +32,7 @@ adapter_mapping = [
         ,name = "Ethereum"
         ,in_api = True
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace']
+        ,aggregate_blockspace = False
 
         ,symbol = "ETH"
         ,technology = 'Mainnet'
@@ -50,6 +52,7 @@ adapter_mapping = [
         ,name = "Polygon zkEVM"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "MATIC"
         ,technology = "ZK Rollup"
@@ -72,6 +75,7 @@ adapter_mapping = [
         ,name = "Optimism"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "OP"
         ,technology = "Optimistic Rollup"
@@ -88,11 +92,13 @@ adapter_mapping = [
         ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
         ,block_explorer_type='etherscan'
         )
+
     ,AdapterMapping(
         origin_key='arbitrum'
         ,name = "Arbitrum One"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "ARB"
         ,technology = "Optimistic Rollup"
@@ -109,11 +115,13 @@ adapter_mapping = [
         ,block_explorer_txcount='https://arbiscan.io/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
         )
+
     ,AdapterMapping(
         origin_key="imx"
         ,name = "Immutable X"
         ,in_api = True
         ,exclude_metrics = ['txcosts', 'fees', 'profit']
+        ,aggregate_blockspace = True
 
         ,symbol = "IMX"
         ,technology = "Validium"
@@ -133,6 +141,7 @@ adapter_mapping = [
         ,name = "zkSync Era"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "-"
         ,technology = "ZK Rollup"
@@ -155,6 +164,7 @@ adapter_mapping = [
         ,name = "Base"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
@@ -177,6 +187,7 @@ adapter_mapping = [
         ,name = "Zora"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
@@ -199,6 +210,7 @@ adapter_mapping = [
         ,name="Public Goods Network"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
@@ -221,6 +233,7 @@ adapter_mapping = [
         ,name="Linea"
         ,in_api = True
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "-"
         ,technology = "ZK Rollup"
@@ -243,6 +256,7 @@ adapter_mapping = [
         ,name='Scroll'
         ,in_api = False
         ,exclude_metrics = []
+        ,aggregate_blockspace = True
 
         ,symbol = "-"
         ,technology = "ZK Rollup"
