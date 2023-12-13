@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 ## Adapter Mappings
+## WARNING: When a new variable is added (which is not optional), it also needs to be added to the adapter_multi_mapping at the end of this file
 class AdapterMapping(BaseModel):
     origin_key: str
     name: str
@@ -289,3 +290,6 @@ adapter_mapping = [
     #     )
 
 ] # end of adapter_mappings
+
+adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, exclude_metrics=[], aggregate_blockspace=False, technology='-', purpose='-')] ## for multi-chain metrics
+adapter_multi_mapping = adapter_all2_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, exclude_metrics=[], aggregate_blockspace=False, technology='-', purpose = '-')]

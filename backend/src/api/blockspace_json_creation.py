@@ -3,7 +3,7 @@ import simplejson as json
 import datetime
 import pandas as pd
 
-from src.adapters.mapping import adapter_mapping, AdapterMapping
+from src.adapters.mapping import adapter_mapping, adapter_all2_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
 
 class BlockspaceJSONCreation():
@@ -289,14 +289,11 @@ class BlockspaceJSONCreation():
 
         main_category_keys = category_mapping['main_category_key'].unique().tolist()
 
-        # get all chains and add all_l2s to the list
-        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, exclude_metrics=[], technology='-', purpose='-')]
-
         ## put all origin_keys from adapter_mapping in a list where in_api is True
         chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
 
         #for chain_key in adapter_mapping:
-        for chain in adapter_multi_mapping:
+        for chain in adapter_all2_mapping:
             origin_key = chain.origin_key
             # if origin_key == 'ethereum':
             #     continue

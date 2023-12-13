@@ -4,7 +4,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-from src.adapters.mapping import adapter_mapping, AdapterMapping
+from src.adapters.mapping import adapter_mapping, adapter_multi_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
 
 class JSONCreation():
@@ -334,9 +334,7 @@ class JSONCreation():
                 }
         return dict
 
-    def generate_chains_userbase_dict(self, df, aggregation):       
-        adapter_multi_mapping = adapter_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, exclude_metrics=[], technology='-', purpose = '-')] + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, exclude_metrics=[], technology='-', purpose='-')]
-
+    def generate_chains_userbase_dict(self, df, aggregation):             
         chains_dict = {} 
         for chain in adapter_multi_mapping:
             chains_dict[chain.origin_key] = self.generate_userbase_dict(df, chain, aggregation)
