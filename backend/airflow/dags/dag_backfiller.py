@@ -45,7 +45,7 @@ def backfiller_dag():
 
         try:
             # Calculate the date range for the backfill
-            start_date = (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%d') # 3 days ago
+            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d') # 3 days ago
             end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d') # Yesterday
 
             # Get threads and batch size from the chain_settings
