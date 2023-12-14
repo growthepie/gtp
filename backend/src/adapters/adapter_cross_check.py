@@ -51,14 +51,9 @@ class AdapterCrossCheck(AbstractAdapter):
             
             if project.block_explorer_type == 'etherscan':
                 response = api_get_call(project.block_explorer_txcount, header = self.headers, as_json=False)
-                # response = requests.get(project.block_explorer_txcount, headers=self.headers)
-                # response = self.scraper.get(project.block_explorer_txcount)
                 
                 data = io.StringIO(response)
                 df = pd.read_csv(data)
-
-                # print(response.text)
-                # print(df.columns)
 
                 df['date'] = pd.to_datetime(df['Date(UTC)'])
                 df['metric_key'] = 'txcount_explorer'
@@ -69,8 +64,6 @@ class AdapterCrossCheck(AbstractAdapter):
 
             elif project.block_explorer_type == 'blockscout':
                 response = api_get_call(project.block_explorer_txcount, header = self.headers)
-                #response = requests.get('https://zksync2-mainnet.zkscan.io/api/v2/stats/charts/transactions', headers=self.headers)
-                #response = self.scraper.get(project.block_explorer_txcount)
                 df = pd.DataFrame(response['chart_data'])
 
                 df['date'] = pd.to_datetime(df['date'])
