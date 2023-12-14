@@ -59,7 +59,7 @@ def check_and_record_missing_block_ranges(db_connector, table_name, latest_block
 
     if not missing_blocks_result:
         print(f"No missing block ranges found for table: {table_name}.")
-        return
+        return False
 
     missing_ranges = []
     start_missing_range = None
@@ -85,6 +85,7 @@ def check_and_record_missing_block_ranges(db_connector, table_name, latest_block
         json.dump(missing_ranges, file)
 
     print(f"Missing block ranges saved to {MISSING_BLOCKS_FILE}")
+    return True
 
 def process_missing_blocks_in_batches(db_connector, s3_connection, json_file, batch_size, w3):
     with open(json_file, 'r') as file:
@@ -132,9 +133,9 @@ def main():
     print(f"Latest block number: {latest_block}")
     
     # Check and record missing block ranges
-    check_and_record_missing_block_ranges(db_connector, TABLE_NAME, latest_block)
-    # Process missing blocks in batches 
-    process_missing_blocks_in_batches(db_connector, s3_connection, MISSING_BLOCKS_FILE, BATCH_SIZE, w3)
+    if check_and_record_missing_block_ranges(db_connector, TABLE_NAME, latest_block):
+        # Process missing blocks in batches 
+        process_missing_blocks_in_batches(db_connector, s3_connection, MISSING_BLOCKS_FILE, BATCH_SIZE, w3)
     
 if __name__ == "__main__":
     main()
