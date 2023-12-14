@@ -7,7 +7,7 @@ import cloudscraper
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.adapters.mapping import adapter_mapping
-from src.misc.helper_functions import return_projects_to_load, upsert_to_kpis, check_projects_to_load
+from src.misc.helper_functions import return_projects_to_load, upsert_to_kpis, check_projects_to_load, api_get_call
 from src.misc.helper_functions import print_init, print_load
 
 ##ToDos: 
@@ -24,6 +24,7 @@ class AdapterCrossCheck(AbstractAdapter):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         }
+        # self.headers = None
         # self.scraper = cloudscraper.create_scraper(
         #     browser={
         #         'browser': 'chrome',
@@ -49,10 +50,11 @@ class AdapterCrossCheck(AbstractAdapter):
             print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
             
             if project.block_explorer_type == 'etherscan':
-                response = requests.get(project.block_explorer_txcount, headers=self.headers)
-                #response = self.scraper.get(project.block_explorer_txcount)
+                response = api_get_call(project.block_explorer_txcount, header = self.headers, as_json=False)
+                # response = requests.get(project.block_explorer_txcount, headers=self.headers)
+                # response = self.scraper.get(project.block_explorer_txcount)
                 
-                data = io.StringIO(response.text)
+                data = io.StringIO(response)
                 df = pd.read_csv(data)
 
                 # print(response.text)
@@ -66,9 +68,10 @@ class AdapterCrossCheck(AbstractAdapter):
                 dfMain = pd.concat([dfMain, df], ignore_index=True)
 
             elif project.block_explorer_type == 'blockscout':
-                response = requests.get('https://zksync2-mainnet.zkscan.io/api/v2/stats/charts/transactions', headers=self.headers)
+                response = api_get_call(project.block_explorer_txcount, header = self.headers)
+                #response = requests.get('https://zksync2-mainnet.zkscan.io/api/v2/stats/charts/transactions', headers=self.headers)
                 #response = self.scraper.get(project.block_explorer_txcount)
-                df = pd.DataFrame(response.json()['chart_data'])
+                df = pd.DataFrame(response['chart_data'])
 
                 df['date'] = pd.to_datetime(df['date'])
                 df['metric_key'] = 'txcount_explorer'
