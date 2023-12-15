@@ -20,10 +20,10 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_cross_check_v01',
+    dag_id = 'dag_cross_check_v02',
     description = 'Load txcount data from explorers',
     start_date = datetime(2023,12,9),
-    schedule = '35 02 * * *'
+    schedule = '35 04 * * *'
 )
 
 def etl():
