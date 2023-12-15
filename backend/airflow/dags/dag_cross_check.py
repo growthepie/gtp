@@ -43,6 +43,9 @@ def etl():
         df = ad.extract(load_params)
         # load
         ad.load(df)
+
+        ## cross-check and send Discord message
+        ad.cross_check()
     
     run_explorers()
 

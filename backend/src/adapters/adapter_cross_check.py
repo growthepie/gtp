@@ -8,6 +8,7 @@ from src.adapters.abstract_adapters import AbstractAdapter
 from src.adapters.mapping import adapter_mapping
 from src.misc.helper_functions import return_projects_to_load, upsert_to_kpis, check_projects_to_load, api_get_call
 from src.misc.helper_functions import print_init, print_load
+from src.misc.discord_utils import send_discord_message
 
 ##ToDos: 
 # Add logs (query execution, execution fails, etc)
@@ -101,4 +102,34 @@ class AdapterCrossCheck(AbstractAdapter):
 
     def load(self, df:pd.DataFrame):
         upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
-        print_load(self.name, upserted, tbl_name)       
+        print_load(self.name, upserted, tbl_name)     
+
+    def cross_check(self):
+        webhook_url = os.getenv('DISCORD_TX_CHECKER')
+
+        exec_string = """
+            with temp as (
+            SELECT 
+                origin_key,
+                SUM(case when metric_key = 'txcount_raw' then value end) as raw,
+                SUM(case when metric_key = 'txcount_explorer' then value end) as explorer
+            FROM fact_kpis 
+            WHERE metric_key in ('txcount_raw', 'txcount_explorer')
+            and date < date_trunc('day', NOW()) 
+            and date >= date_trunc('day',now()) - interval '7 days' 
+            group by 1
+        )
+
+        select 
+            *, 
+            explorer - raw as diff,
+            (explorer - raw) / explorer as diff_percent
+            from temp
+        """
+
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+
+        for index, row in df.iterrows():
+            if row['diff_percent'] > 0.02:
+                send_discord_message(f"txcount discrepancy in last 7 days for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])} tx)", webhook_url)
+                print(f"txcount discrepancy for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])})")
