@@ -156,8 +156,8 @@ adapter_mapping = [
         #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='zksync-era'
 
-        ,block_explorer_txcount='https://zksync2-mainnet.zkscan.io/api/v2/stats/charts/transactions'
-        ,block_explorer_type='blockscout' 
+        ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
+        ,block_explorer_type='l2beat'
     )
 
     ,AdapterMapping(
@@ -273,6 +273,29 @@ adapter_mapping = [
 
         ,block_explorer_txcount='https://scrollscan.com/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
+    )
+
+    ,AdapterMapping(
+        origin_key='mantle'
+        ,name='Mantle'
+        ,in_api = False
+        ,exclude_metrics = ['blockspace']
+        ,aggregate_blockspace = False
+
+        ,symbol = "-"
+        ,technology = "Optimium"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2023-07-14'
+        ,website='https://mantle.xyz/'
+        ,block_explorer='https://explorer.mantle.xyz/'
+        ,twitter="https://twitter.com/0xMantle"
+
+        ,coingecko_naming="mantle"
+        ,defillama_stablecoin='Mantle'
+        ,l2beat_tvl_naming='mantle'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
+        ,block_explorer_type='l2beat'
     )
 
 

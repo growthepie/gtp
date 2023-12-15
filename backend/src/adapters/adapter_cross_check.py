@@ -45,6 +45,7 @@ class AdapterCrossCheck(AbstractAdapter):
         projects_to_load = return_projects_to_load(self.projects, origin_keys)
 
         dfMain = pd.DataFrame()
+        metric_key = 'txcount_explorer'
 
         for project in projects_to_load:
             print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
@@ -56,10 +57,11 @@ class AdapterCrossCheck(AbstractAdapter):
                 df = pd.read_csv(data)
 
                 df['date'] = pd.to_datetime(df['Date(UTC)'])
-                df['metric_key'] = 'txcount_explorer'
+                df['metric_key'] = metric_key
                 df['origin_key'] = project.origin_key
                 df.rename(columns={'Value': 'value'}, inplace=True)
                 df = df[['date', 'metric_key', 'origin_key', 'value']]
+
                 dfMain = pd.concat([dfMain, df], ignore_index=True)
 
             elif project.block_explorer_type == 'blockscout':
@@ -67,11 +69,29 @@ class AdapterCrossCheck(AbstractAdapter):
                 df = pd.DataFrame(response['chart_data'])
 
                 df['date'] = pd.to_datetime(df['date'])
-                df['metric_key'] = 'txcount_explorer'
+                df['metric_key'] = metric_key
                 df['origin_key'] = project.origin_key
                 df.rename(columns={'tx_count': 'value'}, inplace=True)
                 df = df[['date', 'metric_key', 'origin_key', 'value']]
+
                 dfMain = pd.concat([dfMain, df], ignore_index=True)        
+
+            elif project.block_explorer_type == 'l2beat':
+                response_json = api_get_call(project.block_explorer_txcount, sleeper=10, retries=20)
+                df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
+
+                ## only keep the columns 0 (date) and 1 (transactions)
+                df = df.iloc[:,[0,1]]
+
+                df['date'] = pd.to_datetime(df[0],unit='s').dt.date
+                df.drop(df[df[1] == 0].index, inplace=True)
+                df.drop([0], axis=1, inplace=True)
+                df.rename(columns={1:'value'}, inplace=True)
+                df['metric_key'] = metric_key
+                df['origin_key'] = project.origin_key
+
+                dfMain = pd.concat([dfMain, df], ignore_index=True)  
+
             else:
                 print(f'not implemented {project.block_explorer_type}')
                 raise ValueError('Block Explorer Type not supported')
