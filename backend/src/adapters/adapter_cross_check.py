@@ -1,9 +1,8 @@
 import time
 import pandas as pd
-import requests
+import os
 import io
 from datetime import datetime
-import cloudscraper
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.adapters.mapping import adapter_mapping
@@ -24,14 +23,9 @@ class AdapterCrossCheck(AbstractAdapter):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         }
-        # self.headers = None
-        # self.scraper = cloudscraper.create_scraper(
-        #     browser={
-        #         'browser': 'chrome',
-        #         'platform': 'windows',
-        #         'desktop': True
-        #     }
-        # )
+        self.proxy =  {
+            'https': os.getenv('PROXY'),
+        }
         print_init(self.name, self.adapter_params)
 
     """
@@ -51,7 +45,7 @@ class AdapterCrossCheck(AbstractAdapter):
             print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
             
             if project.block_explorer_type == 'etherscan':
-                response = api_get_call(project.block_explorer_txcount, header = self.headers, as_json=False)
+                response = api_get_call(project.block_explorer_txcount, header = self.headers, as_json=False, proxy=self.proxy)
                 
                 data = io.StringIO(response)
                 df = pd.read_csv(data)
@@ -65,7 +59,7 @@ class AdapterCrossCheck(AbstractAdapter):
                 dfMain = pd.concat([dfMain, df], ignore_index=True)
 
             elif project.block_explorer_type == 'blockscout':
-                response = api_get_call(project.block_explorer_txcount, header = self.headers)
+                response = api_get_call(project.block_explorer_txcount, header = self.headers, proxy=self.proxy)
                 df = pd.DataFrame(response['chart_data'])
 
                 df['date'] = pd.to_datetime(df['date'])

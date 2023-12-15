@@ -10,13 +10,13 @@ import os
 import eth_utils
 
 ## API interaction functions
-def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_characters=False, as_json=True):
+def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_characters=False, as_json=True, proxy=None):
     retry_counter = 0
     interupt = False
 
     while True:
         try:
-            response = requests.request("GET", url, headers=header)
+            response = requests.request("GET", url, headers=header, proxies=proxy)
             if response.status_code == 200:
                 break
             elif response.status_code == 400:
