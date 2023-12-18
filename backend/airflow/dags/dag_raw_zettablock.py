@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_raw_zettablock_v01',
     description = 'Load raw polygon_zkevm & zksync era transaction data',
     start_date = datetime(2023,4,24),
-    schedule = '08 02 * * *'
+    schedule_interval='00 */3 * * *'
 )
 
 def etl():
