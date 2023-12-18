@@ -20,7 +20,7 @@ class AdapterMapping(BaseModel):
 
     coingecko_naming: Optional[str] ## to load price, market cap, etc
     l2beat_tvl_naming: Optional[str] ## to load tvl
-    defillama_stablecoin : Optional[str] ## to load stablecoin tvl
+    defillama_stablecoin : Optional[str] ## to load stablecoin tvl (if commented out, stables are loaded via Dune Query)
 
     ## for txcount cross-check with block explorers
     block_explorer_txcount: Optional[str]
