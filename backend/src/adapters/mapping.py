@@ -255,7 +255,7 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key='scroll'
         ,name='Scroll'
-        ,in_api = False
+        ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
