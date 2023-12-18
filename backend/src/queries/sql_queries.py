@@ -124,16 +124,16 @@ sql_q= {
                 -- block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
                 -- AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
-                -- UNION ALL
+                UNION ALL
                 
-                -- SELECT 
-                -- DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-                -- from_address as address,
-                -- 'scroll' as chain
-                -- FROM scroll_tx
-                -- WHERE
-                -- block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-                -- AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'scroll' as chain
+                FROM scroll_tx
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
         -- IMX   
         UNION ALL
