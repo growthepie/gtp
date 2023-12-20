@@ -280,7 +280,7 @@ adapter_mapping = [
         ,name='Mantle'
         ,in_api = False
         ,exclude_metrics = ['blockspace']
-        ,aggregate_blockspace = False
+        ,aggregate_blockspace = True
 
         ,symbol = "-"
         ,technology = "Optimium"
