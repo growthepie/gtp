@@ -1,82 +1,203 @@
+from src.adapters.abstract_adapters import AbstractAdapterRaw
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import traceback
+from src.adapters.adapter_utils import *
 import requests
-import pandas as pd
-from adapter_utils import create_db_engine, load_environment
-import numpy as np
-from pangres import upsert
-import time
-   
+
+class LoopringAdapter(AbstractAdapterRaw):
+    def __init__(self, adapter_params: dict, db_connector):
+        super().__init__("Loopring", adapter_params, db_connector)
+        self.chain = adapter_params['chain']
+        self.url = adapter_params['api_url']
+        self.table_name = f'{self.chain}_tx'   
+        self.db_connector = db_connector
+        
+        # Initialize S3 connection
+        self.s3_connection, self.bucket_name = connect_to_s3()
+        
+    def extract_raw(self, load_params:dict):
+        self.block_start = load_params['block_start']
+        self.batch_size = load_params['batch_size']
+        self.threads = load_params['threads']
+        self.run(self.block_start, self.batch_size, self.threads)
+        print(f"FINISHED loading raw tx data for {self.chain}.")
+        
+    def get_account_address(self, account_id):
+        url = f"{self.url}/account?accountId={account_id}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            account_data = response.json()
+            return account_data.get('owner')
+        else:
+            return None
+        
+    def get_block_data(self,block_id):
+        print(f"Retrieving block {block_id}...")
+        url = f"{self.url}/block/getBlock?id={block_id}"
+        response = requests.get(url)
+
+        if response.status_code == 200:
+            block_data = response.json()
+            block_number = block_data.get('blockId')
+            block_timestamp = block_data.get('createdAt')
+            transactions_list = []
+
+            for index, transaction in enumerate(block_data.get('transactions', [])):
+                tx_id = f"{block_id}-{index}"
+                tx_type = transaction.get('txType')
+                tx_info = {
+                    'tx_id': tx_id,
+                    'tx_type': tx_type,
+                    'fee_token_id': transaction.get('fee', {}).get('tokenId'),
+                    'fee_amount': transaction.get('fee', {}).get('amount'),
+                    'from_account_id': transaction.get('accountId', 'Unavailable'),
+                    'to_account_id': transaction.get('toAccountId', 'Unavailable'),
+                    'from_address': 'Unavailable',
+                    'to_address': 'Unavailable',
+                    'block_timestamp': block_timestamp,
+                    'block_number': block_number,
+                }
+
+                # Extracting from_address and to_address
+                if 'fromAddress' in transaction:
+                    tx_info['from_address'] = transaction['fromAddress']
+                elif 'orderA' in transaction and 'orderB' in transaction:
+                    from_account_id = transaction['orderA'].get('accountID')
+                    if from_account_id:
+                        tx_info['from_account_id'] = from_account_id
+                        tx_info['from_address'] = self.get_account_address(from_account_id)
+                elif 'owner' in transaction:
+                    tx_info['from_address'] = transaction.get('owner')
+                elif 'accountId' in transaction:
+                    tx_info['from_address'] = self.get_account_address(transaction.get('accountId'))
+
+                to_address = transaction.get('toAddress') or transaction.get('toAccountAddress')
+                if to_address:
+                    tx_info['to_address'] = to_address
+                elif 'toAccountId' in transaction:
+                    tx_info['to_address'] = self.get_account_address(transaction.get('toAccountId'))
+
+                # If SpotTrade, calculate fee and update fee_token_id and fee_amount
+                if tx_type == 'SpotTrade':
+                    fee, fee_token_id = calculate_fee(transaction)
+                    tx_info['fee_amount'] = fee
+                    tx_info['fee_token_id'] = fee_token_id
+
+                transactions_list.append(tx_info)
+
+            return pd.DataFrame(transactions_list)
+
+        else:
+            print(f"Error retrieving block {block_id}: {response.status_code}")
+            return pd.DataFrame()  # Return an empty DataFrame if there's an error
+
+    def run(self, block_start, batch_size, threads):
+        if not check_db_connection(self.db_connector):
+            raise ConnectionError("Database is not connected.")
+        else:
+            print("Successfully connected to database.")
+
+        if not check_s3_connection(self.s3_connection):
+            raise ConnectionError("S3 is not connected.")
+        else:
+            print("Successfully connected to S3.")
+            
+        latest_block = get_latest_block_id()
+        if latest_block is None:
+            print("Could not fetch the latest block.")
+            raise ValueError("Could not fetch the latest block.")
+        if block_start == 'auto':
+            block_start = self.db_connector.get_max_block(self.table_name)  
+        else:
+            block_start = int(block_start)
+
+        print(f"Running with start block {block_start} and latest block {latest_block}")
+        
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = []
+            
+            for current_start in range(block_start, latest_block + 1, batch_size):
+                current_end = current_start + batch_size - 1
+                if current_end > latest_block:
+                    current_end = latest_block
+
+                futures.append(executor.submit(self.fetch_and_process_range_loopring, current_start, current_end, self.chain, self.table_name, self.s3_connection, self.bucket_name, self.db_connector))
+
+            # Wait for all threads to complete and handle any exceptions
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"Thread raised an exception: {e}")
+                    traceback.print_exc()
+                    
+    def fetch_loopring_data_for_range(self, current_start, current_end):
+        all_blocks_df = pd.DataFrame()
+
+        for block_id in range(current_start, current_end + 1):
+            try:
+                block_data_df = self.get_block_data(block_id)
+                if not block_data_df.empty:
+                    all_blocks_df = pd.concat([all_blocks_df, block_data_df], ignore_index=True)
+            except Exception as e:
+                print(f"Error processing block {block_id}: {e}")
+
+            time.sleep(1)  # Pause to avoid hitting API rate limits
+
+        return all_blocks_df
+
+    def fetch_and_process_range_loopring(self, current_start, current_end, chain, table_name, s3_connection, bucket_name, db_connector):
+        base_wait_time = 5   # Base wait time in seconds
+        while True:
+            try:
+                # Fetching Loopring block data for the specified range
+                df = self.fetch_loopring_data_for_range(current_start, current_end)
+
+                # Check if df is None or empty, and return early without further processing.
+                if df is None or df.empty:
+                    print(f"Skipping blocks {current_start} to {current_end} due to no data.")
+                    return
+
+                # Save data to S3
+                save_data_for_range(df, current_start, current_end, chain, s3_connection, bucket_name)
+
+                # Dataframe preparation specific to Loopring
+                df_prep = self.prep_dataframe_loopring(df)
+
+                # Remove duplicates and set index
+                df_prep.drop_duplicates(subset=['tx_id'], inplace=True)
+                df_prep.set_index('tx_id', inplace=True)
+                df_prep.index.name = 'tx_id'
+
+                # Upsert data into the database
+                try:
+                    db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
+                    print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
+                except Exception as e:
+                    print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
+                    raise e
+                break  # Break out of the loop on successful execution
+
+            except Exception as e:
+                print(f"Error processing blocks {current_start} to {current_end}: {e}")
+                base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time)  # handle_retry_exception needs to be defined
+
+    def prep_dataframe_loopring(self, df):    
+        # Convert timestamp to datetime
+        df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='ms')
+
+        # Handle bytea data type by ensuring it is prefixed with '\x' instead of '0x'
+        for col in ['to_address', 'from_address']:
+            if col in df.columns:
+                df[col] = df[col].str.replace('0x', '\\x', regex=False)
+            else:
+                print(f"Column {col} not found in dataframe.")
+                
+        df.replace({'Unavailable': np.nan, None: np.nan, 'NaN': np.nan, 'nan': np.nan, '': np.nan}, inplace=True)
+
+        return df
+    
 # Helper Functions
-def get_account_address(account_id):
-    url = f"https://api3.loopring.io/api/v3/account?accountId={account_id}"
-    response = requests.get(url)
-    if response.status_code == 200:
-        account_data = response.json()
-        return account_data.get('owner')
-    else:
-        return None
-    
-def get_block_data(block_id):
-    print(f"Retrieving block {block_id}...")
-    url = f"https://api3.loopring.io/api/v3/block/getBlock?id={block_id}"
-    response = requests.get(url)
-
-    if response.status_code == 200:
-        block_data = response.json()
-        block_number = block_data.get('blockId')
-        block_timestamp = block_data.get('createdAt')
-        transactions_list = []
-
-        for index, transaction in enumerate(block_data.get('transactions', [])):
-            tx_id = f"{block_id}-{index}"
-            tx_type = transaction.get('txType')
-            tx_info = {
-                'tx_id': tx_id,
-                'tx_type': tx_type,
-                'fee_token_id': transaction.get('fee', {}).get('tokenId'),
-                'fee_amount': transaction.get('fee', {}).get('amount'),
-                'from_account_id': transaction.get('accountId', 'Unavailable'),
-                'to_account_id': transaction.get('toAccountId', 'Unavailable'),
-                'from_address': 'Unavailable',  # Placeholder for from_address
-                'to_address': 'Unavailable',    # Placeholder for to_address
-                'block_timestamp': block_timestamp,
-                'block_number': block_number,
-            }
-
-            # Extracting from_address and to_address
-            if 'fromAddress' in transaction:
-                tx_info['from_address'] = transaction['fromAddress']
-            elif 'orderA' in transaction and 'orderB' in transaction:
-                from_account_id = transaction['orderA'].get('accountID')
-                if from_account_id:
-                    tx_info['from_account_id'] = from_account_id
-                    tx_info['from_address'] = get_account_address(from_account_id)
-            elif 'owner' in transaction:
-                tx_info['from_address'] = transaction.get('owner')
-            elif 'accountId' in transaction:
-                tx_info['from_address'] = get_account_address(transaction.get('accountId'))
-
-            to_address = transaction.get('toAddress') or transaction.get('toAccountAddress')
-            if to_address:
-                tx_info['to_address'] = to_address
-            elif 'toAccountId' in transaction:
-                tx_info['to_address'] = get_account_address(transaction.get('toAccountId'))
-
-            # If SpotTrade, calculate fee and update fee_token_id and fee_amount
-            if tx_type == 'SpotTrade':
-                fee, fee_token_id = calculate_fee(transaction)
-                tx_info['fee_amount'] = fee
-                tx_info['fee_token_id'] = fee_token_id
-
-            # Handle other transaction types as needed
-
-            transactions_list.append(tx_info)
-
-        return pd.DataFrame(transactions_list)
-
-    else:
-        print(f"Error retrieving block {block_id}: {response.status_code}")
-        return pd.DataFrame()  # Return an empty DataFrame if there's an error
-    
 def is_nft(nft_data):
     return bool(nft_data)
 
@@ -108,34 +229,6 @@ def calculate_fee(transaction):
 
     return fee, fee_token_id
 
-def prep_dataframe_loopring(df):    
-    # Convert timestamp to datetime
-    df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='ms')
-
-    # Handle bytea data type by ensuring it is prefixed with '\x' instead of '0x'
-    for col in ['to_address', 'from_address']:
-        if col in df.columns:
-            df[col] = df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")
-            
-    df.replace({'Unavailable': np.nan, None: np.nan, 'NaN': np.nan, 'nan': np.nan, '': np.nan}, inplace=True)
-
-    return df
-
-def insert_into_db(df, engine, table_name):
-    # Set the DataFrame's index to 'tx_hash' (your primary key)
-    df.set_index('tx_id', inplace=True)
-    df.index.name = 'tx_id'
-    
-    # Insert data into database
-    print(f"Inserting data into table {table_name}...")
-    try:
-        upsert(engine, df, table_name, if_row_exists='update')
-    except Exception as e:
-        print(f"Error inserting data into table {table_name}.")
-        print(e)
-   
 def get_latest_block_id():
     url = "https://api3.loopring.io/api/v3/block/getBlock"
     response = requests.get(url)
@@ -145,31 +238,3 @@ def get_latest_block_id():
     else:
         print("Error retrieving latest block ID:", response.status_code)
         return None
-    
-def load_data_to_db(first_block_id, latest_block_id, db_user, db_password, db_host, db_port, db_name):
-    engine = create_db_engine(db_user, db_password, db_host, db_port, db_name)
-    table_name = 'loopring_tx'
-    
-    for block_id in range(first_block_id, latest_block_id):
-        try:
-            block_data_df = get_block_data(block_id)
-            if not block_data_df.empty:
-                filtered_df = prep_dataframe_loopring(block_data_df)
-                insert_into_db(filtered_df, engine, table_name)
-            print(f"Successfully inserted data for block {block_id}")
-        except Exception as e:
-            print(f"Error processing block {block_id}: {e}")
-        
-        time.sleep(1)  # Pause to avoid hitting API rate limits
-
-def main():
-    # Load environment variables and get latest block ID
-    db_name, db_user, db_password, db_host, db_port = load_environment()
-    latest_block_id = get_latest_block_id()
-    first_block_id = 0
-
-    # Load data to database
-    load_data_to_db(first_block_id, latest_block_id, db_user, db_password, db_host, db_port, db_name)
-    
-if __name__ == "__main__":
-    main()
