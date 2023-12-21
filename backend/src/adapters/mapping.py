@@ -245,7 +245,7 @@ adapter_mapping = [
         ,twitter="https://twitter.com/LineaBuild"
 
         #,coingecko_naming="linea"
-        ,defillama_stablecoin='Linea'
+        #,defillama_stablecoin='Linea' ## stables via Dune
         ,l2beat_tvl_naming='linea'
 
         ,block_explorer_txcount='https://lineascan.build/chart/tx?output=csv'
