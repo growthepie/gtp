@@ -5,6 +5,7 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 import pandas as pd
 from sqlalchemy import create_engine, exc
+from dotenv import load_dotenv
 import os
 import sys
 import random
@@ -24,6 +25,18 @@ def hex_to_int(hex_str):
         return int(hex_str, 16)
     except (ValueError, TypeError):
         return None 
+
+def load_environment():
+    load_dotenv()
+
+    # Postgres details from .env file
+    db_name = os.getenv("DB_DATABASE")
+    db_user = os.getenv("DB_USERNAME")
+    db_password = os.getenv("DB_PASSWORD")
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT")
+
+    return db_name, db_user, db_password, db_host, db_port
 
 # ---------------- Connection Functions ------------------
 def connect_to_node(url):
