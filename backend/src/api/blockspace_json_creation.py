@@ -387,7 +387,7 @@ class BlockspaceJSONCreation():
 
                     ## only add contracts to all field in dicts
                     if origin_key == 'all_l2s':
-                        top_contracts_gas = self.db_connector.get_contracts_overview(main_category_key, timeframe)
+                        top_contracts_gas = self.db_connector.get_contracts_overview(main_category_key, timeframe, chain_keys)
                         # convert address to checksummed string 
                         top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
 

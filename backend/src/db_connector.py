@@ -508,8 +508,10 @@ class DbConnector:
         and the top 20 contracts by gas fees for each chain in the main category
         
         """
-        def get_contracts_overview(self, main_category, days):
+        def get_contracts_overview(self, main_category, days, origin_keys):
+                
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
+
                 if main_category.lower() != 'unlabeled':
                         main_category_string = f"and bcm.main_category_key = lower('{main_category}')" 
                         sub_main_string = """
@@ -547,6 +549,7 @@ class DbConnector:
                                         date < DATE_TRUNC('day', NOW())
                                         {date_string}
                                         {main_category_string}
+                                        and cl.origin_key IN ('{"','".join(origin_keys)}')
                                 group by 1,2,3,4,5,6,7,8
                                 order by gas_fees_eth  desc
                                 ),
