@@ -173,7 +173,7 @@ adapter_mapping = [
         ,launch_date='2023-07-13'
         ,website='https://base.org/'
         ,block_explorer='https://basescan.org/'
-        ,twitter='https://twitter.com/BuildOnBase'
+        ,twitter='https://twitter.com/base'
 
         #,coingecko_naming="-"
         #,defillama_stablecoin=''  ## stables via Dune
