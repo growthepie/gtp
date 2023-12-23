@@ -84,7 +84,7 @@ adapter_mapping = [
         ,launch_date='2021-12-16'
         ,website='https://optimism.io/'
         ,block_explorer='https://optimistic.etherscan.io/'
-        ,twitter='https://twitter.com/optimismFND'
+        ,twitter='https://twitter.com/Optimism'
 
         ,coingecko_naming="optimism"
         ,defillama_stablecoin='optimism'
