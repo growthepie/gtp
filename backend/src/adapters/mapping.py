@@ -84,7 +84,7 @@ adapter_mapping = [
         ,launch_date='2021-12-16'
         ,website='https://optimism.io/'
         ,block_explorer='https://optimistic.etherscan.io/'
-        ,twitter='https://twitter.com/optimismFND'
+        ,twitter='https://twitter.com/Optimism'
 
         ,coingecko_naming="optimism"
         ,defillama_stablecoin='optimism'
@@ -173,7 +173,7 @@ adapter_mapping = [
         ,launch_date='2023-07-13'
         ,website='https://base.org/'
         ,block_explorer='https://basescan.org/'
-        ,twitter='https://twitter.com/BuildOnBase'
+        ,twitter='https://twitter.com/base'
 
         #,coingecko_naming="-"
         #,defillama_stablecoin=''  ## stables via Dune
@@ -245,7 +245,7 @@ adapter_mapping = [
         ,twitter="https://twitter.com/LineaBuild"
 
         #,coingecko_naming="linea"
-        ,defillama_stablecoin='Linea'
+        #,defillama_stablecoin='Linea' ## stables via Dune
         ,l2beat_tvl_naming='linea'
 
         ,block_explorer_txcount='https://lineascan.build/chart/tx?output=csv'
