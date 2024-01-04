@@ -291,7 +291,7 @@ adapter_mapping = [
         ,twitter="https://twitter.com/0xMantle"
 
         ,coingecko_naming="mantle"
-        ,defillama_stablecoin='Mantle'
+        # ,defillama_stablecoin='Mantle' ## stables via Dune
         ,l2beat_tvl_naming='mantle'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
