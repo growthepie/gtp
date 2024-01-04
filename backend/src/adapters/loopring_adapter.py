@@ -82,7 +82,13 @@ class LoopringAdapter(AbstractAdapterRaw):
                     fee, fee_token_id = calculate_fee(transaction)
                     tx_info['fee_amount'] = fee
                     tx_info['fee_token_id'] = fee_token_id
-
+                
+                # If transfer, include additional fields
+                if tx_type == 'Transfer':
+                    tx_info['transfer_token_id'] = transaction.get('token', {}).get('tokenId', 'Unavailable')
+                    tx_info['transfer_amount'] = transaction.get('token', {}).get('amount', 'Unavailable')
+                    tx_info['transfer_nft_data'] = transaction.get('token', {}).get('nftData', 'Unavailable')
+                        
                 transactions_list.append(tx_info)
 
             return pd.DataFrame(transactions_list)
@@ -212,12 +218,12 @@ def calculate_fee(transaction):
     fee_token_id = None
 
     # Determining the fee token and the relevant amount
-    if token_b_is_nft and not token_a_is_nft:
-        amount = float(order_a.get('amountS', 0))
-        fee_token_id = order_a.get('tokenS')
-    elif not token_b_is_nft:
+    if not token_b_is_nft:
         amount = float(order_a.get('amountB', 0))
         fee_token_id = order_a.get('tokenB')
+    elif token_b_is_nft and not token_a_is_nft:
+        amount = float(order_a.get('amountS', 0))
+        fee_token_id = order_a.get('tokenS')
 
     # If both tokens are NFTs, no fee can be directly paid
     if token_b_is_nft and token_a_is_nft:
