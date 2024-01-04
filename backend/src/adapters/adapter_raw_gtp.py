@@ -7,17 +7,22 @@ class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("RPC-Raw", adapter_params, db_connector)
         
-        self.rpc = adapter_params['rpc']
+        self.rpc_urls = adapter_params['rpc_urls']
+        self.current_rpc_index = 0
         self.chain = adapter_params['chain']
-        self.url = adapter_params['node_url']
         self.table_name = f'{self.chain}_tx'   
  
-        # Initialize Web3 connection
-        self.w3 = connect_to_node(self.url)
+        # Initialize Web3 connection with the first RPC URL
+        self.w3 = connect_to_node(self.rpc_urls[self.current_rpc_index])
         
         # Initialize S3 connection
         self.s3_connection, self.bucket_name = connect_to_s3()
-                
+
+    def rotate_rpc_url(self):
+        # Rotate to the next RPC URL
+        self.current_rpc_index = (self.current_rpc_index + 1) % len(self.rpc_urls)
+        self.w3 = connect_to_node(self.rpc_urls[self.current_rpc_index])
+
     def extract_raw(self, load_params:dict):
         self.block_start = load_params['block_start']
         self.batch_size = load_params['batch_size']
@@ -60,6 +65,8 @@ class NodeAdapter(AbstractAdapterRaw):
             futures = []
             
             for current_start in range(block_start, latest_block + 1, batch_size):
+                self.rotate_rpc_url()  # Rotate to the next RPC URL
+                
                 current_end = current_start + batch_size - 1
                 if current_end > latest_block:
                     current_end = latest_block

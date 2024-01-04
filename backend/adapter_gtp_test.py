@@ -4,8 +4,9 @@ from src.db_connector import DbConnector
 
 adapter_params = {
     'chain': 'loopring',
-    'api_url': os.getenv("LOOPRING_API_URL"),
+    'rpc_urls': [os.getenv("RPC_URL_1"), os.getenv("RPC_URL_2")],
 }
+
 
 # Initialize DbConnector
 db_connector = DbConnector()
