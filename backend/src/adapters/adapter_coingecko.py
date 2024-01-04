@@ -104,7 +104,7 @@ class AdapterCoingecko(AbstractAdapter):
                     df.value.fillna(0, inplace=True)
                     dfMain = pd.concat([dfMain,df])
                     print(f"...{self.name} {origin_key} done for {currency} and {fi}. Shape: {df.shape}")
-                time.sleep(5) #only 10-50 calls allowed per minute with free tier
+                time.sleep(7) #only 10-50 calls allowed per minute with free tier
 
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain
@@ -137,7 +137,7 @@ class AdapterCoingecko(AbstractAdapter):
             df['token_address'] = row['token_address']
 
             dfMain = pd.concat([dfMain, df])
-            time.sleep(5)
+            time.sleep(7)
 
         ## unix timestamp to date
         dfMain['date'] = pd.to_datetime(dfMain['timestamp'], unit='ms')
