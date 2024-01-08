@@ -581,7 +581,7 @@ class DbConnector:
         top_by: gas or txcount
         days: 1, 7, 30, 90, 180, 365
         """
-        def get_top_contracts_for_all_chains_with_change(self, top_by, days, limit=6):
+        def get_top_contracts_for_all_chains_with_change(self, top_by, days, origin_keys, limit=6):
                 if top_by == 'gas':
                         top_by_string = 'gas_fees_eth'
                 elif top_by == 'txcount':
@@ -612,6 +612,7 @@ class DbConnector:
                                 where
                                         date < DATE_TRUNC('day', NOW())
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        and cl.origin_key IN ('{"','".join(origin_keys)}')
                                 group by 1,2,3,4,5,6,7,8
                                 order by {top_by_string} desc
                                 limit {limit}
@@ -638,6 +639,7 @@ class DbConnector:
                                 where
                                         date < DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days*2} days')
+                                        and cl.origin_key IN ('{"','".join(origin_keys)}')
                                 group by 1,2,3,4,5,6,7,8
                         )
                         -- join the two tables together to get the change in the top_by metric for the given contracts
@@ -667,7 +669,7 @@ class DbConnector:
                                 ROUND(((tc.txcount - p.txcount) / p.txcount)::numeric, 4) as txcount_change_percent,
                                 ROUND(((tc.daa - p.daa) / p.daa)::numeric, 4) as daa_change_percent
                         from top_contracts tc
-                        left join prev p on tc.address = p.address
+                        left join prev p on tc.address = p.address and tc.origin_key = p.origin_key
                 '''
 
                 df = pd.read_sql(exec_string, self.engine.connect())

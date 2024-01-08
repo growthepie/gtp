@@ -608,8 +608,11 @@ class JSONCreation():
         for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'txcosts']:
             landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
 
+         ## put all origin_keys from adapter_mapping in a list where in_api is True
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
+
         for days in [1,7,30,90,180,365]:
-            contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, limit=6)
+            contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
             # replace NaNs with Nones
             contracts = contracts.replace({np.nan: None})
             contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
