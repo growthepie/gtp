@@ -8,9 +8,11 @@ class NodeAdapter(AbstractAdapterRaw):
         super().__init__("RPC-Raw", adapter_params, db_connector)
         
         self.rpc_urls = adapter_params['rpc_urls']
+        self.max_calls_per_rpc = adapter_params['max_calls_per_rpc'] 
         self.current_rpc_index = 0
+        self.current_call_count = 0
         self.chain = adapter_params['chain']
-        self.table_name = f'{self.chain}_tx'   
+        self.table_name = f'{self.chain}_tx'
  
         # Initialize Web3 connection with the first RPC URL
         self.w3 = connect_to_node(self.rpc_urls[self.current_rpc_index])
@@ -19,8 +21,8 @@ class NodeAdapter(AbstractAdapterRaw):
         self.s3_connection, self.bucket_name = connect_to_s3()
 
     def rotate_rpc_url(self):
-        # Rotate to the next RPC URL
         self.current_rpc_index = (self.current_rpc_index + 1) % len(self.rpc_urls)
+        self.current_call_count = 0  # Reset call count for new RPC
         self.w3 = connect_to_node(self.rpc_urls[self.current_rpc_index])
 
     def extract_raw(self, load_params:dict):
@@ -65,13 +67,16 @@ class NodeAdapter(AbstractAdapterRaw):
             futures = []
             
             for current_start in range(block_start, latest_block + 1, batch_size):
-                self.rotate_rpc_url()  # Rotate to the next RPC URL
-                
+                max_calls_for_current_rpc = self.max_calls_per_rpc[self.rpc_urls[self.current_rpc_index]]
+                if self.current_call_count >= max_calls_for_current_rpc:
+                    self.rotate_rpc_url()
+
                 current_end = current_start + batch_size - 1
                 if current_end > latest_block:
                     current_end = latest_block
 
                 futures.append(executor.submit(fetch_and_process_range, current_start, current_end, self.chain, self.w3, self.table_name, self.s3_connection, self.bucket_name, self.db_connector))
+                self.current_call_count += 1  # Increment call count
 
             # Wait for all threads to complete and handle any exceptions
             for future in as_completed(futures):

@@ -1,29 +1,33 @@
 import os
-from src.adapters.loopring_adapter import LoopringAdapter
+from src.adapters.adapter_raw_gtp import NodeAdapter
 from src.db_connector import DbConnector
+from src.adapters.adapter_utils import *
 
 adapter_params = {
-    'chain': 'loopring',
-    'rpc_urls': [os.getenv("RPC_URL_1"), os.getenv("RPC_URL_2")],
+    'rpc': 'local_node',
+    'chain': 'mantle',
+    'rpc_urls': [os.getenv("MANTLE_RPC_URL_1"), os.getenv("MANTLE_RPC_URL_2")],
+    'max_calls_per_rpc': {
+        os.getenv("RPC_URL_1"): 50,
+        os.getenv("RPC_URL_2"): 100,
+    }
 }
-
 
 # Initialize DbConnector
 db_connector = DbConnector()
 
-# Initialize LoopringAdapter
-adapter = LoopringAdapter(adapter_params, db_connector)
+# Initialize NodeAdapter
+adapter = NodeAdapter(adapter_params, db_connector)
 
 # Test run method
 load_params = {
     'block_start': 'auto',
-    'batch_size': 1,
-    'threads': 1,
+    'batch_size': 150,
+    'threads': 7,
 }
 
 try:
     adapter.extract_raw(load_params)
-except Exception as e:
-    print(f"Extraction stopped due to an exception: {e}")
+except MaxWaitTimeExceededException as e:
+    print(f"Extraction stopped due to maximum wait time being exceeded: {e}")
     raise e
-
