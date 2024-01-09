@@ -57,6 +57,14 @@ class LoopringAdapter(AbstractAdapterRaw):
                     'block_timestamp': block_timestamp,
                     'block_number': block_number,
                 }
+                
+                if tx_type == 'SpotTrade':
+                    if transaction['orderA'].get('isAmm') or transaction['orderB'].get('isAmm'):
+                        tx_type = 'Swap'
+                        tx_info['tx_type'] = tx_type
+                    elif not transaction['orderA'].get('isAmm') and not transaction['orderB'].get('isAmm'):
+                        tx_type = 'Trade'
+                        tx_info['tx_type'] = tx_type
 
                 # Extracting from_address and to_address
                 if 'fromAddress' in transaction:
