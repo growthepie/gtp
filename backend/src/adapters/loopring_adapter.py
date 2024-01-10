@@ -207,41 +207,42 @@ class LoopringAdapter(AbstractAdapterRaw):
             else:
                 print(f"Column {col} not found in dataframe.")
                 
-        df.replace({'Unavailable': np.nan, None: np.nan, 'NaN': np.nan, 'nan': np.nan, '': np.nan}, inplace=True)
+        df.replace({'Unavailable': np.nan, None: np.nan, 'NaN': np.nan, 'nan': np.nan, '': np.nan, 'None': np.nan, '0.0': 0}, inplace=True)
 
         return df
     
 # Helper Functions
-def is_nft(nft_data):
-    return bool(nft_data)
+
+# Fees =  (filledS from orderB * feeBips from orderA / 10000) / 10^(decimals of tokenB from orderA)  
+# Symbol=  symbol of tokenB from orderA
 
 def calculate_fee(transaction):
     order_a = transaction.get('orderA', {})
     order_b = transaction.get('orderB', {})
 
-    token_a_is_nft = is_nft(order_a.get('nftData'))
-    token_b_is_nft = is_nft(order_b.get('nftData'))
+    filled_s = float(order_b.get('filledS', 0))  # filledS from orderB
+    fee_bips = float(order_a.get('feeBips', 0))  # feeBips from orderA
+    token_id = order_a.get('tokenB')  # tokenB from orderA
 
-    amount = 0
-    fee_token_id = None
-
-    # Determining the fee token and the relevant amount
-    if not token_b_is_nft:
-        amount = float(order_a.get('amountB', 0))
-        fee_token_id = order_a.get('tokenB')
-    elif token_b_is_nft and not token_a_is_nft:
-        amount = float(order_a.get('amountS', 0))
-        fee_token_id = order_a.get('tokenS')
-
-    # If both tokens are NFTs, no fee can be directly paid
-    if token_b_is_nft and token_a_is_nft:
+    token_data = get_token_data(token_id)
+    if not token_data:
         return 0, None
 
-    # Calculate the fee using basis points
-    fee_bips = float(order_a.get('feeBips', 0))
-    fee = amount * (fee_bips / 10000) 
+    fee = (filled_s * fee_bips / 10000) / (10 ** token_data['decimals'])
+    return fee, token_data['symbol']
 
-    return fee, fee_token_id
+def get_token_data(token_id):
+    url = f"https://api3.loopring.io/api/v3/exchange/tokens"
+    response = requests.get(url)
+    if response.status_code == 200:
+        tokens = response.json()
+        for token in tokens:
+            if token.get('tokenId') == token_id:
+                return {
+                    "symbol": token.get('symbol'),
+                    "decimals": token.get('decimals')
+                }
+    return None
 
 def get_latest_block_id():
     url = "https://api3.loopring.io/api/v3/block/getBlock"
