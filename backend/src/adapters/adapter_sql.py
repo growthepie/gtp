@@ -32,10 +32,10 @@ class AdapterSQL(AbstractAdapter):
 
         ## aggregation types
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['tvl', 'rent_paid_usd', 'profit_usd', 'fees_paid_usd', 'stables_mcap', 'txcosts_median_usd']
+            raw_metrics = ['tvl', 'stables_mcap']
             df = self.db_connector.get_values_in_eth(raw_metrics, days)
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth']
+            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth']
             df = self.db_connector.get_values_in_usd(raw_metrics, days)
         elif load_type == 'profit':
             days = load_params['days']

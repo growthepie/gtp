@@ -1,14 +1,14 @@
 sql_q= {
-        ## profit usd
-        'profit_usd': """
+        ## profit eth
+        'profit_eth': """
         with tmp as (
         SELECT 
                 date,
                 origin_key,
-                SUM(CASE WHEN metric_key = 'rent_paid_usd' THEN value END) AS rent_paid_usd,
-                SUM(CASE WHEN metric_key = 'fees_paid_usd' THEN value END) AS fees_paid_usd
+                SUM(CASE WHEN metric_key = 'rent_paid_eth' THEN value END) AS rent_paid_eth,
+                SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) AS fees_paid_eth
         FROM fact_kpis
-        WHERE metric_key = 'rent_paid_usd' or metric_key = 'fees_paid_usd'
+        WHERE metric_key = 'rent_paid_eth' or metric_key = 'fees_paid_eth'
                 AND date >= date_trunc('day',now()) - interval '{{Days}} days'
                 AND date < date_trunc('day', now())
         GROUP BY 1,2
@@ -17,9 +17,9 @@ sql_q= {
         SELECT
                 date as day, 
                 origin_key,
-                fees_paid_usd - rent_paid_usd as value 
+                fees_paid_eth - rent_paid_eth as value 
         FROM tmp
-        WHERE rent_paid_usd > 0 and fees_paid_usd > 0
+        WHERE rent_paid_eth > 0 and fees_paid_eth > 0
         ORDER BY 1 desc
 
         """
@@ -401,13 +401,8 @@ sql_q= {
         GROUP BY (date_trunc('day', zt.block_timestamp))
         """
 
-        ,'zora_fees_paid_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
-        zora_tx_filtered AS (
+        ,'zora_fees_paid_eth': """
+        with zora_tx_filtered AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         SUM(tx_fee) AS total_tx_fee
@@ -417,10 +412,8 @@ sql_q= {
         )
         SELECT
                 z.day,
-                z.total_tx_fee * e.price_usd AS value
-        --,z.total_tx_fee AS fees_paid_eth
+                z.total_tx_fee AS value
         FROM zora_tx_filtered z
-        LEFT JOIN eth_price e ON z.day = e."date"
         ORDER BY z.day DESC
     """
 
@@ -444,12 +437,8 @@ sql_q= {
         order by 1 DESC
     """
 
-        ,'zora_txcosts_median_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
+        ,'zora_txcosts_median_eth': """
+        WITH
         zora_median AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
@@ -460,10 +449,8 @@ sql_q= {
         )
         SELECT
                 z.day,
-                z.median_tx_fee * e.price_usd as value
-                --,z.median_tx_fee as txcosts_median_eth
+                z.median_tx_fee as value
         FROM zora_median z
-        LEFT JOIN eth_price e ON z.day = e."date"
         ORDER BY z.day DESC
     """
 
@@ -478,13 +465,8 @@ sql_q= {
         """
 
 
-        ,'pgn_fees_paid_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
-        pgn_tx_filtered AS (
+        ,'pgn_fees_paid_eth': """
+        with pgn_tx_filtered AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         SUM(tx_fee) AS total_tx_fee
@@ -494,10 +476,8 @@ sql_q= {
         )
         SELECT
                 pgn.day,
-                pgn.total_tx_fee * e.price_usd AS value
-        --,pgn.total_tx_fee AS fees_paid_eth
+                pgn.total_tx_fee AS value
         FROM pgn_tx_filtered pgn
-        LEFT JOIN eth_price e ON pgn.day = e."date"
         ORDER BY pgn.day DESC
     """
 
@@ -521,12 +501,8 @@ sql_q= {
         order by 1 DESC
     """
 
-    ,'pgn_txcosts_median_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
+    ,'pgn_txcosts_median_eth': """
+        WITH 
         pgn_median AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
@@ -537,10 +513,8 @@ sql_q= {
         )
         SELECT
                 pgn.day,
-                pgn.median_tx_fee * e.price_usd as value
-                --,pgn.median_tx_fee as txcosts_median_eth
+                pgn.median_tx_fee as value
         FROM pgn_median pgn
-        LEFT JOIN eth_price e ON pgn.day = e."date"
         ORDER BY pgn.day DESC
     """
 
@@ -564,13 +538,8 @@ sql_q= {
         order by 1 DESC
     """
 
-    ,'linea_fees_paid_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
-        linea_tx_filtered AS (
+    ,'linea_fees_paid_eth': """
+        WITH linea_tx_filtered AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         SUM(tx_fee) AS total_tx_fee
@@ -580,10 +549,8 @@ sql_q= {
         )
         SELECT
                 z.day,
-                z.total_tx_fee * e.price_usd AS value
-        --,z.total_tx_fee AS fees_paid_eth
+                z.total_tx_fee AS value
         FROM linea_tx_filtered z
-        LEFT JOIN eth_price e ON z.day = e."date"
         ORDER BY z.day DESC
     """
 
@@ -597,12 +564,8 @@ sql_q= {
         order by 1 DESC
     """
 
-    ,'linea_txcosts_median_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
+    ,'linea_txcosts_median_eth': """
+        WITH 
         linea_median AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
@@ -613,10 +576,8 @@ sql_q= {
         )
         SELECT
                 z.day,
-                z.median_tx_fee * e.price_usd as value
-                --,z.median_tx_fee as txcosts_median_eth
+                z.median_tx_fee as value
         FROM linea_median z
-        LEFT JOIN eth_price e ON z.day = e."date"
         ORDER BY z.day DESC
    """
 
@@ -630,13 +591,8 @@ sql_q= {
         GROUP BY (date_trunc('day', mt.block_timestamp))
         """
 
-        ,'mantle_fees_paid_usd': """
-        WITH mnt_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
-        mantle_tx_filtered AS (
+        ,'mantle_fees_paid_eth': """
+        WITH mantle_tx_filtered AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         SUM(tx_fee) AS total_tx_fee
@@ -646,10 +602,8 @@ sql_q= {
         )
         SELECT
                 mantle.day,
-                mantle.total_tx_fee * e.price_usd AS value
-        --,mantle.total_tx_fee AS fees_paid_mnt
+                mantle.total_tx_fee AS value
         FROM mantle_tx_filtered mantle
-        LEFT JOIN mnt_price e ON mantle.day = e."date"
         ORDER BY mantle.day DESC
     """
         ,'mantle_txcount': """
@@ -670,12 +624,8 @@ sql_q= {
         GROUP BY 1
         order by 1 DESC
     """
-        ,'mantle_txcosts_median_usd': """
-        WITH mnt_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
+        ,'mantle_txcosts_median_eth': """
+        WITH 
         mantle_median AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
@@ -686,10 +636,8 @@ sql_q= {
         )
         SELECT
                 mantle.day,
-                mantle.median_tx_fee * e.price_usd as value
-                --,mantle.median_tx_fee as txcosts_median_mnt
+                mantle.median_tx_fee as value
         FROM mantle_median mantle
-        LEFT JOIN mnt_price e ON mantle.day = e."date"
         ORDER BY mantle.day DESC
     """
 
@@ -713,13 +661,8 @@ sql_q= {
         order by 1 DESC
         """
 
-        ,'scroll_fees_paid_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
-        scroll_tx_filtered AS (
+        ,'scroll_fees_paid_eth': """
+        WITH scroll_tx_filtered AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         SUM(tx_fee) AS total_tx_fee
@@ -729,9 +672,8 @@ sql_q= {
         )
         SELECT
                 z.day,
-                z.total_tx_fee * e.price_usd AS value
+                z.total_tx_fee AS value
         FROM scroll_tx_filtered z
-        LEFT JOIN eth_price e ON z.day = e."date"
         ORDER BY z.day DESC
     """
 
@@ -745,12 +687,8 @@ sql_q= {
         order by 1 DESC
     """
 
-    ,'scroll_txcosts_median_usd': """
-        WITH eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        ),
+    ,'scroll_txcosts_median_eth': """
+        WITH 
         scroll_median AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
@@ -761,9 +699,8 @@ sql_q= {
         )
         SELECT
                 z.day,
-                z.median_tx_fee * e.price_usd as value
+                z.median_tx_fee as value
         FROM scroll_median z
-        LEFT JOIN eth_price e ON z.day = e."date"
         ORDER BY z.day DESC
    """
 
@@ -795,7 +732,7 @@ class SQLQuery(SQLObject):
 
 sql_queries = [
     ## Multichain
-    SQLQuery(metric_key = "profit_usd", origin_key = "multi", sql=sql_q["profit_usd"], query_parameters={"Days": 7})
+    SQLQuery(metric_key = "profit_eth", origin_key = "multi", sql=sql_q["profit_eth"], query_parameters={"Days": 7})
     # ,SQLQuery(metric_key = "user_base_daily", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7, "aggregation": "day"})
     ,SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4, "aggregation": "week"})
     # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4*12, "aggregation": "month"})
@@ -805,7 +742,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount", origin_key = "imx", sql=sql_q["imx_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "imx", sql=sql_q["imx_daa"], query_parameters={"Days": 7})
     #,SQLQuery(metric_key = "new_addresses", origin_key = "imx", sql=sql_q["ethereum_new_addresses"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "imx", sql=sql_q["imx_fees_paid_usd"], query_parameters={"Days": 7})
+    #,SQLQuery(metric_key = "fees_paid_usd", origin_key = "imx", sql=sql_q["imx_fees_paid_usd"], query_parameters={"Days": 7})
 
     ## Arbitrum
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "arbitrum", sql=sql_q["arbitrum_txcount_raw"], query_parameters={"Days": 30})
@@ -826,35 +763,36 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zora", sql=sql_q["zora_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "txcount", origin_key = "zora", sql=sql_q["zora_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "zora", sql=sql_q["zora_daa"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "zora", sql=sql_q["zora_fees_paid_usd"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "zora", sql=sql_q["zora_txcosts_median_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "zora", sql=sql_q["zora_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "zora", sql=sql_q["zora_txcosts_median_eth"], query_parameters={"Days": 7})
 
     ## PGN
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "txcount", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_daa"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_usd"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_eth"], query_parameters={"Days": 7})
     
     ## Linea
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "linea", sql=sql_q["linea_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "txcount", origin_key = "linea", sql=sql_q["linea_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "linea", sql=sql_q["linea_daa"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "linea", sql=sql_q["linea_fees_paid_usd"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "linea", sql=sql_q["linea_txcosts_median_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "linea", sql=sql_q["linea_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "linea", sql=sql_q["linea_txcosts_median_eth"], query_parameters={"Days": 7})
 
     ## Mantle
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "mantle", sql=sql_q["mantle_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "txcount", origin_key = "mantle", sql=sql_q["mantle_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "mantle", sql=sql_q["mantle_daa"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "mantle", sql=sql_q["mantle_txcosts_median_usd"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "mantle", sql=sql_q["mantle_fees_paid_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "mantle", sql=sql_q["mantle_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "mantle", sql=sql_q["mantle_txcosts_median_eth"], query_parameters={"Days": 7})
+    
 
     ## Scroll
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "scroll", sql=sql_q["scroll_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "txcount", origin_key = "scroll", sql=sql_q["scroll_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "scroll", sql=sql_q["scroll_daa"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "fees_paid_usd", origin_key = "scroll", sql=sql_q["scroll_fees_paid_usd"], query_parameters={"Days": 7})
-    ,SQLQuery(metric_key = "txcosts_median_usd", origin_key = "scroll", sql=sql_q["scroll_txcosts_median_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "scroll", sql=sql_q["scroll_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "scroll", sql=sql_q["scroll_txcosts_median_eth"], query_parameters={"Days": 7})
    
 ]
