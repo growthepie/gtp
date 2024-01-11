@@ -96,7 +96,7 @@ class LoopringAdapter(AbstractAdapterRaw):
                     elif not transaction['orderA'].get('isAmm') and not transaction['orderB'].get('isAmm'):
                         tx_type = 'Trade'
                         tx_info['tx_type'] = tx_type
-                                              
+                                                
                 transactions_list.append(tx_info)
 
             return pd.DataFrame(transactions_list)
@@ -151,8 +151,17 @@ class LoopringAdapter(AbstractAdapterRaw):
         for block_id in range(current_start, current_end + 1):
             try:
                 block_data_df = self.get_block_data(block_id)
-                if not block_data_df.empty:
-                    all_blocks_df = pd.concat([all_blocks_df, block_data_df], ignore_index=True)
+
+                # Skip if block_data_df is empty or all NA
+                if block_data_df.empty or block_data_df.isna().all().all():
+                    continue
+
+                # Exclude empty or all-NA columns before concatenation
+                block_data_df = block_data_df.dropna(how='all', axis=1)
+                
+                # Concatenate DataFrames
+                all_blocks_df = pd.concat([all_blocks_df, block_data_df], ignore_index=True)
+
             except Exception as e:
                 print(f"Error processing block {block_id}: {e}")
 
@@ -229,7 +238,7 @@ def calculate_fee(transaction):
         return 0, None
 
     fee = (filled_s * fee_bips / 10000) / (10 ** token_data['decimals'])
-    return fee, token_data['symbol']
+    return fee, token_id
 
 def get_token_data(token_id):
     url = f"https://api3.loopring.io/api/v3/exchange/tokens"

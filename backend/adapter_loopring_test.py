@@ -16,8 +16,8 @@ adapter = LoopringAdapter(adapter_params, db_connector)
 # Test run method
 load_params = {
     'block_start': 'auto',
-    'batch_size': 1,
-    'threads': 1,
+    'batch_size': 5,
+    'threads': 5,
 }
 
 try:
