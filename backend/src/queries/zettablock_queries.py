@@ -23,14 +23,14 @@ zettablock_queries = [
     ## Polygon zkEVM
     ZettablockQuery(metric_key = "txcount", origin_key = "polygon_zkevm", query_id='qu7-fb9cf342-195e-40e4-9802-762d0b8fc41c', query_parameters={"Days": 7})
     ,ZettablockQuery(metric_key = "daa", origin_key = "polygon_zkevm", query_id='qu10-04a1b83c-eac2-4c42-8ba6-d2fc7133e08d', query_parameters={"Days": 7})
-    ,ZettablockQuery(metric_key = "fees_paid_usd", origin_key = "polygon_zkevm", query_id='qu10-7a0b740f-2c21-4bd1-a805-534f6e1e23bc', query_parameters={"Days": 7})
-    ,ZettablockQuery(metric_key = "txcosts_median_usd", origin_key = "polygon_zkevm", query_id='qu17-cd955d3e-4111-4f20-99e6-6c3630e02939', query_parameters={"Days": 7})
+    ,ZettablockQuery(metric_key = "fees_paid_eth", origin_key = "polygon_zkevm", query_id='qu10-7a0b740f-2c21-4bd1-a805-534f6e1e23bc', query_parameters={"Days": 7})
+    ,ZettablockQuery(metric_key = "txcosts_median_eth", origin_key = "polygon_zkevm", query_id='qu17-cd955d3e-4111-4f20-99e6-6c3630e02939', query_parameters={"Days": 7})
 
     ## zkSync era
     ,ZettablockQuery(metric_key = "txcount", origin_key = "zksync_era", query_id='qu17-f35b45c1-5f98-44e0-bcc7-c250739cf908', query_parameters={"Days": 7})
     ,ZettablockQuery(metric_key = "daa", origin_key = "zksync_era", query_id='qu17-99e3c55c-2487-4d67-95fc-5d5500e917b9', query_parameters={"Days": 7})
-    ,ZettablockQuery(metric_key = "fees_paid_usd", origin_key = "zksync_era", query_id='qu17-0fca0e9d-d3d8-43ae-871d-80535e7af454', query_parameters={"Days": 7})
-    ,ZettablockQuery(metric_key = "txcosts_median_usd", origin_key = "zksync_era", query_id='qu17-bb58eac1-8c13-4bec-adad-026ec52e22bd', query_parameters={"Days": 7})
+    ,ZettablockQuery(metric_key = "fees_paid_eth", origin_key = "zksync_era", query_id='qu17-0fca0e9d-d3d8-43ae-871d-80535e7af454', query_parameters={"Days": 7})
+    ,ZettablockQuery(metric_key = "txcosts_median_eth", origin_key = "zksync_era", query_id='qu17-bb58eac1-8c13-4bec-adad-026ec52e22bd', query_parameters={"Days": 7})
 
     # ## Arbitrum
     # ,ZettablockQuery(metric_key = "txcount", origin_key = "arbitrum", query_id='qu2-d9bfa3ab-9a7f-4195-b5b7-926657031cf7', query_parameters={"Days": 7})

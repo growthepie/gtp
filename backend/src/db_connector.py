@@ -110,6 +110,38 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        def get_values_in_usd(self, raw_metrics, days): ## also make sure to add new metrics in adapter_sql
+                mk_string = "'" + "', '".join(raw_metrics) + "'"
+                print(f"load eth values for : {mk_string}")
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        SELECT 
+                                Case tkd.metric_key 
+                                        WHEN 'rent_paid_eth' THEN 'rent_paid_usd'
+                                        WHEN 'fees_paid_eth' THEN 'fees_paid_usd'
+                                        WHEN 'profit_eth' THEN 'profit_usd'
+                                        WHEN 'tvl_eth' THEN 'tvl'
+                                        WHEN 'stables_mcap_eth' THEN 'stables_mcap' 
+                                        WHEN 'txcosts_median_eth' THEN 'txcosts_median_usd'
+                                        ELSE 'error'
+                                END AS metric_key, 
+                                tkd.origin_key,
+                                tkd."date", 
+                                tkd.value * p.value as value
+                        FROM fact_kpis tkd
+                        LEFT JOIN eth_price p on tkd."date" = p."date"
+                        WHERE tkd.metric_key in ({mk_string})
+                                AND tkd.date < date_trunc('day', NOW()) 
+                                AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         def get_latest_imx_refresh_date(self, tbl_name):
                 if tbl_name == 'imx_orders':
                         exec_string = f"SELECT MAX(updated_timestamp) as last_refresh FROM {tbl_name};"
