@@ -299,12 +299,28 @@ adapter_mapping = [
     )
 
 
-    # ,AdapterMapping(
-    #     origin_key="loopring"
-    #     ,coingecko_naming="loopring"
-    #     ,defillama_stablecoin='loopring'
-    #     ,l2beat_tvl_naming='loopring'
-    #     )
+    ,AdapterMapping(
+        origin_key="loopring"
+        ,name="Loopring"
+        ,in_api = False
+        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
+        ,aggregate_blockspace = False
+
+        ,symbol = "LRC"
+        ,technology = "ZK Rollup"
+        ,purpose = 'Token Transfers, NFTs, Swaps'
+        ,launch_date='2019-12-04'
+        ,website='https://loopring.org/'
+        ,block_explorer='https://explorer.loopring.io/'
+        ,twitter='https://twitter.com/loopringorg'
+
+        ,coingecko_naming="loopring"
+        ,defillama_stablecoin='Loopring'
+        ,l2beat_tvl_naming='loopring'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/loopring.json"
+        ,block_explorer_type='l2beat'
+        )
 
     # ,AdapterMapping(
     #     origin_key='starknet'
