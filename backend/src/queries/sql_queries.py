@@ -592,7 +592,17 @@ sql_q= {
         """
 
         ,'mantle_fees_paid_eth': """
-        WITH mantle_tx_filtered AS (
+        WITH mnt_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        mantle_tx_filtered AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
                         SUM(tx_fee) AS total_tx_fee
@@ -602,10 +612,13 @@ sql_q= {
         )
         SELECT
                 mantle.day,
-                mantle.total_tx_fee AS value
+                mantle.total_tx_fee * e.price_usd / eth.price_usd AS value
         FROM mantle_tx_filtered mantle
+        LEFT JOIN mnt_price e ON mantle.day = e."date"
+        LEFT JOIN eth_price eth ON mantle.day = eth."date"
         ORDER BY mantle.day DESC
-    """
+        """
+
         ,'mantle_txcount': """
         SELECT 
                 DATE_TRUNC('day', block_timestamp) AS day,
@@ -625,7 +638,16 @@ sql_q= {
         order by 1 DESC
     """
         ,'mantle_txcosts_median_eth': """
-        WITH 
+        WITH mnt_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        eth_price AS (
+                SELECT "date", price_usd
+                FROM public.prices_daily
+                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
         mantle_median AS (
                 SELECT
                         date_trunc('day', "block_timestamp") AS day,
@@ -636,8 +658,10 @@ sql_q= {
         )
         SELECT
                 mantle.day,
-                mantle.median_tx_fee as value
+                mantle.median_tx_fee * e.price_usd / eth.price_usd as value
         FROM mantle_median mantle
+        LEFT JOIN mnt_price e ON mantle.day = e."date"
+        LEFT JOIN eth_price eth ON mantle.day = eth."date"
         ORDER BY mantle.day DESC
     """
 
