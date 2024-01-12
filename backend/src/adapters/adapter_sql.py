@@ -159,6 +159,14 @@ class AdapterSQL(AbstractAdapter):
                 print(f"...upserting smart_contract_deployments for {chain}. Total rows: {df.shape[0]}...")
                 self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
 
+                ## aggregate inscriptions
+                print(f"...aggregating inscriptions for {chain} and last {days} days...")
+                df = self.db_connector.get_blockspace_inscriptions(chain, days)
+                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+
+                print(f"...upserting inscriptions for {chain}. Total rows: {df.shape[0]}...")
+                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+
                 # ALL below needs to be retriggerd when mapping changes (e.g. new addresses got labeled or new categories added etc.)
                 ## aggregate by sub categories
 
