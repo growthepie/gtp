@@ -39,7 +39,7 @@ class AdapterSQL(AbstractAdapter):
             df = self.db_connector.get_values_in_usd(raw_metrics, days)
         elif load_type == 'profit':
             days = load_params['days']
-            self.queries_to_load = [x for x in sql_queries if x.metric_key == 'profit_usd']
+            self.queries_to_load = [x for x in sql_queries if x.metric_key == 'profit_eth']
             df = self.extract_data_from_db(self.queries_to_load, days)
         elif load_type == 'metrics':
             origin_keys = load_params['origin_keys']
