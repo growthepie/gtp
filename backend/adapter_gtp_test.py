@@ -5,11 +5,11 @@ from src.adapters.adapter_utils import *
 
 adapter_params = {
     'rpc': 'local_node',
-    'chain': 'mantle',
-    'rpc_urls': [os.getenv("MANTLE_RPC_URL_1"), os.getenv("MANTLE_RPC_URL_2")],
+    'chain': 'arbitrum',
+    'rpc_urls': [os.getenv("ARBITRUM_RPC_URL_1"), os.getenv("ARBITRUM_RPC_URL_2")],
     'max_calls_per_rpc': {
-        os.getenv("RPC_URL_1"): 50,
-        os.getenv("RPC_URL_2"): 100,
+        os.getenv("ARBITRUM_RPC_URL_1"): 50,
+        os.getenv("ARBITRUM_RPC_URL_2"): 55,
     }
 }
 
@@ -23,7 +23,7 @@ adapter = NodeAdapter(adapter_params, db_connector)
 load_params = {
     'block_start': 'auto',
     'batch_size': 150,
-    'threads': 7,
+    'threads': 3,
 }
 
 try:

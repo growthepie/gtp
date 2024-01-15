@@ -10,6 +10,8 @@ import os
 import sys
 import random
 import time
+from web3.datastructures import AttributeDict
+from hexbytes import HexBytes
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -385,9 +387,20 @@ def fetch_block_transaction_details(w3, block):
     block_timestamp = block['timestamp']  # Get the block timestamp
     
     for tx in block['transactions']:
-        tx_hash = tx['hash']
+        # Check if the transaction is a HexBytes instance (older blocks)
+        if isinstance(tx, HexBytes):
+            tx_hash = tx.hex()  # Convert HexBytes to hex string
+        # If it's an AttributeDict or a dictionary (newer blocks), access the hash directly
+        elif isinstance(tx, dict) or isinstance(tx, AttributeDict):
+            tx_hash = tx['hash'].hex() if isinstance(tx['hash'], HexBytes) else tx['hash']
+        else:
+            raise TypeError("Unsupported transaction type")
+
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         
+        # Fetch the transaction using the hash
+        tx = w3.eth.get_transaction(tx_hash)
+                
         # Convert the receipt and transaction to dictionary if it is not
         if not isinstance(receipt, dict):
             receipt = dict(receipt)
@@ -398,7 +411,7 @@ def fetch_block_transaction_details(w3, block):
         merged_dict = {**receipt, **tx}
         
         # Add or update specific fields
-        merged_dict['hash'] = tx['hash'].hex()
+        merged_dict['hash'] = tx_hash
         merged_dict['block_timestamp'] = block_timestamp
         
         # Add the transaction receipt dictionary to the list
