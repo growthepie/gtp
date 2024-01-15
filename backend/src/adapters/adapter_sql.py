@@ -32,14 +32,14 @@ class AdapterSQL(AbstractAdapter):
 
         ## aggregation types
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['tvl', 'rent_paid_usd', 'profit_usd', 'fees_paid_usd', 'stables_mcap', 'txcosts_median_usd']
+            raw_metrics = ['tvl', 'stables_mcap']
             df = self.db_connector.get_values_in_eth(raw_metrics, days)
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth']
+            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth']
             df = self.db_connector.get_values_in_usd(raw_metrics, days)
         elif load_type == 'profit':
             days = load_params['days']
-            self.queries_to_load = [x for x in sql_queries if x.metric_key == 'profit_usd']
+            self.queries_to_load = [x for x in sql_queries if x.metric_key == 'profit_eth']
             df = self.extract_data_from_db(self.queries_to_load, days)
         elif load_type == 'metrics':
             origin_keys = load_params['origin_keys']
@@ -157,6 +157,14 @@ class AdapterSQL(AbstractAdapter):
                 df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
 
                 print(f"...upserting smart_contract_deployments for {chain}. Total rows: {df.shape[0]}...")
+                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+
+                ## aggregate inscriptions
+                print(f"...aggregating inscriptions for {chain} and last {days} days...")
+                df = self.db_connector.get_blockspace_inscriptions(chain, days)
+                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+
+                print(f"...upserting inscriptions for {chain}. Total rows: {df.shape[0]}...")
                 self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
 
                 # ALL below needs to be retriggerd when mapping changes (e.g. new addresses got labeled or new categories added etc.)

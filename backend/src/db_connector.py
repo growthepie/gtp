@@ -179,7 +179,10 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df['source'].to_list()
         
+        ## Blockspace queries
 
+        # This function is used to get aggregate the blockspace data on contract level for a specific chain. The data will be loaded into fact_contract_level table
+        # it only aggregates transactions that are NOT native transfers, system transactionsm contract creations, or inscriptions. These are aggregated separately and output is stored directly in the fact_sub_category_level table
         def get_blockspace_contracts(self, chain, days):
                 ## Mantle stores fees in MNT: hence different logic for gas_fees_eth and gas_fees_usd
                 if chain == 'mantle':
@@ -227,12 +230,15 @@ class DbConnector:
                                 and to_address is not null -- filter out contract creations arbitrum, optimism
                                 and to_address <> '\\x0000000000000000000000000000000000008006' -- filter out contract creations zksync
                                 and to_address <> 'None' -- filter out zora and pgn contract creation
+                                and not (from_address = to_address and empty_input = false) -- filter out inscriptions (step 1: from_address = to_address + empty_input = false)
+                                and not (to_address in (select distinct address from inscription_addresses) and empty_input = false) -- filter out inscriptions (step 2: to_address in inscription_addresses + empty_input = false)
                         group by 1,2
                         having count(*) > 1
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        # This function is used to get the native_transfer daily aggregate per chain. The data will be loaded into fact_sub_category_level table        
         def get_blockspace_native_transfers(self, chain, days):
                 ## Mantle stores fees in MNT: hence different logic for gas_fees_eth and gas_fees_usd
                 if chain == 'mantle':
@@ -281,6 +287,61 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+         # This function is used to get the inscriptions per chain. The data will be loaded into fact_sub_category_level table        
+        def get_blockspace_inscriptions(self, chain, days):
+                ## Mantle stores fees in MNT: hence different logic for gas_fees_eth and gas_fees_usd
+                if chain == 'mantle':
+                        additional_cte = """
+                                , mnt_price AS (
+                                        SELECT "date", price_usd as value
+                                        FROM public.prices_daily
+                                        WHERE token_symbol = 'MNT'
+                                )
+                        """
+                        tx_fee_eth_string = 'tx_fee * mp.value / p.value'
+                        tx_fee_usd_string = 'tx_fee * mp.value'                        
+                        additional_join = """LEFT JOIN mnt_price mp on date_trunc('day', tx.block_timestamp) = mp."date" """
+                else:
+                        additional_cte = ''
+                        tx_fee_eth_string = 'tx_fee'
+                        tx_fee_usd_string = 'tx_fee * p.value'                        
+                        additional_join = ''
+
+
+                ## native transfers: all transactions that have no input data
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+                        {additional_cte}
+
+                        SELECT 
+                                date_trunc('day', block_timestamp) as date,
+                                'inscriptions' as sub_category_key,
+                                '{chain}' as origin_key,
+                                sum({tx_fee_eth_string}) as gas_fees_eth,
+                                sum({tx_fee_usd_string}) as gas_fees_usd,
+                                count(*) as txcount,
+                                count(distinct from_address) as daa
+                        FROM {chain}_tx tx 
+                        LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                        {additional_join}
+                        where block_timestamp < DATE_TRUNC('day', NOW())
+                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                and tx_fee > 0
+                                and (
+                                        (from_address = to_address and empty_input = false)
+                                        or 
+                                        (to_address in (select distinct address from inscription_addresses) and empty_input = false)
+                                )
+                        group by 1
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        # This function is used to get the contract_deployment daily aggregate per chain. The data will be loaded into fact_sub_category_level table
         def get_blockspace_contract_deplyments(self, chain, days):
                 ## Mantle stores fees in MNT: hence different logic for gas_fees_eth and gas_fees_usd
                 if chain == 'mantle':
@@ -334,6 +395,7 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        # This function is used to get the total blockspace fees per day for a specific chain. The data will be loaded into fact_sub_category_level table.
         def get_blockspace_total(self, chain, days):
                 ## Mantle stores fees in MNT: hence different logic for gas_fees_eth and gas_fees_usd
                 if chain == 'mantle':
@@ -380,6 +442,7 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        # This function is used to aggregate the blockspace data from contract_level, map it to categories, and then it will be loaded into the sub_category level table. The data will be loaded into fact_sub_category_level table
         def get_blockspace_sub_categories(self, chain, days):
                 exec_string = f'''
                         SELECT 
@@ -401,6 +464,7 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        # This function is used to calculate the unlabeled blockspace data for a specific chain. The data will be loaded into fact_sub_category_level table
         def get_blockspace_unlabeled(self, chain, days):
                 exec_string = f'''
                         with labeled_usage as (
@@ -443,96 +507,6 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
-        # """
-        # DEPRECATED (currently not used) - 10.11.23
-        # This function is used to get the top contracts by category for the blockspace dashboard
-        # category_type: main_category or sub_category
-        # category: the category key (e.g. dex, unlabeled, etc.)
-        # chain: arbitrum, optimism, polygon_zkevm, etc. OR all
-        # top_by: gas or txcount
-        # days: 7, 30, 90, 180, 365
-        # @TODO technically this method can be simplified because it is only used for blockspace overview
-        # """
-        # def get_top_contracts_by_category(self, category_type, category, chain, top_by, days):
-        #         date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
-        #         if chain == 'all':
-        #                 chain_string = ''
-        #         else:
-        #                 chain_string = f"and cl.origin_key = '{chain}'"
-
-        #         if category_type == 'main_category':
-        #                 category_string = 'bcm.main_category_key'
-        #         elif category_type == 'sub_category':
-        #                 category_string = 'bl.sub_category_key'
-        #         else:
-        #                 print('invalid category type')
-        #                 raise ValueError
-                
-        #         category_clause = f"and lower({category_string}) = lower('{category}')" if category != 'all' else ''
-                
-        #         if top_by == 'gas':
-        #                 top_by_string = 'gas_fees_eth'
-        #         elif top_by == 'txcount':
-        #                 top_by_string = 'txcount'
-
-        #         if category == 'unlabeled':
-        #                 exec_string = f'''
-        #                         SELECT 
-        #                                 cl.address,
-        #                                 cl.origin_key,
-        #                                 null as contract_name,
-        #                                 null as project_name,
-        #                                 null as sub_category_key,
-        #                                 null as sub_category_name,
-        #                                 'unlabeled' as main_category_key,
-        #                                 'Unlabeled' as main_category_name,
-        #                                 sum(gas_fees_eth) as gas_fees_eth,
-        #                                 sum(gas_fees_usd) as gas_fees_usd,
-        #                                 sum(txcount) as txcount,
-        #                                 round(avg(daa)) as daa
-        #                         FROM public.blockspace_fact_contract_level cl
-        #                         left join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
-        #                         where 
-        #                                 bl.address is null
-        #                                 and date < DATE_TRUNC('day', NOW())
-        #                                 {date_string}
-        #                                 {chain_string}
-        #                         group by 1,2,3,4,5,6,7,8
-        #                         order by {top_by_string} desc
-        #                         limit 100
-        #                 '''
-
-        #         else:
-        #                 exec_string = f'''
-        #                         SELECT 
-        #                                 cl.address,
-        #                                 cl.origin_key,
-        #                                 bl.contract_name,
-        #                                 bl.project_name,
-        #                                 bl.sub_category_key,
-        #                                 bcm.sub_category_name,
-        #                                 bcm.main_category_key,
-        #                                 bcm.main_category_name,
-        #                                 sum(gas_fees_eth) as gas_fees_eth,
-        #                                 sum(gas_fees_usd) as gas_fees_usd,
-        #                                 sum(txcount) as txcount,
-        #                                 round(avg(daa)) as daa
-        #                         FROM public.blockspace_fact_contract_level cl
-        #                         inner join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
-        #                         inner join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
-        #                         where 
-        #                                 date < DATE_TRUNC('day', NOW())
-        #                                 {date_string}
-        #                                 {chain_string}
-        #                                 {category_clause}
-        #                         group by 1,2,3,4,5,6,7,8
-        #                         order by {top_by_string} desc
-        #                         limit 100
-        #                 '''
-
-
-        #         df = pd.read_sql(exec_string, self.engine.connect())
-        #         return df
         
         """
         special function for the blockspace overview dashboard

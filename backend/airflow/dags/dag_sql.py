@@ -85,6 +85,25 @@ def etl():
         ad.load(df)
 
     @task()
+    def run_eth_to_usd(run_usd_to_eth:str):
+        adapter_params = {
+        }
+        load_params = {
+            'load_type' : 'eth_to_usd',
+            'days' : 5000, ## days as int
+            'origin_keys' : None, ## origin_keys as list or None
+            'metric_keys' : None, ## metric_keys as list or None
+        }
+
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterSQL(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # # load
+        ad.load(df)
+
+    @task()
     def run_blockspace():
         db_connector = DbConnector()
 
@@ -103,7 +122,7 @@ def etl():
         # extract
         ad.extract(load_params)
 
-    run_usd_to_eth(run_profit(run_metrics()))    
+    run_eth_to_usd(run_usd_to_eth(run_profit(run_metrics())))    
     run_blockspace()
 
 etl()

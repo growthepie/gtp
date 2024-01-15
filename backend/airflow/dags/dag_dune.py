@@ -5,6 +5,7 @@ sys_user = getpass.getuser()
 import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+import os
 from airflow.decorators import dag, task 
 from src.db_connector import DbConnector
 from src.adapters.adapter_dune import AdapterDune
@@ -20,7 +21,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_dune_v01',
+    dag_id = 'dag_dune_v02',
     description = 'Load aggregates metrics such as txcount, daa, fees paid, stablecoin mcap.',
     start_date = datetime(2023,6,5),
     schedule = '05 02 * * *'
@@ -29,13 +30,32 @@ default_args = {
 def etl():
     @task()
     def run_aggregates():
-        import os
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
         }
         load_params = {
             'query_names' : None,
             'days' : 'auto',
+            'load_type' : 'metrics'
+        }
+
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterDune(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
+
+    @task()
+    def run_inscriptions():
+        adapter_params = {
+            'api_key' : os.getenv("DUNE_API")
+        }
+        load_params = {
+            'query_names' : None,
+            'days' : 1000,
+            'load_type' : 'inscriptions'
         }
 
        # initialize adapter
@@ -47,5 +67,6 @@ def etl():
         ad.load(df)
     
     run_aggregates()
+    run_inscriptions()
 
 etl()
