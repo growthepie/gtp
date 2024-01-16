@@ -247,7 +247,7 @@ def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id):
         ContentType='application/json'
     )
 
-    print(f'... uploaded to {path_name}')
+    print(f'..uploaded to {path_name}')
     empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.json')
 
 

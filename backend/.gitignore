@@ -6,6 +6,7 @@ my_env/
 nb_gtp_local.ipynb
 nb_data_load.ipynb
 backend/output/
+local/
 
 # Airflow stuff
 airflow.cfg
