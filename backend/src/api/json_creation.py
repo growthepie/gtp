@@ -39,7 +39,7 @@ class JSONCreation():
                 'units': ['-'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'waa'
+                'monthly_agg': 'maa'
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin market cap',
@@ -279,7 +279,7 @@ class JSONCreation():
                 cur_val = df_tmp[mk].iloc[0:29].sum()
             elif self.metrics[metric_id]['monthly_agg'] == 'avg':
                 cur_val = df_tmp[mk].iloc[0:29].mean()
-            elif self.metrics[metric_id]['monthly_agg'] == 'waa':
+            elif self.metrics[metric_id]['monthly_agg'] == 'maa':
                 cur_val = df_tmp[mk].iloc[0:29].mean() ## TO BE IMPLEMENTED
             else:
                 raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
@@ -293,7 +293,7 @@ class JSONCreation():
                         prev_val = df_tmp[mk].iloc[change:change+29].sum()
                     elif self.metrics[metric_id]['monthly_agg'] == 'avg':
                         prev_val = df_tmp[mk].iloc[change:change+29].mean()
-                    elif self.metrics[metric_id]['monthly_agg'] == 'waa':
+                    elif self.metrics[metric_id]['monthly_agg'] == 'maa':
                         prev_val = df_tmp[mk].iloc[change:change+29].mean() ## TO BE IMPLEMENTED
                     else:
                         raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
