@@ -151,7 +151,15 @@ class JSONCreation():
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "unix", "value", "metric_key"]]
         ## create monthly averages on value and min on unix column
         df_tmp['date'] = df_tmp['date'].dt.tz_convert(None) ## get rid of timezone in order to avoid warnings
-        df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'mean', 'unix': 'min'}).reset_index()
+        if self.metrics[metric_id]['monthly_agg'] == 'sum':
+            df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index()
+        elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+            df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'mean', 'unix': 'min'}).reset_index()
+        elif self.metrics[metric_id]['monthly_agg'] == 'maa':
+            df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index() ## @TODO: TO BE IMPLEMENTED
+        else:
+            raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
+        
         ## drop column date
         df_tmp = df_tmp.drop(columns=['date'])
         ## metric_key to column
@@ -280,7 +288,7 @@ class JSONCreation():
             elif self.metrics[metric_id]['monthly_agg'] == 'avg':
                 cur_val = df_tmp[mk].iloc[0:29].mean()
             elif self.metrics[metric_id]['monthly_agg'] == 'maa':
-                cur_val = df_tmp[mk].iloc[0:29].mean() ## TO BE IMPLEMENTED
+                cur_val = df_tmp[mk].iloc[0:29].sum() ## @TODO: TO BE IMPLEMENTED
             else:
                 raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
             
@@ -294,7 +302,7 @@ class JSONCreation():
                     elif self.metrics[metric_id]['monthly_agg'] == 'avg':
                         prev_val = df_tmp[mk].iloc[change:change+29].mean()
                     elif self.metrics[metric_id]['monthly_agg'] == 'maa':
-                        prev_val = df_tmp[mk].iloc[change:change+29].mean() ## TO BE IMPLEMENTED
+                        prev_val = df_tmp[mk].iloc[change:change+29].sum() ## @TODO: TO BE IMPLEMENTED
                     else:
                         raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
                     
