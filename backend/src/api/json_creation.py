@@ -151,6 +151,10 @@ class JSONCreation():
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "unix", "value", "metric_key"]]
         ## create monthly averages on value and min on unix column
         df_tmp['date'] = df_tmp['date'].dt.tz_convert(None) ## get rid of timezone in order to avoid warnings
+
+        ## replace earliest date with first day of month (in unix) in unix column
+        df_tmp['unix'] = df_tmp['unix'].mask(df_tmp['date'] == df_tmp['date'].min(), df_tmp['date'].dt.to_period("M").dt.start_time.astype(np.int64) // 10**6)
+        
         if self.metrics[metric_id]['monthly_agg'] == 'sum':
             df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index()
         elif self.metrics[metric_id]['monthly_agg'] == 'avg':
