@@ -32,7 +32,6 @@ class LoopringAdapter(AbstractAdapterRaw):
             return None
         
     def get_block_data(self,block_id):
-        print(f"Retrieving block {block_id}...")
         url = f"{self.url}/block/getBlock?id={block_id}"
         response = requests.get(url)
 
@@ -146,6 +145,7 @@ class LoopringAdapter(AbstractAdapterRaw):
                     traceback.print_exc()
                     
     def fetch_loopring_data_for_range(self, current_start, current_end):
+        print(f"Fetching data for blocks {current_start} to {current_end}...")
         all_blocks_df = pd.DataFrame()
 
         for block_id in range(current_start, current_end + 1):

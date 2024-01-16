@@ -33,7 +33,7 @@ def adapter_nader_super():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'zora',
-            'node_url': os.getenv("ZORA_RPC"),
+            'rpc_urls': [os.getenv("ZORA_RPC")],
         }
 
         # Initialize DbConnector

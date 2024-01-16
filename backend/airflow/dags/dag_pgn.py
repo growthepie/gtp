@@ -32,7 +32,7 @@ def adapter_nader_super():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'gitcoin_pgn',
-            'node_url': os.getenv("GITCOIN_PGN_RPC"),
+            'rpc_urls': [os.getenv("GITCOIN_PGN_RPC")],
         }
 
         # Initialize DbConnector

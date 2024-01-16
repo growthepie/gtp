@@ -22,22 +22,18 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_mantle',
-    description='Load raw tx data from Mantle',
+    dag_id='dag_arbitrum',
+    description='Load raw tx data from arbitrum',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='10 */3 * * *'
+    schedule_interval='20 */3 * * *'
 )
 def adapter_nader_super():
     @task()
     def run_nader_super():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'mantle',
-            'rpc_urls': [os.getenv("MANTLE_RPC")],
-            'max_calls_per_rpc': {
-                os.getenv("MANTLE_RPC_1"): 50,
-                os.getenv("MANTLE_RPC_2"): 55,
-            }
+            'chain': 'arbitrum',
+            'rpc_urls': [os.getenv("ARBITRUM_RPC")],
         }
 
         # Initialize DbConnector
@@ -50,7 +46,7 @@ def adapter_nader_super():
         load_params = {
             'block_start': 'auto',
             'batch_size': 150,
-            'threads': 7,
+            'threads': 3,
         }
 
         while load_params['threads'] > 0:

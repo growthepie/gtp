@@ -41,9 +41,6 @@ class NodeAdapter(AbstractAdapterRaw):
         self.run(self.block_start, self.batch_size, self.threads)
         print(f"FINISHED loading raw tx data for {self.chain}.")
         
-    def set_rpc_url(self, new_url:str):
-        self.node_url = new_url
-        
     def run(self, block_start, batch_size, threads):
         if not check_db_connection(self.db_connector):
             raise ConnectionError("Database is not connected.")
