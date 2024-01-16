@@ -22,56 +22,64 @@ class JSONCreation():
                 'metric_keys': ['tvl', 'tvl_eth'],
                 'units': ['USD', 'ETH'],
                 'avg': False,
-                'all_l2s_aggregate': 'sum'
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'avg'
             }
             ,'txcount': {
                 'name': 'Transaction count',
                 'metric_keys': ['txcount'],
                 'units': ['-'],
                 'avg': True,
-                'all_l2s_aggregate': 'sum'
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum'
             }
             ,'daa': {
                 'name': 'Daily active addresses',
                 'metric_keys': ['daa'],
                 'units': ['-'],
                 'avg': True,
-                'aggregate': 'sum'
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'waa'
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin market cap',
                 'metric_keys': ['stables_mcap', 'stables_mcap_eth'],
                 'units': ['USD', 'ETH'],
                 'avg': False,
-                'all_l2s_aggregate': 'sum'
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'avg'
             }
             ,'fees': {
                 'name': 'Fees paid',
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
                 'units': ['USD', 'ETH'],
                 'avg': True,
-                'all_l2s_aggregate': 'sum'
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum'
             }
             ,'rent_paid': {
                 'name': 'Rent paid to L1',
                 'metric_keys': ['rent_paid_usd', 'rent_paid_eth'],
                 'units': ['USD', 'ETH'],
                 'avg': True,
-                'all_l2s_aggregate': 'sum'
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum'
             }
             ,'profit': {
                 'name': 'Profit',
                 'metric_keys': ['profit_usd', 'profit_eth'],
                 'units': ['USD', 'ETH'],
                 'avg': True,
-                'all_l2s_aggregate': 'sum'
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum'
             }
             ,'txcosts': {
                 'name': 'Transaction costs',
                 'metric_keys': ['txcosts_median_usd', 'txcosts_median_eth'],
                 'units': ['USD', 'ETH'],
                 'avg': True,
-                'all_l2s_aggregate': 'weighted_mean'
+                'all_l2s_aggregate': 'weighted_mean',
+                'monthly_agg': 'avg'
             }
         }
 
@@ -136,6 +144,32 @@ class JSONCreation():
         
         return mk_list_int, df_tmp.columns.to_list()
     
+    # this method returns a list of lists with the unix timestamp (first day of month) and all associated values for a certain metric_id and chain_id
+    def generate_monthly_list(self, df, metric_id, origin_key):
+        ##print(f'called generate int for {metric_id} and {chain_id}')
+        mks = self.metrics[metric_id]['metric_keys']
+        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "unix", "value", "metric_key"]]
+        ## create monthly averages on value and min on unix column
+        df_tmp['date'] = df_tmp['date'].dt.tz_convert(None) ## get rid of timezone in order to avoid warnings
+        df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'mean', 'unix': 'min'}).reset_index()
+        ## drop column date
+        df_tmp = df_tmp.drop(columns=['date'])
+        ## metric_key to column
+        df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
+        df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
+        
+        df_tmp = self.df_rename(df_tmp, metric_id, True)
+
+        mk_list = df_tmp.values.tolist() ## creates a list of lists
+
+        if len(self.metrics[metric_id]['units']) == 1:
+            mk_list_int = [[int(i[0]),i[1]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
+        elif len(self.metrics[metric_id]['units']) == 2:
+            mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
+        else:
+            raise NotImplementedError("Only 1 or 2 units are supported")
+        
+        return mk_list_int, df_tmp.columns.to_list()
 
     ## create 7d rolling average over a list of lists where the first element is the date and the second element is the value (necessary for daily_avg field)
     def create_7d_rolling_avg(self, list_of_lists):
@@ -214,11 +248,57 @@ class JSONCreation():
                     change_val = None
                 else:
                     prev_val = df_tmp[mk].iloc[change]
-                    if prev_val < 0 and cur_val > 0:
+                    if (prev_val < 0) or (cur_val < 0) or (prev_val == 0):
                         change_val = None
-                    elif prev_val > 0 and cur_val < 0:
-                        change_val = None
-                    elif prev_val < 0 and cur_val < 0:
+                    else:
+                        change_val = (cur_val - prev_val) / prev_val
+                        change_val = round(change_val, 4)
+                changes_dict[f'{change}d'].append(change_val)
+
+        df_tmp = self.df_rename(df_tmp, metric_id)
+        changes_dict['types'] = df_tmp.columns.to_list()
+
+        return changes_dict
+    
+    def create_changes_dict_monthly(self, df, metric_id, origin_key):
+        #print(f'called create_changes_dict for {metric_id} and {origin_key}')
+        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(self.metrics[metric_id]['metric_keys'])), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
+        df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
+
+        changes_dict = {
+                        'types': [],
+                        '30d': [],
+                        '90d': [],
+                        '180d': [],
+                        '365d': [],
+                    }
+
+        for mk in self.metrics[metric_id]['metric_keys']:
+            #print(mk)
+            if self.metrics[metric_id]['monthly_agg'] == 'sum':
+                cur_val = df_tmp[mk].iloc[0:29].sum()
+            elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+                cur_val = df_tmp[mk].iloc[0:29].mean()
+            elif self.metrics[metric_id]['monthly_agg'] == 'waa':
+                cur_val = df_tmp[mk].iloc[0:29].mean() ## TO BE IMPLEMENTED
+            else:
+                raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
+            
+            changes = [30,90,180,365]
+            for change in changes:
+                if df_tmp[mk].shape[0] <= change:
+                    change_val = None
+                else:
+                    if self.metrics[metric_id]['monthly_agg'] == 'sum':
+                        prev_val = df_tmp[mk].iloc[change:change+29].sum()
+                    elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+                        prev_val = df_tmp[mk].iloc[change:change+29].mean()
+                    elif self.metrics[metric_id]['monthly_agg'] == 'waa':
+                        prev_val = df_tmp[mk].iloc[change:change+29].mean() ## TO BE IMPLEMENTED
+                    else:
+                        raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
+                    
+                    if (prev_val < 0) or (cur_val < 0) or (prev_val == 0):
                         change_val = None
                     else:
                         change_val = (cur_val - prev_val) / prev_val
@@ -484,21 +564,25 @@ class JSONCreation():
                     print(f'..skipped -- Metric details export for {origin_key} - {metric}. Metric is excluded for this chain')
                     continue
 
-                # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
-                #     continue
-                # if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
-                #     continue
-
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]
 
+                mk_list_monthly = self.generate_monthly_list(df, metric, origin_key)
+                mk_list_int_monthly = mk_list_monthly[0]
+                mk_list_columns_monthly = mk_list_monthly[1]
+
                 chains_dict[origin_key] = {
                     'chain_name': chain.name,
                     'changes': self.create_changes_dict(df, metric, origin_key),
+                    'changes_monthly': self.create_changes_dict_monthly(df, metric, origin_key),
                     'daily': {
                         'types' : mk_list_columns,
                         'data' : mk_list_int
+                    },
+                    'monthly': {
+                        'types' : mk_list_columns_monthly,
+                        'data' : mk_list_int_monthly
                     }
                 }
 
