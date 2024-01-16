@@ -366,7 +366,7 @@ class DbConnector:
                 elif chain == 'polygon_zkevm':
                         filter_string = "and receipt_contract_address is not null"
                 else:
-                        filter_string = "and to_address = '' or to_address is null"
+                        filter_string = "and (to_address = '' or to_address is null)"
 
                 exec_string = f'''
                         with eth_price as (
@@ -392,6 +392,7 @@ class DbConnector:
                                 {filter_string}
                         group by 1
                 '''
+                #print(exec_string)
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         

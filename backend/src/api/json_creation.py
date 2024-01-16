@@ -355,8 +355,9 @@ class JSONCreation():
         metric = self.metrics[metric_id]
         mks = metric['metric_keys']
 
-        # filter df for all_l2s (all chains except Ethereum)
-        df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks))]
+        # filter df for all_l2s (all chains except Ethereum and chains that aren't included in the API)
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
+        df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(chain_keys))]
         
         # group by unix and metric_key and sum up the values or calculate the mean (depending on the metric)
         if metric['all_l2s_aggregate'] == 'sum':
