@@ -32,7 +32,7 @@ def adapter_nader_super():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'scroll',
-            'node_url': os.getenv("SCROLL_RPC"),
+            'rpc_urls': [os.getenv("SCROLL_RPC")],
         }
 
         # Initialize DbConnector

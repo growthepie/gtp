@@ -5,10 +5,13 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 import pandas as pd
 from sqlalchemy import create_engine, exc
+from dotenv import load_dotenv
 import os
 import sys
 import random
 import time
+from web3.datastructures import AttributeDict
+from hexbytes import HexBytes
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -24,6 +27,18 @@ def hex_to_int(hex_str):
         return int(hex_str, 16)
     except (ValueError, TypeError):
         return None 
+
+def load_environment():
+    load_dotenv()
+
+    # Postgres details from .env file
+    db_name = os.getenv("DB_DATABASE")
+    db_user = os.getenv("DB_USERNAME")
+    db_password = os.getenv("DB_PASSWORD")
+    db_host = os.getenv("DB_HOST")
+    db_port = os.getenv("DB_PORT")
+
+    return db_name, db_user, db_password, db_host, db_port
 
 # ---------------- Connection Functions ------------------
 def connect_to_node(url):
@@ -273,6 +288,61 @@ def prep_dataframe_linea(df):
 
     return filtered_df 
 
+def prep_dataframe_arbitrum(df):
+
+    print("Preprocessing dataframe...")
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'empty_input',
+        'block_timestamp': 'block_timestamp'
+    }
+
+    # Filter the dataframe to only include the relevant columns
+    filtered_df = df[list(column_mapping.keys())]
+
+    # Rename the columns based on the above mapping
+    filtered_df = filtered_df.rename(columns=column_mapping)
+
+    # Convert columns to numeric if they aren't already
+    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
+    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
+    
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used'])  / 1e18
+    
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")
+
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+    return filtered_df 
+
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
@@ -317,9 +387,20 @@ def fetch_block_transaction_details(w3, block):
     block_timestamp = block['timestamp']  # Get the block timestamp
     
     for tx in block['transactions']:
-        tx_hash = tx['hash']
+        # Check if the transaction is a HexBytes instance (older blocks)
+        if isinstance(tx, HexBytes):
+            tx_hash = tx.hex()  # Convert HexBytes to hex string
+        # If it's an AttributeDict or a dictionary (newer blocks), access the hash directly
+        elif isinstance(tx, dict) or isinstance(tx, AttributeDict):
+            tx_hash = tx['hash'].hex() if isinstance(tx['hash'], HexBytes) else tx['hash']
+        else:
+            raise TypeError("Unsupported transaction type")
+
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         
+        # Fetch the transaction using the hash
+        tx = w3.eth.get_transaction(tx_hash)
+                
         # Convert the receipt and transaction to dictionary if it is not
         if not isinstance(receipt, dict):
             receipt = dict(receipt)
@@ -330,7 +411,7 @@ def fetch_block_transaction_details(w3, block):
         merged_dict = {**receipt, **tx}
         
         # Add or update specific fields
-        merged_dict['hash'] = tx['hash'].hex()
+        merged_dict['hash'] = tx_hash
         merged_dict['block_timestamp'] = block_timestamp
         
         # Add the transaction receipt dictionary to the list
@@ -416,6 +497,8 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_linea(df)
             elif chain == 'scroll':
                 df_prep = prep_dataframe_scroll(df)
+            elif chain == 'arbitrum':
+                df_prep = prep_dataframe_arbitrum(df)
             else:
                 df_prep = prep_dataframe(df)
 

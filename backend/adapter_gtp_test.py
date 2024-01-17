@@ -5,8 +5,12 @@ from src.adapters.adapter_utils import *
 
 adapter_params = {
     'rpc': 'local_node',
-    'chain': 'mantle',
-    'node_url': os.getenv("MANTLE_RPC"),
+    'chain': 'arbitrum',
+    'rpc_urls': [os.getenv("ARBITRUM_RPC_URL_1"), os.getenv("ARBITRUM_RPC_URL_2")],
+    'max_calls_per_rpc': {
+        os.getenv("ARBITRUM_RPC_URL_1"): 50,
+        os.getenv("ARBITRUM_RPC_URL_2"): 55,
+    }
 }
 
 # Initialize DbConnector
@@ -19,7 +23,7 @@ adapter = NodeAdapter(adapter_params, db_connector)
 load_params = {
     'block_start': 'auto',
     'batch_size': 150,
-    'threads': 7,
+    'threads': 3,
 }
 
 try:

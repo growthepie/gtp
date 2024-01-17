@@ -33,7 +33,7 @@ def adapter_nader_super():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'linea',
-            'node_url': os.getenv("LINEA_RPC"),
+            'rpc_urls': [os.getenv("LINEA_RPC")],
         }
 
         # Initialize DbConnector
