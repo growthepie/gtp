@@ -337,7 +337,12 @@ class JSONCreation():
         elif self.metrics[metric_id]['monthly_agg'] == 'maa':
             val = df_tmp.iloc[0:29].sum() ## @TODO: TO BE IMPLEMENTED
 
-        return val.to_dict()
+        val_dict = {
+            'types': val.keys().to_list(),
+            'data': val.to_list()
+        }
+
+        return val_dict
 
 
     def get_all_data(self):
