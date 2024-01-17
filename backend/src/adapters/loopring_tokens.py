@@ -33,7 +33,7 @@ def insert_into_db(df, engine, table_name):
         print(f"Error inserting data into table {table_name}.")
         print(e)
 
-def main():
+def fetch_and_insert_tokens():
     url = "https://api3.loopring.io/api/v3/exchange/tokens"
     token_info = extract_token_info_from_endpoint(url)
     df = pd.DataFrame(token_info)
@@ -42,6 +42,3 @@ def main():
     engine = create_db_engine(db_user, db_password, db_host, db_port, db_name)
 
     insert_into_db(df, engine, "loopring_tokens")
-
-if __name__ == "__main__":
-    main()

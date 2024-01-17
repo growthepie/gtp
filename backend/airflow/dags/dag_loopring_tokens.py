@@ -20,7 +20,7 @@ default_args = {
     dag_id='dag_loopring_tokens',
     description='Load fee tokens from Loopring',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='40 */3 * * *'
+    schedule_interval='40 03 * * *'
 )
 
 def loopring_tokens():
