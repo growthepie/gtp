@@ -86,6 +86,8 @@ class AdapterSQL(AbstractAdapter):
             if days == 'auto':
                 if query.origin_key == 'multi':
                     day_val = 40 ### that should be improved....
+                elif query.metric_key == 'maa':
+                    day_val = 7
                 else:
                     day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
             else:

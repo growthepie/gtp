@@ -84,8 +84,10 @@ class AdapterDune(AbstractAdapter):
 
         for query in queries_to_load:
             if days == 'auto':
-                if query.name in ['waa', 'maa']:
+                if query.name == 'waa':
                     day_val = 30
+                elif query.name == 'maa':
+                    day_val = 60
                 else:
                     day_val = 7
             else:
