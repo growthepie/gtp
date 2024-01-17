@@ -322,7 +322,7 @@ sql_q= {
         order by 1 desc
     """
 
-    ## count of all addresses that activels interacted on imx (not mints, because they are not triggered by users themselves). Only fullfilled orders are counted as well.
+    ## count of all addresses that actively interacted on imx (not mints, because they are not triggered by users themselves). Only fullfilled orders are counted as well.
     ,'imx_maa': """
          with 
         cte_imx_deposits as (
@@ -395,6 +395,79 @@ sql_q= {
         order by 1 desc
     """
 
+        ## count of all addresses that actively interacted on imx (not mints, because they are not triggered by users themselves). Only fullfilled orders are counted as well.
+    ,'imx_aa_last30d': """
+         with 
+        cte_imx_deposits as (
+                select 
+                        date_trunc('day', now()) - interval '1 days' as day
+                        , "user" as address
+                        , 'deposits' as tx_type
+                from imx_deposits
+                WHERE timestamp < date_trunc('day', now())
+                        AND timestamp >= date_trunc('day',now()) - interval '30 days'
+        ),
+        cte_imx_withdrawals as (
+                select 
+                        date_trunc('day', now()) - interval '1 days' as day
+                        , "sender" as address
+                        , 'withdrawals' as tx_type
+                from imx_withdrawals  
+                WHERE timestamp < date_trunc('day', now())
+                        AND timestamp >= date_trunc('day',now()) - interval '30 days'
+        ),
+        cte_imx_orders as (
+                select 
+                        date_trunc('day', now()) - interval '1 days' as day
+                        , "user" as address
+                        , 'orders' as tx_type
+                from imx_orders   
+                WHERE updated_timestamp < date_trunc('day', now())
+                        AND updated_timestamp >= date_trunc('day',now()) - interval '30 days'
+        ),
+        cte_imx_transfers as (
+                select 
+                        date_trunc('day', now()) - interval '1 days' as day
+                        , "user" as address
+                        , 'transfers' as tx_type
+                from imx_transfers
+                WHERE timestamp < date_trunc('day', now())
+                        AND timestamp >= date_trunc('day',now()) - interval '30 days'
+        ),    
+        unioned as (
+                select * from cte_imx_deposits
+                union all
+                select * from cte_imx_withdrawals
+                union all
+                select * from cte_imx_orders
+                union all
+                select * from cte_imx_transfers
+        )
+        
+        select
+                day,
+                Count(distinct address) as val
+        from unioned
+        group by 1
+        order by 1 desc
+    """
+
+    ,'imx_fees_paid_usd': """
+        SELECT 
+                date_trunc('day', "updated_timestamp") as day,
+                SUM((amount::decimal / power(10,it.decimals)) * pd.price_usd) as val
+        FROM public.imx_fees f
+        left join prices_daily pd 
+                on date_trunc('day', "updated_timestamp") = pd."date" 
+                and f.token_data_contract_address = pd.token_address 
+        left join imx_tokens it on f.token_data_contract_address = it.token_address 
+        where "type" = 'protocol'
+                and updated_timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
+                and updated_timestamp < date_trunc('day', now())
+        group by 1
+        order by 1 desc
+    """
+
 
         ### Arbitrum
         ,'arbitrum_txcount_raw': """
@@ -421,6 +494,18 @@ sql_q= {
 
         """
 
+        ,'arbitrum_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM arbitrum_tx tx
+        WHERE
+                tx.gas_used > 0
+                AND block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
+
+        """
+
         ### OP Mainnet
         ,'optimism_txcount_raw': """
         SELECT date_trunc('day', ot.block_timestamp) AS day,
@@ -441,6 +526,16 @@ sql_q= {
                 AND block_timestamp >= date_trunc('month', current_date - interval '{{Days}}' day)
         GROUP BY  1
 
+        """
+
+        ,'optimism_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM optimism_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
         """
 
         ### Base
@@ -464,6 +559,16 @@ sql_q= {
         GROUP BY  1
         """
 
+        ,'base_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM base_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
+        """
+
 
         ### Polygon zkEVM
         ,'polygon_zkevm_txcount_raw': """
@@ -485,6 +590,16 @@ sql_q= {
                 AND block_timestamp >= date_trunc('month', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
+
+        ,'polygon_zkevm_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM polygon_zkevm_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
+        """
         
         ### zkSync Era
         ,'zksync_era_txcount_raw': """
@@ -505,6 +620,16 @@ sql_q= {
                 block_timestamp < date_trunc('day', current_date)
                 AND block_timestamp >= date_trunc('month', current_date - interval '{{Days}}' day)
         GROUP BY  1
+        """
+
+        ,'zksync_era_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM zksync_era_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
         """
 
         ### Zora
@@ -562,6 +687,16 @@ sql_q= {
                 block_timestamp < date_trunc('day', current_date)
                 AND block_timestamp >= date_trunc('month', current_date - interval '{{Days}}' day)
         GROUP BY  1
+        """
+
+        ,'zora_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM zora_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
         """
 
         ,'zora_txcosts_median_eth': """
@@ -639,6 +774,17 @@ sql_q= {
         GROUP BY  1
         """
 
+         ,'pgn_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM gitcoin_pgn_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
+        """
+
+
     ,'pgn_txcosts_median_eth': """
         WITH 
         pgn_median AS (
@@ -711,6 +857,16 @@ sql_q= {
                 block_timestamp < date_trunc('day', current_date)
                 AND block_timestamp >= date_trunc('month', current_date - interval '{{Days}}' day)
         GROUP BY  1
+        """
+
+        ,'linea_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM linea_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
         """
 
     ,'linea_txcosts_median_eth': """
@@ -795,6 +951,16 @@ sql_q= {
                 block_timestamp < date_trunc('day', current_date)
                 AND block_timestamp >= date_trunc('month', current_date - interval '{{Days}}' day)
         GROUP BY  1
+        """
+
+        ,'mantle_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM mantle_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
         """
 
         ,'mantle_txcosts_median_eth': """
@@ -882,6 +1048,17 @@ sql_q= {
         GROUP BY  1
         """
 
+        ,'scroll_aa_last30d': """
+        SELECT 
+                date_trunc('day', current_date - interval '1' day) AS day,
+                count(DISTINCT from_address) as value
+        FROM scroll_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('day', current_date - interval '30' day)
+        """
+
+
     ,'scroll_txcosts_median_eth': """
         WITH 
         scroll_median AS (
@@ -918,7 +1095,10 @@ class SQLObject():
 class SQLQuery(SQLObject):
     def __init__(self, sql: str, metric_key: str, origin_key: str, query_parameters: dict = None):
         self.sql_raw = sql 
-        self.sql = self.replace_query_parameters(self.sql_raw, query_parameters)
+        if query_parameters is not None:
+                self.sql = self.replace_query_parameters(self.sql_raw, query_parameters)
+        else:
+                self.sql = self.sql_raw
         self.metric_key = metric_key
         self.origin_key = origin_key
         self.query_parameters = query_parameters
@@ -937,34 +1117,41 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount", origin_key = "imx", sql=sql_q["imx_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "imx", sql=sql_q["imx_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "maa", origin_key = "imx", sql=sql_q["imx_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "imx", sql=sql_q["imx_aa_last30d"], query_parameters=None)
     #,SQLQuery(metric_key = "new_addresses", origin_key = "imx", sql=sql_q["ethereum_new_addresses"], query_parameters={"Days": 7})
     #,SQLQuery(metric_key = "fees_paid_usd", origin_key = "imx", sql=sql_q["imx_fees_paid_usd"], query_parameters={"Days": 7})
 
     ## Arbitrum
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "arbitrum", sql=sql_q["arbitrum_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "maa", origin_key = "arbitrum", sql=sql_q["arbitrum_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last30d"], query_parameters=None)
 
     ## OP Mainnet
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "optimism", sql=sql_q["optimism_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "maa", origin_key = "optimism", sql=sql_q["optimism_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "optimism", sql=sql_q["optimism_aa_last30d"], query_parameters=None)
 
     ## Base
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "base", sql=sql_q["base_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "maa", origin_key = "base", sql=sql_q["base_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "base", sql=sql_q["base_aa_last30d"], query_parameters=None)
 
     ## Polygon zkEVM
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "maa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last30d"], query_parameters=None)
 
     ## zkSync Era
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zksync_era", sql=sql_q["zksync_era_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "maa", origin_key = "zksync_era", sql=sql_q["zksync_era_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last30d"], query_parameters=None)
 
     ## Zora
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zora", sql=sql_q["zora_txcount_raw"], query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "txcount", origin_key = "zora", sql=sql_q["zora_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "zora", sql=sql_q["zora_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "maa", origin_key = "zora", sql=sql_q["zora_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "zora", sql=sql_q["zora_aa_last30d"], query_parameters=None)
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "zora", sql=sql_q["zora_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "zora", sql=sql_q["zora_txcosts_median_eth"], query_parameters={"Days": 7})
 
@@ -973,6 +1160,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "maa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last30d"], query_parameters=None)
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_eth"], query_parameters={"Days": 7})
     
@@ -981,6 +1169,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount", origin_key = "linea", sql=sql_q["linea_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "linea", sql=sql_q["linea_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "maa", origin_key = "linea", sql=sql_q["linea_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "linea", sql=sql_q["linea_aa_last30d"], query_parameters=None)
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "linea", sql=sql_q["linea_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "linea", sql=sql_q["linea_txcosts_median_eth"], query_parameters={"Days": 7})
 
@@ -989,6 +1178,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount", origin_key = "mantle", sql=sql_q["mantle_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "mantle", sql=sql_q["mantle_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "maa", origin_key = "mantle", sql=sql_q["mantle_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "mantle", sql=sql_q["mantle_aa_last30d"], query_parameters=None)
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "mantle", sql=sql_q["mantle_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "mantle", sql=sql_q["mantle_txcosts_median_eth"], query_parameters={"Days": 7})
     
@@ -997,6 +1187,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount", origin_key = "scroll", sql=sql_q["scroll_txcount"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "scroll", sql=sql_q["scroll_daa"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "maa", origin_key = "scroll", sql=sql_q["scroll_maa"], query_parameters={"Days": 60})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "scroll", sql=sql_q["scroll_aa_last30d"], query_parameters=None)
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "scroll", sql=sql_q["scroll_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "scroll", sql=sql_q["scroll_txcosts_median_eth"], query_parameters={"Days": 7})
    

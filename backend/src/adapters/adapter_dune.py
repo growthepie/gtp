@@ -93,7 +93,10 @@ class AdapterDune(AbstractAdapter):
             else:
                 day_val = days
 
-            query.params = [QueryParameter.text_type(name="Days", value=str(day_val))]
+            if query.name == 'aa_last30d':
+                query.params = []
+            else:
+                query.params = [QueryParameter.text_type(name="Days", value=str(day_val))]
 
             print(f"...start loading {query.name} with query_id: {query.query_id} and params: {query.params}")
             df = self.client.refresh_into_dataframe(query)

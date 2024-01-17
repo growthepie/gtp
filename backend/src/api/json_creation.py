@@ -147,29 +147,32 @@ class JSONCreation():
     # this method returns a list of lists with the unix timestamp (first day of month) and all associated values for a certain metric_id and chain_id
     def generate_monthly_list(self, df, metric_id, origin_key):
         ##print(f'called generate int for {metric_id} and {chain_id}')
-        mks = self.metrics[metric_id]['metric_keys']
+        mks = self.metrics[metric_id]['metric_keys'].copy()
+        if 'daa' in mks:
+            mks[mks.index('daa')] = 'maa'
+
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "unix", "value", "metric_key"]]
         ## create monthly averages on value and min on unix column
         df_tmp['date'] = df_tmp['date'].dt.tz_convert(None) ## get rid of timezone in order to avoid warnings
 
         ## replace earliest date with first day of month (in unix) in unix column
         df_tmp['unix'] = df_tmp['unix'].mask(df_tmp['date'] == df_tmp['date'].min(), df_tmp['date'].dt.to_period("M").dt.start_time.astype(np.int64) // 10**6)
-        
+
         if self.metrics[metric_id]['monthly_agg'] == 'sum':
             df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index()
         elif self.metrics[metric_id]['monthly_agg'] == 'avg':
             df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'mean', 'unix': 'min'}).reset_index()
         elif self.metrics[metric_id]['monthly_agg'] == 'maa':
-            df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index() ## @TODO: TO BE IMPLEMENTED
+            pass ## no aggregation necessary
         else:
             raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
-        
+
         ## drop column date
         df_tmp = df_tmp.drop(columns=['date'])
         ## metric_key to column
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
-        
+
         df_tmp = self.df_rename(df_tmp, metric_id, True)
 
         mk_list = df_tmp.values.tolist() ## creates a list of lists
@@ -180,7 +183,7 @@ class JSONCreation():
             mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
         else:
             raise NotImplementedError("Only 1 or 2 units are supported")
-        
+
         return mk_list_int, df_tmp.columns.to_list()
 
     ## create 7d rolling average over a list of lists where the first element is the date and the second element is the value (necessary for daily_avg field)

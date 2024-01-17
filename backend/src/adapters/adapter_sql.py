@@ -92,7 +92,9 @@ class AdapterSQL(AbstractAdapter):
                     day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
             else:
                 day_val = days
-            query.update_query_parameters({'Days': day_val})
+            
+            if query.query_parameters is not None:
+                query.update_query_parameters({'Days': day_val})
             
             print(f"... executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters} days")
             df = pd.read_sql(query.sql, self.db_connector.engine.connect())
