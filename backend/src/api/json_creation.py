@@ -321,6 +321,24 @@ class JSONCreation():
         changes_dict['types'] = df_tmp.columns.to_list()
 
         return changes_dict
+    
+    ## this function takes a dataframe and a metric_id and origin_key as input and returns a value that aggregates the last 30 days
+    def value_last_30d(self, df, metric_id, origin_key):     
+        mks = self.metrics[metric_id]['metric_keys']
+        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
+        df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
+
+        df_tmp = self.df_rename(df_tmp, metric_id, True)
+
+        if self.metrics[metric_id]['monthly_agg'] == 'sum':
+            val = df_tmp.iloc[0:29].sum()
+        elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+            val = df_tmp.iloc[0:29].mean()
+        elif self.metrics[metric_id]['monthly_agg'] == 'maa':
+            val = df_tmp.iloc[0:29].sum() ## @TODO: TO BE IMPLEMENTED
+
+        return val.to_dict()
+
 
     def get_all_data(self):
         ## Load all data from database
@@ -592,6 +610,7 @@ class JSONCreation():
                         'types' : mk_list_columns,
                         'data' : mk_list_int
                     },
+                    'last_30d': self.value_last_30d(df, metric, origin_key),
                     'monthly': {
                         'types' : mk_list_columns_monthly,
                         'data' : mk_list_int_monthly
@@ -612,6 +631,7 @@ class JSONCreation():
                     'metric_name': self.metrics[metric]['name'],
                     'source': self.db_connector.get_metric_sources(metric, []),
                     'avg': self.metrics[metric]['avg'],
+                    'monthly_agg': 'unique' if self.metrics[metric]['monthly_agg'] in ['maa'] else self.metrics[metric]['monthly_agg'],
                     'chains': chains_dict
                 }
             }
