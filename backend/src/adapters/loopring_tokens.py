@@ -1,6 +1,6 @@
 import requests
 import pandas as pd
-from adapter_utils import create_db_engine, load_environment
+from src.adapters.adapter_utils import create_db_engine, load_environment
 from pangres import upsert
 
 def extract_token_info_from_endpoint(url):
