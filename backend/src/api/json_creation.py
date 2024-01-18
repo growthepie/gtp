@@ -639,7 +639,7 @@ class JSONCreation():
                     'metric_name': self.metrics[metric]['name'],
                     'source': self.db_connector.get_metric_sources(metric, []),
                     'avg': self.metrics[metric]['avg'],
-                    'monthly_agg': 'unique' if self.metrics[metric]['monthly_agg'] in ['maa'] else self.metrics[metric]['monthly_agg'],
+                    'monthly_agg': 'distinct' if self.metrics[metric]['monthly_agg'] in ['maa'] else self.metrics[metric]['monthly_agg'],
                     'chains': chains_dict
                 }
             }
