@@ -277,7 +277,11 @@ class JSONCreation():
     
     def create_changes_dict_monthly(self, df, metric_id, origin_key):
         #print(f'called create_changes_dict for {metric_id} and {origin_key}')
-        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(self.metrics[metric_id]['metric_keys'])), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
+        mks = self.metrics[metric_id]['metric_keys'].copy()
+        if 'daa' in mks:
+            mks[mks.index('daa')] = 'aa_last30d'
+
+        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
         df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
 
         changes_dict = {
@@ -288,14 +292,14 @@ class JSONCreation():
                         '365d': [],
                     }
 
-        for mk in self.metrics[metric_id]['metric_keys']:
+        for mk in mks:
             #print(mk)
             if self.metrics[metric_id]['monthly_agg'] == 'sum':
                 cur_val = df_tmp[mk].iloc[0:29].sum()
             elif self.metrics[metric_id]['monthly_agg'] == 'avg':
                 cur_val = df_tmp[mk].iloc[0:29].mean()
             elif self.metrics[metric_id]['monthly_agg'] == 'maa':
-                cur_val = df_tmp[mk].iloc[0:29].sum() ## @TODO: TO BE IMPLEMENTED
+                cur_val = df_tmp[mk].iloc[0]
             else:
                 raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
             
@@ -309,7 +313,7 @@ class JSONCreation():
                     elif self.metrics[metric_id]['monthly_agg'] == 'avg':
                         prev_val = df_tmp[mk].iloc[change:change+29].mean()
                     elif self.metrics[metric_id]['monthly_agg'] == 'maa':
-                        prev_val = df_tmp[mk].iloc[change:change+29].sum() ## @TODO: TO BE IMPLEMENTED
+                        prev_val = df_tmp[mk].iloc[change]
                     else:
                         raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
                     
@@ -327,7 +331,10 @@ class JSONCreation():
     
     ## this function takes a dataframe and a metric_id and origin_key as input and returns a value that aggregates the last 30 days
     def value_last_30d(self, df, metric_id, origin_key):     
-        mks = self.metrics[metric_id]['metric_keys']
+        mks = self.metrics[metric_id]['metric_keys'].copy()
+        if 'daa' in mks:
+            mks[mks.index('daa')] = 'aa_last30d'
+
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
         df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
 
@@ -338,7 +345,7 @@ class JSONCreation():
         elif self.metrics[metric_id]['monthly_agg'] == 'avg':
             val = df_tmp.iloc[0:29].mean()
         elif self.metrics[metric_id]['monthly_agg'] == 'maa':
-            val = df_tmp.iloc[0:29].sum() ## @TODO: TO BE IMPLEMENTED
+            val = df_tmp.iloc[0]
 
         val_dict = {
             'types': val.keys().to_list(),
@@ -351,7 +358,7 @@ class JSONCreation():
     def get_all_data(self):
         ## Load all data from database
         chain_user_list = self.chains_list + ['multiple']
-        metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa']
+        metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"

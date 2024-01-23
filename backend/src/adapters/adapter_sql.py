@@ -30,6 +30,12 @@ class AdapterSQL(AbstractAdapter):
         load_type = load_params['load_type']
         days = load_params['days']
 
+        ## check if load_params['days_start'] exists and if so, overwrite days
+        if 'days_start' in load_params:
+            days_start = load_params['days_start']
+        else:
+            days_start = 1
+
         ## aggregation types
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
             raw_metrics = ['tvl', 'stables_mcap']
@@ -61,7 +67,7 @@ class AdapterSQL(AbstractAdapter):
                 self.queries_to_load = [x for x in self.queries_to_load if x.metric_key != 'profit_usd']
 
             ## Load data
-            df = self.extract_data_from_db(self.queries_to_load, days)
+            df = self.extract_data_from_db(self.queries_to_load, days, days_start)
         elif load_type == 'blockspace':
             origin_keys = load_params['origin_keys']
             days = load_params['days']
@@ -80,7 +86,7 @@ class AdapterSQL(AbstractAdapter):
         upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
         print_load(self.name, upserted, tbl_name)
 
-    def extract_data_from_db(self, queries_to_load, days):
+    def extract_data_from_db(self, queries_to_load, days, days_start=1):
         dfMain = pd.DataFrame()
         for query in queries_to_load:
             if days == 'auto':
@@ -88,6 +94,8 @@ class AdapterSQL(AbstractAdapter):
                     day_val = 40 ### that should be improved....
                 elif query.metric_key == 'maa':
                     day_val = 7
+                elif query.metric_key == 'aa_last30d':
+                    day_val = 3
                 else:
                     day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
             else:
@@ -95,6 +103,9 @@ class AdapterSQL(AbstractAdapter):
             
             if query.query_parameters is not None:
                 query.update_query_parameters({'Days': day_val})
+            
+            if query.metric_key == 'aa_last30d':
+                query.update_query_parameters({'Days_Start': days_start})
             
             print(f"... executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters} days")
             df = pd.read_sql(query.sql, self.db_connector.engine.connect())
