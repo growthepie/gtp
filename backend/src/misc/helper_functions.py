@@ -8,6 +8,7 @@ from datetime import datetime
 import boto3
 import os
 import eth_utils
+import random
 
 ## API interaction functions
 def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_characters=False, as_json=True, proxy=None):
@@ -217,6 +218,7 @@ def print_orchestration_raw_end(name:str):
 def empty_cloudfront_cache(distrubution_id, path):
         cf = boto3.client('cloudfront')
         # print("Creating invalidation for path: " + path)
+        time.sleep(random.randint(1, 5))
         res = cf.create_invalidation(
             DistributionId=distrubution_id,
             InvalidationBatch={
@@ -230,7 +232,8 @@ def empty_cloudfront_cache(distrubution_id, path):
             }
         )
         invalidation_id = res['Invalidation']['Id']
-        time.sleep(2)
+
+        time.sleep(random.randint(1, 3))
         #print("Invalidation created successfully with Id: " + invalidation_id)
         return invalidation_id
 
