@@ -558,12 +558,12 @@ class DbConnector:
         
         
         """
-        special function for the blockspace overview dashboard
+        function for the blockspace overview json and the single chain blockspace jsons
         it returns the top 100 contracts by gas fees for the given main category
         and the top 20 contracts by gas fees for each chain in the main category
         
         """
-        def get_contracts_overview(self, main_category, days, origin_keys):
+        def get_contracts_overview(self, main_category, days, origin_keys, contract_limit=100):
                 
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
 
@@ -622,7 +622,7 @@ class DbConnector:
                                         x.r <= 20
                                 )
                                 
-                        select * from (select * from top_contracts order by gas_fees_eth desc limit 100) a
+                        select * from (select * from top_contracts order by gas_fees_eth desc limit {contract_limit}) a
                         union select * from top_contracts_main_category_and_origin_key
                 '''
                 # print(main_category)
