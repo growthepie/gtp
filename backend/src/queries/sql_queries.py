@@ -1,31 +1,31 @@
 sql_q= {
-        ## profit eth
-        'profit_eth': """
-        with tmp as (
-        SELECT 
-                date,
-                origin_key,
-                SUM(CASE WHEN metric_key = 'rent_paid_eth' THEN value END) AS rent_paid_eth,
-                SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) AS fees_paid_eth
-        FROM fact_kpis
-        WHERE metric_key = 'rent_paid_eth' or metric_key = 'fees_paid_eth'
-                AND date >= date_trunc('day',now()) - interval '{{Days}} days'
-                AND date < date_trunc('day', now())
-        GROUP BY 1,2
-        )
+        # ## profit eth
+        # 'profit_eth': """
+        # with tmp as (
+        # SELECT 
+        #         date,
+        #         origin_key,
+        #         SUM(CASE WHEN metric_key = 'rent_paid_eth' THEN value END) AS rent_paid_eth,
+        #         SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) AS fees_paid_eth
+        # FROM fact_kpis
+        # WHERE metric_key = 'rent_paid_eth' or metric_key = 'fees_paid_eth'
+        #         AND date >= date_trunc('day',now()) - interval '{{Days}} days'
+        #         AND date < date_trunc('day', now())
+        # GROUP BY 1,2
+        # )
 
-        SELECT
-                date as day, 
-                origin_key,
-                fees_paid_eth - rent_paid_eth as value 
-        FROM tmp
-        WHERE rent_paid_eth > 0 and fees_paid_eth > 0
-        ORDER BY 1 desc
+        # SELECT
+        #         date as day, 
+        #         origin_key,
+        #         fees_paid_eth - rent_paid_eth as value 
+        # FROM tmp
+        # WHERE rent_paid_eth > 0 and fees_paid_eth > 0
+        # ORDER BY 1 desc
 
-        """
+        # """
 
         ## multichain users
-        ,'user_base_xxx': """
+        'user_base_xxx': """
         with raw_data as (   
                 SELECT 
                 DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
@@ -1183,9 +1183,9 @@ class SQLQuery(SQLObject):
 
 sql_queries = [
     ## Multichain
-    SQLQuery(metric_key = "profit_eth", origin_key = "multi", sql=sql_q["profit_eth"], query_parameters={"Days": 7})
+    #SQLQuery(metric_key = "profit_eth", origin_key = "multi", sql=sql_q["profit_eth"], query_parameters={"Days": 7})
     # ,SQLQuery(metric_key = "user_base_daily", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7, "aggregation": "day"})
-    ,SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4, "aggregation": "week"})
+    SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4, "aggregation": "week"})
     # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], query_parameters={"Days": 7*4*12, "aggregation": "month"})
 
 

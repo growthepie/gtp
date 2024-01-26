@@ -30,6 +30,9 @@ class AdapterSQL(AbstractAdapter):
         load_type = load_params['load_type']
         days = load_params['days']
 
+        metric_keys = load_params.get('metric_keys', None)
+        origin_keys = load_params.get('origin_keys', None)
+
         ## check if load_params['days_start'] exists and if so, overwrite days
         if 'days_start' in load_params:
             days_start = load_params['days_start']
@@ -39,19 +42,22 @@ class AdapterSQL(AbstractAdapter):
         ## aggregation types
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
             raw_metrics = ['tvl', 'stables_mcap']
-            df = self.db_connector.get_values_in_eth(raw_metrics, days)
+            ## only keep metrics that are in raw_metrics and metric_keys
+            metric_keys = [x for x in metric_keys if x in raw_metrics]
+
+            df = self.db_connector.get_values_in_eth(metric_keys, days, origin_keys)
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
             raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth']
-            df = self.db_connector.get_values_in_usd(raw_metrics, days)
-        elif load_type == 'profit':
-            days = load_params['days']
-            self.queries_to_load = [x for x in sql_queries if x.metric_key == 'profit_eth']
-            df = self.extract_data_from_db(self.queries_to_load, days)
-        elif load_type == 'metrics':
-            origin_keys = load_params['origin_keys']
-            metric_keys = load_params['metric_keys']
-            days = load_params['days']
+            ## only keep metrics that are in raw_metrics and metric_keys
+            metric_keys = [x for x in metric_keys if x in raw_metrics]
 
+            df = self.db_connector.get_values_in_usd(metric_keys, days, origin_keys)
+        elif load_type == 'profit':
+            ## chains to exclude from profit calculation: Offchain DA like IMX and Mantle
+            exclude_chains = ['imx', 'mantle']
+
+            df = self.db_connector.get_profit_in_eth(days, exclude_chains, origin_keys)
+        elif load_type == 'metrics':        
             ## Prepare queries to load
             check_projects_to_load(sql_queries, origin_keys)
             if origin_keys is not None:

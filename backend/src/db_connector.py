@@ -77,10 +77,50 @@ class DbConnector:
                         return 0
                 else:
                         return val
+                
+        def get_profit_in_eth(self, days, exclude_chains, origin_keys = None):               
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                exec_string = f'''
+                        with tmp as (
+                                SELECT 
+                                        date,
+                                        origin_key,
+                                        SUM(CASE WHEN metric_key = 'rent_paid_eth' THEN value END) AS rent_paid_eth,
+                                        SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) AS fees_paid_eth
+                                FROM fact_kpis tkd
+                                WHERE metric_key = 'rent_paid_eth' or metric_key = 'fees_paid_eth'
+                                        AND origin_key not in ('{"','".join(exclude_chains)}')
+                                        {ok_string}
+                                        AND date >= date_trunc('day',now()) - interval '{days} days'
+                                        AND date < date_trunc('day', now())
+                                GROUP BY 1,2
+                        )
+
+                        SELECT
+                                date, 
+                                origin_key,
+                                'profit_eth' as metric_key,
+                                fees_paid_eth - rent_paid_eth as value 
+                        FROM tmp
+                        WHERE rent_paid_eth > 0 and fees_paid_eth > 0
+                        ORDER BY 1 desc
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
         
-        def get_values_in_eth(self, raw_metrics, days): ## also make sure to add new metrics in adapter_sql
-                mk_string = "'" + "', '".join(raw_metrics) + "'"
-                print(f"load usd values for : {mk_string}")
+        def get_values_in_eth(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
+                mk_string = "'" + "', '".join(metric_keys) + "'"
+
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                print(f"load eth values for : {mk_string} and {origin_keys}")
                 exec_string = f'''
                         with eth_price as (
                                 SELECT "date", value
@@ -104,15 +144,22 @@ class DbConnector:
                         FROM fact_kpis tkd
                         LEFT JOIN eth_price p on tkd."date" = p."date"
                         WHERE tkd.metric_key in ({mk_string})
+                                {ok_string}
                                 AND tkd.date < date_trunc('day', NOW()) 
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
-        def get_values_in_usd(self, raw_metrics, days): ## also make sure to add new metrics in adapter_sql
-                mk_string = "'" + "', '".join(raw_metrics) + "'"
-                print(f"load eth values for : {mk_string}")
+        def get_values_in_usd(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
+                mk_string = "'" + "', '".join(metric_keys) + "'"
+
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                print(f"load usd values for : {mk_string} and {origin_keys}")
                 exec_string = f'''
                         with eth_price as (
                                 SELECT "date", value
@@ -136,6 +183,7 @@ class DbConnector:
                         FROM fact_kpis tkd
                         LEFT JOIN eth_price p on tkd."date" = p."date"
                         WHERE tkd.metric_key in ({mk_string})
+                                {ok_string}
                                 AND tkd.date < date_trunc('day', NOW()) 
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
