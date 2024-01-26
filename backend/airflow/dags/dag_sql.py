@@ -33,7 +33,7 @@ def etl():
         }
         load_params = {
             'load_type' : 'metrics', ## load metrics such as imx txcount, daa, fees paid and user_base metric
-            'days' : 'auto', ## days as int our 'auto
+            'days' : 'auto', ## days as int or 'auto
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
         }
@@ -52,7 +52,7 @@ def etl():
         }
         load_params = {
             'load_type' : 'profit', ## calculate profit based on rent and fees
-            'days' : 'auto', ## days as int our 'auto
+            'days' : 5000, ## days as int our 'auto
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
         }
