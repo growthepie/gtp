@@ -9,6 +9,7 @@ import boto3
 import os
 import eth_utils
 import random
+import numpy as np
 
 ## API interaction functions
 def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_characters=False, as_json=True, proxy=None):
@@ -212,6 +213,59 @@ def print_orchestration_raw_start(name:str):
 
 def print_orchestration_raw_end(name:str):
     print(f'Orchestration {name} RAW finished.')
+
+## Discord functions
+def send_discord_message(message, webhook_url):
+    data = {"content": message}
+    response = requests.post(webhook_url, json=data)
+
+    # Check the response status code
+    if response.status_code == 204:
+        print("Message sent successfully")
+    else:
+        print(f"Error sending message: {response.text}")
+
+## JSON helper functions
+def replace_nan_with_none(obj):
+    if isinstance(obj, dict):
+        return {k: replace_nan_with_none(v) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [replace_nan_with_none(elem) for elem in obj]
+    elif isinstance(obj, float) and np.isnan(obj):
+        return None
+    else:
+        return obj
+
+def count_nans_and_log_paths(obj, path=''):
+    counter = 0
+    paths = []
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            new_path = f"{path}.{k}" if path else k
+            count, new_paths = count_nans_and_log_paths(v, new_path)
+            counter += count
+            paths.extend(new_paths)
+    elif isinstance(obj, list):
+        for i, elem in enumerate(obj):
+            new_path = f"{path}[{i}]"
+            count, new_paths = count_nans_and_log_paths(elem, new_path)
+            counter += count
+            paths.extend(new_paths)
+    elif isinstance(obj, float) and np.isnan(obj):
+        counter += 1
+        paths.append(path)
+    return counter, paths
+
+def fix_dict_nan(test_dict, dict_name, discord_webhook):
+    nan_count, nan_paths = count_nans_and_log_paths(test_dict)
+
+    if nan_count > 0:
+        nan_paths_str = '\n'.join(nan_paths)
+        msg = f"Found {nan_count} NaNs in {dict_name} for the following paths:\n\n{nan_paths_str[:500]}..."
+        send_discord_message(msg , discord_webhook)
+        test_dict = replace_nan_with_none(test_dict)
+    
+    return test_dict
 
 
 ## S3 functions
