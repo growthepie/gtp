@@ -43,13 +43,19 @@ class AdapterSQL(AbstractAdapter):
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
             raw_metrics = ['tvl', 'stables_mcap']
             ## only keep metrics that are in raw_metrics and metric_keys
-            metric_keys = [x for x in metric_keys if x in raw_metrics]
+            if metric_keys is not None:
+                metric_keys = [x for x in metric_keys if x in raw_metrics]
+            else:
+                metric_keys = raw_metrics
 
             df = self.db_connector.get_values_in_eth(metric_keys, days, origin_keys)
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
             raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth']
             ## only keep metrics that are in raw_metrics and metric_keys
-            metric_keys = [x for x in metric_keys if x in raw_metrics]
+            if metric_keys is not None:
+                metric_keys = [x for x in metric_keys if x in raw_metrics]
+            else:
+                metric_keys = raw_metrics
 
             df = self.db_connector.get_values_in_usd(metric_keys, days, origin_keys)
         elif load_type == 'profit':
