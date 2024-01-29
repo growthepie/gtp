@@ -278,8 +278,8 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key='mantle'
         ,name='Mantle'
-        ,in_api = False
-        ,exclude_metrics = ['blockspace']
+        ,in_api = True
+        ,exclude_metrics = []
         ,aggregate_blockspace = True
 
         ,symbol = "-"
