@@ -24,7 +24,7 @@ default_args = {
     dag_id='dag_scroll',
     description='Load raw tx data from Scroll',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='40 */3 * * *'
+    schedule_interval='20 */2 * * *'
 )
 def adapter_nader_super():
     @task()

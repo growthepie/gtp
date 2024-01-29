@@ -29,16 +29,18 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
         ## Set variables
         self.keys = load_params['keys']
         self.block_start = load_params['block_start']
+        self.block_end = load_params.get('block_end', None)
+        self.step_overwrite = load_params.get('step_overwrite', None)
 
         self.queries_to_load = [x for x in zettablock_raws if x.key in self.keys]
 
         ## Trigger queries
-        df = self.trigger_check_extract_queries(self.queries_to_load, self.block_start, if_exists)
+        df = self.trigger_check_extract_queries(self.queries_to_load, self.block_start, if_exists, self.block_end, self.step_overwrite)
         return df
 
     ## ----------------- Helper functions --------------------
 
-    def trigger_check_extract_queries(self, queries_to_load, block_start, if_exists):
+    def trigger_check_extract_queries(self, queries_to_load, block_start, if_exists, block_end = None, step_overwrite = None):
         for query in queries_to_load:            
             dfMain = pd.DataFrame()
             ## get block_start
@@ -48,24 +50,31 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
             else:
                 block_start_val = block_start
 
-            ## identify current max block
-            max_block_run_id = self.client.trigger_query(query.max_block_query_id)
-            print(f'... finding latest block in ZettaBlock for {query.key} with query_run_id: {max_block_run_id}')
-            time.sleep(3)
-            self.wait_till_query_done(max_block_run_id)
-            block_end = int(self.client.get_query_results(max_block_run_id, single_value=True))
-            print(f'Current max block for {query.key} in ZettaBlock database is {block_end}')
+            if block_end is None:
+                ## identify current max block
+                max_block_run_id = self.client.trigger_query(query.max_block_query_id)
+                print(f'... finding latest block in ZettaBlock for {query.key} with query_run_id: {max_block_run_id}')
+                time.sleep(3)
+                self.wait_till_query_done(max_block_run_id)
+                block_end = int(self.client.get_query_results(max_block_run_id, single_value=True))
+                print(f'Current max block for {query.key} in ZettaBlock database is {block_end}')
+
 
             ## run this in a loop until we reach max_block
             while True:
                 print(f"...start loading raw data for {query.key} with block_start: {block_start_val}")
 
                 ## trigger query
-                payload = {"paramsStr": "{\"params\":[{\"name\":\"block_start\",\"value\":\"" + str(block_start_val) + "\"},{\"name\":\"block_end\",\"value\":\"" + str(block_start_val + query.steps) + "\"}]}"}
+                if step_overwrite is None or (block_end - block_start_val) > query.steps:
+                    payload = {"paramsStr": "{\"params\":[{\"name\":\"block_start\",\"value\":\"" + str(block_start_val) + "\"},{\"name\":\"block_end\",\"value\":\"" + str(block_start_val + query.steps) + "\"}]}"}
+                else:
+                    payload = {"paramsStr": "{\"params\":[{\"name\":\"block_start\",\"value\":\"" + str(block_start_val) + "\"},{\"name\":\"block_end\",\"value\":\"" + str(block_end+1) + "\"}]}"}
+                #print(payload)        
+                
                 query.last_run_id = self.client.trigger_query(query.query_id, payload)
                 query.last_execution_loaded = False        
                 print(f'... triggerd query_id: {query.query_id} with query_run_id: {query.last_run_id}. With block_start: {block_start_val}')        
-                time.sleep(3)
+                time.sleep(1)
 
                 ## wait till query done                  
                 self.wait_till_query_done(query.last_run_id)
@@ -75,8 +84,12 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
                 ## check if data is returned
                 if df.shape[0] == 0:
-                    print(f'...no data returned for {query.key} with block_start: {block_start_val}. Add {query.steps} to block_start and try again')
-                    block_start_val += query.steps
+                    if step_overwrite is not None:
+                        print(f'...no data returned for {query.key} with block_start: {block_start_val} and block_end: {block_end + 1}. ZettaBlock doesnt have data?')
+                        return False
+                    else:
+                        print(f'...no data returned for {query.key} with block_start: {block_start_val}. Add {query.steps} to block_start and try again')
+                        block_start_val += query.steps
                 elif df.block_number.max() >= block_end:
                     print(f'reached the end with start: {block_start_val} and end: {df.block_number.max()}')
                     dfMain = pd.concat([dfMain, df])

@@ -30,8 +30,9 @@ default_args = {
     dag_id='backfiller_dag',
     description='DAG for backfilling missing blockchain data',
     start_date=datetime(2023, 12, 1),
-    schedule_interval=timedelta(days=1)
+    schedule = '20 11 * * *'
 )
+
 def backfiller_dag():
     chains = ['gitcoin_pgn', 'linea', 'zora', 'scroll', 'mantle']
 
