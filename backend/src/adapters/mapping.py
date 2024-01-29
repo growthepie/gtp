@@ -279,7 +279,7 @@ adapter_mapping = [
         origin_key='mantle'
         ,name='Mantle'
         ,in_api = True
-        ,exclude_metrics = []
+        ,exclude_metrics = ['blockspace']
         ,aggregate_blockspace = True
 
         ,symbol = "-"
