@@ -6,13 +6,13 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.adapters.adapter_utils import *
-from adapter_gtp_backfill_task import backfiller_task
+from src.adapters.adapter_gtp_backfill_task import backfiller_task
 
 chain_settings = {
     'gitcoin_pgn': {'threads': 15, 'batch_size': 250},
     'linea': {'threads': 4, 'batch_size': 200},
     'zora': {'threads': 15, 'batch_size': 250},
-    'scroll': {'threads': 2, 'batch_size': 200},
+    'scroll': {'threads': 1, 'batch_size': 200},
     'mantle': {'threads': 7, 'batch_size': 150},
     'base': {'threads': 3, 'batch_size': 100}
 }
@@ -46,7 +46,7 @@ def backfiller_dag():
 
         try:
             # Calculate the date range for the backfill
-            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d') # 3 days ago
+            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d') # 7 days ago
             end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d') # Yesterday
 
             # Get threads and batch size from the chain_settings

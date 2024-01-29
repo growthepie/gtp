@@ -21,7 +21,7 @@ DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")
 
 # ------------------ Batch Processing Functions ------------------
-def check_and_record_missing_block_ranges(db_connector, table_name, start_block, end_block, missing_blocks_file):
+def check_and_record_missing_block_ranges(db_connector, table_name, start_block, end_block):
     print(f"Checking and recording missing block ranges for table: {table_name}")
 
     # Ensure start_block is not less than the smallest block in the database
@@ -77,16 +77,16 @@ def check_and_record_missing_block_ranges(db_connector, table_name, start_block,
     if start_missing_range is not None:
         missing_ranges.append((start_missing_range, previous_block))
 
-    # Save to JSON file
-    with open(missing_blocks_file, 'w') as file:
-        json.dump(missing_ranges, file)
+    # # Save to JSON file
+    # with open(missing_blocks_file, 'w') as file:
+    #     json.dump(missing_ranges, file)
 
-    print(f"Missing block ranges saved to {missing_blocks_file}")
-    return True
+    # print(f"Missing block ranges saved to {missing_blocks_file}")
+    return missing_ranges
 
-def process_missing_blocks_in_batches(db_connector, s3_connection, json_file, batch_size, threads, chain_name, table_name, w3):
-    with open(json_file, 'r') as file:
-        missing_block_ranges = json.load(file)
+def process_missing_blocks_in_batches(db_connector, s3_connection, missing_block_ranges, batch_size, threads, chain_name, table_name, w3):
+    # with open(json_file, 'r') as file:
+    #     missing_block_ranges = json.load(file)
 
     with ThreadPoolExecutor(max_workers=threads) as executor:
         futures = []
@@ -107,12 +107,12 @@ def process_missing_blocks_in_batches(db_connector, s3_connection, json_file, ba
             except Exception as e:
                 print(f"An error occurred: {e}")
 
-    # After processing all ranges, delete the JSON file
-    try:
-        os.remove(json_file)
-        print(f"Successfully deleted the file: {json_file}")
-    except OSError as e:
-        print(f"Error: {e.filename} - {e.strerror}.")
+    # # After processing all ranges, delete the JSON file
+    # try:
+    #     os.remove(json_file)
+    #     print(f"Successfully deleted the file: {json_file}")
+    # except OSError as e:
+    #     print(f"Error: {e.filename} - {e.strerror}.")
 
 def date_to_unix_timestamp(year, month, day):
     return int(time.mktime(datetime.datetime(year, month, day).timetuple()))
@@ -188,12 +188,17 @@ def backfiller_task(chain_name, start_date, end_date, threads, batch_size):
     # Dynamic chain-based table name
     table_name = chain_name + "_tx"
 
-    # Dynamic file name based on chain name
-    missing_blocks_file = f"missing_blocks_{table_name}.json"
+    # # Dynamic file name based on chain name
+    # missing_blocks_file = f"missing_blocks_{table_name}.json"
 
     print(f"Checking blocks from {start_block} to {end_block} in {table_name}")
     
     # Check and record missing block ranges
-    if check_and_record_missing_block_ranges(db_connector, table_name, start_block, end_block, missing_blocks_file):
+    missing_blocks_ranges = check_and_record_missing_block_ranges(db_connector, table_name, start_block, end_block)
+
+    ## if missing_blocks_ranges is type boolean and False, then no missing blocks were found
+    if not missing_blocks_ranges:
+        print(f"No missing blocks found for table: {table_name}.")
+    else:
         # Process missing blocks in batches 
-        process_missing_blocks_in_batches(db_connector, s3_connection, missing_blocks_file, batch_size, threads, chain_name, table_name, w3)
+        process_missing_blocks_in_batches(db_connector, s3_connection, missing_blocks_ranges, batch_size, threads, chain_name, table_name, w3)

@@ -65,8 +65,27 @@ class DbConnector:
                         val = row['val']
                 return val
         
-        def get_max_block(self, table_name:str):
-                exec_string = f"SELECT MAX(block_number) as val FROM {table_name};"
+        def get_max_block(self, table_name:str, date:str=None):
+                if date is None:
+                        exec_string = f"SELECT MAX(block_number) as val FROM {table_name};"
+                else:
+                        exec_string = f"SELECT MAX(block_number) as val FROM {table_name} WHERE date_trunc('day', block_timestamp) = '{date}';"
+
+                with self.engine.connect() as connection:
+                        result = connection.execute(exec_string)
+                for row in result:
+                        val = row['val']
+                
+                if val == None:
+                        return 0
+                else:
+                        return val
+                
+        def get_min_block(self, table_name:str, date:str=None):
+                if date is None:
+                        exec_string = f"SELECT MIN(block_number) as val FROM {table_name};"
+                else:
+                        exec_string = f"SELECT MIN(block_number) as val FROM {table_name} WHERE date_trunc('day', block_timestamp) = '{date}';"
 
                 with self.engine.connect() as connection:
                         result = connection.execute(exec_string)
