@@ -1,29 +1,4 @@
 sql_q= {
-        # ## profit eth
-        # 'profit_eth': """
-        # with tmp as (
-        # SELECT 
-        #         date,
-        #         origin_key,
-        #         SUM(CASE WHEN metric_key = 'rent_paid_eth' THEN value END) AS rent_paid_eth,
-        #         SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) AS fees_paid_eth
-        # FROM fact_kpis
-        # WHERE metric_key = 'rent_paid_eth' or metric_key = 'fees_paid_eth'
-        #         AND date >= date_trunc('day',now()) - interval '{{Days}} days'
-        #         AND date < date_trunc('day', now())
-        # GROUP BY 1,2
-        # )
-
-        # SELECT
-        #         date as day, 
-        #         origin_key,
-        #         fees_paid_eth - rent_paid_eth as value 
-        # FROM tmp
-        # WHERE rent_paid_eth > 0 and fees_paid_eth > 0
-        # ORDER BY 1 desc
-
-        # """
-
         ## multichain users
         'user_base_xxx': """
         with raw_data as (   
@@ -113,16 +88,16 @@ sql_q= {
                 block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
                 AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
-                -- UNION ALL
+                UNION ALL
                 
-                -- SELECT 
-                -- DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-                -- from_address as address,
-                -- 'mantle' as chain
-                -- FROM mantle_tx
-                -- WHERE
-                -- block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-                -- AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
+                SELECT 
+                DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+                from_address as address,
+                'mantle' as chain
+                FROM mantle_tx
+                WHERE
+                block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+                AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
                 UNION ALL
                 
@@ -135,8 +110,8 @@ sql_q= {
                 block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
                 AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
 
-        -- IMX   
-        UNION ALL
+                -- IMX   
+                UNION ALL
                 
                 SELECT 
                 DATE_TRUNC('{{aggregation}}', "timestamp") AS day,
@@ -147,7 +122,7 @@ sql_q= {
                 "timestamp" < DATE_TRUNC('{{aggregation}}', NOW())
                 AND "timestamp" >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
                 
-        UNION ALL
+                UNION ALL
                 
                 select 
                         date_trunc('{{aggregation}}', "timestamp") as day 
@@ -157,9 +132,9 @@ sql_q= {
                 WHERE timestamp < date_trunc('{{aggregation}}', now())
                         AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
 
-        union all 
-        
-        select 
+                union all 
+                
+                select 
                         date_trunc('{{aggregation}}', "updated_timestamp") as day 
                         , "user" as address
                         , 'imx' as chain
@@ -167,13 +142,13 @@ sql_q= {
                 WHERE updated_timestamp < date_trunc('{{aggregation}}', now())
                         AND updated_timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
                         
-        union all 
-        
-        select 
-                date_trunc('{{aggregation}}', "timestamp") as day
-                , "user" as address
-                , 'imx' as chain
-                from imx_transfers
+                union all 
+                
+                select 
+                        date_trunc('{{aggregation}}', "timestamp") as day
+                        , "user" as address
+                        , 'imx' as chain
+                        from imx_transfers
                 WHERE timestamp < date_trunc('{{aggregation}}', now())
                         AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
                 

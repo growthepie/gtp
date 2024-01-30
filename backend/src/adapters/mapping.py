@@ -90,8 +90,10 @@ adapter_mapping = [
         ,defillama_stablecoin='optimism'
         ,l2beat_tvl_naming="optimism"
 
-        ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
-        ,block_explorer_type='etherscan'
+        # ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
+        # ,block_explorer_type='etherscan'
+        ,block_explorer_txcount="https://l2beat.com/api/activity/optimism.json"
+        ,block_explorer_type='l2beat'
         )
 
     ,AdapterMapping(
@@ -279,7 +281,7 @@ adapter_mapping = [
         origin_key='mantle'
         ,name='Mantle'
         ,in_api = True
-        ,exclude_metrics = ['blockspace']
+        ,exclude_metrics = ['blockspace', 'profit']
         ,aggregate_blockspace = True
 
         ,symbol = "-"
@@ -303,7 +305,7 @@ adapter_mapping = [
         origin_key="loopring"
         ,name="Loopring"
         ,in_api = False
-        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
+        ,exclude_metrics = ['blockspace']
         ,aggregate_blockspace = False
 
         ,symbol = "LRC"
