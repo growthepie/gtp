@@ -305,7 +305,7 @@ adapter_mapping = [
         origin_key="loopring"
         ,name="Loopring"
         ,in_api = False
-        ,exclude_metrics = ['blockspace']
+        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
         ,aggregate_blockspace = False
 
         ,symbol = "LRC"

@@ -501,6 +501,7 @@ sql_q= {
                 'optimism' AS origin_key
         FROM optimism_tx ot
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                and gas_price > 0
         GROUP BY (date_trunc('day', ot.block_timestamp))
         """
 
@@ -1126,6 +1127,63 @@ sql_q= {
         FROM scroll_median z
         ORDER BY z.day DESC
    """
+        # Loopring
+        ,'loopring_txcount_raw': """
+        SELECT date_trunc('day', st.block_timestamp) AS day,
+                count(*) AS value,
+                'loopring' AS origin_key
+        FROM loopring_tx st
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY (date_trunc('day', st.block_timestamp))
+        """
+
+        ,'loopring_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.loopring_tx
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+        """
+
+        ,'loopring_daa': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(distinct from_address) AS value 
+        FROM public.loopring_tx
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+        """
+
+        ,'loopring_maa': """
+        SELECT 
+                date_trunc('month', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM loopring_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('month', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+        ,'loopring_aa_last30d': """
+        WITH date_range AS (
+                SELECT generate_series(
+                        current_date - INTERVAL '{{Days}} days', 
+                        current_date - INTERVAL '{{Days_Start}} days', 
+                        '1 day'::INTERVAL
+                )::DATE AS day
+        )
+        SELECT 
+                d.day, 
+                COUNT(DISTINCT b.from_address) AS value
+        FROM date_range d
+        LEFT JOIN 
+                loopring_tx b ON b.block_timestamp >= d.day - INTERVAL '30 days' AND b.block_timestamp <= d.day
+        GROUP BY 1
+        """
 
 }
 
@@ -1242,4 +1300,11 @@ sql_queries = [
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "scroll", sql=sql_q["scroll_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "scroll", sql=sql_q["scroll_txcosts_median_eth"], query_parameters={"Days": 7})
    
+
+   ## Loopring
+   ,SQLQuery(metric_key = "txcount_raw", origin_key = "loopring", sql=sql_q["loopring_txcount_raw"], query_parameters={"Days": 30})
+   ,SQLQuery(metric_key = "txcount", origin_key = "loopring", sql=sql_q["loopring_txcount"], query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "daa", origin_key = "loopring", sql=sql_q["loopring_daa"], query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "maa", origin_key = "loopring", sql=sql_q["loopring_maa"], query_parameters={"Days": 60})
+   ,SQLQuery(metric_key = "aa_last30d", origin_key = "loopring", sql=sql_q["loopring_aa_last30d"], query_parameters={"Days": 3, "Days_Start": 1})
 ]
