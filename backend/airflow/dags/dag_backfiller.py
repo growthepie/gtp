@@ -34,7 +34,7 @@ default_args = {
 )
 
 def backfiller_dag():
-    chains = ['gitcoin_pgn', 'linea', 'zora', 'scroll', 'mantle']
+    chains = ['gitcoin_pgn', 'linea', 'zora', 'scroll', 'mantle', 'base']
 
     for chain in chains:
         @task(task_id=f'backfill_{chain}')
