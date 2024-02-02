@@ -7,8 +7,7 @@ from datetime import datetime
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.adapters.mapping import adapter_mapping
 from src.misc.helper_functions import return_projects_to_load, upsert_to_kpis, check_projects_to_load, api_get_call
-from src.misc.helper_functions import print_init, print_load
-from src.misc.discord_utils import send_discord_message
+from src.misc.helper_functions import print_init, print_load, send_discord_message
 
 ##ToDos: 
 # Add logs (query execution, execution fails, etc)

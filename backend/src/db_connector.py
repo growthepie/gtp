@@ -65,8 +65,11 @@ class DbConnector:
                         val = row['val']
                 return val
         
-        def get_max_block(self, table_name:str):
-                exec_string = f"SELECT MAX(block_number) as val FROM {table_name};"
+        def get_max_block(self, table_name:str, date:str=None):
+                if date is None:
+                        exec_string = f"SELECT MAX(block_number) as val FROM {table_name};"
+                else:
+                        exec_string = f"SELECT MAX(block_number) as val FROM {table_name} WHERE date_trunc('day', block_timestamp) = '{date}';"
 
                 with self.engine.connect() as connection:
                         result = connection.execute(exec_string)
@@ -77,10 +80,66 @@ class DbConnector:
                         return 0
                 else:
                         return val
+                
+        def get_min_block(self, table_name:str, date:str=None):
+                if date is None:
+                        exec_string = f"SELECT MIN(block_number) as val FROM {table_name};"
+                else:
+                        exec_string = f"SELECT MIN(block_number) as val FROM {table_name} WHERE date_trunc('day', block_timestamp) = '{date}';"
+
+                with self.engine.connect() as connection:
+                        result = connection.execute(exec_string)
+                for row in result:
+                        val = row['val']
+                
+                if val == None:
+                        return 0
+                else:
+                        return val
+                
+        def get_profit_in_eth(self, days, exclude_chains, origin_keys = None):               
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                exec_string = f'''
+                        with tmp as (
+                                SELECT 
+                                        date,
+                                        origin_key,
+                                        SUM(CASE WHEN metric_key = 'rent_paid_eth' THEN value END) AS rent_paid_eth,
+                                        SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) AS fees_paid_eth
+                                FROM fact_kpis tkd
+                                WHERE metric_key = 'rent_paid_eth' or metric_key = 'fees_paid_eth'
+                                        AND origin_key not in ('{"','".join(exclude_chains)}')
+                                        {ok_string}
+                                        AND date >= date_trunc('day',now()) - interval '{days} days'
+                                        AND date < date_trunc('day', now())
+                                GROUP BY 1,2
+                        )
+
+                        SELECT
+                                date, 
+                                origin_key,
+                                'profit_eth' as metric_key,
+                                fees_paid_eth - rent_paid_eth as value 
+                        FROM tmp
+                        WHERE rent_paid_eth > 0 and fees_paid_eth > 0
+                        ORDER BY 1 desc
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
         
-        def get_values_in_eth(self, raw_metrics, days): ## also make sure to add new metrics in adapter_sql
-                mk_string = "'" + "', '".join(raw_metrics) + "'"
-                print(f"load usd values for : {mk_string}")
+        def get_values_in_eth(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
+                mk_string = "'" + "', '".join(metric_keys) + "'"
+
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                print(f"load eth values for : {mk_string} and {origin_keys}")
                 exec_string = f'''
                         with eth_price as (
                                 SELECT "date", value
@@ -104,15 +163,22 @@ class DbConnector:
                         FROM fact_kpis tkd
                         LEFT JOIN eth_price p on tkd."date" = p."date"
                         WHERE tkd.metric_key in ({mk_string})
+                                {ok_string}
                                 AND tkd.date < date_trunc('day', NOW()) 
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
-        def get_values_in_usd(self, raw_metrics, days): ## also make sure to add new metrics in adapter_sql
-                mk_string = "'" + "', '".join(raw_metrics) + "'"
-                print(f"load eth values for : {mk_string}")
+        def get_values_in_usd(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
+                mk_string = "'" + "', '".join(metric_keys) + "'"
+
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                print(f"load usd values for : {mk_string} and {origin_keys}")
                 exec_string = f'''
                         with eth_price as (
                                 SELECT "date", value
@@ -136,6 +202,7 @@ class DbConnector:
                         FROM fact_kpis tkd
                         LEFT JOIN eth_price p on tkd."date" = p."date"
                         WHERE tkd.metric_key in ({mk_string})
+                                {ok_string}
                                 AND tkd.date < date_trunc('day', NOW()) 
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
@@ -510,12 +577,12 @@ class DbConnector:
         
         
         """
-        special function for the blockspace overview dashboard
+        function for the blockspace overview json and the single chain blockspace jsons
         it returns the top 100 contracts by gas fees for the given main category
         and the top 20 contracts by gas fees for each chain in the main category
         
         """
-        def get_contracts_overview(self, main_category, days, origin_keys):
+        def get_contracts_overview(self, main_category, days, origin_keys, contract_limit=100):
                 
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
 
@@ -574,7 +641,7 @@ class DbConnector:
                                         x.r <= 20
                                 )
                                 
-                        select * from (select * from top_contracts order by gas_fees_eth desc limit 100) a
+                        select * from (select * from top_contracts order by gas_fees_eth desc limit {contract_limit}) a
                         union select * from top_contracts_main_category_and_origin_key
                 '''
                 # print(main_category)

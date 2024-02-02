@@ -90,8 +90,10 @@ adapter_mapping = [
         ,defillama_stablecoin='optimism'
         ,l2beat_tvl_naming="optimism"
 
-        ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
-        ,block_explorer_type='etherscan'
+        # ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
+        # ,block_explorer_type='etherscan'
+        ,block_explorer_txcount="https://l2beat.com/api/activity/optimism.json"
+        ,block_explorer_type='l2beat'
         )
 
     ,AdapterMapping(
@@ -278,8 +280,8 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key='mantle'
         ,name='Mantle'
-        ,in_api = False
-        ,exclude_metrics = ['blockspace']
+        ,in_api = True
+        ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
 
         ,symbol = "-"

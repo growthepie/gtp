@@ -31,7 +31,7 @@ def etl():
     def run_aggregates():
         import os
         adapter_params = {
-            'api_key' : os.getenv("ZETTABLOCK_API")
+            'api_key' : os.getenv("ZETTABLOCK_API_2")
         }
         load_params = {
             'origin_keys' : None,
