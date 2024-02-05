@@ -2,7 +2,7 @@ import time
 import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from backend.chain_config import adapter_mapping
+from src.chain_config import adapter_mapping
 from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis, get_missing_days_kpis
 from src.misc.helper_functions import print_init, print_load, print_extract
 

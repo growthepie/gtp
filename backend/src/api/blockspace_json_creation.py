@@ -3,7 +3,7 @@ import simplejson as json
 import datetime
 import pandas as pd
 
-from backend.chain_config import adapter_mapping, adapter_all2_mapping
+from backend.src.chain_config import adapter_mapping, adapter_all2_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
 
 class BlockspaceJSONCreation():

@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from backend.chain_config import adapter_mapping
+from backend.src.chain_config import adapter_mapping
 from src.adapters.clients.defillama import DefiLlama
 from src.misc.helper_functions import return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis
 from src.misc.helper_functions import print_init, print_load, print_extract
