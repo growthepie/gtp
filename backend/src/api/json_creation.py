@@ -4,7 +4,7 @@ import datetime
 import pandas as pd
 import numpy as np
 
-from src.adapters.mapping import adapter_mapping, adapter_multi_mapping
+from backend.chain_config import adapter_mapping, adapter_multi_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
 
 class JSONCreation():
