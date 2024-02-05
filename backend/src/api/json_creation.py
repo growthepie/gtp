@@ -592,7 +592,7 @@ class JSONCreation():
                 self.save_to_json(details_dict, f'chains/{origin_key}')
             else:
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id)
-            print(f'-- DONE -- Chain details export for {origin_key}')
+            print(f'DONE -- Chain details export for {origin_key}')
 
     def create_metric_details_jsons(self, df):
         ## loop over all metrics and generate a metric details json for all metrics and with all possible chains
@@ -655,7 +655,7 @@ class JSONCreation():
                 self.save_to_json(details_dict, f'metrics/{metric}')
             else:
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
-            print(f'-- DONE -- Metric details export for {metric}')
+            print(f'DONE -- Metric details export for {metric}')
 
     def create_master_json(self):
         exec_string = "SELECT sub_category_key, main_category_name, sub_category_name, main_category_key FROM blockspace_category_mapping"
@@ -685,7 +685,9 @@ class JSONCreation():
 
             chain_dict[origin_key] = {
                 'name': chain.name,
+                'name_short': chain.name_short,
                 'symbol': chain.symbol,
+                'bucket': chain.bucket,
                 'technology': chain.technology,
                 'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
@@ -760,7 +762,7 @@ class JSONCreation():
             self.save_to_json(landing_dict, 'landing_page')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
-        print(f'-- DONE -- landingpage export')
+        print(f'DONE -- landingpage export')
 
     def create_fundamentals_json(self, df):
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
