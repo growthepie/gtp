@@ -5,6 +5,7 @@ my_env/
 
 *.ipynb
 backend/output/
+backend/local/
 
 
 # Airflow stuff

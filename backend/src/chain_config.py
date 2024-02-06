@@ -5,11 +5,13 @@ from typing import Optional
 ## WARNING: When a new variable is added (which is not optional), it also needs to be added to the adapter_multi_mapping at the end of this file
 class AdapterMapping(BaseModel):
     origin_key: str
-    name: str
+    name: str 
+    name_short: str ##max 10 characters
     in_api: bool ## True when the chain should be included in the API output
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
 
+    bucket: str ## for Menu (and potentially filters): Layer 1, OP Chains, Other Optimistic Rollups, ZK-Rollups, Offchain Data Availability 
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
     symbol: Optional[str]
@@ -31,10 +33,12 @@ adapter_mapping = [
     AdapterMapping(
         origin_key="ethereum"
         ,name = "Ethereum"
+        ,name_short = "Ethereum"
         ,in_api = True
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace']
         ,aggregate_blockspace = False
 
+        ,bucket = "Layer 1"
         ,symbol = "ETH"
         ,technology = 'Mainnet'
         ,purpose = 'General Purpose (EVM)'
@@ -51,10 +55,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="polygon_zkevm"
         ,name = "Polygon zkEVM"
+        ,name_short = "Polygon"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "ZK-Rollups"
         ,symbol = "MATIC"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -74,10 +80,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="optimism"
         ,name = "Optimism"
+        ,name_short = "Optimism"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "OP Chains"
         ,symbol = "OP"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -99,10 +107,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key='arbitrum'
         ,name = "Arbitrum One"
+        ,name_short = "Arbitrum"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "Other Optimistic Rollups"
         ,symbol = "ARB"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -122,10 +132,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="imx"
         ,name = "Immutable X"
+        ,name_short = "IMX"
         ,in_api = True
         ,exclude_metrics = ['txcosts', 'fees', 'profit']
         ,aggregate_blockspace = True
 
+        ,bucket = "Offchain Data Availability"
         ,symbol = "IMX"
         ,technology = "Validium"
         ,purpose = 'Gaming, NFTs'
@@ -142,10 +154,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="zksync_era"
         ,name = "zkSync Era"
+        ,name_short = "zkSync Era"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "ZK-Rollups"
         ,symbol = "-"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -165,10 +179,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="base"
         ,name = "Base"
+        ,name_short = "Base"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "OP Chains"
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -188,10 +204,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="zora"
         ,name = "Zora"
+        ,name_short = "Zora"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "OP Chains"
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'NFTs'
@@ -211,13 +229,15 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="gitcoin_pgn"
         ,name="Public Goods Network"
+        ,name_short = "PGN"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "Offchain Data Availability"
         ,symbol = "-"
-        ,technology = "Optimistic Rollup"
-        ,purpose = 'Public Goods Funding'
+        ,technology = "Optimium"
+        ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-07-26'
         ,website='https://publicgoods.network/'
         ,block_explorer='https://explorer.publicgoods.network/'
@@ -234,10 +254,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="linea"
         ,name="Linea"
+        ,name_short = "Linea"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "ZK-Rollups"
         ,symbol = "-"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -257,10 +279,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key='scroll'
         ,name='Scroll'
+        ,name_short = "Scroll"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
 
+        ,bucket = "ZK-Rollups"
         ,symbol = "-"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
@@ -280,10 +304,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key='mantle'
         ,name='Mantle'
+        ,name_short = "Mantle"
         ,in_api = True
         ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
 
+        ,bucket = "Offchain Data Availability"
         ,symbol = "-"
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
@@ -304,10 +330,12 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="loopring"
         ,name="Loopring"
-        ,in_api = False
+        ,name_short = "Loopring"
+        ,in_api = True
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
         ,aggregate_blockspace = False
 
+        ,bucket = "ZK-Rollups"
         ,symbol = "LRC"
         ,technology = "ZK Rollup"
         ,purpose = 'Token Transfers, NFTs, Swaps'
@@ -332,5 +360,5 @@ adapter_mapping = [
 
 ] # end of adapter_mappings
 
-adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, exclude_metrics=[], aggregate_blockspace=False, technology='-', purpose='-')] ## for multi-chain metrics
-adapter_multi_mapping = adapter_all2_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, exclude_metrics=[], aggregate_blockspace=False, technology='-', purpose = '-')]
+adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, exclude_metrics=[], aggregate_blockspace=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics
+adapter_multi_mapping = adapter_all2_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, exclude_metrics=[], aggregate_blockspace=False, technology='-', purpose = '-', name_short='-', bucket='-')]
