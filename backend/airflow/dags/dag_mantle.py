@@ -33,7 +33,7 @@ def adapter_nader_super():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'mantle',
-            'rpc_urls': [os.getenv("MANTLE_RPC_ANKR")],
+            'rpc_urls': [os.getenv("MANTLE_RPC")],
             # 'max_calls_per_rpc': {
             #     os.getenv("MANTLE_RPC_1"): 50,
             #     os.getenv("MANTLE_RPC_2"): 55,
