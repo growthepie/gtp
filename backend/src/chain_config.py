@@ -79,8 +79,8 @@ adapter_mapping = [
 
     ,AdapterMapping(
         origin_key="optimism"
-        ,name = "Optimism"
-        ,name_short = "Optimism"
+        ,name = "OP Mainnet"
+        ,name_short = "OP Mainnet"
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
