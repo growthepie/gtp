@@ -38,11 +38,17 @@ def etl():
         if df is None:
             print("Nothing to upload")
         else:
-            df['added_on_time'] = datetime.now()
-            df.set_index(['address', 'origin_key'], inplace=True)
             # initialize db connection
             db_connector = DbConnector()
-            db_connector.upsert_table('blockspace_labels' ,df)
+            if df[df['sub_category_key'] == 'inscriptions'].empty == False:
+                # add to incription table
+                df_inscriptions = df[df['sub_category_key'] == 'inscriptions'][['address', 'origin_key']]
+                df_inscriptions.set_index(['address', 'origin_key'], inplace=True)
+                db_connector.upsert_table('inscription_addresses', df_inscriptions)
+            # add to blockspace labels
+            df['added_on_time'] = datetime.now()
+            df.set_index(['address', 'origin_key'], inplace=True)
+            db_connector.upsert_table('blockspace_labels' ,df[df['sub_category_key'] != 'inscriptions'])
 
     @task()
     def write_airtable():
