@@ -938,7 +938,11 @@ class DbConnector:
                                 LEFT JOIN blockspace_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
                                 WHERE bl.address IS NULL 
                                 AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                AND cl.address != decode('4E6F6E65', 'hex') 
+                                AND NOT EXISTS (
+                                        SELECT 1
+                                        FROM public.inscription_addresses ia
+                                        WHERE ia.address = cl.address
+                                )
                                 GROUP BY cl.address, cl.origin_key
                         )  
                         SELECT 
