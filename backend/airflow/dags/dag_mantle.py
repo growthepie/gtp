@@ -50,7 +50,7 @@ def adapter_nader_super():
         load_params = {
             'block_start': 'auto',
             'batch_size': 150,
-            'threads': 7,
+            'threads': 3,
         }
 
         while load_params['threads'] > 0:

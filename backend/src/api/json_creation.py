@@ -768,8 +768,24 @@ class JSONCreation():
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
         ## filter out metric_keys 'maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa'
-        df = df[~df.metric_key.isin(['maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa'])]
+        df = df[~df.metric_key.isin(['maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'aa_last30d'])]
+        
+        ## filter based on settings in adapter_mapping
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+            elif len(adapter.exclude_metrics) > 0:
+                origin_key = adapter.origin_key
+                for metric in adapter.exclude_metrics:
+                    if metric != 'blockspace':
+                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
+                        metric_keys = self.metrics[metric]['metric_keys']
+                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
+        
         ## put dataframe into a json string
         fundamentals_dict = df.to_dict(orient='records')
 
