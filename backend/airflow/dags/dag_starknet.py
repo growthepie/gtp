@@ -45,8 +45,8 @@ def adapter_loopring_dag():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 10,
-            'threads': 10,
+            'batch_size': 20,
+            'threads': 30,
         }
 
         while load_params['threads'] > 0:

@@ -16,8 +16,8 @@ adapter = StarkNetAdapter(adapter_params, db_connector)
 # Test run method
 load_params = {
     'block_start': 'auto',
-    'batch_size': 10,
-    'threads': 10,
+    'batch_size': 20,
+    'threads': 30,
 }
 
 try:
