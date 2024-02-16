@@ -352,11 +352,30 @@ adapter_mapping = [
         ,block_explorer_type='l2beat'
         )
 
-    # ,AdapterMapping(
-    #     origin_key='starknet'
-    #     ,defillama_stablecoin='starknet'
-    #     ,l2beat_tvl_naming='starknet'
-    #     )
+    ,AdapterMapping(
+        origin_key="starknet"
+        ,name="Starknet"
+        ,name_short = "Starknet"
+        ,in_api = False
+        ,exclude_metrics = ['blockspace']
+        ,aggregate_blockspace = False
+
+        ,bucket = "ZK-Rollups"
+        ,symbol = "STRK"
+        ,technology = "ZK Rollup"
+        ,purpose = 'General Purpose (Cairo VM)'
+        ,launch_date='2021-11-29'
+        ,website='https://starknet.io/'
+        ,block_explorer='https://starkscan.co/'
+        ,twitter='https://twitter.com/StarkWareLtd'
+
+        #,coingecko_naming="starknet"
+        #,defillama_stablecoin='Starknet' ## stables via Dune
+        ,l2beat_tvl_naming='starknet'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/starknet.json"
+        ,block_explorer_type='l2beat'
+        )
 
 ] # end of adapter_mappings
 
