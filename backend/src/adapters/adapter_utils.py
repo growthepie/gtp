@@ -538,7 +538,7 @@ def save_to_s3(df, chain, s3_connection, bucket_name):
     
     # Use the S3 functionality in pandas to write directly to S3
     s3_path = f"s3://{bucket_name}/{file_key}"
-    df.to_parquet(s3_path, index=False, storage_options={"client": s3_connection})
+    df.to_parquet(s3_path, index=False)
     
     if s3_file_exists(s3_connection, file_key, bucket_name):
         print(f"File {file_key} uploaded to S3 bucket {bucket_name}.")
