@@ -20,3 +20,8 @@ standalone_admin_password.txt
 warnings.txt
 
 venv/
+
+backend/adapter_starknet_test.py
+backend/adapter_gtp_test.py
+backend/adapter_rhino_test.py
+backend/starknet_backfill.py

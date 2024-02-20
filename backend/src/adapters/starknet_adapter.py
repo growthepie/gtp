@@ -1,3 +1,4 @@
+from src.adapters.adapter_gtp_backfill_task import check_and_record_missing_block_ranges
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
@@ -290,8 +291,34 @@ class StarkNetAdapter(AbstractAdapterRaw):
             raise Exception(f"Request failed with status code {response.status_code}: {response.text}")
         return response.json()
 
-def hex_to_int(hex_string):
-    if hex_string and hex_string.startswith('0x'):
-        return int(hex_string, 16)
+    def process_missing_blocks_in_batches(self, missing_block_ranges, batch_size, threads):
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            futures = []
+
+            for start_block, end_block in missing_block_ranges:
+                for batch_start in range(start_block, end_block + 1, batch_size):
+                    batch_end = min(batch_start + batch_size - 1, end_block)
+                    future = executor.submit(self.fetch_and_process_range_starknet, batch_start, batch_end, self.chain, self.s3_connection, self.bucket_name, self.db_connector)
+                    futures.append(future)
+
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as e:
+                    print(f"An error occurred during backfilling: {e}")
+
+    def backfill_missing_blocks(self, start_block, end_block, batch_size, threads):
+        missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)
+        self.process_missing_blocks_in_batches(self, missing_block_ranges, batch_size, threads)
+        
+def hex_to_int(input_value):
+    if isinstance(input_value, str) and input_value.startswith('0x'):
+        return int(input_value, 16)
+    elif isinstance(input_value, dict) and 'amount' in input_value and isinstance(input_value['amount'], str):
+        return int(input_value['amount'], 16)
+    elif input_value is None:
+        # Handle None input by returning 0 or another default value
+        return 0
     else:
+        print(f"Unexpected input type or format for hex_to_int: {type(input_value)} with value {input_value}")
         return 0
