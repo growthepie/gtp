@@ -32,7 +32,7 @@ class AdapterRhino(AbstractAdapterRaw):
         
         json_data = self.download_file_and_load_into_df(json_endpoint)
         df = self.prepare_data_from_json(json_data)
-        df.set_index('tx_hash', inplace=True)
+        
         try:
             self.db_connector.upsert_table(self.table_name, df, if_exists='update')  # Use DbConnector for upserting data
         except Exception as e:
@@ -55,9 +55,9 @@ class AdapterRhino(AbstractAdapterRaw):
         
         return json_data_df
         
-    def prepare_data_from_json(self, json_data):        
+    def prepare_data_from_json(self, df):        
         # Rename columns to match the required mapping
-        json_data.rename(columns={
+        df.rename(columns={
             'address': 'from_address',
             'depositAmount': 'deposit_amount',
             'createdAt': 'block_timestamp',
@@ -65,12 +65,21 @@ class AdapterRhino(AbstractAdapterRaw):
             'fromChain': 'from_chain'
         }, inplace=True)
         
-        json_data = json_data[['from_address', 'token', 'deposit_amount', 'block_timestamp', 'tx_hash', 'from_chain']] 
+        df = df[['from_address', 'token', 'deposit_amount', 'block_timestamp', 'tx_hash', 'from_chain']] 
         
         # Remove entries where 'tx_hash' is None
-        json_data = json_data.dropna(subset=['tx_hash'])
+        df = df.dropna(subset=['tx_hash'])
 
         # Remove duplicates without using inplace=True
-        json_data = json_data.drop_duplicates(subset=['tx_hash'])
+        df = df.drop_duplicates(subset=['tx_hash'])
+
+        # Handle bytea data type
+        for col in ['from_address']:
+            if col in df.columns:
+                df[col] = df[col].str.replace('0x', '\\x', regex=False)
+            else:
+                print(f"Column {col} not found in dataframe.")
+
+        df.set_index('tx_hash', inplace=True)
         
-        return json_data
+        return df
