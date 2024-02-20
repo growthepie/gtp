@@ -31,7 +31,7 @@ def adapter_rhino_tx_loader():
     def run_rhino_tx_loader():
         adapter_params = {
             'chain': 'rhino',
-            'json_file': os.getenv("RHINO_JSON"),
+            'json_endpoint': os.getenv("RHINO_JSON"),
         }
 
         # Initialize DbConnector
@@ -41,7 +41,7 @@ def adapter_rhino_tx_loader():
         adapter = RhinoAdapter(adapter_params, db_connector)
 
         load_params = {
-            'json_file': os.getenv("RHINO_JSON"),
+            'json_endpoint': os.getenv("RHINO_JSON"),
         }
         
         try:
