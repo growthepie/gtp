@@ -4,7 +4,7 @@ import pandas as pd
 import json
 import requests
 
-class RhinoAdapter(AbstractAdapterRaw):
+class AdapterRhino(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("Rhino", adapter_params, db_connector)
         self.chain = adapter_params['chain']
@@ -15,8 +15,7 @@ class RhinoAdapter(AbstractAdapterRaw):
         # Initialize S3 connection
         self.s3_connection, self.bucket_name = connect_to_s3()
         
-    def extract_raw(self, load_params:dict):
-        self.json_endpoint = load_params['json_endpoint']
+    def extract_raw(self):
         self.run(self.json_endpoint)
         print(f"FINISHED loading raw tx data for {self.chain}.")
 
