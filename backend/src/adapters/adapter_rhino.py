@@ -32,6 +32,7 @@ class AdapterRhino(AbstractAdapterRaw):
         
         json_data = self.download_file_and_load_into_df(json_endpoint)
         df = self.prepare_data_from_json(json_data)
+        df.set_index('tx_hash', inplace=True)
         try:
             self.db_connector.upsert_table(self.table_name, df, if_exists='update')  # Use DbConnector for upserting data
         except Exception as e:
