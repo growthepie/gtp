@@ -769,8 +769,8 @@ class JSONCreation():
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         
-        ## filter out metric_keys 'maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa'
-        df = df[~df.metric_key.isin(['maa', 'user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'aa_last30d'])]
+        ## only keep metrics that are also in the metrics_list (based on metrics dict)
+        df = df[df.metric_key.isin(self.metrics_list)]
         
         ## filter based on settings in adapter_mapping
         for adapter in adapter_mapping:
