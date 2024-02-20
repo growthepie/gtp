@@ -1,3 +1,4 @@
+from datetime import datetime
 import numpy as np
 import boto3
 import botocore
@@ -517,3 +518,30 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
         except Exception as e:
             print(f"Error processing blocks {current_start} to {current_end}: {e}")
             base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time)
+
+def save_to_s3(df, chain, s3_connection, bucket_name):
+    # Convert any 'object' dtype columns to string
+    for col in df.columns:
+        if df[col].dtype == 'object':
+            try:
+                df[col] = df[col].apply(str)
+            except Exception as e:
+                print(f"Error converting column {col} to string: {e}")
+                raise e
+    
+    # Generate a unique filename based on the current timestamp
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    filename = f"{chain}_data_{timestamp}.parquet"
+    
+    # Create S3 file path
+    file_key = f"{chain}/{filename}"
+    
+    # Use the S3 functionality in pandas to write directly to S3
+    s3_path = f"s3://{bucket_name}/{file_key}"
+    df.to_parquet(s3_path, index=False)
+    
+    if s3_file_exists(s3_connection, file_key, bucket_name):
+        print(f"File {file_key} uploaded to S3 bucket {bucket_name}.")
+    else:
+        print(f"File {file_key} not found in S3 bucket {bucket_name}.")
+        raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")

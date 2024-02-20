@@ -119,7 +119,7 @@ class AdapterSQL(AbstractAdapter):
             if query.metric_key == 'aa_last30d':
                 query.update_query_parameters({'Days_Start': days_start})
             
-            print(f"... executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters} days")
+            print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters} days")
             df = pd.read_sql(query.sql, self.db_connector.engine.connect())
             df['date'] = df['day'].apply(pd.to_datetime)
             df['date'] = df['date'].dt.date
@@ -131,7 +131,7 @@ class AdapterSQL(AbstractAdapter):
             df.value.fillna(0, inplace=True)
 
             dfMain = pd.concat([dfMain, df], ignore_index=True)
-            print(f"...query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
+            print(f"Query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
         return dfMain
     
     def run_blockspace_queries(self, origin_keys, days):
