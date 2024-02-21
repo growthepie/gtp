@@ -44,7 +44,7 @@ adapter_mapping = [
         ,name = "Ethereum"
         ,name_short = "Ethereum"
         ,in_api = True
-        ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
+        ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv', 'market_cap']
         ,aggregate_blockspace = False
 
         ,bucket = "Layer 1"
@@ -193,7 +193,7 @@ adapter_mapping = [
         ,name = "zkSync Era"
         ,name_short = "zkSync Era"
         ,in_api = True
-        ,exclude_metrics = ['fdv']
+        ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
 
         ,bucket = "ZK-Rollups"
@@ -219,7 +219,7 @@ adapter_mapping = [
         ,name = "Base"
         ,name_short = "Base"
         ,in_api = True
-        ,exclude_metrics = ['fdv']
+        ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
 
         ,bucket = "OP Chains"
@@ -245,7 +245,7 @@ adapter_mapping = [
         ,name = "Zora"
         ,name_short = "Zora"
         ,in_api = True
-        ,exclude_metrics = ['fdv']
+        ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
 
         ,bucket = "OP Chains"
@@ -271,7 +271,7 @@ adapter_mapping = [
         ,name="Public Goods Network"
         ,name_short = "PGN"
         ,in_api = True
-        ,exclude_metrics = ['fdv']
+        ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
 
         ,bucket = "Offchain Data Availability"
@@ -297,7 +297,7 @@ adapter_mapping = [
         ,name="Linea"
         ,name_short = "Linea"
         ,in_api = True
-        ,exclude_metrics = ['fdv']
+        ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
 
         ,bucket = "ZK-Rollups"
@@ -323,7 +323,7 @@ adapter_mapping = [
         ,name='Scroll'
         ,name_short = "Scroll"
         ,in_api = True
-        ,exclude_metrics = ['fdv']
+        ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
 
         ,bucket = "ZK-Rollups"
