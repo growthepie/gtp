@@ -44,7 +44,7 @@ adapter_mapping = [
         ,name = "Ethereum"
         ,name_short = "Ethereum"
         ,in_api = True
-        ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv', 'market_cap']
+        ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
 
         ,bucket = "Layer 1"

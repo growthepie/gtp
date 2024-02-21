@@ -85,7 +85,7 @@ class JSONCreation():
                 'name': 'Fully diluted valuation',
                 'metric_keys': ['fdv_usd', 'fdv_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': False,
+                'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg'
             }
@@ -93,7 +93,7 @@ class JSONCreation():
                 'name': 'Market cap',
                 'metric_keys': ['market_cap_usd', 'market_cap_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': False,
+                'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg'
             }
