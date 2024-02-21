@@ -958,3 +958,15 @@ class DbConnector:
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        def get_total_supply_blocks(self, origin_key, days):
+                exec_string = f'''
+                        SELECT 
+                                DATE(block_timestamp) AS date,
+                                MAX(block_number) AS block_number
+                        FROM public.{origin_key}_tx
+                        WHERE DATE(block_timestamp) BETWEEN (CURRENT_DATE - INTERVAL '{days+1} days') AND (CURRENT_DATE - INTERVAL '1 day')
+                        GROUP BY DATE(block_timestamp);
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
