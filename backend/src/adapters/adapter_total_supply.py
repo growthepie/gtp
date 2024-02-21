@@ -49,15 +49,15 @@ class AdapterTotalSupply(AbstractAdapter):
 
     ## ----------------- Helper functions --------------------
 
-    def extract_data(self, projects_to_load, days):
+    def extract_data(self, projects_to_load, days_load):
         dfMain = pd.DataFrame()
         for coin in projects_to_load:            
             try:
                 # get the missing days
-                if days == 'auto':
+                if days_load == 'auto':
                     days = get_missing_days_kpis(self.db_connector, 'total_supply', coin.origin_key)
                 else:
-                    days = int(days)
+                    days = int(days_load)
 
                 print(f"...loading {coin.origin_key} for {days} days.")
 
