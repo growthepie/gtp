@@ -87,7 +87,7 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'avg'
             }
             ,'market_cap': {
                 'name': 'Market cap',
@@ -95,7 +95,7 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'avg'
             }
         }
 
