@@ -41,14 +41,14 @@ class AdapterSQL(AbstractAdapter):
 
         ## aggregation types
         if load_type == 'usd_to_eth': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['tvl', 'stables_mcap']
+            raw_metrics = ['tvl', 'stables_mcap', 'fdv_usd']
             ## only keep metrics that are in raw_metrics and metric_keys
             if metric_keys is not None:
                 metric_keys = [x for x in metric_keys if x in raw_metrics]
             else:
                 metric_keys = raw_metrics
-
             df = self.db_connector.get_values_in_eth(metric_keys, days, origin_keys)
+
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
             raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth']
             ## only keep metrics that are in raw_metrics and metric_keys
@@ -58,11 +58,16 @@ class AdapterSQL(AbstractAdapter):
                 metric_keys = raw_metrics
 
             df = self.db_connector.get_values_in_usd(metric_keys, days, origin_keys)
+
         elif load_type == 'profit':
             ## chains to exclude from profit calculation: Offchain DA like IMX and Mantle
             exclude_chains = ['imx', 'mantle']
 
             df = self.db_connector.get_profit_in_eth(days, exclude_chains, origin_keys)
+
+        elif load_type == 'fdv':
+            df = self.db_connector.get_fdv_in_usd(days, origin_keys)
+
         elif load_type == 'metrics':        
             ## Prepare queries to load
             check_projects_to_load(sql_queries, origin_keys)
@@ -80,11 +85,13 @@ class AdapterSQL(AbstractAdapter):
 
             ## Load data
             df = self.extract_data_from_db(self.queries_to_load, days, days_start)
+
         elif load_type == 'blockspace':
             origin_keys = load_params['origin_keys']
             days = load_params['days']
             self.run_blockspace_queries(origin_keys, days)
             return None
+        
         else:
             raise ValueError('load_type not supported')
 

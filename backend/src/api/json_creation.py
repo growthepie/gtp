@@ -81,6 +81,14 @@ class JSONCreation():
                 'all_l2s_aggregate': 'weighted_mean',
                 'monthly_agg': 'avg'
             }
+            ,'fdv': {
+                'name': 'Fully diluted valuation',
+                'metric_keys': ['fdv_usd', 'fdv_eth'],
+                'units': ['USD', 'ETH'],
+                'avg': False,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum'
+            }
         }
 
         #append all values of metric_keys in metrics dict to a list

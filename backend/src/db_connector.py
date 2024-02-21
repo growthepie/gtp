@@ -131,6 +131,39 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        def get_fdv_in_usd(self, days, origin_keys = None):               
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                exec_string = f'''
+                        with tmp as (
+                                SELECT 
+                                        date,
+                                        origin_key,
+                                        SUM(CASE WHEN metric_key = 'price_usd' THEN value END) AS price_usd,
+                                        SUM(CASE WHEN metric_key = 'total_supply' THEN value END) AS total_supply
+                                FROM fact_kpis tkd
+                                WHERE metric_key = 'price_usd' or metric_key = 'total_supply'
+                                        {ok_string}
+                                        AND date >= date_trunc('day',now()) - interval '{days} days'
+                                        AND date < date_trunc('day', now())
+                                GROUP BY 1,2
+                        )
+
+                        SELECT
+                                date, 
+                                origin_key,
+                                'fdv_usd' as metric_key,
+                                price_usd * total_supply as value 
+                        FROM tmp
+                        WHERE price_usd > 0 and total_supply > 0
+                        ORDER BY 1 desc
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         def get_values_in_eth(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
                 mk_string = "'" + "', '".join(metric_keys) + "'"
 
@@ -155,6 +188,7 @@ class DbConnector:
                                         WHEN 'tvl' THEN 'tvl_eth'
                                         WHEN 'stables_mcap' THEN 'stables_mcap_eth' 
                                         WHEN 'txcosts_median_usd' THEN 'txcosts_median_eth'
+                                        WHEN 'fdv_usd' THEN 'fdv_eth'
                                         ELSE 'error'
                                 END AS metric_key, 
                                 tkd.origin_key,
