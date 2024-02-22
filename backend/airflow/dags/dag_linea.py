@@ -25,7 +25,7 @@ default_args = {
     dag_id='dag_linea',
     description='Load raw tx data from Linea',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='20 */3 * * *'
+    schedule_interval='20 */2 * * *'
 )
 def adapter_nader_super():
     @task()

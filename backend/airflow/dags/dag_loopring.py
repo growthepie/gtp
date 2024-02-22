@@ -25,7 +25,7 @@ default_args = {
     dag_id='dag_loopring',
     description='Load raw tx data from Loopring',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='20 */3 * * *'
+    schedule_interval='50 */2 * * *'
 )
 def adapter_loopring_dag():
     @task()

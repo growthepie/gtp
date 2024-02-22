@@ -24,7 +24,7 @@ default_args = {
     dag_id='dag_pgn',
     description='Load raw tx data from PGN',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='10 */3 * * *'
+    schedule_interval='45 */2 * * *'
 )
 def adapter_nader_super():
     @task()

@@ -25,7 +25,7 @@ default_args = {
     dag_id='dag_zora',
     description='Load raw tx data from Zora',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='50 */3 * * *'
+    schedule_interval='55 */2 * * *'
 )
 def adapter_nader_super():
     @task()

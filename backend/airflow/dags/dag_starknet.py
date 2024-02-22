@@ -25,7 +25,7 @@ default_args = {
     dag_id='dag_starknet',
     description='Load raw tx data from StarkNet',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='30 */4 * * *'
+    schedule_interval='30 */2 * * *'
 )
 
 def adapter_loopring_dag():

@@ -32,7 +32,7 @@ default_args = {
     dag_id = 'dag_totalSupply',
     description = 'Get KPI totalSupply for tokens of L2 chains',
     start_date = datetime(2024,2,20),
-    schedule = '50 02 * * *'
+    schedule = '20 02 * * *'
 )
 
 

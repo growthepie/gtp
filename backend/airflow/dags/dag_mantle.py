@@ -25,7 +25,7 @@ default_args = {
     dag_id='dag_mantle',
     description='Load raw tx data from Mantle',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='10 */3 * * *'
+    schedule_interval='30 */2 * * *'
 )
 def adapter_nader_super():
     @task()
