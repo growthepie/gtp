@@ -37,7 +37,7 @@ class AdapterTotalSupply(AbstractAdapter):
         ## Load data
         df = self.extract_data(
             projects_to_load=projects_to_load,
-            days = days
+            days_load = days
             )
 
         print_extract(self.name, load_params,df.shape)
