@@ -4,7 +4,7 @@ import sys
 import json
 import pandas as pd
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timedelta
 import boto3
 import os
 import eth_utils
@@ -133,6 +133,12 @@ def return_projects_to_load(projects, origin_keys):
 ## this function returns a dataframe for the fact_kpis table
 def get_df_kpis():
     return pd.DataFrame(columns=['date', 'metric_key', 'origin_key', 'value'])
+
+## this function returns a dataframe for the fact_kpis table with date column filled out
+def get_df_kpis_with_dates(days):
+    df = pd.DataFrame(columns=['date', 'metric_key', 'origin_key', 'value'])
+    df['date'] = pd.date_range(end=datetime.today().date()-timedelta(days=1), periods=days).tolist()
+    return df
 
 ## this function upserts a dataframe to the fact_kpis and returns the number of upserted rows
 def upsert_to_kpis(df, db_connector):

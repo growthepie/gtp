@@ -81,6 +81,22 @@ class JSONCreation():
                 'all_l2s_aggregate': 'weighted_mean',
                 'monthly_agg': 'avg'
             }
+            ,'fdv': {
+                'name': 'Fully diluted valuation',
+                'metric_keys': ['fdv_usd', 'fdv_eth'],
+                'units': ['USD', 'ETH'],
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'avg'
+            }
+            ,'market_cap': {
+                'name': 'Market cap',
+                'metric_keys': ['market_cap_usd', 'market_cap_eth'],
+                'units': ['USD', 'ETH'],
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'avg'
+            }
         }
 
         #append all values of metric_keys in metrics dict to a list
@@ -739,7 +755,7 @@ class JSONCreation():
             }
         }
 
-        for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'txcosts']:
+        for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
             landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
 
          ## put all origin_keys from adapter_mapping in a list where in_api is True
