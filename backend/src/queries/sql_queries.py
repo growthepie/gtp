@@ -1080,6 +1080,54 @@ sql_q= {
                 loopring_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
         GROUP BY 1
         """
+        # Rhino
+        ,'rhino_txcount_raw': """
+        SELECT date_trunc('day', st.block_timestamp) AS day,
+                count(*) AS value,
+                'rhino' AS origin_key
+        FROM rhino_tx st
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY (date_trunc('day', st.block_timestamp))
+        """
+
+        ,'rhino_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.rhino_tx
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+        """
+
+        ,'rhino_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM rhino_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+        ,'rhino_aa_last_xxd': """
+        WITH date_range AS (
+                SELECT generate_series(
+                        current_date - INTERVAL '{{Days}} days', 
+                        current_date - INTERVAL '{{Days_Start}} days', 
+                        '1 day'::INTERVAL
+                )::DATE AS day
+        )
+        SELECT 
+                d.day, 
+                COUNT(DISTINCT b.from_address) AS value
+        FROM date_range d
+        LEFT JOIN 
+                rhino_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+        GROUP BY 1
+        """
+
 
 }
 
@@ -1227,4 +1275,13 @@ sql_queries = [
    ,SQLQuery(metric_key = "maa", origin_key = "loopring", sql=sql_q["loopring_aa_xxx"], query_parameters={"Days": 60, "aggregation": "month"})
    ,SQLQuery(metric_key = "aa_last7d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
    ,SQLQuery(metric_key = "aa_last30d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+
+   ## Rhino
+   ,SQLQuery(metric_key = "txcount_raw", origin_key = "rhino", sql=sql_q["rhino_txcount_raw"], query_parameters={"Days": 30})
+   ,SQLQuery(metric_key = "txcount", origin_key = "rhino", sql=sql_q["rhino_txcount"], query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "daa", origin_key = "rhino", sql=sql_q["rhino_aa_xxx"], query_parameters={"Days": 7, "aggregation": "day"})
+   #,SQLQuery(metric_key = "waa", origin_key = "rhino", sql=sql_q["rhino_aa_xxx"], query_parameters={"Days": 21, "aggregation": "week"})
+   ,SQLQuery(metric_key = "maa", origin_key = "rhino", sql=sql_q["rhino_aa_xxx"], query_parameters={"Days": 60, "aggregation": "month"})
+   ,SQLQuery(metric_key = "aa_last7d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
+   ,SQLQuery(metric_key = "aa_last30d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
 ]

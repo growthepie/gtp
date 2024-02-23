@@ -123,7 +123,7 @@ class AdapterSQL(AbstractAdapter):
             if query.query_parameters is not None:
                 query.update_query_parameters({'Days': day_val})
             
-            if query.metric_key == 'aa_last30d':
+            if query.metric_key in ['aa_last30d', 'aa_last7d']:
                 query.update_query_parameters({'Days_Start': days_start})
             
             print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters} days")

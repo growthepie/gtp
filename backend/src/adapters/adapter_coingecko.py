@@ -80,6 +80,8 @@ class AdapterCoingecko(AbstractAdapter):
             naming = adapter_mapping.coingecko_naming
             if days == 'auto':
                 day_val = get_missing_days_kpis(self.db_connector, metric_key= 'price_usd', origin_key=origin_key)
+            else:
+                day_val = int(days)
 
             for currency in vs_currencies:
                 url = f"{base_url}{naming}/market_chart?vs_currency={currency}&days={day_val}&interval=daily"
