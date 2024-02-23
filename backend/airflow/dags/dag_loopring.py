@@ -6,7 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.loopring_adapter import LoopringAdapter
+from src.adapters.adapter_loopring import AdapterLoopring
 from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
@@ -39,7 +39,7 @@ def adapter_loopring_dag():
         db_connector = DbConnector()
 
         # Initialize NodeAdapter
-        adapter = LoopringAdapter(adapter_params, db_connector)
+        adapter = AdapterLoopring(adapter_params, db_connector)
 
         # Initial load parameters
         load_params = {

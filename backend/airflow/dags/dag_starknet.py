@@ -6,7 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.starknet_adapter import StarkNetAdapter
+from src.adapters.adapter_starknet import AdapterStarknet
 from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
@@ -28,9 +28,9 @@ default_args = {
     schedule_interval='30 */2 * * *'
 )
 
-def adapter_loopring_dag():
+def adapter_starknet_dag():
     @task()
-    def run_loopring_adapter():
+    def run_starknet_adapter():
         adapter_params = {
             'chain': 'starknet',
             'api_url': os.getenv("STARKNET_RPC"),
@@ -40,7 +40,7 @@ def adapter_loopring_dag():
         db_connector = DbConnector()
 
         # Initialize NodeAdapter
-        adapter = StarkNetAdapter(adapter_params, db_connector)
+        adapter = AdapterStarknet(adapter_params, db_connector)
 
         # Initial load parameters
         load_params = {
@@ -67,6 +67,6 @@ def adapter_loopring_dag():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_loopring_adapter()
+    run_starknet_adapter()
 
-adapter_loopring_dag()
+adapter_starknet_dag()

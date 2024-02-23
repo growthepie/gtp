@@ -7,7 +7,7 @@ import requests
 import pandas as pd
 import json
 
-class StarkNetAdapter(AbstractAdapterRaw):
+class AdapterStarknet(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("StarkNet", adapter_params, db_connector)
         self.chain = adapter_params['chain']
