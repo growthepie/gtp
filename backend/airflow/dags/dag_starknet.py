@@ -33,7 +33,7 @@ def adapter_starknet_dag():
     def run_starknet_adapter():
         adapter_params = {
             'chain': 'starknet',
-            'api_url': os.getenv("STARKNET_RPC"),
+            'rpc_url': os.getenv("STARKNET_RPC"),
         }
 
         # Initialize DbConnector
