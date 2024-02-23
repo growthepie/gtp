@@ -309,7 +309,7 @@ class StarkNetAdapter(AbstractAdapterRaw):
 
     def backfill_missing_blocks(self, start_block, end_block, batch_size, threads):
         missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)
-        self.process_missing_blocks_in_batches(self, missing_block_ranges, batch_size, threads)
+        self.process_missing_blocks_in_batches(missing_block_ranges, batch_size, threads)
         
 def hex_to_int(input_value):
     if isinstance(input_value, str) and input_value.startswith('0x'):
