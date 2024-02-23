@@ -4,7 +4,7 @@ import traceback
 from src.adapters.adapter_utils import *
 import requests
 
-class LoopringAdapter(AbstractAdapterRaw):
+class AdapterLoopring(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("Loopring", adapter_params, db_connector)
         self.chain = adapter_params['chain']
