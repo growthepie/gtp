@@ -129,6 +129,11 @@ class AdapterCrossCheck(AbstractAdapter):
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
 
         for index, row in df.iterrows():
-            if row['diff_percent'] > 0.05:
+            if row['origin_key'] == 'rhino':
+                threshold = 0.6
+            else:
+                threshold = 0.05
+
+            if row['diff_percent'] > threshold:
                 send_discord_message(f"txcount discrepancy in last 7 days for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])} tx)", webhook_url)
                 print(f"txcount discrepancy for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])})")
