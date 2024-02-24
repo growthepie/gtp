@@ -827,9 +827,11 @@ class JSONCreation():
 
     def create_all_jsons(self):
         df = self.get_all_data()
-        self.create_chain_details_jsons(df)
-        self.create_metric_details_jsons(df)
         self.create_master_json()
         self.create_landingpage_json(df)
+
+        self.create_chain_details_jsons(df)
+        self.create_metric_details_jsons(df)
+        
         self.create_fundamentals_json(df)
         self.create_contracts_json()
