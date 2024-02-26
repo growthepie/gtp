@@ -138,7 +138,7 @@ class AdapterSQL(AbstractAdapter):
             df.value.fillna(0, inplace=True)
 
             dfMain = pd.concat([dfMain, df], ignore_index=True)
-            print(f"Query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
+            print(f"...query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
         return dfMain
     
     def run_blockspace_queries(self, origin_keys, days):
