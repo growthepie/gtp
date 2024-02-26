@@ -123,7 +123,7 @@ class AdapterSQL(AbstractAdapter):
             if query.query_parameters is not None:
                 query.update_query_parameters({'Days': day_val})
             
-            if query.metric_key == 'aa_last30d':
+            if query.metric_key in ['aa_last30d', 'aa_last7d']:
                 query.update_query_parameters({'Days_Start': days_start})
             
             print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters} days")
@@ -138,7 +138,7 @@ class AdapterSQL(AbstractAdapter):
             df.value.fillna(0, inplace=True)
 
             dfMain = pd.concat([dfMain, df], ignore_index=True)
-            print(f"Query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
+            print(f"...query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
         return dfMain
     
     def run_blockspace_queries(self, origin_keys, days):

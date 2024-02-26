@@ -103,6 +103,7 @@ class AdapterTotalSupply(AbstractAdapter):
             except:
                 print(f"Error with {coin.origin_key}")
                 continue
-
+        
+        #print(dfMain.to_markdown())
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain

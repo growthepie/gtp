@@ -46,7 +46,7 @@ def adapter_starknet_dag():
         load_params = {
             'block_start': 'auto',
             'batch_size': 20,
-            'threads': 15,
+            'threads': 1,
         }
 
         while load_params['threads'] > 0:
