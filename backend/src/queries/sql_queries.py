@@ -1175,6 +1175,39 @@ sql_q= {
                 starknet_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
         GROUP BY 1
         """
+
+        ,'starknet_txcosts_median_eth': """
+        WITH 
+        starknet_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.starknet_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.median_tx_fee as value
+        FROM starknet_median z
+        ORDER BY z.day DESC
+        """
+
+        ,'starknet_fees_paid_eth': """
+        WITH starknet_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.starknet_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.total_tx_fee AS value
+        FROM starknet_tx_filtered z
+        ORDER BY z.day DESC
+    """
 }
 
 
@@ -1339,5 +1372,7 @@ sql_queries = [
    ,SQLQuery(metric_key = "maa", origin_key = "starknet", sql=sql_q["starknet_aa_xxx"], query_parameters={"Days": 60, "aggregation": "month"})
    ,SQLQuery(metric_key = "aa_last7d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
    ,SQLQuery(metric_key = "aa_last30d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+   ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", sql=sql_q["starknet_fees_paid_eth"], query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", sql=sql_q["starknet_txcosts_median_eth"], query_parameters={"Days": 7})
 
 ]
