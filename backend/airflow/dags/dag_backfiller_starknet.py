@@ -41,7 +41,7 @@ def backfill_strk():
         adapter = AdapterStarknet(adapter_params, db_connector)
 
         table_name = adapter_params['chain'] + "_tx"
-        start_block = 0  # Example: Start of your desired range
+        start_block = 0 # Set start_block to 0
         end_block = db_connector.get_max_block(table_name)
 
         # Call the backfill_missing_blocks method
