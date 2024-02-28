@@ -106,8 +106,10 @@ class AdapterCoingecko(AbstractAdapter):
                     df.value.fillna(0, inplace=True)
                     dfMain = pd.concat([dfMain,df])
                     print(f"...{self.name} {origin_key} done for {currency} and {fi}. Shape: {df.shape}")
-                time.sleep(7) #only 10-50 calls allowed per minute with free tier
+                time.sleep(10) #only 10-50 calls allowed per minute with free tier
 
+        ## remove duplicates and set index
+        dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain
     
