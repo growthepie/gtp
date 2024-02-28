@@ -22,8 +22,8 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_manta',
-    description='Load raw tx data from Mantle',
+    dag_id='dag_metis',
+    description='Load raw tx data from Metis',
     start_date=datetime(2023, 9, 1),
     schedule_interval='30 */2 * * *'
 )
@@ -33,7 +33,7 @@ def adapter_nader_super():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'metis',
-            'rpc_urls': [os.getenv("metis_RPC")],
+            'rpc_urls': [os.getenv("METIS_RPC")],
         }
 
         # Initialize DbConnector
@@ -46,7 +46,7 @@ def adapter_nader_super():
         load_params = {
             'block_start': 'auto',
             'batch_size': 150,
-            'threads': 10,
+            'threads': 2,
         }
 
         while load_params['threads'] > 0:

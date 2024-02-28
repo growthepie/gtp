@@ -47,7 +47,7 @@ def backfill_strk():
         # Call the backfill_missing_blocks method
         backfill_params = {
             'batch_size': 20,
-            'threads': 30,
+            'threads': 1,
         }
 
         try:
