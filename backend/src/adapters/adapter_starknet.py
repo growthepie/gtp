@@ -221,6 +221,7 @@ class AdapterStarknet(AbstractAdapterRaw):
 
     def prep_starknet_data(self, full_block_data):
         strketh_price = self.db_connector.get_last_price_eth('starknet')
+        print(f"pulled latest STRK/ETH price: {strketh_price}")
         # Extract the required fields for each transaction
         extracted_data = []
         for tx in full_block_data['transactions']:
@@ -232,7 +233,7 @@ class AdapterStarknet(AbstractAdapterRaw):
             elif from_address == "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7":
                 gas_token = ''
             else:
-                raise NotImplementedError(f"Gas token from address {from_address} is not yet supported. PLease add logic to prep_starknet_data function to handle this case.")
+                raise NotImplementedError(f"Gas token from address {from_address} is not yet supported. See transaction: {tx['transaction_hash']}.")
             
             # Parse actual_fee and l1_gas_price as integers from hexadecimal strings
             actual_fee_hex = tx.get('actual_fee', None)
