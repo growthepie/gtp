@@ -43,7 +43,18 @@ class DbConnector:
                         return df.shape[0]
                 
 # ------------------------- additional db functions -------------------------
-
+        def get_strketh_price(self):
+                try:
+                        query = "SELECT value FROM fact_kpis WHERE origin_key = 'starknet' AND metric_key = 'price_eth' ORDER BY date DESC LIMIT 1"
+                        with self.engine.connect() as connection:
+                                result = connection.execute(query)
+                                latest_price = result.scalar()
+                                return latest_price
+                except Exception as e:
+                        print("Error retrieving the latest STRK/ETH price.")
+                        print(e)
+                        return None
+                
         def get_max_date(self, metric_key:str, origin_key:str):
                 exec_string = f"SELECT MAX(date) as val FROM fact_kpis WHERE metric_key = '{metric_key}' AND origin_key = '{origin_key}';"
 
