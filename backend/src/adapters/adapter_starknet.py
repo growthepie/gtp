@@ -227,7 +227,6 @@ class AdapterStarknet(AbstractAdapterRaw):
             last_event = tx['events'][-1]
             from_address = last_event['from_address']
             gas_token = ''  # Default to empty
-            raw_tx_fee = None  # Default to None
             if from_address == "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d":
                 gas_token = 'STRK'
             elif from_address == "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7":
@@ -249,6 +248,8 @@ class AdapterStarknet(AbstractAdapterRaw):
             if gas_token == 'STRK':
                 raw_tx_fee = actual_fee
                 actual_fee *= strketh_price
+            else:
+                raw_tx_fee = actual_fee
                 
             tx_data = {
                 'block_number': full_block_data['block_number'],
