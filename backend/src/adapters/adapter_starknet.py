@@ -188,11 +188,12 @@ class AdapterStarknet(AbstractAdapterRaw):
         print(f"Fetching data for blocks {current_start} to {current_end}...")
         all_blocks_dfs = []
         all_events_dfs = []
+        strketh_price = self.db_connector.get_last_price_eth('starknet')
 
         for block_id in range(current_start, current_end + 1):
             try:
                 full_block_data, events_df = self.get_block_data_and_events(block_id)
-                filtered_df = self.prep_starknet_data(full_block_data)
+                filtered_df = self.prep_starknet_data(full_block_data, strketh_price)
 
                 # Only append if DataFrame is not empty
                 if not filtered_df.empty:
@@ -219,8 +220,7 @@ class AdapterStarknet(AbstractAdapterRaw):
         return all_blocks_df, all_events_df
 
 
-    def prep_starknet_data(self, full_block_data):
-        strketh_price = self.db_connector.get_last_price_eth('starknet')
+    def prep_starknet_data(self, full_block_data, strketh_price):        
         print(f"pulled latest STRK/ETH price: {strketh_price}")
         # Extract the required fields for each transaction
         extracted_data = []
@@ -228,29 +228,31 @@ class AdapterStarknet(AbstractAdapterRaw):
             last_event = tx['events'][-1]
             from_address = last_event['from_address']
             gas_token = ''  # Default to empty
-            if from_address == "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d":
-                gas_token = 'STRK'
-            elif from_address == "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7":
-                gas_token = ''
-            else:
-                raise NotImplementedError(f"Gas token from address {from_address} is not yet supported. See transaction: {tx['transaction_hash']}.")
-            
+
             # Parse actual_fee and l1_gas_price as integers from hexadecimal strings
-            actual_fee_hex = tx.get('actual_fee', None)
             l1_gas_price_hex = full_block_data.get('l1_gas_price', {}).get('price_in_wei', None)
-            max_fee_hex = tx.get('max_fee', None)
-            
-            actual_fee = hex_to_int(actual_fee_hex) / 1e18
             l1_gas_price = hex_to_int(l1_gas_price_hex) / 1e18
+
+            max_fee_hex = tx.get('max_fee', None)
             max_fee = hex_to_int(max_fee_hex) / 1e18
 
-            gas_used = actual_fee // l1_gas_price if l1_gas_price != 0 else 0
+            actual_fee_hex = tx.get('actual_fee', None)
+            actual_fee = hex_to_int(actual_fee_hex) / 1e18
             
-            if gas_token == 'STRK':
-                raw_tx_fee = actual_fee
-                actual_fee *= strketh_price
+            raw_tx_fee = actual_fee                      
+
+            if actual_fee > 0:
+                if from_address == "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d": ## STRK
+                    gas_token = 'STRK'
+                    actual_fee *= strketh_price
+                elif from_address == "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7": ## ETH
+                    pass
+                else:
+                    raise NotImplementedError(f"Gas token from address {from_address} is not yet supported. See transaction: {tx['transaction_hash']}.")
             else:
-                raw_tx_fee = actual_fee
+                print(f"Skipping transaction with zero actual_fee: {tx['transaction_hash']}")
+
+            gas_used = actual_fee // l1_gas_price if l1_gas_price != 0 else 0
                 
             tx_data = {
                 'block_number': full_block_data['block_number'],
