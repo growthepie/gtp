@@ -189,6 +189,7 @@ class AdapterStarknet(AbstractAdapterRaw):
         all_blocks_dfs = []
         all_events_dfs = []
         strketh_price = self.db_connector.get_last_price_eth('starknet')
+        print(f"pulled latest STRK/ETH price: {strketh_price}")
 
         for block_id in range(current_start, current_end + 1):
             try:
@@ -221,7 +222,6 @@ class AdapterStarknet(AbstractAdapterRaw):
 
 
     def prep_starknet_data(self, full_block_data, strketh_price):        
-        print(f"pulled latest STRK/ETH price: {strketh_price}")
         # Extract the required fields for each transaction
         extracted_data = []
         for tx in full_block_data['transactions']:
