@@ -12,10 +12,10 @@ from src.adapters.adapter_coingecko import AdapterCoingecko
 
 default_args = {
     'owner' : 'mseidl',
-    'retries' : 2,
+    'retries' : 5,
     'email' : ['matthias@orbal-analytics.com'],
     'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
+    'retry_delay' : timedelta(minutes=10)
 }
 
 @dag(
@@ -23,7 +23,7 @@ default_args = {
     dag_id = 'dag_coingecko_v01',
     description = 'Load price, volume, and market_cap from coingecko API for all tracked tokens.',
     start_date = datetime(2023,4,24),
-    schedule = '15 02 * * *'
+    schedule = '10 02 * * *'
 )
 
 def etl():
