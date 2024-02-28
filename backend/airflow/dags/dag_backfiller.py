@@ -43,6 +43,7 @@ def backfiller_dag():
                 backfiller_task(chain_name, start_date, end_date, threads, batch_size)
             except Exception as e:
                 print(f"An error occurred in backfiller_task for {chain_name}: {e}")
+                raise e
 
         try:
             # Calculate the date range for the backfill
@@ -57,5 +58,6 @@ def backfiller_dag():
             run_backfill_task(chain, start_date, end_date, threads, batch_size)
         except Exception as e:
             print(f"An error occurred while setting up backfill for {chain}: {e}")
+            raise e
 
 backfiller_dag_instance = backfiller_dag()

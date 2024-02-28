@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
-import datetime
+from datetime import datetime
 import time
 from sqlalchemy import text
 from src.adapters.adapter_utils import *
@@ -115,7 +115,7 @@ def process_missing_blocks_in_batches(db_connector, s3_connection, missing_block
     #     print(f"Error: {e.filename} - {e.strerror}.")
 
 def date_to_unix_timestamp(year, month, day):
-    return int(time.mktime(datetime.datetime(year, month, day).timetuple()))
+    return int(time.mktime(datetime(year, month, day).timetuple()))
 
 def find_first_block_of_day(w3, target_timestamp):
     min_block = 0
@@ -174,8 +174,8 @@ def backfiller_task(chain_name, start_date, end_date, threads, batch_size):
         sys.exit(1)
 
     # Convert start_date and end_date from strings to datetime objects
-    start_date_obj = datetime.datetime.strptime(start_date, "%Y-%m-%d")
-    end_date_obj = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+    start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+    end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
 
     # Convert dates to timestamps
     start_timestamp = date_to_unix_timestamp(start_date_obj.year, start_date_obj.month, start_date_obj.day)
