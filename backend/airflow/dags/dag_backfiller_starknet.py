@@ -24,7 +24,7 @@ default_args = {
     dag_id='dag_backfiller_starknet',
     description='Backfill potentially missing Starknet data',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='30 */2 * * *'
+    schedule_interval='30 09 * * *'
 )
 def backfill_strk():
     @task()
