@@ -1,5 +1,6 @@
 from datetime import datetime,timedelta
 import getpass
+import os
 sys_user = getpass.getuser()
 
 import sys
@@ -11,6 +12,7 @@ from src.api.json_creation import JSONCreation
 from src.api.blockspace_json_creation import BlockspaceJSONCreation
 
 api_version = "v1"
+db_connector = DbConnector()
 
 default_args = {
     'owner' : 'mseidl',
@@ -31,71 +33,52 @@ default_args = {
 def etl():
     @task()
     def run_create_chain_details():
-        import os
-        db_connector = DbConnector()
-
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_chain_details_jsons(df)
 
     @task()
     def run_create_metrics_details():
-        import os
-        db_connector = DbConnector()
-
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_metric_details_jsons(df)
 
     @task()
     def run_create_landingpage():
-        import os
-        db_connector = DbConnector()
-
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_landingpage_json(df)
 
     @task()
     def run_create_master():
-        import os
-        db_connector = DbConnector()
-
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_master_json()
 
     @task()
     def run_create_fundamentals():
-        import os
-        db_connector = DbConnector()
-
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_fundamentals_json(df)
 
     @task()
     def run_create_contracts():
-        import os
-        db_connector = DbConnector()
-
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_contracts_json()
 
     @task()
     def run_create_blockspace_overview():
-        import os
-        db_connector = DbConnector()
-
         blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         blockspace_json_creator.create_blockspace_overview_json()
 
     @task()
     def run_create_blockspace_category_comparison():
-        import os
-        db_connector = DbConnector()
-
         blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         blockspace_json_creator.create_blockspace_comparison_json()    
+
+    @task()
+    def run_create_chain_blockspace():
+        blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        blockspace_json_creator.create_blockspace_single_chain_json()
 
     run_create_chain_details()
     run_create_metrics_details()
@@ -105,5 +88,6 @@ def etl():
     run_create_contracts()
     run_create_blockspace_overview()
     run_create_blockspace_category_comparison()
+    run_create_chain_blockspace()
 
 etl()
