@@ -25,7 +25,7 @@ default_args = {
     dag_id = 'dag_backfiller_zettablock_v01',
     description = 'Backfill potentially missing Zettablock data.',
     start_date = datetime(2024,1,29),
-    schedule = '00 10 * * *'
+    schedule = '10 01 * * *'
 )
 
 def etl():
@@ -105,7 +105,7 @@ def etl():
                     ad.extract_raw(load_params)
 
     backfiller_zksync_era()
-    backfiller_polygon_zkevm()
+    # backfiller_polygon_zkevm()
 
 etl()
 
