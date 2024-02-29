@@ -28,7 +28,7 @@ default_args = {
 def etl():
 
     @task()
-    def run_metrics():
+    def run_metrics_dependent():
         adapter_params = {
         }
         load_params = {
@@ -36,6 +36,27 @@ def etl():
             'days' : 'auto', ## days as int or 'auto
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
+            'currency_dependent' : True
+        }
+
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterSQL(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # # load
+        ad.load(df)
+
+    @task()
+    def run_metrics_independent():
+        adapter_params = {
+        }
+        load_params = {
+            'load_type' : 'metrics', ## load metrics such as imx txcount, daa, fees paid and user_base metric
+            'days' : 'auto', ## days as int or 'auto
+            'origin_keys' : None, ## origin_keys as list or None
+            'metric_keys' : None, ## metric_keys as list or None
+            'currency_dependent' : False
         }
 
        # initialize adapter
@@ -141,8 +162,9 @@ def etl():
         # extract
         ad.extract(load_params)
 
-    run_eth_to_usd(run_usd_to_eth(run_fdv(run_profit(run_metrics()))))    
+    run_eth_to_usd(run_usd_to_eth(run_fdv(run_profit(run_metrics_dependent()))))    
     run_blockspace()
+    run_metrics_independent()
 
 etl()
 

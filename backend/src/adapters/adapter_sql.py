@@ -30,6 +30,7 @@ class AdapterSQL(AbstractAdapter):
         load_type = load_params['load_type']
         days = load_params['days']
 
+        currency_dependent = load_params.get('currency_dependent', None)
         metric_keys = load_params.get('metric_keys', None)
         origin_keys = load_params.get('origin_keys', None)
 
@@ -71,15 +72,21 @@ class AdapterSQL(AbstractAdapter):
         elif load_type == 'metrics':        
             ## Prepare queries to load
             check_projects_to_load(sql_queries, origin_keys)
+
             if origin_keys is not None:
                 self.queries_to_load = [x for x in sql_queries if x.origin_key in origin_keys]
             else:
                 self.queries_to_load = sql_queries
+
+            if currency_dependent is not None:
+                if currency_dependent == True:
+                    self.queries_to_load = [x for x in self.queries_to_load if x.currency_dependent == True]
+                else:
+                    self.queries_to_load = [x for x in self.queries_to_load if x.currency_dependent == False]
+
             if metric_keys is not None:
                 self.queries_to_load = [x for x in self.queries_to_load if x.metric_key in metric_keys]
             else:
-                self.queries_to_load = self.queries_to_load
-
                 ## remove queries that are have metric_key = 'profit_usd' since this should be triggered afterwards
                 self.queries_to_load = [x for x in self.queries_to_load if x.metric_key != 'profit_usd']
 
@@ -106,6 +113,12 @@ class AdapterSQL(AbstractAdapter):
         print_load(self.name, upserted, tbl_name)
 
     def extract_data_from_db(self, queries_to_load, days, days_start=1):
+        query_list = []
+        for query in queries_to_load:
+            query_list.append(query.origin_key + ' - ' + query.metric_key)
+
+        print(f"...loading data from db for {len(queries_to_load)} queries: {query_list}...")
+        
         dfMain = pd.DataFrame()
         for query in queries_to_load:
             if days == 'auto':
@@ -126,7 +139,7 @@ class AdapterSQL(AbstractAdapter):
             if query.metric_key in ['aa_last30d', 'aa_last7d']:
                 query.update_query_parameters({'Days_Start': days_start})
             
-            print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters} days")
+            print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters}")
             df = pd.read_sql(query.sql, self.db_connector.engine.connect())
             df['date'] = df['day'].apply(pd.to_datetime)
             df['date'] = df['date'].dt.date
