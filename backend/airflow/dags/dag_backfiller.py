@@ -27,7 +27,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='backfiller_dag',
+    dag_id='dag_backfiller',
     description='DAG for backfilling missing blockchain data',
     start_date=datetime(2023, 12, 1),
     schedule = '20 11 * * *'

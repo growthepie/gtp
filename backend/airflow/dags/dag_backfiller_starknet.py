@@ -41,8 +41,8 @@ def backfill_strk():
         adapter = AdapterStarknet(adapter_params, db_connector)
 
         table_name = adapter_params['chain'] + "_tx"
-        start_block = 0 # Set start_block to 0
         end_block = db_connector.get_max_block(table_name)
+        start_block = end_block - 25000 # Backfill 25,000 blocks. Should be roughly 7 days of data
 
         # Call the backfill_missing_blocks method
         backfill_params = {
