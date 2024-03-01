@@ -6,7 +6,7 @@ my_env/
 *.ipynb
 backend/output/
 backend/local/
-
+screenshots/
 
 # Airflow stuff
 airflow.cfg
@@ -20,6 +20,7 @@ standalone_admin_password.txt
 warnings.txt
 
 venv/
+
 
 backend/adapter_starknet_test.py
 backend/adapter_gtp_test.py
