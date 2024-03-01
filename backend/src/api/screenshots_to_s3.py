@@ -34,8 +34,12 @@ def capture_screenshot(url, output_path, coords):
     finally:
         driver.quit()
 
-def run_screenshots(s3_bucket, cf_distribution_id, api_version):
-    main_path = '../backend/src/api/screenshots'
+def run_screenshots(s3_bucket, cf_distribution_id, api_version, user = None):
+    if user == 'ubuntu':
+        main_path = '../gtp/backend/src/api/screenshots'
+    else:
+        main_path = '../backend/src/api/screenshots'
+        
     main_url = 'https://www.growthepie.xyz'
 
     #Generate folders for image if not existing

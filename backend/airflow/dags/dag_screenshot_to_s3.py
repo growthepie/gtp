@@ -29,7 +29,7 @@ default_args = {
 def etl():
     @task()
     def run_screenshots_task():
-        run_screenshots(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), 'v1')
+        run_screenshots(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), 'v1', sys_user)
     
     run_screenshots_task()
 etl()
