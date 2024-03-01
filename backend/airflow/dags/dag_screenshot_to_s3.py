@@ -1,5 +1,6 @@
 from datetime import datetime,timedelta
 import getpass
+import os
 sys_user = getpass.getuser()
 
 import sys
@@ -7,7 +8,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from src.api.screenshots_to_s3 import run_screenshots
 from airflow.decorators import dag, task 
-import os
+
 
 default_args = {
     'owner' : 'mseidl',
