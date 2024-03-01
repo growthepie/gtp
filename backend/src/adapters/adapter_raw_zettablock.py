@@ -40,6 +40,17 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
 
     ## ----------------- Helper functions --------------------
 
+    ## identify current max block in ZettaBlock database
+    def get_last_block(self, key):        
+        query = [x for x in zettablock_raws if x.key == key][0]
+        max_block_run_id = self.client.trigger_query(query.max_block_query_id)
+        print(f'...finding latest block in ZettaBlock for {query.key} with query_run_id: {max_block_run_id}')
+        time.sleep(3)
+        self.wait_till_query_done(max_block_run_id)
+        block_end = int(self.client.get_query_results(max_block_run_id, single_value=True))
+        print(f'Current max block for {key} in ZettaBlock database is {block_end}')
+        return block_end
+
     def trigger_check_extract_queries(self, queries_to_load, block_start, if_exists, block_end = None, step_overwrite = None):
         for query in queries_to_load:            
             dfMain = pd.DataFrame()
@@ -51,13 +62,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                 block_start_val = block_start
 
             if block_end is None:
-                ## identify current max block
-                max_block_run_id = self.client.trigger_query(query.max_block_query_id)
-                print(f'... finding latest block in ZettaBlock for {query.key} with query_run_id: {max_block_run_id}')
-                time.sleep(3)
-                self.wait_till_query_done(max_block_run_id)
-                block_end = int(self.client.get_query_results(max_block_run_id, single_value=True))
-                print(f'Current max block for {query.key} in ZettaBlock database is {block_end}')
+                block_end = self.get_last_block(query.key)
 
 
             ## run this in a loop until we reach max_block
