@@ -14,8 +14,6 @@ def capture_screenshot(url, output_path, coords):
     options = Options()
     options.add_argument('--headless') 
     options.add_argument('--disable-gpu') 
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
 
     driver = webdriver.Chrome(options=options)
 
@@ -39,7 +37,7 @@ def run_screenshots(s3_bucket, cf_distribution_id, api_version, user = None):
         main_path = '../gtp/backend/src/api/screenshots'
     else:
         main_path = '../backend/src/api/screenshots'
-        
+
     main_url = 'https://www.growthepie.xyz'
 
     #Generate folders for image if not existing
