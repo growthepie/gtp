@@ -313,6 +313,19 @@ def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id):
     print(f'..uploaded to {path_name}')
     empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.json')
 
+def upload_png_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id):
+    # Upload JSON String to an S3 Object
+    s3 = boto3.client('s3')
+    with open(local_path, 'rb') as image:
+        s3.put_object(
+            Bucket=bucket, 
+            Key=f'{s3_path}.png',
+            Body=image.read(),
+            ContentType='image/png'
+        )
+
+    print(f'..uploaded to {s3_path}')
+    empty_cloudfront_cache(cf_distribution_id, f'/{s3_path}.png')
 
 ## This function uploads a dataframe to S3 longterm bucket as parquet file
 def dataframe_to_s3(path_name, df):
