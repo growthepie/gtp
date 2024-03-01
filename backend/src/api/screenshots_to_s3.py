@@ -38,6 +38,7 @@ def run_screenshots(s3_bucket, cf_distribution_id, api_version, user = None):
     else:
         main_path = '../backend/src/api/screenshots'
 
+    print(f"Running screenshots: storing them in {main_path} and uploading to {s3_bucket}")
     main_url = 'https://www.growthepie.xyz'
 
     #Generate folders for image if not existing
