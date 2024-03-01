@@ -91,7 +91,7 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                 if df.shape[0] == 0:
                     if step_overwrite is not None:
                         print(f'...no data returned for {query.key} with block_start: {block_start_val} and block_end: {block_end + 1}. ZettaBlock doesnt have data?')
-                        return False
+                        break
                     else:
                         print(f'...no data returned for {query.key} with block_start: {block_start_val}. Add {query.steps} to block_start and try again')
                         block_start_val += query.steps
