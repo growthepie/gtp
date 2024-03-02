@@ -18,9 +18,9 @@ from eth_utils import to_checksum_address
         'email_on_failure': True,
         'retry_delay' : timedelta(minutes=15)
     },
-    dag_id='labeling_contracts_to_airtable',
+    dag_id='utility_contracts_to_airtable',
     description='Update Airtable for contract labelling',
-    tags=['labeling', 'daily'],
+    tags=['utility', 'daily'],
     start_date=datetime(2023,9,10),
     schedule='00 02 * * *'
 )
