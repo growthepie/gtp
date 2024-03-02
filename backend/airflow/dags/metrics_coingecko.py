@@ -9,22 +9,19 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_coingecko import AdapterCoingecko
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 5,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=10)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'metrics_coingecko',
-    description = 'Load price, volume, and market_cap from coingecko API for all tracked tokens.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 5,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=10)
+    },
+    dag_id='metrics_coingecko',
+    description='Load price, volume, and market_cap from coingecko API for all tracked tokens.',
     tags=['metrics', 'daily'],
-    start_date = datetime(2023,4,24),
-    schedule = '10 02 * * *'
+    start_date=datetime(2023,4,24),
+    schedule='10 02 * * *'
 )
 
 def etl():
@@ -66,5 +63,4 @@ def etl():
     
     run_market_chart()
     run_imx_tokens()
-
 etl()

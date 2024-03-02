@@ -2,40 +2,32 @@ from datetime import datetime,timedelta
 import getpass
 sys_user = getpass.getuser()
 
-# import .env
 import os
 from dotenv import load_dotenv
 load_dotenv() 
 
 import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
-import pandas as pd
-from web3 import Web3
-import time
 
 # import other packages
 from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_total_supply import AdapterTotalSupply
 
-### DAG
-default_args = {
-    'owner' : 'lorenz',
-    'retries' : 2,
-    'email' : ['lorenz@growthepie.xyz', 'manish@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=15)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'metrics_total_supply',
-    description = 'Get KPI totalSupply for tokens of L2 chains',
+    default_args={
+        'owner' : 'lorenz',
+        'retries' : 2,
+        'email' : ['lorenz@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=15)
+    },
+    dag_id='metrics_total_supply',
+    description='Get KPI totalSupply for tokens of L2 chains',
     tags=['metrics', 'daily'],
-    start_date = datetime(2024,2,20),
-    schedule = '20 02 * * *'
+    start_date=datetime(2024,2,20),
+    schedule='20 02 * * *'
 )
-
 
 def etl():
     @task()
@@ -57,5 +49,4 @@ def etl():
         ad.load(df)
     
     load_data()
-
 etl()

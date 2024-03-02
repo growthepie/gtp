@@ -11,22 +11,19 @@ from src.db_connector import DbConnector
 from src.adapters.adapter_gtp_backfill_task import check_and_record_missing_block_ranges
 from src.adapters.adapter_raw_zettablock import AdapterZettaBlockRaw
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'backfill_zettablock',
-    description = 'Backfill potentially missing Zettablock data.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='backfill_zettablock',
+    description='Backfill potentially missing Zettablock data.',
     tags=['backfill', 'daily'],
-    start_date = datetime(2024,1,29),
-    schedule = '10 01 * * *'
+    start_date=datetime(2024,1,29),
+    schedule='10 01 * * *'
 )
 
 def etl():
@@ -106,6 +103,5 @@ def etl():
 
     backfiller_zksync_era()
     # backfiller_polygon_zkevm()
-
 etl()
 

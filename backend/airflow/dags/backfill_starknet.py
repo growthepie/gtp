@@ -4,29 +4,26 @@ sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 import os
-import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.adapters.adapter_starknet import AdapterStarknet
 
-default_args = {
-    'owner': 'nader',
-    'retries': 2,
-    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay': timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
+    default_args={
+        'owner': 'nader',
+        'retries': 2,
+        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay': timedelta(minutes=5)
+    },
     dag_id='backfill_starknet',
     description='Backfill potentially missing Starknet data',
     tags=['backfill', 'daily'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='30 09 * * *'
 )
+
 def backfill_strk():
     @task()
     def run_backfill_strk():
@@ -59,5 +56,4 @@ def backfill_strk():
             raise e
 
     run_backfill_strk()
-
 backfill_strk()

@@ -9,22 +9,19 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_l2beat import AdapterL2Beat
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'metrics_l2beat',
-    description = 'Load onchain TVL.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='metrics_l2beat',
+    description='Load onchain TVL.',
     tags=['metrics', 'daily'],
-    start_date = datetime(2023,4,24),
-    schedule = '00 02 * * *'
+    start_date=datetime(2023,4,24),
+    schedule='00 02 * * *'
 )
 
 def etl():
@@ -45,5 +42,4 @@ def etl():
         ad.load(df)
     
     run_tvl()
-
 etl()

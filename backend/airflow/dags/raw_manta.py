@@ -7,27 +7,25 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.adapters.adapter_utils import *
+from src.adapters.adapter_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
-
-default_args = {
-    'owner': 'nader',
-    'retries': 2,
-    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay': timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
+    default_args={
+        'owner': 'nader',
+        'retries': 2,
+        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay': timedelta(minutes=5)
+    },
     dag_id='raw_manta',
     description='Load raw tx data from Manta',
     tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/20 * * * *'
 )
+
 def adapter_rpc():
     @task()
     def run_manta():
@@ -69,5 +67,4 @@ def adapter_rpc():
                 time.sleep(300)
 
     run_manta()
-
 adapter_rpc()

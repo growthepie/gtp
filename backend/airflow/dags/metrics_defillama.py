@@ -9,22 +9,19 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_defillama import AdapterDefiLlama
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'metrics_defillama',
-    description = 'Load stablecoin mcap where applicable.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='metrics_defillama',
+    description='Load stablecoin mcap where applicable.',
     tags=['metrics', 'daily'],
-    start_date = datetime(2023,4,24),
-    schedule = '02 02 * * *'
+    start_date=datetime(2023,4,24),
+    schedule='02 02 * * *'
 )
 
 def etl():
@@ -45,6 +42,5 @@ def etl():
         ad.load(df)
     
     run_stables()
-
 etl()
 

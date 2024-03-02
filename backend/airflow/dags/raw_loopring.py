@@ -7,27 +7,25 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_loopring import AdapterLoopring
-from src.adapters.adapter_utils import *
+from src.adapters.adapter_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
-
-default_args = {
-    'owner': 'nader',
-    'retries': 2,
-    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay': timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
+    default_args={
+        'owner': 'nader',
+        'retries': 2,
+        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay': timedelta(minutes=5)
+    },
     dag_id='raw_loopring',
     description='Load raw tx data from Loopring',
     tags=['raw', 'near-real-time'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/10 * * * *'
 )
+
 def adapter_loopring_api():
     @task()
     def run_loopring():
@@ -68,5 +66,4 @@ def adapter_loopring_api():
                 time.sleep(300)
 
     run_loopring()
-
 adapter_loopring_api()

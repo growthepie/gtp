@@ -7,21 +7,18 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.adapters.adapter_utils import *
+from src.adapters.adapter_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
-
-default_args = {
-    'owner': 'nader',
-    'retries': 2,
-    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay': timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
+    default_args={
+        'owner': 'nader',
+        'retries': 2,
+        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay': timedelta(minutes=5)
+    },
     dag_id='raw_linea',
     description='Load raw tx data from Linea',
     tags=['raw', 'near-real-time', 'rpc'],
@@ -69,5 +66,4 @@ def adapter_rpc():
                 time.sleep(300)
 
     run_linea()
-
 adapter_rpc()

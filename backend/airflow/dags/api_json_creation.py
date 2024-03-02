@@ -14,21 +14,19 @@ from src.api.blockspace_json_creation import BlockspaceJSONCreation
 api_version = "v1"
 db_connector = DbConnector()
 
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=1),
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'api_json_creation',
-    description = 'Create json files that are necessary to power the frontend.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=1),
+    },
+    dag_id='api_json_creation',
+    description='Create json files that are necessary to power the frontend.',
     tags=['api', 'daily'],
-    start_date = datetime(2023,4,24),
-    schedule = '30 05 * * *'
+    start_date=datetime(2023,4,24),
+    schedule='30 05 * * *'
 )
 
 def etl():
@@ -90,5 +88,4 @@ def etl():
     run_create_blockspace_overview()
     run_create_blockspace_category_comparison()
     run_create_chain_blockspace()
-
 etl()

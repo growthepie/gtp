@@ -9,21 +9,18 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_raw_zettablock import AdapterZettaBlockRaw
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'raw_zettablock_zksync_polygon',
-    description = 'Load raw polygon_zkevm & zksync era transaction data',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='raw_zettablock_zksync_polygon',
+    description='Load raw polygon_zkevm & zksync era transaction data',
     tags=['raw', 'near-real-time'],
-    start_date = datetime(2023,4,24),
+    start_date=datetime(2023,4,24),
     schedule_interval='*/20 * * * *'
 )
 
@@ -64,5 +61,4 @@ def adapter_raw_zetta():
 
     run_polygon_zkevm()
     run_zksync_era()
-
 adapter_raw_zetta()

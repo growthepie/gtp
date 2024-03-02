@@ -10,28 +10,22 @@ from src.db_connector import DbConnector
 import src.misc.airtable_functions as at
 from eth_utils import to_checksum_address
 
-
-### DAG
-default_args = {
-    'owner' : 'lorenz',
-    'retries' : 2,
-    'email' : ['lorenz@growthepie.xyz', 'manish@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=15)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'labeling_contracts_to_airtable',
-    description = 'Update Airtable for contract labelling',
+    default_args={
+        'owner' : 'lorenz',
+        'retries' : 2,
+        'email' : ['lorenz@growthepie.xyz', 'manish@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=15)
+    },
+    dag_id='labeling_contracts_to_airtable',
+    description='Update Airtable for contract labelling',
     tags=['labeling', 'daily'],
-    start_date = datetime(2023,9,10),
-    schedule = '00 02 * * *'
+    start_date=datetime(2023,9,10),
+    schedule='00 02 * * *'
 )
 
-
 def etl():
-    
     @task()
     def read_airtable():
         # read current airtable
@@ -68,6 +62,5 @@ def etl():
 
     # Set task dependencies
     task1 >> task2
-
 etl()
 

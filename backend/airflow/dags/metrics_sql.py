@@ -9,25 +9,22 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_sql import AdapterSQL
 
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'metrics_sql',
-    description = 'Run some sql aggregations on database.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='metrics_sql',
+    description='Run some sql aggregations on database.',
     tags=['metrics', 'daily'],
-    start_date = datetime(2023,4,24),
-    schedule = '00 04 * * *'
+    start_date=datetime(2023,4,24),
+    schedule='00 04 * * *'
 )
 
 def etl():
-
     @task()
     def run_metrics_dependent():
         adapter_params = {
@@ -166,10 +163,4 @@ def etl():
     run_eth_to_usd(run_usd_to_eth(run_fdv(run_profit(run_metrics_dependent()))))    
     run_blockspace()
     run_metrics_independent()
-
 etl()
-
-
-
-
-

@@ -69,20 +69,18 @@ if ENABLE_DELETE_CHILD_LOG.lower() == "true":
             "Airflow Configurations: " + str(e)
         )
 
-default_args = {
-    'owner': DAG_OWNER_NAME,
-    'depends_on_past': False,
-    'email': ALERT_EMAIL_ADDRESSES,
-    'email_on_failure': True,
-    'email_on_retry': False,
-    'start_date': START_DATE,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=1)
-}
-
 dag = DAG(
     DAG_ID,
-    default_args=default_args,
+    default_args={
+        'owner': DAG_OWNER_NAME,
+        'depends_on_past': False,
+        'email': ALERT_EMAIL_ADDRESSES,
+        'email_on_failure': True,
+        'email_on_retry': False,
+        'start_date': START_DATE,
+        'retries': 1,
+        'retry_delay': timedelta(minutes=1)
+    },
     schedule_interval=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     tags=['maintenance', 'daily'],

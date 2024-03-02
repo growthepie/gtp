@@ -9,21 +9,18 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_raw_rpc import AdapterRPCRaw
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'raw_rpc',
-    description = 'Load raw tx data for Base and Optimism from RPC.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='raw_rpc',
+    description='Load raw tx data for Base and Optimism from RPC.',
     tags=['raw', 'near-real-time', 'rpc'],
-    start_date = datetime(2023,8,11),
+    start_date=datetime(2023,8,11),
     schedule_interval='*/15 * * * *'
 )
 
@@ -74,5 +71,4 @@ def adapter_rpc():
 
     run_base()
     run_optimism()
-
 adapter_rpc()

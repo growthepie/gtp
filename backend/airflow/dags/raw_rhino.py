@@ -8,23 +8,20 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.adapters.adapter_rhino import AdapterRhino
 from src.db_connector import DbConnector
-from src.adapters.adapter_utils import *
-
-default_args = {
-    'owner': 'nader',
-    'retries': 2,
-    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay': timedelta(minutes=5)
-}
 
 @dag(
-    default_args=default_args,
+    default_args= {
+        'owner': 'nader',
+        'retries': 2,
+        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay': timedelta(minutes=5)
+    },
     dag_id='raw_rhino',
     description='Load raw tx data from Rhino',
     tags=['raw', 'daily'],
     start_date=datetime(2023, 9, 1),
-    schedule = '35 03 * * *'
+    schedule='35 03 * * *'
 )
 
 def adapter_rhino_tx_loader():
@@ -49,5 +46,4 @@ def adapter_rhino_tx_loader():
             raise
 
     run_rhino()
-
 adapter_rhino_tx_loader()

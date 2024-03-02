@@ -5,7 +5,6 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
-from src.adapters.adapter_utils import *
 from src.adapters.adapter_gtp_backfill_task import backfiller_task
 
 chain_settings = {
@@ -17,21 +16,19 @@ chain_settings = {
     'base': {'threads': 3, 'batch_size': 100}
 }
 
-default_args = {
-    'owner': 'nader',
-    'retries': 2,
-    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay': timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
+    default_args={
+        'owner': 'nader',
+        'retries': 2,
+        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay': timedelta(minutes=5)
+    },
     dag_id='backfill_rpc',
     description='DAG for backfilling missing blockchain data',
     tags=['backfill', 'daily'],
     start_date=datetime(2023, 12, 1),
-    schedule = '20 11 * * *'
+    schedule='20 11 * * *'
 )
 
 def backfiller_dag():

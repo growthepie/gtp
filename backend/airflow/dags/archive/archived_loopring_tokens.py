@@ -17,8 +17,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_loopring_tokens',
+    dag_id='zz_archived_loopring_tokens',
     description='Load fee tokens from Loopring',
+    tags=['archived'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='40 03 * * *'
 )

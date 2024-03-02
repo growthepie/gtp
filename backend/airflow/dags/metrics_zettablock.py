@@ -9,22 +9,19 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_zettablock import AdapterZettablock
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'metrics_zettablock',
-    description = 'Load aggregates metrics such as txcount, daa, fees paid.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='metrics_zettablock',
+    description='Load aggregates metrics such as txcount, daa, fees paid.',
     tags=['metrics', 'daily'],
-    start_date = datetime(2023,4,24),
-    schedule = '06 03 * * *'
+    start_date=datetime(2023,4,24),
+    schedule='06 03 * * *'
 )
 
 def etl():
@@ -49,5 +46,4 @@ def etl():
         ad.load(df)
     
     run_aggregates()
-
 etl()

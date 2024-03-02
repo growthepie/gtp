@@ -9,22 +9,19 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 from src.adapters.adapter_cross_check import AdapterCrossCheck
 
-
-default_args = {
-    'owner' : 'mseidl',
-    'retries' : 2,
-    'email' : ['matthias@orbal-analytics.com'],
-    'email_on_failure': True,
-    'retry_delay' : timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
-    dag_id = 'utility_cross_check',
-    description = 'Load txcount data from explorers and check against our database. Send discord message if there is a discrepancy.',
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email' : ['matthias@orbal-analytics.com'],
+        'email_on_failure': True,
+        'retry_delay' : timedelta(minutes=5)
+    },
+    dag_id='utility_cross_check',
+    description='Load txcount data from explorers and check against our database. Send discord message if there is a discrepancy.',
     tags=['utility', 'daily'],
-    start_date = datetime(2023,12,9),
-    schedule = '30 06 * * *'
+    start_date=datetime(2023,12,9),
+    schedule='30 06 * * *'
 )
 
 def etl():
@@ -49,8 +46,4 @@ def etl():
         ad.cross_check()
     
     run_explorers()
-
 etl()
-
-
-
