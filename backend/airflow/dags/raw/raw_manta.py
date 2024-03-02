@@ -23,7 +23,7 @@ from airflow.decorators import dag, task
     description='Load raw tx data from Manta',
     tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
-    schedule_interval='*/20 * * * *'
+    schedule_interval='*/15 * * * *'
 )
 
 def adapter_rpc():

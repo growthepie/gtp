@@ -23,7 +23,7 @@ from airflow.decorators import dag, task
     description='Load raw tx data from Loopring',
     tags=['raw', 'near-real-time'],
     start_date=datetime(2023, 9, 1),
-    schedule_interval='*/10 * * * *'
+    schedule_interval='*/15 * * * *'
 )
 
 def adapter_loopring_api():

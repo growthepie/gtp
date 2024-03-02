@@ -21,7 +21,7 @@ from src.adapters.adapter_raw_chainbase import AdapterChainbaseRaw
     description='Load raw arbitrum transaction data',
     tags=['raw', 'near-real-time', 'arbitrum'],
     start_date=datetime(2023,6,5),
-    schedule_interval='*/20 * * * *'
+    schedule_interval='*/15 * * * *'
 )
 
 def etl():

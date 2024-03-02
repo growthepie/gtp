@@ -21,7 +21,7 @@ from src.adapters.adapter_raw_zettablock import AdapterZettaBlockRaw
     description='Load raw polygon_zkevm & zksync era transaction data',
     tags=['raw', 'near-real-time', 'zksync_era', 'polygon_zkevm'],
     start_date=datetime(2023,4,24),
-    schedule_interval='*/20 * * * *'
+    schedule_interval='*/15 * * * *'
 )
 
 def adapter_raw_zetta():
