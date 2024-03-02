@@ -30,10 +30,8 @@ def etl():
         adapter_params = {
         }
         load_params = {
-            'load_type' : 'unique_senders', ## load metrics such as imx txcount, daa, fees paid and user_base metric
-            'days' : 'auto', ## days as int or 'auto
-            'origin_keys' : None, ## origin_keys as list or None
-            'metric_keys' : None, ## metric_keys as list or None
+            'load_type' : 'active_addresses_agg', ## load metrics such as imx txcount, daa, fees paid and user_base metric
+            'days' : 7, ## days as int or 'auto
         }
 
        # initialize adapter

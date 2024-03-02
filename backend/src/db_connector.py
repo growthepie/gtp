@@ -291,8 +291,73 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df['source'].to_list()
         
-        ## Blockspace queries
+        ## Unique sender and addresses
+        def get_unique_addresses(self, chain:str, days:int):
+                if chain == 'imx':
+                        exec_string = f'''
+                                with union_all as (
+                                        SELECT 
+                                                DATE_TRUNC('day', "timestamp") AS day
+                                                , "user" as address
+                                        FROM imx_deposits id 
+                                        WHERE "timestamp" < DATE_TRUNC('day', NOW())
+                                                AND "timestamp" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        
+                                        UNION ALL
+                                        
+                                        SELECT 
+                                                date_trunc('day', "timestamp") as day 
+                                                , "sender" as address
+                                        FROM imx_withdrawals  
+                                        WHERE "timestamp" < date_trunc('day', now())
+                                                AND "timestamp" >= date_trunc('day',now() - INTERVAL '{days} days')
 
+                                        UNION ALL 
+                                        
+                                        SELECT 
+                                                date_trunc('day', "updated_timestamp") as day 
+                                                , "user" as address
+
+                                        FROM imx_orders   
+                                        WHERE updated_timestamp < date_trunc('day', now())
+                                                AND updated_timestamp >= date_trunc('day',now() - INTERVAL '{days} days')
+                                                
+                                        UNION ALL
+                                        
+                                        SELECT 
+                                                date_trunc('day', "timestamp") as day
+                                                , "user" as address
+                                        FROM imx_transfers
+                                        WHERE "timestamp" < date_trunc('day', now())
+                                                AND "timestamp" >= date_trunc('day',now() - INTERVAL '{days} days')
+                                )
+
+                                SELECT
+                                        day as date,
+                                        address,
+                                        '{chain}' as origin_key,
+                                        count(*) as txcount
+                                FROM union_all
+                                GROUP BY 1,2,3
+                        '''
+                else:
+                        exec_string = f'''
+                                SELECT 
+                                        date_trunc('day', block_timestamp) as date,
+                                        from_address as address,
+                                        '{chain}' as origin_key,
+                                        count(*) as txcount
+                                FROM {chain}_tx
+                                WHERE block_timestamp < DATE_TRUNC('day', NOW())
+                                        AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                GROUP BY 1,2,3
+                        '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                df = df.dropna(subset=['address'])
+                return df
+
+
+        ## Blockspace queries
         # This function is used to get aggregate the blockspace data on contract level for a specific chain. The data will be loaded into fact_contract_level table
         # it only aggregates transactions that are NOT native transfers, system transactionsm contract creations, or inscriptions. These are aggregated separately and output is stored directly in the fact_sub_category_level table
         def get_blockspace_contracts(self, chain, days):

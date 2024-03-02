@@ -11,6 +11,7 @@ class AdapterMapping(BaseModel):
     in_api: bool ## True when the chain should be included in the API output
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
+    aggregate_addresses: bool ## True when the chain should be included in the address aggregation (to fact_active_addresses)
 
     bucket: str ## for Menu (and potentially filters): Layer 1, OP Chains, Other Optimistic Rollups, ZK-Rollups, Offchain Data Availability 
     technology: str ## -, zk, optimistic
@@ -46,6 +47,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
+        ,aggregate_addresses = False
 
         ,bucket = "Layer 1"
         ,symbol = "ETH"
@@ -70,6 +72,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "ZK-Rollups"
         ,symbol = "MATIC"
@@ -103,6 +106,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "OP Chains"
         ,symbol = "OP"
@@ -138,6 +142,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = []
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "Other Optimistic Rollups"
         ,symbol = "ARB"
@@ -171,6 +176,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['txcosts', 'fees', 'profit']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "Offchain Data Availability"
         ,symbol = "IMX"
@@ -199,6 +205,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "ZK-Rollups"
         ,symbol = "-"
@@ -225,6 +232,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "OP Chains"
         ,symbol = "-"
@@ -251,6 +259,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "OP Chains"
         ,symbol = "-"
@@ -277,6 +286,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "Offchain Data Availability"
         ,symbol = "-"
@@ -303,6 +313,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "ZK-Rollups"
         ,symbol = "-"
@@ -329,6 +340,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "ZK-Rollups"
         ,symbol = "-"
@@ -355,6 +367,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
+        ,aggregate_addresses = True
 
         ,bucket = "Offchain Data Availability"
         ,symbol = "-"
@@ -389,6 +402,7 @@ adapter_mapping = [
         ,in_api = True
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
         ,aggregate_blockspace = False
+        ,aggregate_addresses = True
 
         ,bucket = "ZK-Rollups"
         ,symbol = "LRC"
@@ -420,6 +434,7 @@ adapter_mapping = [
         ,in_api = False
         ,exclude_metrics = ['blockspace']
         ,aggregate_blockspace = False
+        ,aggregate_addresses = False
 
         ,bucket = "ZK-Rollups"
         ,symbol = "STRK"
@@ -453,6 +468,7 @@ adapter_mapping = [
         ,in_api = False
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid']
         ,aggregate_blockspace = False
+        ,aggregate_addresses = True
 
         ,bucket = "Offchain Data Availability"
         ,symbol = "-"

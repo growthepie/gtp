@@ -99,6 +99,12 @@ class AdapterSQL(AbstractAdapter):
             self.run_blockspace_queries(origin_keys, days)
             return None
         
+        elif load_type == 'active_addresses_agg':
+            origin_keys = load_params['origin_keys']
+            days = load_params['days']
+            self.run_blockspace_queries(origin_keys, days)
+            return None
+
         else:
             raise ValueError('load_type not supported')
 
@@ -122,8 +128,10 @@ class AdapterSQL(AbstractAdapter):
         dfMain = pd.DataFrame()
         for query in queries_to_load:
             if days == 'auto':
+                if query.origin_key == 'multi' and query.metric_key == 'user_base_weekly':
+                    day_val = 15
                 if query.origin_key == 'multi':
-                    day_val = 40 ### that should be improved....
+                    day_val = 40
                 elif query.metric_key == 'maa':
                     day_val = 7
                 elif query.metric_key == 'aa_last30d':
@@ -234,6 +242,24 @@ class AdapterSQL(AbstractAdapter):
                 self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
 
             print(F"Finished loading blockspace queries for {chain}")
-       
-
         print(F"Finished loading blockspace for all chains")
+
+    def run_active_addresses_agg(self, origin_keys, days):
+        if origin_keys is None:
+            origin_keys = [chain.origin_key for chain in adapter_mapping if chain.aggregate_addresses == True]
+            print(f"...no specific origin_key found, aggregating blockspace for all chains: {origin_keys}...")
+
+        for origin_key in origin_keys:
+            if days == 'auto':
+                days = 7
+            else:
+                days = int(days)
+
+            print(f"...aggregating active addresses data for {origin_key} and last {days} days...")
+            df = self.db_connector.get_unique_addresses(origin_key, days)
+            ## drop rows with null addresses (i.e. Loopring)
+            df = df.dropna(subset=['address'])
+            df.set_index(['address', 'date', 'origin_key'], inplace=True)
+
+            print(f"...upserting active addresses data for {origin_key}. Total rows: {df.shape[0]}...")
+            self.db_connector.upsert_table('fact_active_addresses', df)
