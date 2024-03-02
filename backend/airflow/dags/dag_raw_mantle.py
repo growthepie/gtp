@@ -6,7 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_loopring import AdapterLoopring
+from src.adapters.adapter_raw_gtp import NodeAdapter
 from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
@@ -22,30 +22,35 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_loopring',
-    description='Load raw tx data from Loopring',
+    dag_id='dag_raw_mantle',
+    description='Load raw tx data from Mantle',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='50 */2 * * *'
+    schedule_interval='*/15 * * * *'
 )
-def adapter_loopring_dag():
+def adapter_rpc():
     @task()
-    def run_loopring_adapter():
+    def run_mantle():
         adapter_params = {
-            'chain': 'loopring',
-            'api_url': os.getenv("LOOPRING_API_URL"),
+            'rpc': 'local_node',
+            'chain': 'mantle',
+            'rpc_urls': [os.getenv("MANTLE_RPC")],
+            # 'max_calls_per_rpc': {
+            #     os.getenv("MANTLE_RPC_1"): 50,
+            #     os.getenv("MANTLE_RPC_2"): 55,
+            # }
         }
 
         # Initialize DbConnector
         db_connector = DbConnector()
 
         # Initialize NodeAdapter
-        adapter = AdapterLoopring(adapter_params, db_connector)
+        adapter = NodeAdapter(adapter_params, db_connector)
 
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 5,
-            'threads': 5,
+            'batch_size': 150,
+            'threads': 3,
         }
 
         while load_params['threads'] > 0:
@@ -66,6 +71,6 @@ def adapter_loopring_dag():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_loopring_adapter()
+    run_mantle()
 
-adapter_loopring_dag()
+adapter_rpc()

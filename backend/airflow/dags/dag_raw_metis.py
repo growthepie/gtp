@@ -11,6 +11,7 @@ from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
+
 default_args = {
     'owner': 'nader',
     'retries': 2,
@@ -21,18 +22,18 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_scroll',
-    description='Load raw tx data from Scroll',
+    dag_id='dag_raw_metis',
+    description='Load raw tx data from Metis',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='25 */2 * * *'
+    schedule_interval='*/15 * * * *'
 )
-def adapter_nader_super():
+def adapter_rpc():
     @task()
-    def run_nader_super():
+    def run_metis():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'scroll',
-            'rpc_urls': [os.getenv("SCROLL_RPC")],
+            'chain': 'metis',
+            'rpc_urls': [os.getenv("METIS_RPC")],
         }
 
         # Initialize DbConnector
@@ -44,8 +45,8 @@ def adapter_nader_super():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 200,
-            'threads': 1,
+            'batch_size': 150,
+            'threads': 2,
         }
 
         while load_params['threads'] > 0:
@@ -66,6 +67,6 @@ def adapter_nader_super():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_nader_super()
+    run_metis()
 
-adapter_nader_super()
+adapter_rpc()

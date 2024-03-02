@@ -11,6 +11,7 @@ from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
+
 default_args = {
     'owner': 'nader',
     'retries': 2,
@@ -21,18 +22,18 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_pgn',
-    description='Load raw tx data from PGN',
+    dag_id='dag_raw_zora',
+    description='Load raw tx data from Zora',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='45 */2 * * *'
+    schedule_interval='*/20 * * * *'
 )
-def adapter_nader_super():
+def adapter_rpc():
     @task()
-    def run_nader_super():
+    def run_zora():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'gitcoin_pgn',
-            'rpc_urls': [os.getenv("GITCOIN_PGN_RPC")],
+            'chain': 'zora',
+            'rpc_urls': [os.getenv("ZORA_RPC")],
         }
 
         # Initialize DbConnector
@@ -66,6 +67,6 @@ def adapter_nader_super():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_nader_super()
+    run_zora()
 
-adapter_nader_super()
+adapter_rpc()

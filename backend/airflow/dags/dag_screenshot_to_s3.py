@@ -24,7 +24,7 @@ default_args = {
     dag_id = 'dag_screenshot_loader',
     description = 'Create and store screenshots in s3 bucket',
     start_date = datetime(2023,4,24),
-    schedule = '00 06 * * *'
+    schedule = '00 07 * * *'
 )
 
 def etl():

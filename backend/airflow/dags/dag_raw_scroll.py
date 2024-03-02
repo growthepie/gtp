@@ -11,7 +11,6 @@ from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
-
 default_args = {
     'owner': 'nader',
     'retries': 2,
@@ -22,22 +21,18 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_mantle',
-    description='Load raw tx data from Mantle',
+    dag_id='dag_raw_scroll',
+    description='Load raw tx data from Scroll',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='30 */2 * * *'
+    schedule_interval='*/15 * * * *'
 )
-def adapter_nader_super():
+def adapter_rpc():
     @task()
-    def run_nader_super():
+    def run_scroll():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'mantle',
-            'rpc_urls': [os.getenv("MANTLE_RPC")],
-            # 'max_calls_per_rpc': {
-            #     os.getenv("MANTLE_RPC_1"): 50,
-            #     os.getenv("MANTLE_RPC_2"): 55,
-            # }
+            'chain': 'scroll',
+            'rpc_urls': [os.getenv("SCROLL_RPC")],
         }
 
         # Initialize DbConnector
@@ -49,8 +44,8 @@ def adapter_nader_super():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 150,
-            'threads': 3,
+            'batch_size': 200,
+            'threads': 1,
         }
 
         while load_params['threads'] > 0:
@@ -71,6 +66,6 @@ def adapter_nader_super():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_nader_super()
+    run_scroll()
 
-adapter_nader_super()
+adapter_rpc()

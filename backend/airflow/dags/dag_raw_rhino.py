@@ -20,7 +20,7 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_rhino',
+    dag_id='dag_raw_rhino',
     description='Load raw tx data from Rhino',
     start_date=datetime(2023, 9, 1),
     schedule = '35 03 * * *'
@@ -28,7 +28,7 @@ default_args = {
 
 def adapter_rhino_tx_loader():
     @task()
-    def run_rhino_tx_loader():
+    def run_rhino():
         adapter_params = {
             'chain': 'rhino',
             'json_endpoint': os.getenv("RHINO_JSON"),
@@ -47,6 +47,6 @@ def adapter_rhino_tx_loader():
             print(f"Failed to load transaction data: {e}")
             raise
 
-    run_rhino_tx_loader()
+    run_rhino()
 
 adapter_rhino_tx_loader()

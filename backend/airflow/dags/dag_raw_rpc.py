@@ -23,10 +23,10 @@ default_args = {
     dag_id = 'dag_raw_rpc_v02',
     description = 'Load raw tx data from rpc providers',
     start_date = datetime(2023,8,11),
-    schedule = '30 */2 * * *'
+    schedule_interval='*/15 * * * *'
 )
 
-def etl():
+def adapter_rpc():
     @task()
     def run_base():
         import os
@@ -71,9 +71,7 @@ def etl():
         # extract
         ad.extract_raw(load_params)
 
-
-
     run_base()
     run_optimism()
 
-etl()
+adapter_rpc()

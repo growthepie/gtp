@@ -22,18 +22,18 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_linea',
-    description='Load raw tx data from Linea',
+    dag_id='dag_arbitrum',
+    description='Load raw tx data from arbitrum',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='20 */2 * * *'
+    schedule_interval='*/15 * * * *'
 )
-def adapter_nader_super():
+def adapter_rpc():
     @task()
-    def run_nader_super():
+    def run_arbitrum():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'linea',
-            'rpc_urls': [os.getenv("LINEA_RPC")],
+            'chain': 'arbitrum',
+            'rpc_urls': [os.getenv("ARBITRUM_RPC")],
         }
 
         # Initialize DbConnector
@@ -45,8 +45,8 @@ def adapter_nader_super():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 200,
-            'threads': 2,
+            'batch_size': 150,
+            'threads': 3,
         }
 
         while load_params['threads'] > 0:
@@ -67,6 +67,6 @@ def adapter_nader_super():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_nader_super()
+    run_arbitrum()
 
-adapter_nader_super()
+adapter_rpc()

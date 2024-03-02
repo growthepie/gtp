@@ -26,7 +26,7 @@ default_args = {
     schedule_interval='35 */2 * * *'
 )
 
-def etl():
+def adapter_raw_zetta():
     @task()
     def run_polygon_zkevm():
         import os
@@ -64,4 +64,4 @@ def etl():
     run_polygon_zkevm()
     run_zksync_era()
 
-etl()
+adapter_raw_zetta()

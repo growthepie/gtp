@@ -22,18 +22,18 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_metis',
-    description='Load raw tx data from Metis',
+    dag_id='dag_raw_linea',
+    description='Load raw tx data from Linea',
     start_date=datetime(2023, 9, 1),
-    schedule_interval='30 */2 * * *'
+    schedule_interval='*/15 * * * *'
 )
-def adapter_nader_super():
+def adapter_rpc():
     @task()
-    def run_nader_super():
+    def run_linea():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'metis',
-            'rpc_urls': [os.getenv("METIS_RPC")],
+            'chain': 'linea',
+            'rpc_urls': [os.getenv("LINEA_RPC")],
         }
 
         # Initialize DbConnector
@@ -45,7 +45,7 @@ def adapter_nader_super():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 150,
+            'batch_size': 200,
             'threads': 2,
         }
 
@@ -67,6 +67,6 @@ def adapter_nader_super():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_nader_super()
+    run_linea()
 
-adapter_nader_super()
+adapter_rpc()
