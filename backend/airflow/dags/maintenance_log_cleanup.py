@@ -85,7 +85,7 @@ dag = DAG(
     default_args=default_args,
     schedule_interval=SCHEDULE_INTERVAL,
     start_date=START_DATE,
-    tags=['airflow-maintenance-dag'],
+    tags=['maintenance', 'daily'],
     template_undefined=jinja2.Undefined
 )
 if hasattr(dag, 'doc_md'):

@@ -20,8 +20,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_rhino',
+    dag_id='raw_rhino',
     description='Load raw tx data from Rhino',
+    tags=['raw', 'daily'],
     start_date=datetime(2023, 9, 1),
     schedule = '35 03 * * *'
 )

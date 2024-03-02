@@ -6,7 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_gtp import NodeAdapter
+from src.adapters.adapter_starknet import AdapterStarknet
 from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
@@ -22,31 +22,32 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_zora',
-    description='Load raw tx data from Zora',
+    dag_id='raw_starknet',
+    description='Load raw tx data from StarkNet',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
-    schedule_interval='*/20 * * * *'
+    schedule_interval='*/15 * * * *'
 )
+
 def adapter_rpc():
     @task()
-    def run_zora():
+    def run_starknet():
         adapter_params = {
-            'rpc': 'local_node',
-            'chain': 'zora',
-            'rpc_urls': [os.getenv("ZORA_RPC")],
+            'chain': 'starknet',
+            'rpc_url': os.getenv("STARKNET_RPC"),
         }
 
         # Initialize DbConnector
         db_connector = DbConnector()
 
         # Initialize NodeAdapter
-        adapter = NodeAdapter(adapter_params, db_connector)
+        adapter = AdapterStarknet(adapter_params, db_connector)
 
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 250,
-            'threads': 15,
+            'batch_size': 20,
+            'threads': 1,
         }
 
         while load_params['threads'] > 0:
@@ -67,6 +68,6 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_zora()
+    run_starknet()
 
 adapter_rpc()

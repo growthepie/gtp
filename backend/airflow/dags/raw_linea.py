@@ -22,8 +22,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_linea',
+    dag_id='raw_linea',
     description='Load raw tx data from Linea',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )

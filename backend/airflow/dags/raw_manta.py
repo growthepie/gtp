@@ -6,7 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_starknet import AdapterStarknet
+from src.adapters.adapter_raw_gtp import NodeAdapter
 from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
@@ -22,30 +22,31 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_starknet',
-    description='Load raw tx data from StarkNet',
+    dag_id='raw_manta',
+    description='Load raw tx data from Manta',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
-    schedule_interval='*/15 * * * *'
+    schedule_interval='*/20 * * * *'
 )
-
 def adapter_rpc():
     @task()
-    def run_starknet():
+    def run_manta():
         adapter_params = {
-            'chain': 'starknet',
-            'rpc_url': os.getenv("STARKNET_RPC"),
+            'rpc': 'local_node',
+            'chain': 'manta',
+            'rpc_urls': [os.getenv("MANTA_RPC")],
         }
 
         # Initialize DbConnector
         db_connector = DbConnector()
 
         # Initialize NodeAdapter
-        adapter = AdapterStarknet(adapter_params, db_connector)
+        adapter = NodeAdapter(adapter_params, db_connector)
 
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 20,
+            'batch_size': 15,
             'threads': 1,
         }
 
@@ -67,6 +68,6 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_starknet()
+    run_manta()
 
 adapter_rpc()

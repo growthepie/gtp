@@ -22,18 +22,23 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_arbitrum',
-    description='Load raw tx data from arbitrum',
+    dag_id='raw_mantle',
+    description='Load raw tx data from Mantle',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
 def adapter_rpc():
     @task()
-    def run_arbitrum():
+    def run_mantle():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'arbitrum',
-            'rpc_urls': [os.getenv("ARBITRUM_RPC")],
+            'chain': 'mantle',
+            'rpc_urls': [os.getenv("MANTLE_RPC")],
+            # 'max_calls_per_rpc': {
+            #     os.getenv("MANTLE_RPC_1"): 50,
+            #     os.getenv("MANTLE_RPC_2"): 55,
+            # }
         }
 
         # Initialize DbConnector
@@ -67,6 +72,6 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_arbitrum()
+    run_mantle()
 
 adapter_rpc()

@@ -20,8 +20,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_raw_chainbase_v02',
+    dag_id = 'raw_chainbase_arbitrum',
     description = 'Load raw arbitrum transaction data',
+    tags=['raw', 'near-real-time'],
     start_date = datetime(2023,6,5),
     schedule_interval='*/20 * * * *'
 )
@@ -44,24 +45,6 @@ def etl():
         # extract & load incremmentally
         ad.extract_raw(load_params)
 
-    # @task()
-    # def run_optimism():
-    #     import os
-    #     adapter_params = {
-    #         'api_key' : os.getenv("CHAINBASE_API")
-    #     }
-    #     load_params = {
-    #         'keys' : ['optimism_tx'],
-    #         'block_start' : 'auto', ## 'auto' or a block number as int
-    #     }
-
-    #    # initialize adapter
-    #     db_connector = DbConnector()
-    #     ad = AdapterChainbaseRaw(adapter_params, db_connector)
-    #     # extract & load incremmentally
-    #     ad.extract_raw(load_params)
-
     run_arbitrum()
-    #run_optimism()
 
 etl()

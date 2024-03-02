@@ -20,8 +20,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_coingecko_v01',
+    dag_id = 'metrics_coingecko',
     description = 'Load price, volume, and market_cap from coingecko API for all tracked tokens.',
+    tags=['metrics', 'daily'],
     start_date = datetime(2023,4,24),
     schedule = '10 02 * * *'
 )

@@ -20,10 +20,11 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_raw_zettablock_v01',
+    dag_id = 'raw_zettablock_zksync_polygon',
     description = 'Load raw polygon_zkevm & zksync era transaction data',
+    tags=['raw', 'near-real-time'],
     start_date = datetime(2023,4,24),
-    schedule_interval='35 */2 * * *'
+    schedule_interval='*/20 * * * *'
 )
 
 def adapter_raw_zetta():

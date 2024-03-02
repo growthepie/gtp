@@ -22,22 +22,19 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_mantle',
-    description='Load raw tx data from Mantle',
+    dag_id='raw_metis',
+    description='Load raw tx data from Metis',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
 def adapter_rpc():
     @task()
-    def run_mantle():
+    def run_metis():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'mantle',
-            'rpc_urls': [os.getenv("MANTLE_RPC")],
-            # 'max_calls_per_rpc': {
-            #     os.getenv("MANTLE_RPC_1"): 50,
-            #     os.getenv("MANTLE_RPC_2"): 55,
-            # }
+            'chain': 'metis',
+            'rpc_urls': [os.getenv("METIS_RPC")],
         }
 
         # Initialize DbConnector
@@ -50,7 +47,7 @@ def adapter_rpc():
         load_params = {
             'block_start': 'auto',
             'batch_size': 150,
-            'threads': 3,
+            'threads': 2,
         }
 
         while load_params['threads'] > 0:
@@ -71,6 +68,6 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_mantle()
+    run_metis()
 
 adapter_rpc()

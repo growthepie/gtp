@@ -19,8 +19,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_sql_v04',
+    dag_id = 'metrics_sql',
     description = 'Run some sql aggregations on database.',
+    tags=['metrics', 'daily'],
     start_date = datetime(2023,4,24),
     schedule = '00 04 * * *'
 )

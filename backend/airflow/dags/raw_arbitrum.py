@@ -11,6 +11,7 @@ from src.adapters.adapter_utils import *
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
+
 default_args = {
     'owner': 'nader',
     'retries': 2,
@@ -21,18 +22,19 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_pgn',
-    description='Load raw tx data from PGN',
+    dag_id='raw_arbitrum',
+    description='Load raw tx data from arbitrum',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
 def adapter_rpc():
     @task()
-    def run_pgn():
+    def run_arbitrum():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'gitcoin_pgn',
-            'rpc_urls': [os.getenv("GITCOIN_PGN_RPC")],
+            'chain': 'arbitrum',
+            'rpc_urls': [os.getenv("ARBITRUM_RPC")],
         }
 
         # Initialize DbConnector
@@ -44,8 +46,8 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 250,
-            'threads': 15,
+            'batch_size': 150,
+            'threads': 3,
         }
 
         while load_params['threads'] > 0:
@@ -66,6 +68,6 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_pgn()
+    run_arbitrum()
 
 adapter_rpc()

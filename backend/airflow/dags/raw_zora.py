@@ -22,18 +22,19 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_manta',
-    description='Load raw tx data from Manta',
+    dag_id='raw_zora',
+    description='Load raw tx data from Zora',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/20 * * * *'
 )
 def adapter_rpc():
     @task()
-    def run_manta():
+    def run_zora():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'manta',
-            'rpc_urls': [os.getenv("MANTA_RPC")],
+            'chain': 'zora',
+            'rpc_urls': [os.getenv("ZORA_RPC")],
         }
 
         # Initialize DbConnector
@@ -45,8 +46,8 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 15,
-            'threads': 1,
+            'batch_size': 250,
+            'threads': 15,
         }
 
         while load_params['threads'] > 0:
@@ -67,6 +68,6 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_manta()
+    run_zora()
 
 adapter_rpc()

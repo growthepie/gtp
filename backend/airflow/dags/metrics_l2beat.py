@@ -7,7 +7,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
 from src.db_connector import DbConnector
-from src.adapters.adapter_zettablock import AdapterZettablock
+from src.adapters.adapter_l2beat import AdapterL2Beat
 
 
 default_args = {
@@ -20,33 +20,30 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_zettablock_v01',
-    description = 'Load aggregates metrics such as txcount, daa, fees paid.',
+    dag_id = 'metrics_l2beat',
+    description = 'Load onchain TVL.',
+    tags=['metrics', 'daily'],
     start_date = datetime(2023,4,24),
-    schedule = '06 03 * * *'
+    schedule = '00 02 * * *'
 )
 
 def etl():
     @task()
-    def run_aggregates():
-        import os
+    def run_tvl():
         adapter_params = {
-            'api_key' : os.getenv("ZETTABLOCK_API_2")
         }
         load_params = {
             'origin_keys' : None,
-            'metric_keys' : None,
-            'days' : 'auto',
         }
 
        # initialize adapter
         db_connector = DbConnector()
-        ad = AdapterZettablock(adapter_params, db_connector)
+        ad = AdapterL2Beat(adapter_params, db_connector)
         # extract
         df = ad.extract(load_params)
         # load
         ad.load(df)
     
-    run_aggregates()
+    run_tvl()
 
 etl()

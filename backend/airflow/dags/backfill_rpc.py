@@ -27,8 +27,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_backfiller',
+    dag_id='backfill_rpc',
     description='DAG for backfilling missing blockchain data',
+    tags=['backfill', 'daily'],
     start_date=datetime(2023, 12, 1),
     schedule = '20 11 * * *'
 )

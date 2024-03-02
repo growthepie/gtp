@@ -7,7 +7,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
 from src.db_connector import DbConnector
-from src.adapters.adapter_cross_check import AdapterCrossCheck
+from src.adapters.adapter_defillama import AdapterDefiLlama
 
 
 default_args = {
@@ -20,36 +20,31 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_cross_check_v02',
-    description = 'Load txcount data from explorers',
-    start_date = datetime(2023,12,9),
-    schedule = '30 06 * * *'
+    dag_id = 'metrics_defillama',
+    description = 'Load stablecoin mcap where applicable.',
+    tags=['metrics', 'daily'],
+    start_date = datetime(2023,4,24),
+    schedule = '02 02 * * *'
 )
 
 def etl():
     @task()
-    def run_explorers():
+    def run_stables():
         adapter_params = {
         }
-
         load_params = {
             'origin_keys' : None,
         }
 
        # initialize adapter
         db_connector = DbConnector()
-        ad = AdapterCrossCheck(adapter_params, db_connector)
+        ad = AdapterDefiLlama(adapter_params, db_connector)
         # extract
         df = ad.extract(load_params)
         # load
         ad.load(df)
-
-        ## cross-check and send Discord message
-        ad.cross_check()
     
-    run_explorers()
+    run_stables()
 
 etl()
-
-
 

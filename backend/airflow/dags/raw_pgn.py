@@ -21,18 +21,19 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_raw_scroll',
-    description='Load raw tx data from Scroll',
+    dag_id='raw_pgn',
+    description='Load raw tx data from PGN',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
 def adapter_rpc():
     @task()
-    def run_scroll():
+    def run_pgn():
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'scroll',
-            'rpc_urls': [os.getenv("SCROLL_RPC")],
+            'chain': 'gitcoin_pgn',
+            'rpc_urls': [os.getenv("GITCOIN_PGN_RPC")],
         }
 
         # Initialize DbConnector
@@ -44,8 +45,8 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 200,
-            'threads': 1,
+            'batch_size': 250,
+            'threads': 15,
         }
 
         while load_params['threads'] > 0:
@@ -66,6 +67,6 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_scroll()
+    run_pgn()
 
 adapter_rpc()

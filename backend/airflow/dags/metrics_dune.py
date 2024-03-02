@@ -21,8 +21,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_dune_v02',
-    description = 'Load aggregates metrics such as txcount, daa, fees paid, stablecoin mcap.',
+    dag_id = 'metrics_dune',
+    description = 'Load aggregates metrics such as txcount, daa, fees paid, stablecoin mcap where applicable.',
+    tags=['metrics', 'daily'],
     start_date = datetime(2023,6,5),
     schedule = '05 02 * * *'
 )

@@ -22,8 +22,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_backfiller_zettablock_v01',
+    dag_id = 'backfill_zettablock',
     description = 'Backfill potentially missing Zettablock data.',
+    tags=['backfill', 'daily'],
     start_date = datetime(2024,1,29),
     schedule = '10 01 * * *'
 )

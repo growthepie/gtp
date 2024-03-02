@@ -21,8 +21,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id = 'dag_screenshot_loader',
+    dag_id = 'api_screenshot_creation',
     description = 'Create and store screenshots in s3 bucket',
+    tags=['api', 'daily'],
     start_date = datetime(2023,4,24),
     schedule = '00 07 * * *'
 )

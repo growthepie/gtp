@@ -21,8 +21,9 @@ default_args = {
 
 @dag(
     default_args=default_args,
-    dag_id='dag_backfiller_starknet',
+    dag_id='backfill_starknet',
     description='Backfill potentially missing Starknet data',
+    tags=['backfill', 'daily'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='30 09 * * *'
 )
