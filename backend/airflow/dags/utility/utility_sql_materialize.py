@@ -38,9 +38,7 @@ def etl():
         db_connector = DbConnector()
         ad = AdapterSQL(adapter_params, db_connector)
         # extract
-        df = ad.extract(load_params)
-        # # load
-        ad.load(df)
+        ad.extract(load_params)
 
     run_unique_senders()
 etl()
