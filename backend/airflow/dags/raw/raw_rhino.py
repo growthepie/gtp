@@ -21,7 +21,7 @@ from src.db_connector import DbConnector
     description='Load raw tx data from Rhino',
     tags=['raw', 'daily'],
     start_date=datetime(2023, 9, 1),
-    schedule='35 03 * * *'
+    schedule='30 01 * * *'
 )
 
 def adapter_rhino_tx_loader():
