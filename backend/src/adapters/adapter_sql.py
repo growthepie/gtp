@@ -96,7 +96,7 @@ class AdapterSQL(AbstractAdapter):
             return None
         
         elif load_type == 'active_addresses_agg':
-            self.run_blockspace_queries(origin_keys, days)
+            self.run_active_addresses_agg(origin_keys, days)
             return None
 
         else:
