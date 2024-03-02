@@ -57,13 +57,11 @@ class AdapterSQL(AbstractAdapter):
                 metric_keys = [x for x in metric_keys if x in raw_metrics]
             else:
                 metric_keys = raw_metrics
-
             df = self.db_connector.get_values_in_usd(metric_keys, days, origin_keys)
 
         elif load_type == 'profit':
             ## chains to exclude from profit calculation: Offchain DA like IMX and Mantle
             exclude_chains = ['imx', 'mantle']
-
             df = self.db_connector.get_profit_in_eth(days, exclude_chains, origin_keys)
 
         elif load_type == 'fdv':
@@ -94,14 +92,10 @@ class AdapterSQL(AbstractAdapter):
             df = self.extract_data_from_db(self.queries_to_load, days, days_start)
 
         elif load_type == 'blockspace':
-            origin_keys = load_params['origin_keys']
-            days = load_params['days']
             self.run_blockspace_queries(origin_keys, days)
             return None
         
         elif load_type == 'active_addresses_agg':
-            origin_keys = load_params['origin_keys']
-            days = load_params['days']
             self.run_blockspace_queries(origin_keys, days)
             return None
 
