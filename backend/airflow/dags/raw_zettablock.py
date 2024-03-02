@@ -17,9 +17,9 @@ from src.adapters.adapter_raw_zettablock import AdapterZettaBlockRaw
         'email_on_failure': True,
         'retry_delay' : timedelta(minutes=5)
     },
-    dag_id='raw_zettablock_zksync_polygon',
+    dag_id='raw_zettablock',
     description='Load raw polygon_zkevm & zksync era transaction data',
-    tags=['raw', 'near-real-time'],
+    tags=['raw', 'near-real-time', 'zksync_era', 'polygon_zkevm'],
     start_date=datetime(2023,4,24),
     schedule_interval='*/20 * * * *'
 )

@@ -19,7 +19,7 @@ from src.adapters.adapter_raw_rpc import AdapterRPCRaw
     },
     dag_id='raw_rpc',
     description='Load raw tx data for Base and Optimism from RPC.',
-    tags=['raw', 'near-real-time', 'rpc'],
+    tags=['raw', 'near-real-time', 'rpc', 'base', 'optimism'],
     start_date=datetime(2023,8,11),
     schedule_interval='*/15 * * * *'
 )

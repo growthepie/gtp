@@ -17,9 +17,9 @@ from src.adapters.adapter_raw_chainbase import AdapterChainbaseRaw
         'email_on_failure': True,
         'retry_delay' : timedelta(minutes=5)
     },
-    dag_id='raw_chainbase_arbitrum',
+    dag_id='raw_chainbase',
     description='Load raw arbitrum transaction data',
-    tags=['raw', 'near-real-time'],
+    tags=['raw', 'near-real-time', 'arbitrum'],
     start_date=datetime(2023,6,5),
     schedule_interval='*/20 * * * *'
 )
