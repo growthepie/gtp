@@ -574,13 +574,13 @@ class JSONCreation():
         for chain in adapter_mapping:
             origin_key = chain.origin_key
             if chain.in_api == False:
-                print(f'..skipped -- Chain details export for {origin_key}. API is set to False')
+                print(f'..skipped: Chain details export for {origin_key}. API is set to False')
                 continue
 
             metrics_dict = {}
             for metric in self.metrics:
                 if metric in chain.exclude_metrics:
-                    print(f'..skipped -- Chain details export for {origin_key} - {metric}. Metric is excluded for this chain')
+                    print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded for this chain')
                     continue
                 # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                 #     continue
@@ -624,11 +624,11 @@ class JSONCreation():
             for chain in adapter_mapping:
                 origin_key = chain.origin_key
                 if chain.in_api == False:
-                    print(f'..skipped -- Metric details export for {origin_key}. API is set to False')
+                    print(f'..skipped: Metric details export for {origin_key}. API is set to False')
                     continue
 
                 if metric in chain.exclude_metrics:
-                    print(f'..skipped -- Metric details export for {origin_key} - {metric}. Metric is excluded for this chain')
+                    print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded for this chain')
                     continue
 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
@@ -702,7 +702,7 @@ class JSONCreation():
         for chain in adapter_mapping:
             origin_key = chain.origin_key
             if chain.in_api == False:
-                print(f'..skipped -- Master json export for {origin_key}. API is set to False')
+                print(f'..skipped: Master json export for {origin_key}. API is set to False')
                 continue
 
             chain_dict[origin_key] = {
@@ -735,6 +735,11 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/master', master_dict, self.cf_distribution_id)
 
     def create_landingpage_json(self, df):
+        # filter df for all_l2s (all chains except chains that aren't included in the API)
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
+        chain_keys.append('multiple')
+        df = df.loc[(df.origin_key.isin(chain_keys))]
+
         landing_dict = {
             "data": {
                 "metrics" : {
