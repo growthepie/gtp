@@ -1,79 +1,152 @@
 from src.chain_config import adapter_mapping
 
-## This funcation unions all chains that should be included in and returns a query
-def create_all_chain_union_query():
-        query = ''
-        for chain in adapter_mapping:
-                origin_key = chain.origin_key
-                if chain.in_api == True and origin_key not in ['ethereum', 'imx']:
-                        query +="""
-                        SELECT 
-                        DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-                        from_address as address,
-                        """ + f"""
-                        '{origin_key}' as chain
-                        FROM {origin_key}_tx
-                        WHERE""" + """
-                        block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-                        AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Days}} days')
+# ## This funcation unions all chains that should be included in and returns a query
+# ## filter parameter can be used to filter the query either based on Days (for user_base query) or based on Timerange (for cross_chain query)
+# def create_all_chain_union_query(exclude: list = [], filter = ''):
+#         query = ''
+#         counter = 0
+#         for chain in adapter_mapping:
+#                 origin_key = chain.origin_key
+#                 if chain.in_api == True and origin_key not in ['ethereum', 'imx', 'starknet'] and origin_key not in exclude:
+#                         if counter > 0:
+#                                 query += 'UNION ALL'
+#                         query +="""
 
-                        UNION ALL
-                        """
+#                         SELECT 
+#                                 DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+#                                 from_address as address,
+#                                 """ + f"""
+#                                 '{origin_key}' as chain
+#                         FROM {origin_key}_tx
+#                         WHERE""" + """
+#                                 block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+#                                 AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Days}} days')
 
-        ## add IMX at the end
-        query +="""
-                SELECT 
-                        DATE_TRUNC('{{aggregation}}', "timestamp") AS day,
-                        "user" as address,
-                        'imx' as chain
-                FROM imx_deposits id 
-                WHERE "timestamp" < DATE_TRUNC('{{aggregation}}', NOW())
-                        AND "timestamp" >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
-                
-                UNION ALL
-                
-                SELECT 
-                        date_trunc('{{aggregation}}', "timestamp") as day 
-                        , "sender" as address
-                        , 'imx' as chain
-                FROM imx_withdrawals  
-                WHERE timestamp < date_trunc('{{aggregation}}', now())
-                        AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+#                         """
+#                         counter += 1
 
-                UNION ALL 
-                
-                SELECT 
-                        date_trunc('{{aggregation}}', "updated_timestamp") as day 
-                        , "user" as address
-                        , 'imx' as chain
-                FROM imx_orders   
-                WHERE updated_timestamp < date_trunc('{{aggregation}}', now())
-                        AND updated_timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+#         ## add IMX at the end if not excluded
+#         if 'imx' not in exclude:              
+#             query +="""
+#                         UNION ALL
+
+#                         SELECT 
+#                                 DATE_TRUNC('{{aggregation}}', "timestamp") AS day,
+#                                 "user" as address,
+#                                 'imx' as chain
+#                         FROM imx_deposits id 
+#                         WHERE "timestamp" < DATE_TRUNC('{{aggregation}}', NOW())
+#                                 AND "timestamp" >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
                         
-                UNION ALL
-                
-                SELECT 
-                        date_trunc('{{aggregation}}', "timestamp") as day
-                        , "user" as address
-                        , 'imx' as chain
-                FROM imx_transfers
-                WHERE timestamp < date_trunc('{{aggregation}}', now())
-                        AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
-        """
-        return query
+#                         UNION ALL
+                        
+#                         SELECT 
+#                                 date_trunc('{{aggregation}}', "timestamp") as day 
+#                                 , "sender" as address
+#                                 , 'imx' as chain
+#                         FROM imx_withdrawals  
+#                         WHERE timestamp < date_trunc('{{aggregation}}', now())
+#                                 AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+
+#                         UNION ALL 
+                        
+#                         SELECT 
+#                                 date_trunc('{{aggregation}}', "updated_timestamp") as day 
+#                                 , "user" as address
+#                                 , 'imx' as chain
+#                         FROM imx_orders   
+#                         WHERE updated_timestamp < date_trunc('{{aggregation}}', now())
+#                                 AND updated_timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+                                
+#                         UNION ALL
+                        
+#                         SELECT 
+#                                 date_trunc('{{aggregation}}', "timestamp") as day
+#                                 , "user" as address
+#                                 , 'imx' as chain
+#                         FROM imx_transfers
+#                         WHERE timestamp < date_trunc('{{aggregation}}', now())
+#                                 AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
+#                         """
+            
+#         if filter == 'Timerange':
+#                 query = query.replace('{{Days}}','{{Timerange}}')
+
+#         return query
+
+# def create_cross_chain_query(origin_key):
+#         query = f"""with raw_union as (   
+#                         {create_all_chain_union_query(exclude=[origin_key], filter='Timerange')}                
+#                 )""" + """
+#                 , raw_chain as (
+#                         SELECT 
+#                                 DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
+#                                 from_address as address
+#                                 """ + f"""
+#                         FROM {origin_key}_tx
+#                         WHERE""" + """
+#                                 block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
+#                                 AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Timerange}} days')
+#                 ) """ + f"""
+
+#                 ,cross_chain_addresses as (
+#                         SELECT 
+#                                 CURRENT_DATE - INTERVAL '1 day' as day,
+#                                 COUNT(distinct rc.address) as cross_chain
+#                         FROM raw_chain rc
+#                         INNER JOIN raw_union ru ON rc.address = ru.address
+#                 )
+
+#                 ,all_chain_addresses as (
+#                         SELECT
+#                                 CURRENT_DATE - INTERVAL '1 day' as day,
+#                                 COUNT(distinct address) as all_chain
+#                         FROM raw_chain
+#                 )
+
+#                 SELECT
+#                         cca.day,
+#                         aca.all_chain / cca.cross_chain as value
+#                 FROM cross_chain_addresses cca
+#                 LEFT JOIN all_chain_addresses aca ON cca.day = aca.day
+#                 """
+#         return query
+
 
 sql_q= {
         ## multichain users for main landing page chart
-        'user_base_xxx': f"""
-                with raw_data as (   
-                        {create_all_chain_union_query()}                
-                )
-                ,chain_info as (
+        # 'user_base_xxx': f"""
+        #         with raw_data as (   
+        #                 {create_all_chain_union_query()}                
+        #         )
+        #         ,chain_info as (
+        #                 SELECT 
+        #                 day,
+        #                 address,
+        #                 CASE WHEN count(distinct chain) > 1 THEN 'multiple' ELSE MAX(chain) END as origin_key
+        #                 FROM raw_data
+        #                 GROUP BY 1,2
+        #         )
+
+        #         SELECT
+        #                 day,
+        #                 origin_key,
+        #                 COUNT(DISTINCT address) AS val
+        #         FROM
+        #                 chain_info
+        #         GROUP BY 1,2 
+        #         ORDER BY 1 DESC
+        #         """
+        'user_base_xxx': """
+                with chain_info as (
                         SELECT 
-                        day,
-                        address,
-                        CASE WHEN count(distinct chain) > 1 THEN 'multiple' ELSE MAX(chain) END as origin_key
-                        FROM raw_data
+                                DATE_TRUNC('{{aggregation}}', date) AS day,
+                                address,
+                                CASE WHEN count(distinct origin_key) > 1 THEN 'multiple' ELSE MAX(origin_key) END as origin_key
+                        FROM fact_active_addresses
+                        WHERE
+                                date < DATE_TRUNC('{{aggregation}}', NOW())
+                                AND date >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Days}} days')
                         GROUP BY 1,2
                 )
 
@@ -1050,6 +1123,17 @@ sql_q= {
         GROUP BY 1
         order by 1 DESC
         """
+        
+        ,'starknet_user_base_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM starknet_tx tx
+        WHERE
+                block_timestamp < date_trunc('{{aggregation}}', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
 
         ,'starknet_aa_xxx': """
         SELECT 
@@ -1271,6 +1355,7 @@ sql_queries = [
     ## Starknet
    ,SQLQuery(metric_key = "txcount_raw", origin_key = "starknet", sql=sql_q["starknet_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
    ,SQLQuery(metric_key = "txcount", origin_key = "starknet", sql=sql_q["starknet_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "user_base_weekly", origin_key = "starknet", sql=sql_q["starknet_user_base_xxx"], currency_dependent = False, query_parameters={"Days": 28, "aggregation": "week"})
    ,SQLQuery(metric_key = "daa", origin_key = "starknet", sql=sql_q["starknet_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
    #,SQLQuery(metric_key = "waa", origin_key = "starknet", sql=sql_q["starknet_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
    ,SQLQuery(metric_key = "maa", origin_key = "starknet", sql=sql_q["starknet_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})

@@ -122,9 +122,9 @@ class AdapterSQL(AbstractAdapter):
         dfMain = pd.DataFrame()
         for query in queries_to_load:
             if days == 'auto':
-                if query.origin_key == 'multi' and query.metric_key == 'user_base_weekly':
+                if query.metric_key == 'user_base_weekly':
                     day_val = 15
-                if query.origin_key == 'multi':
+                elif query.origin_key == 'multi':
                     day_val = 40
                 elif query.metric_key == 'maa':
                     day_val = 7
