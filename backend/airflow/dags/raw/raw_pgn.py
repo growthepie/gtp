@@ -11,7 +11,6 @@ from src.adapters.adapter_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
-
 @dag(
     default_args={
         'owner': 'nader',
