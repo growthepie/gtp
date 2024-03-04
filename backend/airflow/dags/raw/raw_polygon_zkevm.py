@@ -32,7 +32,7 @@ def adapter_rpc():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'polygon_zkevm',
-            'rpc_urls': [os.getenv("zkEVM_RPC")],
+            'rpc_urls': [os.getenv("POLYGON_ZKEVM_RPC")],
         }
 
         # Initialize DbConnector
