@@ -1,142 +1,4 @@
-from src.chain_config import adapter_mapping
-
-# ## This funcation unions all chains that should be included in and returns a query
-# ## filter parameter can be used to filter the query either based on Days (for user_base query) or based on Timerange (for cross_chain query)
-# def create_all_chain_union_query(exclude: list = [], filter = ''):
-#         query = ''
-#         counter = 0
-#         for chain in adapter_mapping:
-#                 origin_key = chain.origin_key
-#                 if chain.in_api == True and origin_key not in ['ethereum', 'imx', 'starknet'] and origin_key not in exclude:
-#                         if counter > 0:
-#                                 query += 'UNION ALL'
-#                         query +="""
-
-#                         SELECT 
-#                                 DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-#                                 from_address as address,
-#                                 """ + f"""
-#                                 '{origin_key}' as chain
-#                         FROM {origin_key}_tx
-#                         WHERE""" + """
-#                                 block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-#                                 AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Days}} days')
-
-#                         """
-#                         counter += 1
-
-#         ## add IMX at the end if not excluded
-#         if 'imx' not in exclude:              
-#             query +="""
-#                         UNION ALL
-
-#                         SELECT 
-#                                 DATE_TRUNC('{{aggregation}}', "timestamp") AS day,
-#                                 "user" as address,
-#                                 'imx' as chain
-#                         FROM imx_deposits id 
-#                         WHERE "timestamp" < DATE_TRUNC('{{aggregation}}', NOW())
-#                                 AND "timestamp" >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL '{{Days}} days')
-                        
-#                         UNION ALL
-                        
-#                         SELECT 
-#                                 date_trunc('{{aggregation}}', "timestamp") as day 
-#                                 , "sender" as address
-#                                 , 'imx' as chain
-#                         FROM imx_withdrawals  
-#                         WHERE timestamp < date_trunc('{{aggregation}}', now())
-#                                 AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
-
-#                         UNION ALL 
-                        
-#                         SELECT 
-#                                 date_trunc('{{aggregation}}', "updated_timestamp") as day 
-#                                 , "user" as address
-#                                 , 'imx' as chain
-#                         FROM imx_orders   
-#                         WHERE updated_timestamp < date_trunc('{{aggregation}}', now())
-#                                 AND updated_timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
-                                
-#                         UNION ALL
-                        
-#                         SELECT 
-#                                 date_trunc('{{aggregation}}', "timestamp") as day
-#                                 , "user" as address
-#                                 , 'imx' as chain
-#                         FROM imx_transfers
-#                         WHERE timestamp < date_trunc('{{aggregation}}', now())
-#                                 AND timestamp >= date_trunc('{{aggregation}}',now() - INTERVAL '{{Days}} days')
-#                         """
-            
-#         if filter == 'Timerange':
-#                 query = query.replace('{{Days}}','{{Timerange}}')
-
-#         return query
-
-# def create_cross_chain_query(origin_key):
-#         query = f"""with raw_union as (   
-#                         {create_all_chain_union_query(exclude=[origin_key], filter='Timerange')}                
-#                 )""" + """
-#                 , raw_chain as (
-#                         SELECT 
-#                                 DATE_TRUNC('{{aggregation}}', block_timestamp) AS day,
-#                                 from_address as address
-#                                 """ + f"""
-#                         FROM {origin_key}_tx
-#                         WHERE""" + """
-#                                 block_timestamp < DATE_TRUNC('{{aggregation}}', NOW())
-#                                 AND block_timestamp >= DATE_TRUNC('{{aggregation}}', NOW() - INTERVAL  '{{Timerange}} days')
-#                 ) """ + f"""
-
-#                 ,cross_chain_addresses as (
-#                         SELECT 
-#                                 CURRENT_DATE - INTERVAL '1 day' as day,
-#                                 COUNT(distinct rc.address) as cross_chain
-#                         FROM raw_chain rc
-#                         INNER JOIN raw_union ru ON rc.address = ru.address
-#                 )
-
-#                 ,all_chain_addresses as (
-#                         SELECT
-#                                 CURRENT_DATE - INTERVAL '1 day' as day,
-#                                 COUNT(distinct address) as all_chain
-#                         FROM raw_chain
-#                 )
-
-#                 SELECT
-#                         cca.day,
-#                         aca.all_chain / cca.cross_chain as value
-#                 FROM cross_chain_addresses cca
-#                 LEFT JOIN all_chain_addresses aca ON cca.day = aca.day
-#                 """
-#         return query
-
-
 sql_q= {
-        ## multichain users for main landing page chart
-        # 'user_base_xxx': f"""
-        #         with raw_data as (   
-        #                 {create_all_chain_union_query()}                
-        #         )
-        #         ,chain_info as (
-        #                 SELECT 
-        #                 day,
-        #                 address,
-        #                 CASE WHEN count(distinct chain) > 1 THEN 'multiple' ELSE MAX(chain) END as origin_key
-        #                 FROM raw_data
-        #                 GROUP BY 1,2
-        #         )
-
-        #         SELECT
-        #                 day,
-        #                 origin_key,
-        #                 COUNT(DISTINCT address) AS val
-        #         FROM
-        #                 chain_info
-        #         GROUP BY 1,2 
-        #         ORDER BY 1 DESC
-        #         """
         'user_base_xxx': """
                 with chain_info as (
                         SELECT 
@@ -158,7 +20,7 @@ sql_q= {
                         chain_info
                 GROUP BY 1,2 
                 ORDER BY 1 DESC
-                """
+        """
 
         ### IMX
         ## count of all actions that have a transaction_id (not orders!)
@@ -316,7 +178,7 @@ sql_q= {
 				    "user" as address
 				FROM date_range d
 				LEFT JOIN 
-				    imx_deposits b ON b.timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.timestamp <= d.day
+				    imx_deposits b ON b.timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.timestamp <= d.day + INTERVAL '1 days'
 				GROUP BY 1,2
         ),
         cte_imx_withdrawals as (
@@ -325,7 +187,7 @@ sql_q= {
 				    "sender" as address
 				FROM date_range d
 				LEFT JOIN 
-				    imx_withdrawals b ON b.timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.timestamp <= d.day
+				    imx_withdrawals b ON b.timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.timestamp <= d.day + INTERVAL '1 days'
 				GROUP BY 1,2
         ),
         cte_imx_orders as (
@@ -334,7 +196,7 @@ sql_q= {
 				    "user" as address
 				FROM date_range d
 				LEFT JOIN 
-				    imx_orders b ON b.updated_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.updated_timestamp <= d.day
+				    imx_orders b ON b.updated_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.updated_timestamp <= d.day + INTERVAL '1 days'
 				GROUP BY 1,2
         ),
         cte_imx_transfers as (
@@ -343,7 +205,7 @@ sql_q= {
 				    "user" as address
 				FROM date_range d
 				LEFT JOIN 
-				    imx_transfers b ON b.timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.timestamp <= d.day
+				    imx_transfers b ON b.timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.timestamp <= d.day + INTERVAL '1 days'
 				GROUP BY 1,2
         ),    
         unioned as (
@@ -419,7 +281,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                arbitrum_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                arbitrum_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
 
         """
@@ -460,7 +322,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                optimism_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                optimism_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -498,7 +360,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                base_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                base_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -537,7 +399,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                polygon_zkevm_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                polygon_zkevm_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
         
@@ -575,7 +437,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                zksync_era_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                zksync_era_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -639,7 +501,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                zora_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                zora_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -721,7 +583,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                gitcoin_pgn_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                gitcoin_pgn_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -803,7 +665,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                linea_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                linea_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -896,7 +758,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                mantle_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                mantle_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -988,7 +850,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                scroll_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                scroll_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -1053,7 +915,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                loopring_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                loopring_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
         # Rhino
@@ -1100,7 +962,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                rhino_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                rhino_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -1159,7 +1021,7 @@ sql_q= {
                 COUNT(DISTINCT b.from_address) AS value
         FROM date_range d
         LEFT JOIN 
-                starknet_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day
+                starknet_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
 
@@ -1238,8 +1100,8 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "imx", sql=sql_q["imx_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
     #,SQLQuery(metric_key = "waa", origin_key = "imx", sql=sql_q["imx_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "imx", sql=sql_q["imx_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "imx", sql=sql_q["imx_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "imx", sql=sql_q["imx_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "imx", sql=sql_q["imx_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "imx", sql=sql_q["imx_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     #,SQLQuery(metric_key = "new_addresses", origin_key = "imx", sql=sql_q["ethereum_new_addresses"], currency_dependent = False, query_parameters={"Days": 7})
     #,SQLQuery(metric_key = "fees_paid_usd", origin_key = "imx", sql=sql_q["imx_fees_paid_usd"], query_parameters={"Days": 7})
 
@@ -1247,36 +1109,36 @@ sql_queries = [
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "arbitrum", sql=sql_q["arbitrum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
     #,SQLQuery(metric_key = "waa", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
     ## OP Mainnet
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "optimism", sql=sql_q["optimism_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
     #,SQLQuery(metric_key = "waa", origin_key = "optimism", sql=sql_q["optimism_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "optimism", sql=sql_q["optimism_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
     ## Base
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "base", sql=sql_q["base_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
     #,SQLQuery(metric_key = "waa", origin_key = "base", sql=sql_q["base_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "base", sql=sql_q["base_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
     ## Polygon zkEVM
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
     #,SQLQuery(metric_key = "waa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
     ## zkSync Era
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zksync_era", sql=sql_q["zksync_era_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
     #,SQLQuery(metric_key = "waa", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
     ## Zora
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zora", sql=sql_q["zora_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1284,8 +1146,8 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "zora", sql=sql_q["zora_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
     #,SQLQuery(metric_key = "waa", origin_key = "zora", sql=sql_q["zora_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "zora", sql=sql_q["zora_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "zora", sql=sql_q["zora_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "zora", sql=sql_q["zora_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "zora", sql=sql_q["zora_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "zora", sql=sql_q["zora_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "zora", sql=sql_q["zora_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "zora", sql=sql_q["zora_txcosts_median_eth"], query_parameters={"Days": 7})
 
@@ -1295,8 +1157,8 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
     #,SQLQuery(metric_key = "waa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_eth"], query_parameters={"Days": 7})
     
@@ -1306,8 +1168,8 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "linea", sql=sql_q["linea_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
     #,SQLQuery(metric_key = "waa", origin_key = "linea", sql=sql_q["linea_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "linea", sql=sql_q["linea_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "linea", sql=sql_q["linea_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "linea", sql=sql_q["linea_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "linea", sql=sql_q["linea_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "linea", sql=sql_q["linea_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "linea", sql=sql_q["linea_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "linea", sql=sql_q["linea_txcosts_median_eth"], query_parameters={"Days": 7})
 
@@ -1317,8 +1179,8 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "mantle", sql=sql_q["mantle_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
     #,SQLQuery(metric_key = "waa", origin_key = "mantle", sql=sql_q["mantle_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "mantle", sql=sql_q["mantle_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "mantle", sql=sql_q["mantle_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "mantle", sql=sql_q["mantle_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "mantle", sql=sql_q["mantle_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "mantle", sql=sql_q["mantle_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "mantle", sql=sql_q["mantle_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "mantle", sql=sql_q["mantle_txcosts_median_eth"], query_parameters={"Days": 7})
     
@@ -1328,8 +1190,8 @@ sql_queries = [
     ,SQLQuery(metric_key = "daa", origin_key = "scroll", sql=sql_q["scroll_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
     #,SQLQuery(metric_key = "waa", origin_key = "scroll", sql=sql_q["scroll_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
     ,SQLQuery(metric_key = "maa", origin_key = "scroll", sql=sql_q["scroll_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "scroll", sql=sql_q["scroll_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "scroll", sql=sql_q["scroll_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "scroll", sql=sql_q["scroll_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "scroll", sql=sql_q["scroll_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "scroll", sql=sql_q["scroll_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "scroll", sql=sql_q["scroll_txcosts_median_eth"], query_parameters={"Days": 7})
    
@@ -1340,8 +1202,8 @@ sql_queries = [
    ,SQLQuery(metric_key = "daa", origin_key = "loopring", sql=sql_q["loopring_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
    #,SQLQuery(metric_key = "waa", origin_key = "loopring", sql=sql_q["loopring_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
    ,SQLQuery(metric_key = "maa", origin_key = "loopring", sql=sql_q["loopring_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-   ,SQLQuery(metric_key = "aa_last7d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-   ,SQLQuery(metric_key = "aa_last30d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+   ,SQLQuery(metric_key = "aa_last7d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+   ,SQLQuery(metric_key = "aa_last30d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
    ## Rhino
    ,SQLQuery(metric_key = "txcount_raw", origin_key = "rhino", sql=sql_q["rhino_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1349,8 +1211,8 @@ sql_queries = [
    ,SQLQuery(metric_key = "daa", origin_key = "rhino", sql=sql_q["rhino_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
    #,SQLQuery(metric_key = "waa", origin_key = "rhino", sql=sql_q["rhino_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
    ,SQLQuery(metric_key = "maa", origin_key = "rhino", sql=sql_q["rhino_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-   ,SQLQuery(metric_key = "aa_last7d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-   ,SQLQuery(metric_key = "aa_last30d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+   ,SQLQuery(metric_key = "aa_last7d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+   ,SQLQuery(metric_key = "aa_last30d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
     ## Starknet
    ,SQLQuery(metric_key = "txcount_raw", origin_key = "starknet", sql=sql_q["starknet_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1359,8 +1221,8 @@ sql_queries = [
    ,SQLQuery(metric_key = "daa", origin_key = "starknet", sql=sql_q["starknet_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
    #,SQLQuery(metric_key = "waa", origin_key = "starknet", sql=sql_q["starknet_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
    ,SQLQuery(metric_key = "maa", origin_key = "starknet", sql=sql_q["starknet_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-   ,SQLQuery(metric_key = "aa_last7d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 7})
-   ,SQLQuery(metric_key = "aa_last30d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 30})
+   ,SQLQuery(metric_key = "aa_last7d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+   ,SQLQuery(metric_key = "aa_last30d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", sql=sql_q["starknet_fees_paid_eth"], query_parameters={"Days": 7})
    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", sql=sql_q["starknet_txcosts_median_eth"], query_parameters={"Days": 7})
 
