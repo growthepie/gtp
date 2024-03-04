@@ -13,6 +13,7 @@ import random
 import time
 from web3.datastructures import AttributeDict
 from hexbytes import HexBytes
+import ast
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -344,6 +345,70 @@ def prep_dataframe_arbitrum(df):
 
     return filtered_df 
 
+def prep_dataframe_polygon_zkevm(df):
+    # Mapping of input columns to the required dataframe structure
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'transactionHash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'effectiveGasPrice': 'effective_gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'empty_input',
+        'block_timestamp': 'block_timestamp',
+        'contractAddress': 'receipt_contract_address',
+        'type': 'type'
+    }
+
+    # Filter the dataframe to only include the relevant columns
+    df = df[list(column_mapping.keys())]
+
+    # Rename the columns based on the above mapping
+    df = df.rename(columns=column_mapping)
+    df['tx_hash'] = df['tx_hash'].apply(lambda x: '\\x' + ast.literal_eval(x).hex() if pd.notnull(x) else None)
+
+    # Convert Integer to BYTEA
+    df['type'] = df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
+    
+    # Use 'effective_gas_price' if available; otherwise, fallback to 'gas_price'
+    df['gas_price'] = df['effective_gas_price'].fillna(df['gas_price'])
+    
+    # Convert numeric columns to appropriate types
+    df['gas_price'] = pd.to_numeric(df['gas_price'], errors='coerce')
+    df['gas_used'] = pd.to_numeric(df['gas_used'], errors='coerce')
+    
+    # Convert 'block_time' to datetime
+    df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # Convert 'empty_input' column to boolean
+    df['empty_input'] = df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert Ethereum values from Wei to Ether for 'gas_price' and 'value'
+    df['gas_price'] = df['gas_price'].astype(float) / 1e18
+    df['value'] = df['value'].astype(float) / 1e18
+
+    # 'status' column: convert to expected status values
+    df['status'] = df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # Handle 'to_address', 'from_address', 'receipt_contract_address' for missing values
+    address_columns = ['to_address', 'from_address', 'receipt_contract_address']
+    for col in address_columns:
+        df[col] = df[col].fillna('')  # Replace NaN with empty string
+    
+    for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
+        if col in df.columns:
+            df[col] = df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")      
+            
+    df['tx_fee'] = df['gas_used'] * df['gas_price']  / 1e18
+    df.drop(['effective_gas_price'], axis=1, inplace=True)
+    return df
+
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
@@ -500,6 +565,8 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_scroll(df)
             elif chain == 'arbitrum':
                 df_prep = prep_dataframe_arbitrum(df)
+            elif chain == 'polygon_zkevm':
+                df_prep = prep_dataframe_polygon_zkevm(df)
             else:
                 df_prep = prep_dataframe(df)
 
