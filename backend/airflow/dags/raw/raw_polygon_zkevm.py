@@ -23,10 +23,12 @@ default_args = {
 @dag(
     default_args=default_args,
     dag_id='dag_polygon_zkevm',
-    description='Load raw tx data from Mantle',
+    description='Load raw tx data from polygonZKEVM',
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
-    schedule_interval='30 */2 * * *'
+    schedule_interval='*/15 * * * *'
 )
+
 def adapter_nader_super():
     @task()
     def run_nader_super():
