@@ -151,22 +151,22 @@ def get_missing_days_kpis(db_connector, metric_key, origin_key):
     last_date = db_connector.get_max_date(metric_key, origin_key)
     if last_date == None:
         days = 9999
-        print(f"No entry detected in tbl_kpis_daily for metric_key: {metric_key} and origin_key: {origin_key}. Set days to {days}.")
+        print(f"...no entry detected in tbl_kpis_daily for metric_key: {metric_key} and origin_key: {origin_key}. Set days to {days}.")
     else:
         delta = datetime.today().date() - last_date
         days = delta.days + 10 #add 5 just for precaution (in case some data was missing etc.)
-        print(f"Last entry in tbl_kpis_daily detected for metric_key: {metric_key} and origin_key: {origin_key} is on {last_date}. Set days to {days}.")
+        print(f"...last entry in tbl_kpis_daily detected for metric_key: {metric_key} and origin_key: {origin_key} is on {last_date}. Set days to {days}.")
     return (days) 
 
 def get_missing_days_blockspace(db_connector, origin_key):
     last_date = db_connector.get_blockspace_max_date(origin_key)
     if last_date == None:
         days = 9999
-        print(f"No blockspace entry detected for origin_key: {origin_key}. Set days to {days}.")
+        print(f"...no blockspace entry detected for origin_key: {origin_key}. Set days to {days}.")
     else:
         delta = datetime.today().date() - last_date
         days = delta.days + 5 #add 5 just for precaution (in case some data was missing etc.)
-        print(f"Last blockspace entry for origin_key: {origin_key} is on {last_date}. Set days to {days}.")
+        print(f"...last blockspace entry for origin_key: {origin_key} is on {last_date}. Set days to {days}.")
     return (days) 
 
 ## prepare df for kpis_daily with input df having day and value columns
