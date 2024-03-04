@@ -353,6 +353,7 @@ def prep_dataframe_polygon_zkevm(df):
         'from': 'from_address',
         'to': 'to_address',
         'gasPrice': 'gas_price',
+        'effectiveGasPrice': 'effective_gas_price',
         'gas': 'gas_limit',
         'gasUsed': 'gas_used',
         'value': 'value',
@@ -372,7 +373,10 @@ def prep_dataframe_polygon_zkevm(df):
 
     # Convert Integer to BYTEA
     df['type'] = df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
-
+    
+    # Use 'effective_gas_price' if available; otherwise, fallback to 'gas_price'
+    df['gas_price'] = df['effective_gas_price'].fillna(df['gas_price'])
+    
     # Convert numeric columns to appropriate types
     df['gas_price'] = pd.to_numeric(df['gas_price'], errors='coerce')
     df['gas_used'] = pd.to_numeric(df['gas_used'], errors='coerce')
@@ -402,6 +406,7 @@ def prep_dataframe_polygon_zkevm(df):
             print(f"Column {col} not found in dataframe.")      
             
     df['tx_fee'] = df['gas_used'] * df['gas_price']  / 1e18
+    df.drop(['effective_gas_price'], axis=1, inplace=True)
     return df
 
 # ---------------- Error Handling -----------------------
