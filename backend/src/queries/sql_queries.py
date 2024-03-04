@@ -1,3 +1,37 @@
+def get_cross_chain_activity(origin_key):
+    query = f"""
+        with excl_chain as (
+            select 
+                address,
+                origin_key 
+            from fact_active_addresses faa 
+            where faa."date" between current_date - interval '7 days' and current_date
+                and origin_key <> '{origin_key}'
+        )
+
+        , tmp as (
+            SELECT 
+                    aa.address AS address,
+                    CASE WHEN count(distinct ex.origin_key) > 1 THEN 'multiple' ELSE MAX(ex.origin_key) END as cca 
+            FROM fact_active_addresses aa
+            left join excl_chain ex on aa.address = ex.address
+            WHERE aa."date" between current_date - interval '7 days' and current_date
+                and aa.origin_key = '{origin_key}'
+            group by 1
+        )
+
+        select 
+            coalesce(
+                'cca_last7d_' || cca,
+                'cca_last7d_exclusive'
+            ) as metric_key,
+            (current_date - interval '1 days')::DATE as day,
+            Count(*) as value
+        from tmp
+        group by 1,2
+    """
+    return query
+
 sql_q= {
         'user_base_xxx': """
                 with chain_info as (
@@ -1104,6 +1138,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "imx", sql=sql_q["imx_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     #,SQLQuery(metric_key = "new_addresses", origin_key = "imx", sql=sql_q["ethereum_new_addresses"], currency_dependent = False, query_parameters={"Days": 7})
     #,SQLQuery(metric_key = "fees_paid_usd", origin_key = "imx", sql=sql_q["imx_fees_paid_usd"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "imx", sql=get_cross_chain_activity('imx'), currency_dependent = False, query_parameters={})
 
     ## Arbitrum
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "arbitrum", sql=sql_q["arbitrum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1111,6 +1146,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "maa", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
     ,SQLQuery(metric_key = "aa_last7d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "cca", origin_key = "arbitrum", sql=get_cross_chain_activity('arbitrum'), currency_dependent = False, query_parameters={})
 
     ## OP Mainnet
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "optimism", sql=sql_q["optimism_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1118,6 +1154,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "maa", origin_key = "optimism", sql=sql_q["optimism_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
     ,SQLQuery(metric_key = "aa_last7d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "cca", origin_key = "optimism", sql=get_cross_chain_activity('optimism'), currency_dependent = False, query_parameters={})
 
     ## Base
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "base", sql=sql_q["base_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1125,6 +1162,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "maa", origin_key = "base", sql=sql_q["base_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
     ,SQLQuery(metric_key = "aa_last7d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "cca", origin_key = "base", sql=get_cross_chain_activity('base'), currency_dependent = False, query_parameters={})
 
     ## Polygon zkEVM
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1132,6 +1170,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "maa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
     ,SQLQuery(metric_key = "aa_last7d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "cca", origin_key = "polygon_zkevm", sql=get_cross_chain_activity('polygon_zkevm'), currency_dependent = False, query_parameters={})
 
     ## zkSync Era
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zksync_era", sql=sql_q["zksync_era_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1139,6 +1178,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "maa", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
     ,SQLQuery(metric_key = "aa_last7d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "cca", origin_key = "zksync_era", sql=get_cross_chain_activity('zksync_era'), currency_dependent = False, query_parameters={})
 
     ## Zora
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zora", sql=sql_q["zora_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1150,6 +1190,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "zora", sql=sql_q["zora_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "zora", sql=sql_q["zora_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "zora", sql=sql_q["zora_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "zora", sql=get_cross_chain_activity('zora'), currency_dependent = False, query_parameters={})
 
     ## PGN
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1161,6 +1202,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "gitcoin_pgn", sql=get_cross_chain_activity('gitcoin_pgn'), currency_dependent = False, query_parameters={})
     
     ## Linea
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "linea", sql=sql_q["linea_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1172,6 +1214,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "linea", sql=sql_q["linea_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "linea", sql=sql_q["linea_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "linea", sql=sql_q["linea_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "linea", sql=get_cross_chain_activity('linea'), currency_dependent = False, query_parameters={})
 
     ## Mantle
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "mantle", sql=sql_q["mantle_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1183,6 +1226,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "mantle", sql=sql_q["mantle_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "mantle", sql=sql_q["mantle_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "mantle", sql=sql_q["mantle_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "mantle", sql=get_cross_chain_activity('mantle'), currency_dependent = False, query_parameters={})
     
     ## Scroll
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "scroll", sql=sql_q["scroll_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1194,7 +1238,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "scroll", sql=sql_q["scroll_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "scroll", sql=sql_q["scroll_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "scroll", sql=sql_q["scroll_txcosts_median_eth"], query_parameters={"Days": 7})
-   
+    ,SQLQuery(metric_key = "cca", origin_key = "scroll", sql=get_cross_chain_activity('scroll'), currency_dependent = False, query_parameters={})   
 
    ## Loopring
    ,SQLQuery(metric_key = "txcount_raw", origin_key = "loopring", sql=sql_q["loopring_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1204,6 +1248,7 @@ sql_queries = [
    ,SQLQuery(metric_key = "maa", origin_key = "loopring", sql=sql_q["loopring_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
    ,SQLQuery(metric_key = "aa_last7d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
    ,SQLQuery(metric_key = "aa_last30d", origin_key = "loopring", sql=sql_q["loopring_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+   ,SQLQuery(metric_key = "cca", origin_key = "loopring", sql=get_cross_chain_activity('loopring'), currency_dependent = False, query_parameters={})
 
    ## Rhino
    ,SQLQuery(metric_key = "txcount_raw", origin_key = "rhino", sql=sql_q["rhino_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1213,6 +1258,7 @@ sql_queries = [
    ,SQLQuery(metric_key = "maa", origin_key = "rhino", sql=sql_q["rhino_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
    ,SQLQuery(metric_key = "aa_last7d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
    ,SQLQuery(metric_key = "aa_last30d", origin_key = "rhino", sql=sql_q["rhino_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+   ,SQLQuery(metric_key = "cca", origin_key = "rhino", sql=get_cross_chain_activity('rhino'), currency_dependent = False, query_parameters={})
 
     ## Starknet
    ,SQLQuery(metric_key = "txcount_raw", origin_key = "starknet", sql=sql_q["starknet_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1225,5 +1271,4 @@ sql_queries = [
    ,SQLQuery(metric_key = "aa_last30d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", sql=sql_q["starknet_fees_paid_eth"], query_parameters={"Days": 7})
    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", sql=sql_q["starknet_txcosts_median_eth"], query_parameters={"Days": 7})
-
 ]

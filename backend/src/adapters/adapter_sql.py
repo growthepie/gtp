@@ -147,7 +147,8 @@ class AdapterSQL(AbstractAdapter):
             df['date'] = df['date'].dt.date
             df.drop(['day'], axis=1, inplace=True)
             df.rename(columns= {'val':'value'}, inplace=True)
-            df['metric_key'] = query.metric_key
+            if 'metric_key' not in df.columns:
+                df['metric_key'] = query.metric_key
             if 'origin_key' not in df.columns:
                 df['origin_key'] = query.origin_key
             df.value.fillna(0, inplace=True)
