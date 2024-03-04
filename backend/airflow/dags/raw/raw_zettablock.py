@@ -59,6 +59,6 @@ def adapter_raw_zetta():
         # extract & load incremmentally
         df = ad.extract_raw(load_params)
 
-    run_polygon_zkevm()
+    #run_polygon_zkevm()
     run_zksync_era()
 adapter_raw_zetta()
