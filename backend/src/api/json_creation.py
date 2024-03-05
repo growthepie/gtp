@@ -764,7 +764,9 @@ class JSONCreation():
 
             chain_dict[origin_key] = {
                 'name': chain.name,
+                'deployment': chain.deployment,
                 'name_short': chain.name_short,
+                'description': chain.description,
                 'symbol': chain.symbol,
                 'bucket': chain.bucket,
                 'technology': chain.technology,
