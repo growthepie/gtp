@@ -109,6 +109,9 @@ class JSONCreation():
         #concat all values of chains_list to a string and add apostrophes around each value
         self.chains_string = "'" + "','".join(self.chains_list) + "'"
 
+        #only chains that are in the api output
+        self.chains_list_in_api = [x.origin_key for x in adapter_mapping if x.in_api == True]
+
     
     ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
 
@@ -373,7 +376,7 @@ class JSONCreation():
 
     def get_all_data(self):
         ## Load all data from database
-        chain_user_list = self.chains_list + ['multiple']
+        chain_user_list = self.chains_list_in_api + ['multiple']
         metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 'cca_last7d_exclusive']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
@@ -615,6 +618,14 @@ class JSONCreation():
 
         return dict
     
+    def get_top5_tvl(self, df):
+        df_tmp = df[df['metric_key'] == 'tvl_eth']
+        df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+        df_tmp = df_tmp.sort_values(by='value', ascending=False)
+        top_5 = df_tmp['origin_key'].head(5).tolist()
+        print(f'Top 5 chains by TVL: {top_5}')
+        return top_5
+    
     ##### FILE HANDLERS #####
     def save_to_json(self, data, path):
         #create directory if not exists
@@ -736,7 +747,7 @@ class JSONCreation():
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
             print(f'DONE -- Metric details export for {metric}')
 
-    def create_master_json(self):
+    def create_master_json(self, df_data):
         exec_string = "SELECT sub_category_key, main_category_name, sub_category_name, main_category_key FROM blockspace_category_mapping"
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
 
@@ -779,6 +790,7 @@ class JSONCreation():
 
         master_dict = {
             'current_version' : self.api_version,
+            'default_chain_selection' : self.get_top5_tvl(df_data),
             'chains' : chain_dict,
             'metrics' : self.metrics,
             'blockspace_categories' : {
@@ -795,8 +807,7 @@ class JSONCreation():
 
     def create_landingpage_json(self, df):
         # filter df for all_l2s (all chains except chains that aren't included in the API)
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
-        chain_keys.append('multiple')
+        chain_keys = self.chains_list_in_api + ['multiple']
         df = df.loc[(df.origin_key.isin(chain_keys))]
 
         landing_dict = {
@@ -900,7 +911,7 @@ class JSONCreation():
 
     def create_all_jsons(self):
         df = self.get_all_data()
-        self.create_master_json()
+        self.create_master_json(df)
         self.create_landingpage_json(df)
 
         self.create_chain_details_jsons(df)
