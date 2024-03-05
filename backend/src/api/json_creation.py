@@ -454,9 +454,15 @@ class JSONCreation():
         return round(val, 4)
     
     def get_aa_last7d(self, df, origin_key):
-        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key=='aa_last7d')]
-        df_tmp = df_tmp[['date', 'value']]
-        df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+        if origin_key == 'all':
+            df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key=='aa_last7d')]
+            df_tmp = df_tmp[['date', 'value']]
+            df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+            df_tmp = df_tmp.groupby(pd.Grouper(key='date')).sum().reset_index()
+        else:
+            df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key=='aa_last7d')]
+            df_tmp = df_tmp[['date', 'value']]
+            df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
         return int(df_tmp['value'].values[0])
     
     def get_cross_chain_activity(self, df, chain):
@@ -480,7 +486,7 @@ class JSONCreation():
 
     def get_landing_table_dict(self, df):
         chains_dict = {}
-
+        all_users = self.get_aa_last7d(df, 'all')
         for chain in adapter_mapping:
             if chain.in_api == True and chain.origin_key != 'ethereum':
                 chains_dict[chain.origin_key] = {
@@ -488,6 +494,7 @@ class JSONCreation():
                     "technology": chain.technology,
                     "purpose": chain.purpose,
                     "users": self.get_aa_last7d(df, chain.origin_key),
+                    "user_share": round(self.get_aa_last7d(df, chain.origin_key)/all_users,4),
                     "cross_chain_activity": self.get_cross_chain_activity(df, chain)
                 }
         
