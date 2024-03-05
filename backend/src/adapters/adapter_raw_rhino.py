@@ -16,10 +16,10 @@ class AdapterRhino(AbstractAdapterRaw):
         self.s3_connection, self.bucket_name = connect_to_s3()
         
     def extract_raw(self):
-        self.run(self.json_endpoint)
+        self.run()
         print(f"FINISHED loading raw tx data for {self.chain}.")
 
-    def run(self, json_endpoint):
+    def run(self):
         if not check_db_connection(self.db_connector):
             raise ConnectionError("Database is not connected.")
         else:
@@ -30,7 +30,7 @@ class AdapterRhino(AbstractAdapterRaw):
         else:
             print("Successfully connected to S3.")
         
-        json_data = self.download_file_and_load_into_df(json_endpoint)
+        json_data = self.download_file_and_load_into_df()
         df = self.prepare_data_from_json(json_data)
         
         try:
@@ -39,10 +39,10 @@ class AdapterRhino(AbstractAdapterRaw):
             print(f"Error inserting data into table {self.table_name}: {e}")
             raise e        
 
-    def download_file_and_load_into_df(self, json_endpoint):
+    def download_file_and_load_into_df(self):
         # Download the file
-        local_filename = json_endpoint.split('/')[-1]
-        with requests.get(json_endpoint, stream=True) as r:
+        local_filename = self.json_endpoint.split('/')[-1]
+        with requests.get(self.json_endpoint, stream=True) as r:
             r.raise_for_status()
             with open(local_filename, 'wb') as f:
                 for chunk in r.iter_content(chunk_size=8192):
@@ -59,13 +59,15 @@ class AdapterRhino(AbstractAdapterRaw):
         # Rename columns to match the required mapping
         df.rename(columns={
             'address': 'from_address',
-            'depositAmount': 'deposit_amount',
+            'token': 'token',
+            'txnType': 'tx_type',
+            'amount': 'amount',
             'createdAt': 'block_timestamp',
             'txHash': 'tx_hash',
-            'fromChain': 'from_chain'
+            'chain': 'chain'
         }, inplace=True)
         
-        df = df[['from_address', 'token', 'deposit_amount', 'block_timestamp', 'tx_hash', 'from_chain']] 
+        df = df[['from_address', 'token', 'tx_type', 'amount', 'block_timestamp', 'tx_hash', 'chain']] 
         
         # Remove entries where 'tx_hash' is None
         df = df.dropna(subset=['tx_hash'])

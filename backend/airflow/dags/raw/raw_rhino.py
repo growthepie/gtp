@@ -6,7 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
-from src.adapters.adapter_rhino import AdapterRhino
+from src.adapters.adapter_raw_rhino import AdapterRhino
 from src.db_connector import DbConnector
 
 @dag(
