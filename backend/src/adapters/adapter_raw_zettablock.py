@@ -95,11 +95,11 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                     else:
                         print(f'...no data returned for {query.key} with block_start: {block_start_val}. Add {query.steps} to block_start and try again')
                         block_start_val += query.steps
-                elif df.block_number.max() >= block_end:
+                elif int(df.block_number.max()) >= block_end:
                     print(f'reached the end with start: {block_start_val} and end: {df.block_number.max()}')
                     dfMain = pd.concat([dfMain, df])
                     break
-                elif df.block_number.max() == block_start_val:
+                elif int(df.block_number.max()) == block_start_val:
                     print(f'...loaded {df.shape[0]} rows for {query.key}. No new data though, will add {query.steps} to block_start and try again')
                     dfMain = pd.concat([dfMain, df])
                     block_start_val += query.steps
