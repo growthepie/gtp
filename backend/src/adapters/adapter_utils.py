@@ -398,10 +398,10 @@ def prep_dataframe_polygon_zkevm(df):
     address_columns = ['to_address', 'from_address', 'receipt_contract_address']
     for col in address_columns:
         df[col] = df[col].fillna('')
-        
+
         if col == 'receipt_contract_address':
-            print(df[col].unique())
-            df[col] = df[col].replace({'': None, '4E6F6E65': None})
+            df[col] = df[col].apply(lambda x: None if not x or x.lower() == 'none' or x.lower() == '4e6f6e65' else x)
+
     
     for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
         if col in df.columns:
