@@ -43,7 +43,7 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 100,
+            'batch_size': 50,
             'threads': 3,
         }
 
