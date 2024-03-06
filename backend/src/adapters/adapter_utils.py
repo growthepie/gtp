@@ -143,7 +143,7 @@ def prep_dataframe(df):
     filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].astype(float) / 1e18
     
     # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '' or x == b'\x00' or x == b'') else False)
 
     # Convert block_timestamp to datetime
     filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
@@ -235,10 +235,10 @@ def prep_dataframe_superchain(df):
     filtered_df['l1_fee'] = filtered_df['l1_fee'].astype(float) / 1e18
     
     # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '' or x == b'\x00' or x == b'') else False)
 
     # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+    filtered_df['block_timestamp'] = pd.to_datetime(filtered_df['block_timestamp'], unit='s')
 
     # status column: 1 if status is success, 0 if failed else -1
     filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
@@ -662,7 +662,8 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
-            elif chain in ['zora']: ## superchain
+            elif chain in ['zora', 'base']: ## superchain
+                print('...use superchain data prep')
                 df_prep = prep_dataframe_superchain(df)
             else:
                 df_prep = prep_dataframe(df)
