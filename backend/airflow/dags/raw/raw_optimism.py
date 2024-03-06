@@ -27,7 +27,7 @@ from airflow.decorators import dag, task
 )
 def adapter_rpc():
     @task()
-    def run_base():
+    def run_optimism():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'optimism',
@@ -65,5 +65,5 @@ def adapter_rpc():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_base()
+    run_optimism()
 adapter_rpc()
