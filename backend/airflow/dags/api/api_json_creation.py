@@ -51,7 +51,8 @@ def etl():
     @task()
     def run_create_master():
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
-        json_creator.create_master_json()
+        df = json_creator.get_all_data()
+        json_creator.create_master_json(df)
 
     @task()
     def run_create_fundamentals():
