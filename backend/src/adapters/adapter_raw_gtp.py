@@ -19,6 +19,8 @@ class NodeAdapter(AbstractAdapterRaw):
         self.current_call_count = 0
         self.chain = adapter_params['chain']
         self.table_name = f'{self.chain}_tx'
+
+        print(f"Initialized RPC adapter for {self.chain} with RPC URLs: {self.rpc_urls}")
  
         # Initialize Web3 connection with the first RPC URL
         self.w3 = connect_to_node(self.rpc_urls[self.current_rpc_index])

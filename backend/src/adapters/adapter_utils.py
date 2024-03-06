@@ -662,7 +662,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
-            elif chain in ['zora', 'base']: ## superchain
+            elif chain in ['zora', 'base', 'optimism']: ## superchain
                 print('...use superchain data prep')
                 df_prep = prep_dataframe_superchain(df)
             else:
