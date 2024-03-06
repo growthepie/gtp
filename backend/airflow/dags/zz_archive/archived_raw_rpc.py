@@ -19,33 +19,33 @@ from src.adapters.adapter_raw_rpc import AdapterRPCRaw
     },
     dag_id='raw_rpc',
     description='Load raw tx data for Base and Optimism from RPC.',
-    tags=['raw', 'near-real-time', 'rpc', 'base', 'optimism'],
+    tags=['archived', 'raw', 'near-real-time', 'rpc', 'base', 'optimism'],
     start_date=datetime(2023,8,11),
     schedule_interval='*/15 * * * *'
 )
 
 def adapter_rpc():
-    # @task()
-    # def run_base():
-    #     import os
-    #     adapter_params = {
-    #         'rpc': 'ankr',
-    #         'api_key' : os.getenv("ANKR_API"),
-    #         'chain' : 'base'
-    #     }
-    #     load_params = {
-    #         'block_start' : 'auto', ## 'auto' or a block number as int
-    #         #'block_start' : 9137631, ## 'auto' or a block number as int
-    #         'batch_size' : 25,
-    #         'threads' : 1
-    #     }
+    @task()
+    def run_base():
+        import os
+        adapter_params = {
+            'rpc': 'ankr',
+            'api_key' : os.getenv("ANKR_API"),
+            'chain' : 'base'
+        }
+        load_params = {
+            'block_start' : 'auto', ## 'auto' or a block number as int
+            #'block_start' : 9137631, ## 'auto' or a block number as int
+            'batch_size' : 25,
+            'threads' : 1
+        }
 
-    #    # initialize adapter
-    #     db_connector = DbConnector()
-    #     # initialize adapter
-    #     ad = AdapterRPCRaw(adapter_params, db_connector)
-    #     # extract
-    #     ad.extract_raw(load_params)
+       # initialize adapter
+        db_connector = DbConnector()
+        # initialize adapter
+        ad = AdapterRPCRaw(adapter_params, db_connector)
+        # extract
+        ad.extract_raw(load_params)
 
     @task()
     def run_optimism():
@@ -69,6 +69,6 @@ def adapter_rpc():
         # extract
         ad.extract_raw(load_params)
 
-    #run_base()
+    run_base()
     run_optimism()
 adapter_rpc()
