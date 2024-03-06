@@ -169,6 +169,98 @@ def prep_dataframe(df):
     # value column divide by 1e18 to convert to eth
     filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
 
+    return filtered_df
+
+def prep_dataframe_superchain(df):
+    # Ensure the required columns exist, filling with 0 if they don't
+    required_columns = ['l1GasUsed', 'l1GasPrice', 'l1FeeScalar', 'l1Fee']
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = 0
+
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'empty_input',
+        'l1GasUsed': 'l1_gas_used',
+        'l1GasPrice': 'l1_gas_price',
+        'l1FeeScalar': 'l1_fee_scalar',
+        'l1Fee': 'l1_fee',
+        'block_timestamp': 'block_timestamp'
+    }
+
+    # Filter the dataframe to only include the relevant columns
+    filtered_df = df[list(column_mapping.keys())]
+
+    # Rename the columns based on the above mapping
+    filtered_df = filtered_df.rename(columns=column_mapping)
+
+    # Convert columns to numeric if they aren't already
+    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
+    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
+
+    # Apply the safe conversion to the l1_gas_price column
+    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].apply(safe_float_conversion)
+    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].astype('float64')
+    filtered_df['l1_gas_price'].fillna(0, inplace=True)
+
+    # Apply the safe conversion to the l1_fee column
+    filtered_df['l1_fee'] = filtered_df['l1_fee'].apply(safe_float_conversion)
+    filtered_df['l1_fee'] = filtered_df['l1_fee'].astype('float64')
+    filtered_df['l1_fee'].fillna(0, inplace=True)
+    
+    # Handle 'l1_fee_scalar'
+    filtered_df['l1_fee_scalar'].fillna('0', inplace=True)
+    filtered_df['l1_fee_scalar'] = pd.to_numeric(filtered_df['l1_fee_scalar'], errors='coerce')
+
+    # Handle 'l1_gas_used'
+    filtered_df['l1_gas_used'] = filtered_df['l1_gas_used'].apply(hex_to_int)
+    filtered_df['l1_gas_used'].fillna(0, inplace=True)
+
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = ((filtered_df['gas_price'] * filtered_df['gas_used']) + (filtered_df['l1_fee'])) / 1e18
+    
+    # Convert the 'l1_gas_price' column to eth
+    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].astype(float) / 1e18
+
+    # Convert the 'l1_fee' column to eth
+    filtered_df['l1_fee'] = filtered_df['l1_fee'].astype(float) / 1e18
+    
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # replace None in 'to_address' column with empty string
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")             
+
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
     return filtered_df    
 
 def prep_dataframe_scroll(df):
@@ -398,10 +490,9 @@ def prep_dataframe_polygon_zkevm(df):
     address_columns = ['to_address', 'from_address', 'receipt_contract_address']
     for col in address_columns:
         df[col] = df[col].fillna('')
-        
+
         if col == 'receipt_contract_address':
-            print(df[col].unique())
-            df[col] = df[col].replace({'': None, '4E6F6E65': None})
+            df[col] = df[col].apply(lambda x: None if not x or x.lower() == 'none' or x.lower() == '4e6f6e65' else x)
     
     for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
         if col in df.columns:
@@ -571,6 +662,8 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
+            elif chain in ['zora']: ## superchain
+                df_prep = prep_dataframe_superchain(df)
             else:
                 df_prep = prep_dataframe(df)
 
