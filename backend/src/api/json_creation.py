@@ -109,6 +109,9 @@ class JSONCreation():
         #concat all values of chains_list to a string and add apostrophes around each value
         self.chains_string = "'" + "','".join(self.chains_list) + "'"
 
+        #only chains that are in the api output
+        self.chains_list_in_api = [x.origin_key for x in adapter_mapping if x.in_api == True]
+
     
     ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
 
@@ -373,8 +376,8 @@ class JSONCreation():
 
     def get_all_data(self):
         ## Load all data from database
-        chain_user_list = self.chains_list + ['multiple']
-        metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d']
+        chain_user_list = self.chains_list_in_api + ['multiple']
+        metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 'cca_last7d_exclusive']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"
@@ -417,11 +420,85 @@ class JSONCreation():
         users = df_tmp.value.sum()    
         return users
 
+    def create_chain_users_comparison_value(self, df, aggregation, origin_key):
+        val = (self.chain_users(df, aggregation, origin_key) - self.chain_users(df, aggregation, origin_key, comparison=True)) / self.chain_users(df, aggregation, origin_key, comparison=True)
+        return round(val, 4)
+
     ## This method divdes the total l2 users by the total users of the Ethereum chain 
     def l2_user_share(self, df, aggregation, comparison=False):
         l2_user_share = self.chain_users(df, aggregation, 'all_l2s', comparison) / self.chain_users(df, aggregation, 'ethereum', comparison)
-
         return round(l2_user_share,4)
+    
+    def create_l2_user_share_comparison_value(self, df, aggregation):
+        current = self.l2_user_share(df, aggregation)
+        previous = self.l2_user_share(df, aggregation, comparison=True)
+        val = (current - previous) / previous 
+        return round(val,4)
+    
+    def cross_chain_users(self, df, comparison=False):
+        ## filter df down to origin_key = 'multiple' and metric_key = 'user_base_weekly
+        df_tmp = df.loc[(df.origin_key == 'multiple') & (df.metric_key == 'user_base_weekly')]
+        df_tmp = df_tmp[['date', 'value']]
+
+        if comparison == False:
+            ## filter df to latest date
+            df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+        else:
+            ## drop latest date and keep the one before
+            df_tmp = df_tmp.loc[df_tmp.date != df_tmp.date.max()]
+            df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+        return int(df_tmp['value'].values[0])
+    
+    def create_cross_chain_users_comparison_value(self, df):
+        val = (self.cross_chain_users(df) - self.cross_chain_users(df, comparison=True)) / self.cross_chain_users(df, comparison=True)
+        return round(val, 4)
+    
+    def get_aa_last7d(self, df, origin_key):
+        if origin_key == 'all':
+            df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key=='aa_last7d')]
+            df_tmp = df_tmp[['date', 'value']]
+            df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+            df_tmp = df_tmp.groupby(pd.Grouper(key='date')).sum().reset_index()
+        else:
+            df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key=='aa_last7d')]
+            df_tmp = df_tmp[['date', 'value']]
+            df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+        return int(df_tmp['value'].values[0])
+    
+    def get_cross_chain_activity(self, df, chain):
+        if chain.aggregate_addresses == False:
+            print(f'...cross_chain_activity for {chain.origin_key} is not calculated because aggregate_addresses is set to False.')
+            return 0
+        else:
+            origin_key = chain.origin_key
+            ## calculate the exclusive users for the chain
+            df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key=='cca_last7d_exclusive')]
+            df_tmp = df_tmp[['date', 'value']]
+            df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+            exclusive_ussers = int(df_tmp['value'].values[0])
+
+            ## calculate the cross_chain activity percentage
+            total_users = self.get_aa_last7d(df, origin_key)
+            cross_chain_activity = 1 - (exclusive_ussers / total_users)
+            #print(f'cross_chain_activity for {origin_key} is {cross_chain_activity} based on {exclusive_ussers} exclusive users and {total_users} total users.')
+
+            return round(cross_chain_activity, 4)
+
+    def get_landing_table_dict(self, df):
+        chains_dict = {}
+        all_users = self.get_aa_last7d(df, 'all')
+        for chain in adapter_mapping:
+            if chain.in_api == True and chain.origin_key != 'ethereum':
+                chains_dict[chain.origin_key] = {
+                    "chain_name": chain.name,
+                    "technology": chain.technology,
+                    "purpose": chain.purpose,
+                    "users": self.get_aa_last7d(df, chain.origin_key),
+                    "user_share": round(self.get_aa_last7d(df, chain.origin_key)/all_users,4),
+                    "cross_chain_activity": self.get_cross_chain_activity(df, chain)
+                }
+        
+        return chains_dict
 
     def get_filtered_df(self, df, aggregation, origin_key):
         chains_list_no_eth = self.chains_list.copy()
@@ -483,16 +560,6 @@ class JSONCreation():
         for chain in adapter_multi_mapping:
             chains_dict[chain.origin_key] = self.generate_userbase_dict(df, chain, aggregation)
         return chains_dict
-    
-    def create_total_comparison_value(self, df, aggregation, origin_key):
-        val = (self.chain_users(df, aggregation, origin_key) - self.chain_users(df, aggregation, origin_key, comparison=True)) / self.chain_users(df, aggregation, origin_key, comparison=True)
-        return round(val, 4)
-    
-    def create_user_share_comparison_value(self, df, aggregation):
-        current = self.l2_user_share(df, aggregation)
-        previous = self.l2_user_share(df, aggregation, comparison=True)
-        val = (current - previous) / previous 
-        return round(val,4)
     
     ## This method generates a dict containing aggregate daily values for all_l2s (all chains except Ethereum) for a specific metric_id
     def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False):
@@ -557,6 +624,14 @@ class JSONCreation():
         }
 
         return dict
+    
+    def get_top5_tvl(self, df):
+        df_tmp = df[df['metric_key'] == 'tvl_eth']
+        df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
+        df_tmp = df_tmp.sort_values(by='value', ascending=False)
+        top_5 = df_tmp['origin_key'].head(5).tolist()
+        print(f'Top 5 chains by TVL: {top_5}')
+        return top_5
     
     ##### FILE HANDLERS #####
     def save_to_json(self, data, path):
@@ -679,7 +754,7 @@ class JSONCreation():
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
             print(f'DONE -- Metric details export for {metric}')
 
-    def create_master_json(self):
+    def create_master_json(self, df_data):
         exec_string = "SELECT sub_category_key, main_category_name, sub_category_name, main_category_key FROM blockspace_category_mapping"
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
 
@@ -707,7 +782,9 @@ class JSONCreation():
 
             chain_dict[origin_key] = {
                 'name': chain.name,
+                'deployment': chain.deployment,
                 'name_short': chain.name_short,
+                'description': chain.description,
                 'symbol': chain.symbol,
                 'bucket': chain.bucket,
                 'technology': chain.technology,
@@ -720,6 +797,7 @@ class JSONCreation():
 
         master_dict = {
             'current_version' : self.api_version,
+            'default_chain_selection' : self.get_top5_tvl(df_data),
             'chains' : chain_dict,
             'metrics' : self.metrics,
             'blockspace_categories' : {
@@ -736,8 +814,7 @@ class JSONCreation():
 
     def create_landingpage_json(self, df):
         # filter df for all_l2s (all chains except chains that aren't included in the API)
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
-        chain_keys.append('multiple')
+        chain_keys = self.chains_list_in_api + ['multiple']
         df = df.loc[(df.origin_key.isin(chain_keys))]
 
         landing_dict = {
@@ -748,12 +825,15 @@ class JSONCreation():
                         "source": self.db_connector.get_metric_sources('user_base', []),
                         "weekly": {
                             "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
-                            "latest_total_comparison": self.create_total_comparison_value(df, 'weekly', 'all_l2s'),
+                            "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
                             "l2_dominance": self.l2_user_share(df, 'weekly'),
-                            "l2_dominance_comparison": self.create_user_share_comparison_value(df, 'weekly'),
+                            "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
+                            "cross_chain_users": self.cross_chain_users(df),
+                            "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df),
                             "chains": self.generate_chains_userbase_dict(df, 'weekly')
                             }
-                        }
+                        },
+                    "table_visual" : self.get_landing_table_dict(df)
                     },
                 "all_l2s": {
                     "chain_id": "all_l2s",
@@ -838,7 +918,7 @@ class JSONCreation():
 
     def create_all_jsons(self):
         df = self.get_all_data()
-        self.create_master_json()
+        self.create_master_json(df)
         self.create_landingpage_json(df)
 
         self.create_chain_details_jsons(df)

@@ -400,6 +400,15 @@ sql_q= {
 
 
         ### Polygon zkEVM
+        ,'polygon_zkevm_txcount': """
+        SELECT date_trunc('day', pzt.block_timestamp) AS day,
+                count(*) AS value,
+                'polygon_zkevm' AS origin_key
+        FROM polygon_zkevm_tx pzt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY (date_trunc('day', pzt.block_timestamp))
+        """
+
         ,'polygon_zkevm_txcount_raw': """
         SELECT date_trunc('day', pzt.block_timestamp) AS day,
                 count(*) AS value,
@@ -436,6 +445,39 @@ sql_q= {
                 polygon_zkevm_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
         GROUP BY 1
         """
+
+        ,'polygon_zkevm_txcosts_median_eth': """
+        WITH 
+        polygon_zkevm_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.polygon_zkevm_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.median_tx_fee as value
+        FROM polygon_zkevm_median z
+        ORDER BY z.day DESC
+        """
+
+        ,'polygon_zkevm_fees_paid_eth': """
+        with polygon_zkevm_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.polygon_zkevm_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                z.day,
+                z.total_tx_fee AS value
+        FROM polygon_zkevm_filtered z
+        ORDER BY z.day DESC
+    """
         
         ### zkSync Era
         ,'zksync_era_txcount_raw': """
@@ -1164,14 +1206,6 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "cca", origin_key = "base", sql=get_cross_chain_activity('base'), currency_dependent = False, query_parameters={})
 
-    ## Polygon zkEVM
-    ,SQLQuery(metric_key = "txcount_raw", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
-    #,SQLQuery(metric_key = "waa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
-    ,SQLQuery(metric_key = "maa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-    ,SQLQuery(metric_key = "aa_last7d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
-    ,SQLQuery(metric_key = "aa_last30d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
-    ,SQLQuery(metric_key = "cca", origin_key = "polygon_zkevm", sql=get_cross_chain_activity('polygon_zkevm'), currency_dependent = False, query_parameters={})
-
     ## zkSync Era
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zksync_era", sql=sql_q["zksync_era_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
     #,SQLQuery(metric_key = "waa", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
@@ -1179,6 +1213,18 @@ sql_queries = [
     ,SQLQuery(metric_key = "aa_last7d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
     ,SQLQuery(metric_key = "aa_last30d", origin_key = "zksync_era", sql=sql_q["zksync_era_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
     ,SQLQuery(metric_key = "cca", origin_key = "zksync_era", sql=get_cross_chain_activity('zksync_era'), currency_dependent = False, query_parameters={})
+
+    ## Polygon zkEVM
+    ,SQLQuery(metric_key = "txcount_raw", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+    ,SQLQuery(metric_key = "txcount", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_txcount"], currency_dependent = False, query_parameters={"Days": 30})
+    ,SQLQuery(metric_key = "daa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+    #,SQLQuery(metric_key = "waa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+    ,SQLQuery(metric_key = "maa", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "polygon_zkevm", sql=sql_q["polygon_zkevm_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "polygon_zkevm", sql=get_cross_chain_activity('polygon_zkevm'), currency_dependent = False, query_parameters={})
 
     ## Zora
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "zora", sql=sql_q["zora_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})

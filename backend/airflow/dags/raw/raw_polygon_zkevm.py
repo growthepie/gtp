@@ -7,21 +7,18 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.adapters.adapter_utils import *
+from src.adapters.adapter_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
-
-default_args = {
-    'owner': 'nader',
-    'retries': 2,
-    'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-    'email_on_failure': True,
-    'retry_delay': timedelta(minutes=5)
-}
-
 @dag(
-    default_args=default_args,
+    default_args= {
+        'owner': 'nader',
+        'retries': 2,
+        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
+        'email_on_failure': True,
+        'retry_delay': timedelta(minutes=5)
+    },
     dag_id='raw_polygon_zkevm',
     description='Load raw tx data from polygonZKEVM',
     tags=['raw', 'near-real-time', 'rpc'],
@@ -29,13 +26,13 @@ default_args = {
     schedule_interval='*/15 * * * *'
 )
 
-def adapter_nader_super():
+def adapter_rpc():
     @task()
-    def run_nader_super():
+    def run_polygon_zkevm():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'polygon_zkevm',
-            'rpc_urls': [os.getenv("zkEVM_RPC")],
+            'rpc_urls': [os.getenv("POLYGON_ZKEVM_RPC")],
         }
 
         # Initialize DbConnector
@@ -48,7 +45,7 @@ def adapter_nader_super():
         load_params = {
             'block_start': 'auto',
             'batch_size': 150,
-            'threads': 30,
+            'threads': 10,
         }
 
         while load_params['threads'] > 0:
@@ -69,6 +66,5 @@ def adapter_nader_super():
                 # Wait for 5 minutes before retrying
                 time.sleep(300)
 
-    run_nader_super()
-
-adapter_nader_super()
+    run_polygon_zkevm()
+adapter_rpc()

@@ -409,7 +409,7 @@ def prep_dataframe_polygon_zkevm(df):
         else:
             print(f"Column {col} not found in dataframe.")      
             
-    df['tx_fee'] = df['gas_used'] * df['gas_price']  / 1e18
+    df['tx_fee'] = df['gas_used'] * df['gas_price']
     df.drop(['effective_gas_price'], axis=1, inplace=True)
     return df
 

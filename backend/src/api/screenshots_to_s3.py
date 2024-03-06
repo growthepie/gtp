@@ -96,17 +96,18 @@ screenshot_data = {
         {
           "label": "Fully Diluted Valuation",
           "urlKey": "fdv",
-          "coords": [1320, 370, 2075, 790]
+          "coords": [1325, 380, 2075, 800]
         },
         {
           "label": "Market Cap",
           "urlKey": "market-cap",
-          "coords": [1320, 370, 2075, 790]
+          "coords": [1325, 380, 2075, 800]
         },
         
         {
           "label": "Transaction Costs",
-          "urlKey": "transaction-costs"
+          "urlKey": "transaction-costs",
+          "coords": [1325, 370, 2075, 790]
         }
       ]
     },
@@ -137,32 +138,32 @@ screenshot_data = {
           {
             "label": "Base",
             "urlKey": "base",
-            "coords": [765, 290, 2070, 680] 
+            "coords": [765, 295, 2070, 680]
           },
           {
             "label": "OP Mainnet",
             "urlKey": "optimism",
-            "coords": [765, 340, 2070, 730] 
+            "coords": [765, 345, 2070, 730]
           },
           {
             "label": "Public Goods Network",
             "urlKey": "public-goods-network",
-            "coords": [765, 290, 2070, 680] 
+            "coords": [765, 295, 2070, 680]
           },
           {
             "label": "Zora",
             "urlKey": "zora",
-            "coords": [765, 290, 2070, 680] 
+            "coords": [765, 295, 2070, 680] 
           },
           {
             "label": "Arbitrum",
             "urlKey": "arbitrum",
-            "coords": [765, 315, 2070, 710] 
+            "coords": [765, 320, 2070, 705] 
           },
           {
             "label": "Polygon zkEVM",
             "urlKey": "polygon-zkevm",
-            "coords": [765, 340, 2070, 730]
+            "coords": [765, 345, 2070, 730]
           },
           {
             "label": "zkSync Era",
@@ -172,7 +173,7 @@ screenshot_data = {
           {
             "label": "Linea",
             "urlKey": "linea",
-            "coords": [765, 320, 2070, 705] 
+            "coords": [765, 320, 2070, 705]
           },
           {
             "label": "Immutable X",
