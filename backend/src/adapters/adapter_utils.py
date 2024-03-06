@@ -397,7 +397,11 @@ def prep_dataframe_polygon_zkevm(df):
     # Handle 'to_address', 'from_address', 'receipt_contract_address' for missing values
     address_columns = ['to_address', 'from_address', 'receipt_contract_address']
     for col in address_columns:
-        df[col] = df[col].fillna('')  # Replace NaN with empty string
+        df[col] = df[col].fillna('')
+        
+        if col == 'receipt_contract_address':
+            print(df[col].unique())
+            df[col] = df[col].replace({'': None, '4E6F6E65': None})
     
     for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
         if col in df.columns:
