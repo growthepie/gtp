@@ -514,7 +514,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,deployment="DEV"
-        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid', 'stables_mcap']
+        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
