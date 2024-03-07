@@ -112,6 +112,9 @@ class JSONCreation():
         #only chains that are in the api output
         self.chains_list_in_api = [x.origin_key for x in adapter_mapping if x.in_api == True]
 
+        #only chains that are in the api output and deployment is "PROD"
+        self.chains_list_in_api_prod = [x.origin_key for x in adapter_mapping if x.in_api == True and x.deployment == "PROD"]
+
     
     ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
 
@@ -627,6 +630,11 @@ class JSONCreation():
     
     def get_default_selection(self, df):
         df_tmp = df[df['metric_key'] == 'aa_last7d']
+
+        ## filter out Ethereuem and only keep chains that are in the API and have a deployment of "PROD"
+        df_tmp = df_tmp.loc[df_tmp.origin_key != 'ethereum']
+        df_tmp = df_tmp.loc[df_tmp.origin_key.isin(self.chains_list_in_api_prod)]
+
         df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
         df_tmp = df_tmp.sort_values(by='value', ascending=False)
         top_5 = df_tmp['origin_key'].head(5).tolist()

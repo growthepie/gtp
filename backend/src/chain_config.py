@@ -512,14 +512,14 @@ adapter_mapping = [
         ,name_short = "Rhino"
         ,description="Rhino is a Validium based on StarkEX technology. Its main focus is on bridging assets between other chains."
 
-        ,in_api = False
+        ,in_api = True
         ,deployment="DEV"
-        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid']
+        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid', 'stables_mcap']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
         ,bucket = "Offchain Data Availability"
-        ,symbol = "-"
+        ,symbol = "DVF"
         ,technology = "Validium"
         ,purpose = 'Bridge'
         ,launch_date='2022-07-13'
