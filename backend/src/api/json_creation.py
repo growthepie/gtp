@@ -625,12 +625,12 @@ class JSONCreation():
 
         return dict
     
-    def get_top5_tvl(self, df):
-        df_tmp = df[df['metric_key'] == 'tvl_eth']
+    def get_default_selection(self, df):
+        df_tmp = df[df['metric_key'] == 'aa_last7d']
         df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
         df_tmp = df_tmp.sort_values(by='value', ascending=False)
         top_5 = df_tmp['origin_key'].head(5).tolist()
-        print(f'Top 5 chains by TVL: {top_5}')
+        print(f'Default selection by aa_last7d: {top_5}')
         return top_5
     
     ##### FILE HANDLERS #####
@@ -797,7 +797,7 @@ class JSONCreation():
 
         master_dict = {
             'current_version' : self.api_version,
-            'default_chain_selection' : self.get_top5_tvl(df_data),
+            'default_chain_selection' : self.get_default_selection(df_data),
             'chains' : chain_dict,
             'metrics' : self.metrics,
             'blockspace_categories' : {
