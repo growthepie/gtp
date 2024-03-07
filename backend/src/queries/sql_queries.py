@@ -1132,6 +1132,111 @@ sql_q= {
                 z.total_tx_fee AS value
         FROM starknet_tx_filtered z
         ORDER BY z.day DESC
+        """
+
+        ### Metis
+        ,'metis_txcount_raw': """
+        SELECT date_trunc('day', mt.block_timestamp) AS day,
+                count(*) AS value,
+                'metis' AS origin_key
+        FROM metis_tx mt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY (date_trunc('day', mt.block_timestamp))
+        """
+
+        ,'metis_fees_paid_eth': """
+        WITH token_price AS (
+                SELECT "date", value as price_usd
+                FROM public.fact_kpis
+                WHERE origin_key = 'metis' and metric_key = 'price_usd' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        eth_price AS (
+                SELECT "date", value as price_usd
+                FROM public.fact_kpis
+                WHERE origin_key = 'ethereum' and metric_key = 'price_usd' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        metis_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.metis_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                metis.day,
+                metis.total_tx_fee * e.price_usd / eth.price_usd AS value
+        FROM metis_tx_filtered metis
+        LEFT JOIN token_price e ON metis.day = e."date"
+        LEFT JOIN eth_price eth ON metis.day = eth."date"
+        ORDER BY metis.day DESC
+        """
+
+        ,'metis_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.metis_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                AND gas_price > 0
+        GROUP BY 1
+        order by 1 DESC
+        """
+
+        ,'metis_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM metis_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+        ,'metis_aa_last_xxd': """
+        WITH date_range AS (
+                SELECT generate_series(
+                        current_date - INTERVAL '{{Days}} days', 
+                        current_date - INTERVAL '{{Days_Start}} days', 
+                        '1 day'::INTERVAL
+                )::DATE AS day
+        )
+        SELECT 
+                d.day, 
+                COUNT(DISTINCT b.from_address) AS value
+        FROM date_range d
+        LEFT JOIN 
+                metis_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
+        GROUP BY 1
+        """
+
+        ,'metis_txcosts_median_eth': """
+        WITH token_price AS (
+                SELECT "date", value as price_usd
+                FROM public.fact_kpis
+                WHERE origin_key = 'metis' and metric_key = 'price_usd' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        eth_price AS (
+                SELECT "date", value as price_usd
+                FROM public.fact_kpis
+                WHERE origin_key = 'ethereum' and metric_key = 'price_usd' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        metis_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.metis_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                metis.day,
+                metis.median_tx_fee * e.price_usd / eth.price_usd as value
+        FROM metis_median metis
+        LEFT JOIN token_price e ON metis.day = e."date"
+        LEFT JOIN eth_price eth ON metis.day = eth."date"
+        ORDER BY metis.day DESC
     """
 }
 
@@ -1317,4 +1422,16 @@ sql_queries = [
    ,SQLQuery(metric_key = "aa_last30d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", sql=sql_q["starknet_fees_paid_eth"], query_parameters={"Days": 7})
    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", sql=sql_q["starknet_txcosts_median_eth"], query_parameters={"Days": 7})
+
+   ## Mantle
+   ,SQLQuery(metric_key = "txcount_raw", origin_key = "metis", sql=sql_q["metis_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+   ,SQLQuery(metric_key = "txcount", origin_key = "metis", sql=sql_q["metis_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "daa", origin_key = "metis", sql=sql_q["metis_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+   #,SQLQuery(metric_key = "waa", origin_key = "metis", sql=sql_q["metis_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+   ,SQLQuery(metric_key = "maa", origin_key = "metis", sql=sql_q["metis_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+   ,SQLQuery(metric_key = "aa_last7d", origin_key = "metis", sql=sql_q["metis_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+   ,SQLQuery(metric_key = "aa_last30d", origin_key = "metis", sql=sql_q["metis_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+   ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "metis", sql=sql_q["metis_fees_paid_eth"], query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "metis", sql=sql_q["metis_txcosts_median_eth"], query_parameters={"Days": 7})
+   ,SQLQuery(metric_key = "cca", origin_key = "metis", sql=get_cross_chain_activity('metis'), currency_dependent = False, query_parameters={})
 ]
