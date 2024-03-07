@@ -171,7 +171,7 @@ def prep_dataframe(df):
 
     return filtered_df
 
-def prep_dataframe_superchain(df):
+def prep_dataframe_opchain(df):
     # Ensure the required columns exist, filling with 0 if they don't
     required_columns = ['l1GasUsed', 'l1GasPrice', 'l1FeeScalar', 'l1Fee']
     for col in required_columns:
@@ -662,9 +662,9 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
-            elif chain in ['zora', 'base', 'optimism']: ## superchain
-                print('...use superchain data prep')
-                df_prep = prep_dataframe_superchain(df)
+            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn']:
+                print('...use op-chain data prep')
+                df_prep = prep_dataframe_opchain(df)
             else:
                 df_prep = prep_dataframe(df)
 
