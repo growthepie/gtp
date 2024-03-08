@@ -27,3 +27,5 @@ backend/adapter_gtp_test.py
 backend/adapter_rhino_test.py
 backend/starknet_backfill.py
 backend/94df57da-0ad4-43cd-9558-cf3e41547324.json
+
+.DS_Store

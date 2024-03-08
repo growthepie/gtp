@@ -40,6 +40,7 @@ class AdapterMapping(BaseModel):
     token_deployment_date: Optional[str] ## YYYY-MM-DD
     token_deployment_origin_key: Optional[str] ## on which chain was the main contract deployed
     token_circulating_supply_function: Optional[str] ## totalSupply
+    rhino_naming: Optional[str]
 
 adapter_mapping = [
     # Layer 1
@@ -68,6 +69,7 @@ adapter_mapping = [
         ,defillama_stablecoin="ethereum"
 
         ,rpc_url='https://eth.llamarpc.com'
+        ,rhino_naming="ETHEREUM"
         )
    
     # Layer 2s    
@@ -106,6 +108,7 @@ adapter_mapping = [
         ,token_deployment_date='2019-04-20'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'
+        ,rhino_naming="ZKEVM"
         )
 
     ,AdapterMapping(
@@ -145,6 +148,7 @@ adapter_mapping = [
         ,token_deployment_date='2022-04-26'
         ,token_deployment_origin_key='optimism'
         ,token_circulating_supply_function='totalSupply'
+        ,rhino_naming="OPTIMISM"
         )
 
     ,AdapterMapping(
@@ -182,6 +186,7 @@ adapter_mapping = [
         ,token_deployment_date='2023-03-16'
         ,token_deployment_origin_key='arbitrum'
         ,token_circulating_supply_function='totalSupply'
+        ,rhino_naming="ARBITRUM"
         )
 
     ,AdapterMapping(
@@ -244,6 +249,7 @@ adapter_mapping = [
         ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
         ,block_explorer_type='l2beat'
         ,rpc_url='https://mainnet.era.zksync.io'
+        ,rhino_naming='ZKSYNC'
     )
 
     ,AdapterMapping(
@@ -274,6 +280,7 @@ adapter_mapping = [
         ,block_explorer_txcount='https://basescan.org/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
         ,rpc_url='https://mainnet.base.org'
+        ,rhino_naming='BASE'
     )
 
     ,AdapterMapping(
@@ -364,6 +371,7 @@ adapter_mapping = [
         ,block_explorer_txcount='https://lineascan.build/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
         ,rpc_url='https://rpc.linea.build/'
+        ,rhino_naming='LINEA'
     )
 
     ,AdapterMapping(
@@ -394,6 +402,7 @@ adapter_mapping = [
         ,block_explorer_txcount='https://scrollscan.com/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
         ,rpc_url='https://rpc.scroll.io/'
+        ,rhino_naming='SCROLL'
     )
 
     ,AdapterMapping(
@@ -431,6 +440,7 @@ adapter_mapping = [
         ,token_deployment_date='2023-06-20'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'
+        ,rhino_naming='MANTLE'
     )
 
 
@@ -504,6 +514,7 @@ adapter_mapping = [
         ,token_deployment_date='2022-11-16'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'
+        ,rhino_naming='STARKNET'
         )
 
     ,AdapterMapping(
@@ -539,6 +550,7 @@ adapter_mapping = [
         ,token_deployment_date='2021-03-10'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'
+        ,rhino_naming='DVF'
         )
 
     ,AdapterMapping(
