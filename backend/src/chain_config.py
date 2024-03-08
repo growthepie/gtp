@@ -513,7 +513,7 @@ adapter_mapping = [
         ,description="Rhino is a Validium based on StarkEX technology. Its main focus is on bridging assets between other chains."
 
         ,in_api = True
-        ,deployment="DEV"
+        ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
