@@ -4,7 +4,7 @@ import datetime
 import pandas as pd
 
 from src.chain_config import adapter_mapping, adapter_all2_mapping
-from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
+from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
 
 class BlockspaceJSONCreation():
 
@@ -401,6 +401,8 @@ class BlockspaceJSONCreation():
 
             overview_dict['data']['chains'][origin_key] = chain_dict
 
+        overview_dict = fix_dict_nan(overview_dict, 'blockspace/overview')
+
         if self.s3_bucket == None:
             self.save_to_json(overview_dict, f'blockspace/overview')
         else:
@@ -512,6 +514,8 @@ class BlockspaceJSONCreation():
                         ].values.tolist(),
                         "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                     }
+
+            chain_dict = fix_dict_nan(chain_dict, f'chains/blockspace/{origin_key}')
 
             if self.s3_bucket == None:
                 self.save_to_json(chain_dict, f'chains/blockspace/{origin_key}')
@@ -846,6 +850,8 @@ class BlockspaceJSONCreation():
 
                             #comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_gas_fees_share', '7d_txcount', '7d_txcount_share']].values.tolist()
                             comparison_dict['data'][main_cat]['subcategories'][sub_cat]['daily_7d_rolling'][chain] = chain_df[['unix', '7d_gas_fees_eth', '7d_gas_fees_usd', '7d_txcount']].values.tolist()
+
+        comparison_dict = fix_dict_nan(comparison_dict, f'blockspace/category_comparison')
 
         if self.s3_bucket == None:
             self.save_to_json(comparison_dict, f'blockspace/category_comparison')

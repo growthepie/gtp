@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
-from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses
+from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
 
 class JSONCreation():
 
@@ -693,6 +693,8 @@ class JSONCreation():
                 }
             }
 
+            details_dict = fix_dict_nan(details_dict, f'chains/{origin_key}')
+
             if self.s3_bucket == None:
                 self.save_to_json(details_dict, f'chains/{origin_key}')
             else:
@@ -756,6 +758,8 @@ class JSONCreation():
                 }
             }
 
+            details_dict = fix_dict_nan(details_dict, f'metrics/{metric}')
+
             if self.s3_bucket == None:
                 self.save_to_json(details_dict, f'metrics/{metric}')
             else:
@@ -815,6 +819,8 @@ class JSONCreation():
             }
         }
 
+        master_dict = fix_dict_nan(master_dict, 'master')
+
         if self.s3_bucket == None:
             self.save_to_json(master_dict, 'master')
         else:
@@ -873,6 +879,8 @@ class JSONCreation():
                 "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
             }
 
+        landing_dict = fix_dict_nan(landing_dict, 'landing_page')
+
         if self.s3_bucket == None:
             self.save_to_json(landing_dict, 'landing_page')
         else:
@@ -904,6 +912,8 @@ class JSONCreation():
         ## put dataframe into a json string
         fundamentals_dict = df.to_dict(orient='records')
 
+        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'fundamentals')
+
         if self.s3_bucket == None:
             self.save_to_json(fundamentals_dict, 'fundamentals')
         else:
@@ -919,6 +929,9 @@ class JSONCreation():
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         contracts_dict = df.to_dict(orient='records')
+        
+        contracts_dict = fix_dict_nan(contracts_dict, 'contracts')
+
         if self.s3_bucket == None:
             self.save_to_json(contracts_dict, 'contracts')
         else:
