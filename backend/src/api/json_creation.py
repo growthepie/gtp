@@ -1032,6 +1032,12 @@ class JSONCreation():
     def create_fees_dict(self):
         df = self.download_data_fees(self.fees_list)
 
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_fees_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+
         ## generate usd values
         eth_price = self.db_connector.get_last_price_usd('ethereum')
         df_usd = df.copy()
