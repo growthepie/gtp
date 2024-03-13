@@ -127,59 +127,59 @@ def etl():
                                 df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                                 db_connector.upsert_table('fact_kpis_granular', df)
 
+                                if origin_key != 'starknet':
+                                        ## txcosts_native_median
+                                        exec_string = f"""
+                                                WITH 
+                                                median_tx AS (
+                                                        SELECT
+                                                                date_trunc('hour', "block_timestamp") AS timestamp,
+                                                                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                                                        FROM public.{origin_key}_tx
+                                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                                                AND empty_input = TRUE
+                                                        GROUP BY 1
+                                                        having count(*) > 10
+                                                )
 
-                                ## txcosts_native_median
-                                exec_string = f"""
-                                        WITH 
-                                        median_tx AS (
                                                 SELECT
-                                                        date_trunc('hour', "block_timestamp") AS timestamp,
-                                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
-                                                FROM public.{origin_key}_tx
-                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
-                                                        AND empty_input = TRUE
-                                                GROUP BY 1
-                                                having count(*) > 10
-                                        )
+                                                        '{origin_key}' as origin_key,
+                                                        'txcosts_native_median_eth' as metric_key,
+                                                        z.timestamp,
+                                                        'hourly' as granularity,
+                                                        z.median_tx_fee as value
+                                                FROM median_tx z
+                                        """
 
-                                        SELECT
-                                                '{origin_key}' as origin_key,
-                                                'txcosts_native_median_eth' as metric_key,
-                                                z.timestamp,
-                                                'hourly' as granularity,
-                                                z.median_tx_fee as value
-                                        FROM median_tx z
-                                """
+                                        df = pd.read_sql(exec_string, db_connector.engine.connect())
+                                        df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                                        db_connector.upsert_table('fact_kpis_granular', df)
 
-                                df = pd.read_sql(exec_string, db_connector.engine.connect())
-                                df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
-                                db_connector.upsert_table('fact_kpis_granular', df)
+                                        exec_string = f"""
+                                                WITH 
+                                                median_tx AS (
+                                                        SELECT
+                                                                date_trunc('hour', block_timestamp) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM block_timestamp) / 10) AS timestamp,
+                                                                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                                                        FROM public.{origin_key}_tx
+                                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                                                AND empty_input = TRUE
+                                                        GROUP BY 1
+                                                        having count(*) > 10
+                                                )
 
-                                exec_string = f"""
-                                        WITH 
-                                        median_tx AS (
                                                 SELECT
-                                                        date_trunc('hour', block_timestamp) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM block_timestamp) / 10) AS timestamp,
-                                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
-                                                FROM public.{origin_key}_tx
-                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
-                                                        AND empty_input = TRUE
-                                                GROUP BY 1
-                                                having count(*) > 10
-                                        )
+                                                        '{origin_key}' as origin_key,
+                                                        'txcosts_native_median_eth' as metric_key,
+                                                        z.timestamp,
+                                                        '10_min' as granularity,
+                                                        z.median_tx_fee as value
+                                                FROM median_tx z
+                                        """
 
-                                        SELECT
-                                                '{origin_key}' as origin_key,
-                                                'txcosts_native_median_eth' as metric_key,
-                                                z.timestamp,
-                                                '10_min' as granularity,
-                                                z.median_tx_fee as value
-                                        FROM median_tx z
-                                """
-
-                                df = pd.read_sql(exec_string, db_connector.engine.connect())
-                                df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
-                                db_connector.upsert_table('fact_kpis_granular', df)
+                                        df = pd.read_sql(exec_string, db_connector.engine.connect())
+                                        df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                                        db_connector.upsert_table('fact_kpis_granular', df)
 
         @task()
         def run_create_fees_json(run_aggregate_metrics:str):
