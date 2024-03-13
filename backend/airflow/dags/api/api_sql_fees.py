@@ -9,6 +9,7 @@ from airflow.decorators import dag, task
 from src.db_connector import DbConnector
 
 import pandas as pd
+import os
 from src.chain_config import adapter_mapping
 from src.api.json_creation import JSONCreation
 
@@ -107,8 +108,9 @@ def etl():
                                 db_connector.upsert_table('fact_kpis_granular', df)
 
         @task()
-        def run_create_fees_json():
-                json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        def run_create_fees_json(run_aggregate_metrics:str):
+                db_connector = DbConnector()
+                json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, "v1")
                 json_creator.create_fees_json()
    
         run_create_fees_json(run_aggregate_metrics())
