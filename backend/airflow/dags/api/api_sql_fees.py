@@ -47,7 +47,7 @@ def etl():
                                                 'hourly' as granularity,
                                                 AVG(tx_fee) as value
                                         FROM public.{origin_key}_tx
-                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '3 days' AND now()
+                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '2 days' AND now()
                                         AND empty_input = TRUE
                                         GROUP BY 1,2,3,4
                                 """
@@ -64,7 +64,7 @@ def etl():
                                                         date_trunc('hour', "block_timestamp") AS timestamp,
                                                         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
                                                 FROM public.{origin_key}_tx
-                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '3 days' AND now()
+                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '2 days' AND now()
                                                 GROUP BY 1
                                         )
 
@@ -89,7 +89,7 @@ def etl():
                                                         date_trunc('hour', "block_timestamp") AS timestamp,
                                                         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
                                                 FROM public.{origin_key}_tx
-                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '3 days' AND now()
+                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '2 days' AND now()
                                                         AND empty_input = TRUE
                                                 GROUP BY 1
                                         )
