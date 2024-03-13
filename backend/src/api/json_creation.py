@@ -1008,6 +1008,8 @@ class JSONCreation():
             eth_price = self.db_connector.get_last_price_usd('ethereum')
 
             hourly_dict = {}
+            min_10_dict = {}
+
             for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
@@ -1016,8 +1018,7 @@ class JSONCreation():
                     "types": generated[1],
                     "data": generated[0]
                 }
-
-            min_10_dict = {}
+            
             for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
