@@ -797,6 +797,7 @@ class JSONCreation():
                 'deployment': chain.deployment,
                 'name_short': chain.name_short,
                 'description': chain.description,
+                'da_layer': chain.da_layer,
                 'symbol': chain.symbol,
                 'bucket': chain.bucket,
                 'technology': chain.technology,
