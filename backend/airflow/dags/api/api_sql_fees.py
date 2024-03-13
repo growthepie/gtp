@@ -50,6 +50,7 @@ def etl():
                                         WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
                                         AND empty_input = TRUE
                                         GROUP BY 1,2,3,4
+                                        having count(*) > 20
                                 """
 
                                 df = pd.read_sql(exec_string, db_connector.engine.connect())
@@ -68,6 +69,7 @@ def etl():
                                         WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
                                         AND empty_input = TRUE
                                         GROUP BY 1,2,3,4
+                                        having count(*) > 20
                                 """
 
                                 df = pd.read_sql(exec_string, db_connector.engine.connect())
@@ -84,6 +86,7 @@ def etl():
                                                 FROM public.{origin_key}_tx
                                                 WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
                                                 GROUP BY 1
+                                                having count(*) > 20
                                         )
 
                                         SELECT
@@ -108,6 +111,7 @@ def etl():
                                                 FROM public.{origin_key}_tx
                                                 WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
                                                 GROUP BY 1
+                                                having count(*) > 20
                                         )
 
                                         SELECT
@@ -135,6 +139,7 @@ def etl():
                                                 WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
                                                         AND empty_input = TRUE
                                                 GROUP BY 1
+                                                having count(*) > 10
                                         )
 
                                         SELECT
@@ -160,6 +165,7 @@ def etl():
                                                 WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
                                                         AND empty_input = TRUE
                                                 GROUP BY 1
+                                                having count(*) > 10
                                         )
 
                                         SELECT
