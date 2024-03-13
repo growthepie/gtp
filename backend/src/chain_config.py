@@ -515,7 +515,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
-        ,in_fees_api = False
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'rent_paid', 'profit']
         ,aggregate_blockspace = False
