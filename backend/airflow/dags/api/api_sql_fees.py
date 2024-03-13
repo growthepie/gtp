@@ -48,7 +48,6 @@ def etl():
                                                 AVG(tx_fee) as value
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
-                                        AND empty_input = TRUE
                                         GROUP BY 1,2,3,4
                                         having count(*) > 20
                                 """
@@ -67,7 +66,6 @@ def etl():
                                                 AVG(tx_fee) as value
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
-                                        AND empty_input = TRUE
                                         GROUP BY 1,2,3,4
                                         having count(*) > 20
                                 """
@@ -127,8 +125,8 @@ def etl():
                                 df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                                 db_connector.upsert_table('fact_kpis_granular', df)
 
-                                if origin_key != 'starknet':
-                                        ## txcosts_native_median
+                                ## txcosts_native_median
+                                if origin_key != 'starknet':                                        
                                         exec_string = f"""
                                                 WITH 
                                                 median_tx AS (
