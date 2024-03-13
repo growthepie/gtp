@@ -1030,7 +1030,7 @@ class JSONCreation():
 
             fees_dict["chain_data"][origin_key] = {
                 'hourly': hourly_dict,
-                '10_min': min_10_dict
+                'ten_min': min_10_dict
             }
 
         fees_dict = fix_dict_nan(fees_dict, f'fees')
