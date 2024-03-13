@@ -112,6 +112,7 @@ def etl():
                 db_connector = DbConnector()
                 json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, "v1")
                 json_creator.create_fees_json()
+                json_creator.create_fees_dict()
    
         run_create_fees_json(run_aggregate_metrics())
 etl()

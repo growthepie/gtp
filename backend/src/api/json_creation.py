@@ -1025,6 +1025,27 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees', fees_dict, self.cf_distribution_id)
         print(f'DONE -- Fees export')
 
+    def create_fees_dict(self):
+        df = self.download_data_fees(self.fees_list)
+
+        ## generate usd values
+        eth_price = self.db_connector.get_last_price_usd('ethereum')
+        df_usd = df.copy()
+        df_usd['value'] = df_usd['value'] * eth_price
+        df_usd['metric_key'] = df_usd['metric_key'].str.replace("_eth", "_usd")
+        df = pd.concat([df, df_usd])
+
+        ## drop column timestamp
+        df = df.drop(columns=['timestamp'])
+
+        ## create dict
+        fees_dict = df.to_dict(orient='records')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, 'fees_dict')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees_dict', fees_dict, self.cf_distribution_id)
+
     def create_all_jsons(self):
         df = self.get_all_data()
         self.create_master_json(df)
