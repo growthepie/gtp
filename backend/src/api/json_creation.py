@@ -1011,7 +1011,11 @@ class JSONCreation():
             for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
-                hourly_dict[metric_name] = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price)
+                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price)
+                hourly_dict[metric_name] = {
+                    "types": generated[1],
+                    "data": generated[0]
+                }
 
             fees_dict["chain_data"][origin_key] = {
                 'hourly': hourly_dict
