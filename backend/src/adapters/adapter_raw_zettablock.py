@@ -93,8 +93,12 @@ class AdapterZettaBlockRaw(AbstractAdapterRaw):
                         print(f'...no data returned for {query.key} with block_start: {block_start_val} and block_end: {block_end + 1}. ZettaBlock doesnt have data?')
                         break
                     else:
-                        print(f'...no data returned for {query.key} with block_start: {block_start_val}. Add {query.steps} to block_start and try again')
-                        block_start_val += query.steps
+                        if block_start_val > block_end:
+                            print(f'...for some reason reached the end with start: {block_start_val} and end: {block_end}. Will abort now.')
+                            break
+                        else:
+                            print(f'...no data returned for {query.key} with block_start: {block_start_val}. Add {query.steps} to block_start and try again')
+                            block_start_val += query.steps
                 elif int(df.block_number.max()) >= block_end:
                     print(f'reached the end with start: {block_start_val} and end: {df.block_number.max()}')
                     dfMain = pd.concat([dfMain, df])
