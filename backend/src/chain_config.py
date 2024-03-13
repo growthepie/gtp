@@ -173,7 +173,7 @@ adapter_mapping = [
         ,twitter='https://twitter.com/arbitrum'
 
         ,coingecko_naming="arbitrum"
-        ,defillama_stablecoin='arbitrum'
+        #,defillama_stablecoin='arbitrum'
         ,l2beat_tvl_naming='arbitrum'
 
         ,block_explorer_txcount='https://arbiscan.io/chart/tx?output=csv'
