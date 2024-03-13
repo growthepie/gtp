@@ -99,6 +99,8 @@ class JSONCreation():
             }
         }
 
+        self.fees_list = ['txcosts_avg_eth', 'txcosts_native_median_eth', 'txcosts_median_eth']
+
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
         #concat all values of metrics_list to a string and add apostrophes around each value
@@ -208,6 +210,22 @@ class JSONCreation():
 
         return mk_list_int, df_tmp.columns.to_list()
 
+    def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price):
+        ## filter df to granularity = 'hourly' and metric_key = metric
+        df = df[(df.granularity == granularity) & (df.metric_key == metric_key) & (df.origin_key == origin_key)]
+        ## order df_tmp by timestamp desc and only keep top 50 rows
+        df = df.sort_values(by='timestamp', ascending=False).head(50)
+        ## only keep columns unix, value_usd
+        df = df[['unix', 'value']]
+        ## calculate value_usd by multiplying value with eth_price
+        df['value_usd'] = df['value'] * eth_price
+        df.rename(columns={'value': 'value_eth'}, inplace=True)
+
+        mk_list = df.values.tolist()
+        mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list]
+
+        return mk_list_int, df.columns.to_list()
+
     ## create 7d rolling average over a list of lists where the first element is the date and the second element is the value (necessary for daily_avg field)
     def create_7d_rolling_avg(self, list_of_lists):
         avg_list = []
@@ -256,7 +274,24 @@ class JSONCreation():
         #df.drop(columns=['date'], inplace=True)
         # fill NaN values with 0
         df.value.fillna(0, inplace=True)
+        return df
+    
+    def download_data_fees(self, metric_keys):
+        exec_string = f"""
+            SELECT *
+            FROM public.fact_kpis_granular kpi
+            where kpi."timestamp" >= '2021-01-01'
+                and kpi.metric_key in ({"'" + "','".join(metric_keys) + "'"})
+        """
 
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+
+        ## date to datetime column in UTC
+        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_localize('UTC')
+        ## datetime to unix timestamp using timestamp() function
+        df['unix'] = df['timestamp'].apply(lambda x: x.timestamp() * 1000)
+        # fill NaN values with 0
+        df.value.fillna(0, inplace=True)
         return df
 
     def create_changes_dict(self, df, metric_id, origin_key):
@@ -956,54 +991,39 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
 
-    def create_fees_jsons(self, df):
-        ## loop over all chains and generate a chain details json for all chains and with all possible metrics
+    def create_fees_json(self):
+        df = self.download_data_fees(self.fees_list)
+
+        fees_dict = {
+            "chain_data" : {}
+        } 
+
+        ## loop over all chains and generate a fees json for all chains
         for chain in adapter_mapping:
             origin_key = chain.origin_key
-            if chain.in_api == False:
-                print(f'..skipped: Chain details export for {origin_key}. API is set to False')
+            if chain.in_fees_api == False:
+                print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
+            
+            eth_price = self.db_connector.get_last_price_usd('ethereum')
 
-            metrics_dict = {}
-            for metric in self.metrics:
-                if metric in chain.exclude_metrics:
-                    print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded for this chain')
-                    continue
-                # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
-                #     continue
-                # if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
-                #     continue
-                
-                mk_list = self.generate_daily_list(df, metric, origin_key)
-                mk_list_int = mk_list[0]
-                mk_list_columns = mk_list[1]
+            hourly_dict = {}
+            for metric_key in self.fees_list:
+                ## generate metric_name which is metric_key without the last 4 characters
+                metric_name = metric_key[:-4]
+                hourly_dict[metric_name] = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price)
 
-                metrics_dict[metric] = {
-                    'metric_name': self.metrics[metric]['name'],
-                    'source': self.db_connector.get_metric_sources(metric, [origin_key]),
-                    'avg': self.metrics[metric]['avg'],
-                    'daily': {
-                        'types' : mk_list_columns,
-                        'data' : mk_list_int
-                    }
-                }
-
-            details_dict = {
-                'data': {
-                    'chain_id': origin_key,
-                    'chain_name': chain.name,
-                    'symbol': chain.symbol,
-                    'metrics': metrics_dict
-                }
+            fees_dict["chain_data"][origin_key] = {
+                'hourly': hourly_dict
             }
 
-            details_dict = fix_dict_nan(details_dict, f'chains/{origin_key}')
+        fees_dict = fix_dict_nan(fees_dict, f'fees')
 
-            if self.s3_bucket == None:
-                self.save_to_json(details_dict, f'chains/{origin_key}')
-            else:
-                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id)
-            print(f'DONE -- Chain details export for {origin_key}')
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, f'fees')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees', fees_dict, self.cf_distribution_id)
+        print(f'DONE -- Fees export')
 
     def create_all_jsons(self):
         df = self.get_all_data()
