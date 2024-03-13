@@ -12,6 +12,7 @@ class AdapterMapping(BaseModel):
     da_layer: str ## Data Availability Layer
 
     in_api: bool ## True when the chain should be included in the API output
+    in_fees_api: bool ## True when the chain should be included in the fees API output
     deployment: str ## PROD, DEV
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
@@ -53,6 +54,7 @@ adapter_mapping = [
         ,da_layer = "-"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
@@ -83,6 +85,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -122,6 +125,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -163,6 +167,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -202,6 +207,7 @@ adapter_mapping = [
         ,da_layer = "DAC"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['txcosts', 'fees', 'profit']
         ,aggregate_blockspace = True
@@ -235,6 +241,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -267,6 +274,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -299,6 +307,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -330,6 +339,7 @@ adapter_mapping = [
         ,da_layer = "Celestia"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -361,6 +371,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -393,6 +404,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -425,6 +437,7 @@ adapter_mapping = [
         ,da_layer = "MantleDA"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
@@ -465,6 +478,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
         ,aggregate_blockspace = False
@@ -501,6 +515,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'rent_paid', 'profit']
         ,aggregate_blockspace = False
@@ -540,6 +555,7 @@ adapter_mapping = [
         ,da_layer = "DAC"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid']
         ,aggregate_blockspace = False
@@ -577,6 +593,7 @@ adapter_mapping = [
         ,da_layer = "MEMO"
 
         ,in_api = False
+        ,in_fees_api = False
         ,deployment="DEV"
         ,exclude_metrics = ['profit', 'rent_paid']
         ,aggregate_blockspace = True
@@ -609,5 +626,5 @@ adapter_mapping = [
 
 ] # end of adapter_mappings
 
-adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True ,description="", da_layer = "", deployment='PROD', exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics
-adapter_multi_mapping = adapter_all2_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, description="", da_layer = "", deployment="PROD", exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose = '-', name_short='-', bucket='-')]
+adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, in_fees_api = True, description="", da_layer = "", deployment='PROD', exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics
+adapter_multi_mapping = adapter_all2_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, in_fees_api = True, description="", da_layer = "", deployment="PROD", exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose = '-', name_short='-', bucket='-')]

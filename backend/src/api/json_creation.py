@@ -956,6 +956,55 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
 
+    def create_fees_jsons(self, df):
+        ## loop over all chains and generate a chain details json for all chains and with all possible metrics
+        for chain in adapter_mapping:
+            origin_key = chain.origin_key
+            if chain.in_api == False:
+                print(f'..skipped: Chain details export for {origin_key}. API is set to False')
+                continue
+
+            metrics_dict = {}
+            for metric in self.metrics:
+                if metric in chain.exclude_metrics:
+                    print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded for this chain')
+                    continue
+                # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
+                #     continue
+                # if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
+                #     continue
+                
+                mk_list = self.generate_daily_list(df, metric, origin_key)
+                mk_list_int = mk_list[0]
+                mk_list_columns = mk_list[1]
+
+                metrics_dict[metric] = {
+                    'metric_name': self.metrics[metric]['name'],
+                    'source': self.db_connector.get_metric_sources(metric, [origin_key]),
+                    'avg': self.metrics[metric]['avg'],
+                    'daily': {
+                        'types' : mk_list_columns,
+                        'data' : mk_list_int
+                    }
+                }
+
+            details_dict = {
+                'data': {
+                    'chain_id': origin_key,
+                    'chain_name': chain.name,
+                    'symbol': chain.symbol,
+                    'metrics': metrics_dict
+                }
+            }
+
+            details_dict = fix_dict_nan(details_dict, f'chains/{origin_key}')
+
+            if self.s3_bucket == None:
+                self.save_to_json(details_dict, f'chains/{origin_key}')
+            else:
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id)
+            print(f'DONE -- Chain details export for {origin_key}')
+
     def create_all_jsons(self):
         df = self.get_all_data()
         self.create_master_json(df)
