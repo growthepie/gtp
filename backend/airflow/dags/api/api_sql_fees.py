@@ -118,7 +118,7 @@ def etl():
                                                 '{origin_key}' as origin_key,
                                                 'txcosts_median_eth' as metric_key,
                                                 z.timestamp,
-                                                'hourly' as granularity,
+                                                '10_min' as granularity,
                                                 z.median_tx_fee as value
                                         FROM median_tx z
                                 """
@@ -172,7 +172,7 @@ def etl():
                                                 '{origin_key}' as origin_key,
                                                 'txcosts_native_median_eth' as metric_key,
                                                 z.timestamp,
-                                                'hourly' as granularity,
+                                                '10_min' as granularity,
                                                 z.median_tx_fee as value
                                         FROM median_tx z
                                 """
