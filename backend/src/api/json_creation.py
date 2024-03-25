@@ -927,11 +927,14 @@ class JSONCreation():
 
     def create_fundamentals_json(self, df):
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
-        ## transform date column to string with format YYYY-MM-DD
-        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-        
+
+        ## filter out all metric_keys that end with _eth
+        df = df[~df.metric_key.str.endswith('_eth')]
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
         df = df[df.metric_key.isin(self.metrics_list)]
+
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         
         ## filter based on settings in adapter_mapping
         for adapter in adapter_mapping:
