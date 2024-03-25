@@ -3,9 +3,15 @@ import simplejson as json
 import datetime
 import pandas as pd
 import numpy as np
+from datetime import timedelta, datetime
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+
+import warnings
+
+# Suppress specific FutureWarnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class JSONCreation():
 
@@ -152,7 +158,28 @@ class JSONCreation():
     def generate_daily_list(self, df, metric_id, origin_key):
         ##print(f'called generate int for {metric_id} and {chain_id}')
         mks = self.metrics[metric_id]['metric_keys']
-        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key"]].pivot(index='unix', columns='metric_key', values='value').reset_index()
+        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key", "date"]]
+        
+        max_date = df_tmp['date'].max()
+        max_date = pd.to_datetime(max_date).replace(tzinfo=None)
+        yesterday = datetime.now() - timedelta(days=1)
+        yesterday = yesterday.date()
+
+        #check if max_date is yesterday
+        if max_date.date() != yesterday.date():
+            print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
+
+            date_range = pd.date_range(start=max_date + timedelta(days=1), end=yesterday, freq='D')
+
+            for mkey in mks:
+                new_data = {'date': date_range, 'value': [0] * len(date_range), 'metric_key': mkey}
+                new_df = pd.DataFrame(new_data)
+                new_df['unix'] = new_df['date'].apply(lambda x: x.timestamp() * 1000)
+
+                df_tmp = pd.concat([df_tmp, new_df], ignore_index=True)
+
+        df_tmp.drop(columns=['date'], inplace=True)
+        df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
         
         df_tmp = self.df_rename(df_tmp, metric_id, True)
