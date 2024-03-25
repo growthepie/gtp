@@ -88,9 +88,7 @@ class AdapterCrossCheck(AbstractAdapter):
 
             else:
                 print(f'not implemented {project.block_explorer_type}')
-                raise ValueError('Block Explorer Type not supported')
-            
-            time.sleep(1)
+                ##raise ValueError('Block Explorer Type not supported')
         
         today = datetime.today().strftime('%Y-%m-%d')
         dfMain.drop(dfMain[dfMain.date == today].index, inplace=True, errors='ignore')
