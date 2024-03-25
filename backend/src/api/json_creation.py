@@ -213,8 +213,8 @@ class JSONCreation():
     def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price):
         ## filter df to granularity = 'hourly' and metric_key = metric
         df = df[(df.granularity == granularity) & (df.metric_key == metric_key) & (df.origin_key == origin_key)]
-        ## order df_tmp by timestamp desc and only keep top 50 rows
-        df = df.sort_values(by='timestamp', ascending=False).head(50)
+        ## order df_tmp by timestamp desc and only keep top 2000 rows
+        df = df.sort_values(by='timestamp', ascending=False).head(2000)
         ## only keep columns unix, value_usd
         df = df[['unix', 'value']]
         ## calculate value_usd by multiplying value with eth_price
