@@ -457,8 +457,8 @@ adapter_mapping = [
         ,l2beat_tvl_naming='mantle'
 
         #,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
-        #,block_explorer_type='l2beat'
-        
+        ,block_explorer_type='NA'
+
         ,rpc_url='https://rpc.mantle.xyz/'
 
         ,token_address='0x3c3a81e81dc49A522A592e7622A7E711c06bf354'
