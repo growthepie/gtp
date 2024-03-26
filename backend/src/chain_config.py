@@ -9,8 +9,10 @@ class AdapterMapping(BaseModel):
     name: str 
     name_short: str ##max 10 characters
     description: str ## a short description of the chain for the single chain view
+    da_layer: str ## Data Availability Layer
 
     in_api: bool ## True when the chain should be included in the API output
+    in_fees_api: bool ## True when the chain should be included in the fees API output
     deployment: str ## PROD, DEV
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
@@ -49,8 +51,10 @@ adapter_mapping = [
         ,name = "Ethereum"
         ,name_short = "Ethereum"
         ,description = "Ethereum was proposed by Vitalik Buterin in 2013 and launched in 2015. It is arguably the most decentralized smart contract platform to date. The goal is to scale Ethereum through the usage of Layer 2s."
+        ,da_layer = "-"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
@@ -78,8 +82,10 @@ adapter_mapping = [
         ,name = "Polygon zkEVM"
         ,name_short = "Polygon"
         ,description="Polygon zkEVM uses zero-knowledge proofs to enable faster and cheaper transactions. It allows users to build and run EVM-compatible smart contracts. It's fully compatible with the Ethereum Virtual Machine, making it easy for developers to migrate their applications to the Polygon network. It launched in March 2023."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -116,8 +122,10 @@ adapter_mapping = [
         ,name = "OP Mainnet"
         ,name_short = "OP Mainnet"
         ,description="OP Mainnet (formerly Optimism) uses an optimistic rollup approach, where transactions are assumed to be valid unless proven otherwise, and only invalid transactions are rolled back. OP Mainnet launched in August 2021, making it one of the first rollups. It is fully compatible with the Ethereum Virtual Machine (EVM), making it easy for developers to migrate their applications to the OP Mainnet network."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -156,8 +164,10 @@ adapter_mapping = [
         ,name = "Arbitrum One"
         ,name_short = "Arbitrum"
         ,description="Arbitrum One is developed by Offchain Labs and its mainnet launched in September 2021. It uses an optimistic rollup approach and is fully compatible with the Ethereum Virtual Machine (EVM), making it developer-friendly."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -173,7 +183,7 @@ adapter_mapping = [
         ,twitter='https://twitter.com/arbitrum'
 
         ,coingecko_naming="arbitrum"
-        ,defillama_stablecoin='arbitrum'
+        #,defillama_stablecoin='arbitrum'
         ,l2beat_tvl_naming='arbitrum'
 
         ,block_explorer_txcount='https://arbiscan.io/chart/tx?output=csv'
@@ -194,8 +204,10 @@ adapter_mapping = [
         ,name = "Immutable X"
         ,name_short = "IMX"
         ,description="Immutable X is an optimized game-specific zk rollup. It is designed to mint, transfer, and trade tokens and NFTs at higher volumes and zero gas fees. It is not EVM compatible but its easy-to-use APIs and SDKs aim to make development for game devs as easy as possible. It launched in April 2021."
+        ,da_layer = "DAC"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['txcosts', 'fees', 'profit']
         ,aggregate_blockspace = True
@@ -226,8 +238,10 @@ adapter_mapping = [
         ,name = "zkSync Era"
         ,name_short = "zkSync Era"
         ,description="zkSync Era is a Layer 2 protocol that scales Ethereum with cutting-edge ZK tech. Their mission isn't to merely increase Ethereum's throughput, but to fully preserve its foundational values: freedom, self-sovereignty, decentralization at scale."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -257,8 +271,10 @@ adapter_mapping = [
         ,name = "Base"
         ,name_short = "Base"
         ,description="Base is an fully EVM compatible optimistic rollup built on the OP Stack. It is incubated inside of Coinbase. Public mainnet launch was on August 9th 2023."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -288,8 +304,10 @@ adapter_mapping = [
         ,name = "Zora"
         ,name_short = "Zora"
         ,description="Zora is a fully EVM compatible optimistic rollup built on the OP Stack with focus on NFTs. Public launch was in June 2023."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -318,8 +336,10 @@ adapter_mapping = [
         ,name="Public Goods Network"
         ,name_short = "PGN"
         ,description="Public Goods Network is a fully EVM compatible optimistic rollup built on the OP Stack. Public launch was in July 2023."
+        ,da_layer = "Celestia"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -348,8 +368,10 @@ adapter_mapping = [
         ,name="Linea"
         ,name_short = "Linea"
         ,description="Linea is a developer-friendly ZK Rollup, marked as the next stage of ConsenSys zkEVM, which aims to enhance the Ethereum network by facilitating a new wave of decentralized applications. Public launch was in July 2023."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -379,8 +401,10 @@ adapter_mapping = [
         ,name='Scroll'
         ,name_short = "Scroll"
         ,description="Scroll is a general purpose zkEVM rollup. Public launch was in October 2023."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -410,8 +434,10 @@ adapter_mapping = [
         ,name='Mantle'
         ,name_short = "Mantle"
         ,description="Mantle is an OVM based EVM-compatible rollup. Public launch was in July 2023."
+        ,da_layer = "MantleDA"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
@@ -430,8 +456,8 @@ adapter_mapping = [
         # ,defillama_stablecoin='Mantle' ## stables via Dune
         ,l2beat_tvl_naming='mantle'
 
-        ,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
-        ,block_explorer_type='l2beat'
+        #,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
+        ,block_explorer_type='NA'
 
         ,rpc_url='https://rpc.mantle.xyz/'
 
@@ -449,8 +475,10 @@ adapter_mapping = [
         ,name="Loopring"
         ,name_short = "Loopring"
         ,description="Loopring is a zk Rollup exchange and payment protocol. It is arguably the oldest rollup with its mainnet launch in December 2019."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
         ,aggregate_blockspace = False
@@ -484,8 +512,10 @@ adapter_mapping = [
         ,name="Starknet"
         ,name_short = "Starknet"
         ,description="Starknet is a ZK Rollup developed by Starkware. It uses it's own programming language and general purpose virtual machine (Cairo VM). The rollup was launched on mainnet in November 2021."
+        ,da_layer = "Ethereum"
 
         ,in_api = True
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'rent_paid', 'profit']
         ,aggregate_blockspace = False
@@ -522,8 +552,10 @@ adapter_mapping = [
         ,name="Rhino"
         ,name_short = "Rhino"
         ,description="Rhino is a Validium based on StarkEX technology. Its main focus is on bridging assets between other chains."
+        ,da_layer = "DAC"
 
         ,in_api = True
+        ,in_fees_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid']
         ,aggregate_blockspace = False
@@ -558,8 +590,10 @@ adapter_mapping = [
         ,name='Metis'
         ,name_short = "Metis"
         ,description="Metis Andromeda is an EVM equivalent Optimium. Public launch was in November 2021."
+        ,da_layer = "MEMO"
 
         ,in_api = False
+        ,in_fees_api = False
         ,deployment="DEV"
         ,exclude_metrics = ['profit', 'rent_paid']
         ,aggregate_blockspace = True
@@ -592,5 +626,5 @@ adapter_mapping = [
 
 ] # end of adapter_mappings
 
-adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True ,description="", deployment='PROD', exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics
-adapter_multi_mapping = adapter_all2_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, description="", deployment="PROD", exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose = '-', name_short='-', bucket='-')]
+adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, in_fees_api = True, description="", da_layer = "", deployment='PROD', exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics
+adapter_multi_mapping = adapter_all2_mapping + [AdapterMapping(origin_key='multiple', name='Multiple L2s', in_api=True, in_fees_api = True, description="", da_layer = "", deployment="PROD", exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose = '-', name_short='-', bucket='-')]

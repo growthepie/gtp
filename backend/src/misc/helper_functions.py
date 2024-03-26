@@ -271,9 +271,9 @@ def fix_dict_nan(test_dict, dict_name):
         msg = f"Found {nan_count} NaNs in {dict_name} for the following paths:\n\n{nan_paths_str[:500]}..."
         send_discord_message(msg , discord_webhook)
         test_dict = replace_nan_with_none(test_dict)
-        print(f"...WARNING: replaced {nan_count} NaNs in {dict_name}")
+        print(f"..WARNING: replaced {nan_count} NaNs in {dict_name}")
     else:
-        print(f"...no NaNs found in {dict_name}")
+        print(f"..no NaNs found in {dict_name}")
     
     return test_dict
 

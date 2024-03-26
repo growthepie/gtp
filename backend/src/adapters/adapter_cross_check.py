@@ -26,6 +26,7 @@ class AdapterCrossCheck(AbstractAdapter):
         self.proxy =  {
             'https': os.getenv('PROXY'),
         }
+        self.webhook_url = os.getenv('DISCORD_TX_CHECKER')
         print_init(self.name, self.adapter_params)
 
     """
@@ -44,53 +45,59 @@ class AdapterCrossCheck(AbstractAdapter):
         for project in projects_to_load:
             print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
             
-            if project.block_explorer_type == 'etherscan':
-                response = api_get_call(project.block_explorer_txcount, header = self.headers, as_json=False, proxy=self.proxy)
+            try:
+                if project.block_explorer_type == 'etherscan':
+                    response = api_get_call(project.block_explorer_txcount, header = self.headers, as_json=False, proxy=self.proxy)
+                    
+                    data = io.StringIO(response)
+                    df = pd.read_csv(data)
+
+                    df['date'] = pd.to_datetime(df['Date(UTC)'])
+                    df['metric_key'] = metric_key
+                    df['origin_key'] = project.origin_key
+                    df.rename(columns={'Value': 'value'}, inplace=True)
+                    df = df[['date', 'metric_key', 'origin_key', 'value']]
+
+                    dfMain = pd.concat([dfMain, df], ignore_index=True)
+
+                elif project.block_explorer_type == 'blockscout':
+                    response = api_get_call(project.block_explorer_txcount, header = self.headers, proxy=self.proxy)
+                    df = pd.DataFrame(response['chart_data'])
+
+                    df['date'] = pd.to_datetime(df['date'])
+                    df['metric_key'] = metric_key
+                    df['origin_key'] = project.origin_key
+                    df.rename(columns={'tx_count': 'value'}, inplace=True)
+                    df = df[['date', 'metric_key', 'origin_key', 'value']]
+
+                    dfMain = pd.concat([dfMain, df], ignore_index=True)        
+
+                elif project.block_explorer_type == 'l2beat':
+                    response_json = api_get_call(project.block_explorer_txcount, sleeper=10, retries=20)
+                    df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
+
+                    ## only keep the columns 0 (date) and 1 (transactions)
+                    df = df.iloc[:,[0,1]]
+
+                    df['date'] = pd.to_datetime(df[0],unit='s').dt.date
+                    df.drop(df[df[1] == 0].index, inplace=True)
+                    df.drop([0], axis=1, inplace=True)
+                    df.rename(columns={1:'value'}, inplace=True)
+                    df['metric_key'] = metric_key
+                    df['origin_key'] = project.origin_key
+
+                    dfMain = pd.concat([dfMain, df], ignore_index=True)  
+
+                elif project.block_explorer_type == 'NA':
+                    print(f"no block explorer defined for {project.origin_key} - moving on...")
                 
-                data = io.StringIO(response)
-                df = pd.read_csv(data)
-
-                df['date'] = pd.to_datetime(df['Date(UTC)'])
-                df['metric_key'] = metric_key
-                df['origin_key'] = project.origin_key
-                df.rename(columns={'Value': 'value'}, inplace=True)
-                df = df[['date', 'metric_key', 'origin_key', 'value']]
-
-                dfMain = pd.concat([dfMain, df], ignore_index=True)
-
-            elif project.block_explorer_type == 'blockscout':
-                response = api_get_call(project.block_explorer_txcount, header = self.headers, proxy=self.proxy)
-                df = pd.DataFrame(response['chart_data'])
-
-                df['date'] = pd.to_datetime(df['date'])
-                df['metric_key'] = metric_key
-                df['origin_key'] = project.origin_key
-                df.rename(columns={'tx_count': 'value'}, inplace=True)
-                df = df[['date', 'metric_key', 'origin_key', 'value']]
-
-                dfMain = pd.concat([dfMain, df], ignore_index=True)        
-
-            elif project.block_explorer_type == 'l2beat':
-                response_json = api_get_call(project.block_explorer_txcount, sleeper=10, retries=20)
-                df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
-
-                ## only keep the columns 0 (date) and 1 (transactions)
-                df = df.iloc[:,[0,1]]
-
-                df['date'] = pd.to_datetime(df[0],unit='s').dt.date
-                df.drop(df[df[1] == 0].index, inplace=True)
-                df.drop([0], axis=1, inplace=True)
-                df.rename(columns={1:'value'}, inplace=True)
-                df['metric_key'] = metric_key
-                df['origin_key'] = project.origin_key
-
-                dfMain = pd.concat([dfMain, df], ignore_index=True)  
-
-            else:
-                print(f'not implemented {project.block_explorer_type}')
-                raise ValueError('Block Explorer Type not supported')
-            
-            time.sleep(1)
+                else:
+                    print(f'not implemented {project.block_explorer_type}')
+                    raise ValueError('Block Explorer Type not supported')
+            except Exception as e:
+                print(f"Error loading txcount data for {project.origin_key}: {e}")
+                send_discord_message(f"Error loading txcount data for {project.origin_key}: {e}", self.webhook_url)
+                continue
         
         today = datetime.today().strftime('%Y-%m-%d')
         dfMain.drop(dfMain[dfMain.date == today].index, inplace=True, errors='ignore')
@@ -104,8 +111,6 @@ class AdapterCrossCheck(AbstractAdapter):
         print_load(self.name, upserted, tbl_name)     
 
     def cross_check(self):
-        webhook_url = os.getenv('DISCORD_TX_CHECKER')
-
         exec_string = """
             with temp as (
             SELECT 
@@ -135,5 +140,5 @@ class AdapterCrossCheck(AbstractAdapter):
                 threshold = 0.05
 
             if row['diff_percent'] > threshold:
-                send_discord_message(f"txcount discrepancy in last 7 days for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])} tx)", webhook_url)
+                send_discord_message(f"txcount discrepancy in last 7 days for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])} tx)", self.webhook_url)
                 print(f"txcount discrepancy for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])})")

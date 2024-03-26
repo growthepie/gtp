@@ -3,9 +3,15 @@ import simplejson as json
 import datetime
 import pandas as pd
 import numpy as np
+from datetime import timedelta, datetime
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+
+import warnings
+
+# Suppress specific FutureWarnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class JSONCreation():
 
@@ -99,6 +105,8 @@ class JSONCreation():
             }
         }
 
+        self.fees_list = ['txcosts_avg_eth', 'txcosts_native_median_eth', 'txcosts_median_eth']
+
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
         #concat all values of metrics_list to a string and add apostrophes around each value
@@ -150,7 +158,28 @@ class JSONCreation():
     def generate_daily_list(self, df, metric_id, origin_key):
         ##print(f'called generate int for {metric_id} and {chain_id}')
         mks = self.metrics[metric_id]['metric_keys']
-        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key"]].pivot(index='unix', columns='metric_key', values='value').reset_index()
+        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key", "date"]]
+        
+        max_date = df_tmp['date'].max()
+        max_date = pd.to_datetime(max_date).replace(tzinfo=None)
+        yesterday = datetime.now() - timedelta(days=1)
+        yesterday = yesterday.date()
+
+        #check if max_date is yesterday
+        if max_date.date() != yesterday:
+            print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
+
+            date_range = pd.date_range(start=max_date + timedelta(days=1), end=yesterday, freq='D')
+
+            for mkey in mks:
+                new_data = {'date': date_range, 'value': [0] * len(date_range), 'metric_key': mkey}
+                new_df = pd.DataFrame(new_data)
+                new_df['unix'] = new_df['date'].apply(lambda x: x.timestamp() * 1000)
+
+                df_tmp = pd.concat([df_tmp, new_df], ignore_index=True)
+
+        df_tmp.drop(columns=['date'], inplace=True)
+        df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
         
         df_tmp = self.df_rename(df_tmp, metric_id, True)
@@ -208,6 +237,51 @@ class JSONCreation():
 
         return mk_list_int, df_tmp.columns.to_list()
 
+    def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price, max_ts_all):
+        ## filter df to granularity = 'hourly' and metric_key = metric
+        df = df[(df.granularity == granularity) & (df.metric_key == metric_key) & (df.origin_key == origin_key)]
+        
+        ## Create new rows for missing timestamps
+        # ## certain metric_key/origin_key combinations are empty (i.e. Starknet native transfer fees)
+        # if df.empty:
+        #     print(f"df is empty for {metric_key} and {origin_key}. Will skip.")
+        # else:
+        #     max_ts = df['unix'].max()
+        #     #check if filtered max_ts is the same as max_ts_all
+        #     if max_ts != max_ts_all:
+        #         print(f"max_ts in df (shape {df.shape}) for {metric_key} and {origin_key} is {max_ts}. Will fill missing rows until {max_ts_all} with None.")
+
+        #         start_date = pd.to_datetime(max_ts, unit='ms', utc=True)
+        #         end_date = pd.to_datetime(max_ts_all, unit='ms', utc=True)
+
+        #         print(f"start_date: {start_date}, end_date: {end_date} for {metric_key} and {origin_key}")
+
+        #         if granularity == 'hourly':
+        #             date_range = pd.date_range(start=start_date, end=end_date, freq='H')
+        #         elif granularity == '10_min':
+        #             date_range = pd.date_range(start=start_date, end=end_date, freq='10T')
+        #         else:
+        #             raise NotImplementedError(f"Granularity {granularity} not implemented")
+
+        #         new_data = {'timestamp': date_range, 'value': [None] * len(date_range)}
+        #         new_df = pd.DataFrame(new_data)
+        #         new_df['unix'] = new_df['timestamp'].apply(lambda x: x.timestamp() * 1000)
+
+        #         df = pd.concat([df, new_df], ignore_index=True)
+
+        ## order df_tmp by timestamp desc
+        df = df.sort_values(by='timestamp', ascending=False)
+        ## only keep columns unix, value_usd
+        df = df[['unix', 'value']]
+        ## calculate value_usd by multiplying value with eth_price
+        df['value_usd'] = df['value'] * eth_price
+        df.rename(columns={'value': 'value_eth'}, inplace=True)
+
+        mk_list = df.values.tolist()
+        mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list]
+
+        return mk_list_int, df.columns.to_list()
+
     ## create 7d rolling average over a list of lists where the first element is the date and the second element is the value (necessary for daily_avg field)
     def create_7d_rolling_avg(self, list_of_lists):
         avg_list = []
@@ -256,7 +330,24 @@ class JSONCreation():
         #df.drop(columns=['date'], inplace=True)
         # fill NaN values with 0
         df.value.fillna(0, inplace=True)
+        return df
+    
+    def download_data_fees(self, metric_keys):
+        exec_string = f"""
+            SELECT *
+            FROM public.fact_kpis_granular kpi
+            where kpi."timestamp" >= '2021-01-01'
+                and kpi.metric_key in ({"'" + "','".join(metric_keys) + "'"})
+        """
 
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+
+        ## date to datetime column in UTC
+        df['timestamp'] = pd.to_datetime(df['timestamp']).dt.tz_localize('UTC')
+        ## datetime to unix timestamp using timestamp() function
+        df['unix'] = df['timestamp'].apply(lambda x: x.timestamp() * 1000)
+        # fill NaN values with 0
+        df.value.fillna(0, inplace=True)
         return df
 
     def create_changes_dict(self, df, metric_id, origin_key):
@@ -797,6 +888,7 @@ class JSONCreation():
                 'deployment': chain.deployment,
                 'name_short': chain.name_short,
                 'description': chain.description,
+                'da_layer': chain.da_layer,
                 'symbol': chain.symbol,
                 'bucket': chain.bucket,
                 'technology': chain.technology,
@@ -891,11 +983,14 @@ class JSONCreation():
 
     def create_fundamentals_json(self, df):
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
-        ## transform date column to string with format YYYY-MM-DD
-        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-        
+
+        ## filter out all metric_keys that end with _eth
+        df = df[~df.metric_key.str.endswith('_eth')]
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
         df = df[df.metric_key.isin(self.metrics_list)]
+
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         
         ## filter based on settings in adapter_mapping
         for adapter in adapter_mapping:
@@ -954,6 +1049,85 @@ class JSONCreation():
             self.save_to_json(mvp_dict, 'mvp_dict')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
+
+    def create_fees_json(self):
+        df = self.download_data_fees(self.fees_list)
+
+        fees_dict = {
+            "chain_data" : {}
+        } 
+
+        max_ts_all = df['unix'].max()
+
+        ## loop over all chains and generate a fees json for all chains
+        for chain in adapter_mapping:
+            origin_key = chain.origin_key
+            if chain.in_fees_api == False:
+                print(f'..skipped: Fees export for {origin_key}. API is set to False')
+                continue
+            
+            eth_price = self.db_connector.get_last_price_usd('ethereum')
+
+            hourly_dict = {}
+            min_10_dict = {}
+
+            for metric_key in self.fees_list:
+                ## generate metric_name which is metric_key without the last 4 characters
+                metric_name = metric_key[:-4]
+                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all)
+                hourly_dict[metric_name] = {
+                    "types": generated[1],
+                    "data": generated[0]
+                }
+            
+            for metric_key in self.fees_list:
+                ## generate metric_name which is metric_key without the last 4 characters
+                metric_name = metric_key[:-4]
+                generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price, max_ts_all)
+                min_10_dict[metric_name] = {
+                    "types": generated[1],
+                    "data": generated[0]
+                }
+
+            fees_dict["chain_data"][origin_key] = {
+                'hourly': hourly_dict,
+                'ten_min': min_10_dict
+            }
+
+        fees_dict = fix_dict_nan(fees_dict, f'fees')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, f'fees')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees', fees_dict, self.cf_distribution_id)
+        print(f'DONE -- Fees export')
+
+    def create_fees_dict(self):
+        df = self.download_data_fees(self.fees_list)
+
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_fees_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+
+        ## generate usd values
+        eth_price = self.db_connector.get_last_price_usd('ethereum')
+        df_usd = df.copy()
+        df_usd['value'] = df_usd['value'] * eth_price
+        df_usd['metric_key'] = df_usd['metric_key'].str.replace("_eth", "_usd")
+        df = pd.concat([df, df_usd])
+
+        ## drop column timestamp
+        df = df.drop(columns=['timestamp'])
+
+        ## create dict
+        fees_dict = df.to_dict(orient='records')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, 'fees_dict')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees_dict', fees_dict, self.cf_distribution_id)
 
     def create_all_jsons(self):
         df = self.get_all_data()

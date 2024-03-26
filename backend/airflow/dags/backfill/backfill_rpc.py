@@ -15,6 +15,7 @@ chain_settings = {
     'mantle': {'threads': 7, 'batch_size': 150},
     'base': {'threads': 3, 'batch_size': 50},
     'optimism': {'threads': 3, 'batch_size': 50},
+    'metis': {'threads': 1, 'batch_size': 50},
     'polygon_zkevm': {'threads': 5, 'batch_size': 150},
 }
 
@@ -34,7 +35,7 @@ chain_settings = {
 )
 
 def backfiller_dag():
-    chains = ['gitcoin_pgn', 'linea', 'zora', 'scroll', 'mantle', 'base', 'polygon_zkevm', 'optimism']
+    chains = ['gitcoin_pgn', 'linea', 'zora', 'scroll', 'mantle', 'base', 'polygon_zkevm', 'optimism', 'metis']
 
     for chain in chains:
         @task(task_id=f'backfill_{chain}')
