@@ -31,10 +31,11 @@ def adapter_rpc():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'linea',
-            'rpc_urls': [os.getenv("LINEA_RPC"), os.getenv("LINEA_RPC_2")],
+            'rpc_urls': [os.getenv("LINEA_RPC"), os.getenv("LINEA_RPC_2", os.getenv("LINEA_RPC_3"))],
             'max_calls_per_rpc': {
-                os.getenv("LINEA_RPC"): 50,
-                os.getenv("LINEA_RPC_2"): 50,
+                os.getenv("LINEA_RPC"): 3,
+                os.getenv("LINEA_RPC_2"): 3,
+                os.getenv("LINEA_RPC_3"): 3,
             }
         }
 
