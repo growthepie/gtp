@@ -504,6 +504,65 @@ def prep_dataframe_polygon_zkevm(df):
     df.drop(['effective_gas_price'], axis=1, inplace=True)
     return df
 
+def prep_dataframe_blast(df):
+
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'empty_input',
+        'block_timestamp': 'block_timestamp'
+    }
+
+    # Filter the dataframe to only include the relevant columns
+    filtered_df = df[list(column_mapping.keys())]
+
+    # Rename the columns based on the above mapping
+    filtered_df = filtered_df.rename(columns=column_mapping)
+
+    # Convert columns to numeric if they aren't already
+    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
+    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
+    
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+    
+    
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # replace None in 'to_address' column with empty string
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")             
+
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+    return filtered_df  
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
@@ -662,7 +721,9 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
-            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle']:
+            elif chain == 'blast':
+                df_prep = prep_dataframe_blast(df)
+            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode']:
                 print('...use op-chain data prep')
                 df_prep = prep_dataframe_opchain(df)
             else:
