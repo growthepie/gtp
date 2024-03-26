@@ -241,32 +241,33 @@ class JSONCreation():
         ## filter df to granularity = 'hourly' and metric_key = metric
         df = df[(df.granularity == granularity) & (df.metric_key == metric_key) & (df.origin_key == origin_key)]
         
-        ## certain metric_key/origin_key combinations are empty (i.e. Starknet native transfer fees)
-        if df.empty:
-            print(f"df is empty for {metric_key} and {origin_key}. Will skip.")
-        else:
-            max_ts = df['unix'].max()
-            #check if filtered max_ts is the same as max_ts_all
-            if max_ts != max_ts_all:
-                print(f"max_ts in df (shape {df.shape}) for {metric_key} and {origin_key} is {max_ts}. Will fill missing rows until {max_ts_all} with None.")
+        ## Create new rows for missing timestamps
+        # ## certain metric_key/origin_key combinations are empty (i.e. Starknet native transfer fees)
+        # if df.empty:
+        #     print(f"df is empty for {metric_key} and {origin_key}. Will skip.")
+        # else:
+        #     max_ts = df['unix'].max()
+        #     #check if filtered max_ts is the same as max_ts_all
+        #     if max_ts != max_ts_all:
+        #         print(f"max_ts in df (shape {df.shape}) for {metric_key} and {origin_key} is {max_ts}. Will fill missing rows until {max_ts_all} with None.")
 
-                start_date = pd.to_datetime(max_ts, unit='ms', utc=True)
-                end_date = pd.to_datetime(max_ts_all, unit='ms', utc=True)
+        #         start_date = pd.to_datetime(max_ts, unit='ms', utc=True)
+        #         end_date = pd.to_datetime(max_ts_all, unit='ms', utc=True)
 
-                print(f"start_date: {start_date}, end_date: {end_date} for {metric_key} and {origin_key}")
+        #         print(f"start_date: {start_date}, end_date: {end_date} for {metric_key} and {origin_key}")
 
-                if granularity == 'hourly':
-                    date_range = pd.date_range(start=start_date, end=end_date, freq='H')
-                elif granularity == '10_min':
-                    date_range = pd.date_range(start=start_date, end=end_date, freq='10T')
-                else:
-                    raise NotImplementedError(f"Granularity {granularity} not implemented")
+        #         if granularity == 'hourly':
+        #             date_range = pd.date_range(start=start_date, end=end_date, freq='H')
+        #         elif granularity == '10_min':
+        #             date_range = pd.date_range(start=start_date, end=end_date, freq='10T')
+        #         else:
+        #             raise NotImplementedError(f"Granularity {granularity} not implemented")
 
-                new_data = {'timestamp': date_range, 'value': [None] * len(date_range)}
-                new_df = pd.DataFrame(new_data)
-                new_df['unix'] = new_df['timestamp'].apply(lambda x: x.timestamp() * 1000)
+        #         new_data = {'timestamp': date_range, 'value': [None] * len(date_range)}
+        #         new_df = pd.DataFrame(new_data)
+        #         new_df['unix'] = new_df['timestamp'].apply(lambda x: x.timestamp() * 1000)
 
-                df = pd.concat([df, new_df], ignore_index=True)
+        #         df = pd.concat([df, new_df], ignore_index=True)
 
         ## order df_tmp by timestamp desc
         df = df.sort_values(by='timestamp', ascending=False)
