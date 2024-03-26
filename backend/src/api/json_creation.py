@@ -237,11 +237,39 @@ class JSONCreation():
 
         return mk_list_int, df_tmp.columns.to_list()
 
-    def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price):
+    def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price, max_ts_all):
         ## filter df to granularity = 'hourly' and metric_key = metric
         df = df[(df.granularity == granularity) & (df.metric_key == metric_key) & (df.origin_key == origin_key)]
-        ## order df_tmp by timestamp desc and only keep top 2000 rows
-        df = df.sort_values(by='timestamp', ascending=False).head(2000)
+        
+        ## certain metric_key/origin_key combinations are empty (i.e. Starknet native transfer fees)
+        if df.empty:
+            print(f"df is empty for {metric_key} and {origin_key}. Will skip.")
+        else:
+            max_ts = df['unix'].max()
+            #check if filtered max_ts is the same as max_ts_all
+            if max_ts != max_ts_all:
+                print(f"max_ts in df (shape {df.shape}) for {metric_key} and {origin_key} is {max_ts}. Will fill missing rows until {max_ts_all} with None.")
+
+                start_date = pd.to_datetime(max_ts, unit='ms', utc=True)
+                end_date = pd.to_datetime(max_ts_all, unit='ms', utc=True)
+
+                print(f"start_date: {start_date}, end_date: {end_date} for {metric_key} and {origin_key}")
+
+                if granularity == 'hourly':
+                    date_range = pd.date_range(start=start_date, end=end_date, freq='H')
+                elif granularity == '10_min':
+                    date_range = pd.date_range(start=start_date, end=end_date, freq='10T')
+                else:
+                    raise NotImplementedError(f"Granularity {granularity} not implemented")
+
+                new_data = {'timestamp': date_range, 'value': [None] * len(date_range)}
+                new_df = pd.DataFrame(new_data)
+                new_df['unix'] = new_df['timestamp'].apply(lambda x: x.timestamp() * 1000)
+
+                df = pd.concat([df, new_df], ignore_index=True)
+
+        ## order df_tmp by timestamp desc
+        df = df.sort_values(by='timestamp', ascending=False)
         ## only keep columns unix, value_usd
         df = df[['unix', 'value']]
         ## calculate value_usd by multiplying value with eth_price
@@ -1028,6 +1056,8 @@ class JSONCreation():
             "chain_data" : {}
         } 
 
+        max_ts_all = df['unix'].max()
+
         ## loop over all chains and generate a fees json for all chains
         for chain in adapter_mapping:
             origin_key = chain.origin_key
@@ -1043,7 +1073,7 @@ class JSONCreation():
             for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
-                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price)
+                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all)
                 hourly_dict[metric_name] = {
                     "types": generated[1],
                     "data": generated[0]
@@ -1052,7 +1082,7 @@ class JSONCreation():
             for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
-                generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price)
+                generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price, max_ts_all)
                 min_10_dict[metric_name] = {
                     "types": generated[1],
                     "data": generated[0]
