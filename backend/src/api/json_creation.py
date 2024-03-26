@@ -166,7 +166,7 @@ class JSONCreation():
         yesterday = yesterday.date()
 
         #check if max_date is yesterday
-        if max_date.date() != yesterday.date():
+        if max_date.date() != yesterday:
             print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
 
             date_range = pd.date_range(start=max_date + timedelta(days=1), end=yesterday, freq='D')
