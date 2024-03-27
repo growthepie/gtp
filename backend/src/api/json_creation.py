@@ -106,14 +106,17 @@ class JSONCreation():
         }
 
         self.fees_types = {
-            'txcosts_avg_eth' : {
+            'txcosts_avg' : {
                 'name': 'Average Fee',
+                'metric_keys': ['txcosts_avg_eth'],
             }
-            ,'txcosts_native_median_eth' : {
+            ,'txcosts_native_median' : {
                 'name': 'Median Fee',
+                'metric_keys': ['txcosts_native_median_eth'],
             }
-            , 'txcosts_median_eth' : {
+            , 'txcosts_median' : {
                 'name': 'Transfer ETH',
+                'metric_keys': ['txcosts_median_eth'],
             }
         }
 
@@ -126,12 +129,13 @@ class JSONCreation():
         self.chains_list = [x.origin_key for x in adapter_mapping]
         #concat all values of chains_list to a string and add apostrophes around each value
         self.chains_string = "'" + "','".join(self.chains_list) + "'"
-
         #only chains that are in the api output
         self.chains_list_in_api = [x.origin_key for x in adapter_mapping if x.in_api == True]
-
         #only chains that are in the api output and deployment is "PROD"
         self.chains_list_in_api_prod = [x.origin_key for x in adapter_mapping if x.in_api == True and x.deployment == "PROD"]
+
+        ## all feest metrics keys
+        self.fees_list = [item for sublist in [self.fees_types[metric]['metric_keys'] for metric in self.fees_types] for item in sublist]
 
     
     ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
@@ -916,6 +920,7 @@ class JSONCreation():
             'default_chain_selection' : self.get_default_selection(df_data),
             'chains' : chain_dict,
             'metrics' : self.metrics,
+            'fee_metrics' : self.fees_types,
             'blockspace_categories' : {
                 'main_categories' : main_category_dict,
                 'sub_categories' : sub_category_dict,
@@ -1061,7 +1066,7 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
 
     def create_fees_json(self):
-        df = self.download_data_fees(list(self.fees_types.keys()))
+        df = self.download_data_fees(self.fees_list)
 
         fees_dict = {
             "chain_data" : {}
@@ -1081,7 +1086,7 @@ class JSONCreation():
             hourly_dict = {}
             min_10_dict = {}
 
-            for metric_key in list(self.fees_types.keys()):
+            for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
                 generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all)
@@ -1090,7 +1095,7 @@ class JSONCreation():
                     "data": generated[0]
                 }
             
-            for metric_key in list(self.fees_types.keys()):
+            for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
                 generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price, max_ts_all)
@@ -1113,7 +1118,7 @@ class JSONCreation():
         print(f'DONE -- Fees export')
 
     def create_fees_dict(self):
-        df = self.download_data_fees(list(self.fees_types.keys()))
+        df = self.download_data_fees(self.fees_list)
 
         for adapter in adapter_mapping:
             ## filter out origin_keys from df if in_api=false
