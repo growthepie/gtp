@@ -32,12 +32,12 @@ def adapter_rpc():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'scroll',
-            'rpc_urls': [os.getenv("SCROLL_RPC"), os.getenv("SCROLL_RPC_2")],
-            'max_calls_per_rpc': {
-                os.getenv("SCROLL_RPC"): 3,
-                os.getenv("SCROLL_RPC_2"): 3,
-                # os.getenv("SCROLL_RPC_3"): 3,
-            }
+            'rpc_urls': [os.getenv("SCROLL_RPC")],
+            # 'max_calls_per_rpc': {
+            #     os.getenv("SCROLL_RPC"): 3,
+            #     #os.getenv("SCROLL_RPC_2"): 3,
+            #     # os.getenv("SCROLL_RPC_3"): 3,
+            # }
         }
 
         # Initialize DbConnector
@@ -49,8 +49,8 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 25,
-            'threads': 1,
+            'batch_size': 10,
+            'threads': 10,
         }
 
         while load_params['threads'] > 0:
