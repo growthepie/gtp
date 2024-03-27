@@ -675,7 +675,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             
             try:
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
-                print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
+                print(f"Data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df.shape[0]}")
             except Exception as e:
                 print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
                 raise e
