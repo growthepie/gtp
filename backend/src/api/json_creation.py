@@ -105,7 +105,17 @@ class JSONCreation():
             }
         }
 
-        self.fees_list = ['txcosts_avg_eth', 'txcosts_native_median_eth', 'txcosts_median_eth']
+        self.fees_types = {
+            'txcosts_avg_eth' : {
+                'name': 'Average Fee',
+            }
+            ,'txcosts_native_median_eth' : {
+                'name': 'Median Fee',
+            }
+            , 'txcosts_median_eth' : {
+                'name': 'Transfer ETH',
+            }
+        }
 
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
@@ -1051,7 +1061,7 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
 
     def create_fees_json(self):
-        df = self.download_data_fees(self.fees_list)
+        df = self.download_data_fees(list(self.fees_types.keys()))
 
         fees_dict = {
             "chain_data" : {}
@@ -1071,7 +1081,7 @@ class JSONCreation():
             hourly_dict = {}
             min_10_dict = {}
 
-            for metric_key in self.fees_list:
+            for metric_key in list(self.fees_types.keys()):
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
                 generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all)
@@ -1080,7 +1090,7 @@ class JSONCreation():
                     "data": generated[0]
                 }
             
-            for metric_key in self.fees_list:
+            for metric_key in list(self.fees_types.keys()):
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
                 generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price, max_ts_all)
@@ -1103,7 +1113,7 @@ class JSONCreation():
         print(f'DONE -- Fees export')
 
     def create_fees_dict(self):
-        df = self.download_data_fees(self.fees_list)
+        df = self.download_data_fees(list(self.fees_types.keys()))
 
         for adapter in adapter_mapping:
             ## filter out origin_keys from df if in_api=false
