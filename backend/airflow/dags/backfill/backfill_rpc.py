@@ -8,11 +8,11 @@ from airflow.decorators import dag, task
 from src.adapters.adapter_gtp_backfill_task import backfiller_task
 
 chain_settings = {
-    'gitcoin_pgn': {'threads': 15, 'batch_size': 250},
-    'linea': {'threads': 4, 'batch_size': 200},
-    'zora': {'threads': 15, 'batch_size': 250},
-    'scroll': {'threads': 1, 'batch_size': 100},
-    'mantle': {'threads': 7, 'batch_size': 150},
+    'gitcoin_pgn': {'threads': 10, 'batch_size': 50},
+    'linea': {'threads': 15, 'batch_size': 10},
+    'zora': {'threads': 15, 'batch_size': 50},
+    'scroll': {'threads': 1, 'batch_size': 50},
+    'mantle': {'threads': 7, 'batch_size': 50},
     'base': {'threads': 3, 'batch_size': 50},
     'optimism': {'threads': 3, 'batch_size': 50},
     'metis': {'threads': 1, 'batch_size': 50},
