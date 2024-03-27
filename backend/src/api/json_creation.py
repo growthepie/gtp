@@ -914,13 +914,15 @@ class JSONCreation():
                 'rhino_listed': bool(getattr(chain, 'rhino_naming', None)),
                 'rhino_naming': getattr(chain, 'rhino_naming', None)
             }
+        fees_types_api = {k: v for k, v in self.fees_types.items() if k != 'metric_keys'}
+        fees_types_api
 
         master_dict = {
             'current_version' : self.api_version,
             'default_chain_selection' : self.get_default_selection(df_data),
             'chains' : chain_dict,
             'metrics' : self.metrics,
-            'fee_metrics' : self.fees_types,
+            'fee_metrics' : fees_types_api,
             'blockspace_categories' : {
                 'main_categories' : main_category_dict,
                 'sub_categories' : sub_category_dict,
