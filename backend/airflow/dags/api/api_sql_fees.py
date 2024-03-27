@@ -32,7 +32,7 @@ def etl():
         @task()
         def run_aggregate_metrics():
                 db_connector = DbConnector()
-                days = 1
+                days = 2
                 for chain in adapter_mapping:
                         origin_key = chain.origin_key
                         if chain.in_fees_api == False:
