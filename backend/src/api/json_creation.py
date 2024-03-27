@@ -914,8 +914,10 @@ class JSONCreation():
                 'rhino_listed': bool(getattr(chain, 'rhino_naming', None)),
                 'rhino_naming': getattr(chain, 'rhino_naming', None)
             }
-        fees_types_api = {k: v for k, v in self.fees_types.items() if k != 'metric_keys'}
-        fees_types_api
+        
+        ## create dict for fees without metric_keys field
+        fees_types_api = {key: {sub_key: value for sub_key, value in sub_dict.items() if sub_key != 'metric_keys'} 
+                                  for key, sub_dict in self.fees_types.items()}
 
         master_dict = {
             'current_version' : self.api_version,
