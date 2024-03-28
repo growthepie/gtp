@@ -549,8 +549,8 @@ adapter_mapping = [
 
     ,AdapterMapping(
         origin_key="rhino"
-        ,name="Rhino"
-        ,name_short = "Rhino"
+        ,name="rhino.fi"
+        ,name_short = "rhino.fi"
         ,description="Rhino is a Validium based on StarkEX technology. Its main focus is on bridging assets between other chains."
         ,da_layer = "DAC"
 
