@@ -59,6 +59,7 @@ def etl():
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         df = json_creator.get_all_data()
         json_creator.create_fundamentals_json(df)
+        json_creator.create_fundamentals_full_json(df)
 
     @task()
     def run_create_mvp_dict():

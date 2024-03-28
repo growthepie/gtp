@@ -1034,6 +1034,39 @@ class JSONCreation():
             self.save_to_json(fundamentals_dict, 'fundamentals')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals', fundamentals_dict, self.cf_distribution_id)
+    
+    def create_fundamentals_full_json(self, df):
+        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
+
+        ## only keep metrics that are also in the metrics_list (based on metrics dict)
+        df = df[df.metric_key.isin(self.metrics_list)]
+
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
+        ## filter based on settings in adapter_mapping
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+            elif len(adapter.exclude_metrics) > 0:
+                origin_key = adapter.origin_key
+                for metric in adapter.exclude_metrics:
+                    if metric != 'blockspace':
+                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
+                        metric_keys = self.metrics[metric]['metric_keys']
+                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
+        
+        ## put dataframe into a json string
+        fundamentals_dict = df.to_dict(orient='records')
+
+        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'fundamentals_full')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fundamentals_dict, 'fundamentals_full')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals_full', fundamentals_dict, self.cf_distribution_id)
 
     def create_contracts_json(self):
         exec_string = f"""
@@ -1157,5 +1190,6 @@ class JSONCreation():
         self.create_metric_details_jsons(df)
         
         self.create_fundamentals_json(df)
+        self.create_fundamentals_full_json(df)
         self.create_contracts_json()
         self.create_mvp_dict()
