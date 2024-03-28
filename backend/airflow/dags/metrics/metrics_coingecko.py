@@ -45,22 +45,22 @@ def etl():
         # load
         ad.load(df)
 
-    @task()
-    def run_imx_tokens():
-            adapter_params = {
-            }
-            load_params = {
-                'load_type' : 'imx_tokens'
-            }
+    # @task()
+    # def run_imx_tokens():
+    #         adapter_params = {
+    #         }
+    #         load_params = {
+    #             'load_type' : 'imx_tokens'
+    #         }
 
-            # initialize adapter
-            db_connector = DbConnector()
-            ad = AdapterCoingecko(adapter_params, db_connector)
-            # extract
-            df = ad.extract(load_params)
-            # load
-            ad.load(df)
+    #         # initialize adapter
+    #         db_connector = DbConnector()
+    #         ad = AdapterCoingecko(adapter_params, db_connector)
+    #         # extract
+    #         df = ad.extract(load_params)
+    #         # load
+    #         ad.load(df)
     
     run_market_chart()
-    run_imx_tokens()
+    # run_imx_tokens()
 etl()
