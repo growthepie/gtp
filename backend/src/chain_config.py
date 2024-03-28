@@ -551,7 +551,7 @@ adapter_mapping = [
         origin_key="rhino"
         ,name="rhino.fi"
         ,name_short = "rhino.fi"
-        ,description="Rhino is a Validium based on StarkEX technology. Its main focus is on bridging assets between other chains."
+        ,description="rhino.fi is a Validium based on StarkEX technology. Its main focus is on bridging assets between other chains."
         ,da_layer = "DAC"
 
         ,in_api = True
