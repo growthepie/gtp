@@ -11,7 +11,7 @@ chain_settings = {
     'gitcoin_pgn': {'threads': 10, 'batch_size': 50},
     'linea': {'threads': 15, 'batch_size': 10},
     'zora': {'threads': 15, 'batch_size': 50},
-    'scroll': {'threads': 1, 'batch_size': 50},
+    'scroll': {'threads': 3, 'batch_size': 20},
     'mantle': {'threads': 15, 'batch_size': 50},
     'base': {'threads': 3, 'batch_size': 50},
     'optimism': {'threads': 3, 'batch_size': 50},
