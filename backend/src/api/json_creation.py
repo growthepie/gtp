@@ -1005,6 +1005,10 @@ class JSONCreation():
 
         ## filter out all metric_keys that end with _eth
         df = df[~df.metric_key.str.endswith('_eth')]
+
+        ## filter date to be in the last 365 days
+        df = df.loc[df.date >= (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')]
+
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
         df = df[df.metric_key.isin(self.metrics_list)]
 
