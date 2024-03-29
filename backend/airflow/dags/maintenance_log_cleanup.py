@@ -31,9 +31,9 @@ DAG_OWNER_NAME = "mseidl"
 # List of email address to send email alerts to if this job fails
 ALERT_EMAIL_ADDRESSES = ['matthias@mseidl-analytics.de']
 # Length to retain the log files if not already provided in the conf. If this
-# is set to 30, the job will remove those files that are 30 days old or older
+# is set to 30, the job will remove those files that are 7 days old or older
 DEFAULT_MAX_LOG_AGE_IN_DAYS = Variable.get(
-    "airflow_log_cleanup__max_log_age_in_days", 30
+    "airflow_log_cleanup__max_log_age_in_days", 7
 )
 # Whether the job should delete the logs or not. Included if you want to
 # temporarily avoid deleting the logs
