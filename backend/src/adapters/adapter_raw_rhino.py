@@ -1,7 +1,6 @@
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from src.adapters.adapter_utils import *
+from src.adapters.funcs_rps_utils import *
 import pandas as pd
-import json
 import requests
 
 class AdapterRhino(AbstractAdapterRaw):

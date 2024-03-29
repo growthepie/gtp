@@ -1,6 +1,5 @@
 import os
 import simplejson as json
-import datetime
 import pandas as pd
 
 from src.chain_config import adapter_mapping, adapter_all2_mapping

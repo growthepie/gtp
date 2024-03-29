@@ -1,7 +1,7 @@
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
-from src.adapters.adapter_utils import *
+from src.adapters.funcs_rps_utils import *
 
 class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):

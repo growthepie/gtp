@@ -5,7 +5,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
-from src.adapters.adapter_gtp_backfill_task import backfiller_task
+from src.adapters.funcs_backfill import backfiller_task
 
 chain_settings = {
     'gitcoin_pgn': {'threads': 10, 'batch_size': 50},
