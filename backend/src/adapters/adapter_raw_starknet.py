@@ -173,9 +173,9 @@ class AdapterStarknet(AbstractAdapterRaw):
                     save_data_for_range(transactions_df, current_start, current_end, chain, s3_connection, bucket_name)
                     self.insert_data_into_db(transactions_df, db_connector, 'starknet_tx', 'transaction')
                 
-                # Process and save events
-                if not events_df.empty:
-                    self.insert_data_into_db(events_df, db_connector, 'starknet_events', 'event')
+                # # Process and save events
+                # if not events_df.empty:
+                #     self.insert_data_into_db(events_df, db_connector, 'starknet_events', 'event')
                 
                 print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
                 break
