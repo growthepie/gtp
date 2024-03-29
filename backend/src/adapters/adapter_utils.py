@@ -561,7 +561,7 @@ def fetch_block_transaction_details(w3, block):
         
         # Fetch the transaction using the hash
         tx = w3.eth.get_transaction(tx_hash)
-        time.sleep(0.01)  # Sleep for 10ms to avoid rate limiting
+        time.sleep(0.03)  # Sleep for 10ms to avoid rate limiting
                 
         # Convert the receipt and transaction to dictionary if it is not
         if not isinstance(receipt, dict):
