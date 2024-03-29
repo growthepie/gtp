@@ -25,7 +25,7 @@ from src.api.json_creation import JSONCreation
     description='Run some sql aggregations for fees page.',
     tags=['metrics', 'near-real-time'],
     start_date=datetime(2023,4,24),
-    schedule_interval='*/10 * * * *'
+    schedule_interval='*/30 * * * *'
 )
 
 def etl():
