@@ -774,14 +774,16 @@ sql_q= {
 
         ,'mantle_fees_paid_eth': """
         WITH mnt_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                SELECT "date", value as price_usd 
+                FROM fact_kpis
+                WHERE origin_key  = 'mantle' and metric_key = 'price_usd' 
+                AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         ),
         eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                SELECT "date", value as price_usd 
+                FROM fact_kpis
+                WHERE origin_key  = 'ethereum' and metric_key = 'price_usd' 
+                AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         ),
         mantle_tx_filtered AS (
                 SELECT
@@ -840,14 +842,16 @@ sql_q= {
 
         ,'mantle_txcosts_median_eth': """
         WITH mnt_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'MNT' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                SELECT "date", value as price_usd 
+                FROM fact_kpis
+                WHERE origin_key  = 'mantle' and metric_key = 'price_usd' 
+                AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         ),
         eth_price AS (
-                SELECT "date", price_usd
-                FROM public.prices_daily
-                WHERE token_symbol = 'ETH' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                SELECT "date", value as price_usd 
+                FROM fact_kpis
+                WHERE origin_key  = 'ethereum' and metric_key = 'price_usd' 
+                AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         ),
         mantle_median AS (
                 SELECT
