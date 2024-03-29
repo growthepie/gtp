@@ -49,6 +49,9 @@ def connect_to_node(url):
     # Apply the geth POA middleware to the Web3 instance
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
     
+    if 'hypersync' in url:
+        print("Hypersync is enabled. Skipping connection check.")
+        return w3
     if w3.is_connected():
         return w3
     else:
