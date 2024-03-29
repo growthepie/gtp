@@ -9,7 +9,7 @@ from src.adapters.adapter_gtp_backfill_task import backfiller_task
 
 chain_settings = {
     'gitcoin_pgn': {'threads': 10, 'batch_size': 50},
-    'linea': {'threads': 8, 'batch_size': 10},
+    'linea': {'threads': 1, 'batch_size': 10},
     'zora': {'threads': 15, 'batch_size': 50},
     'scroll': {'threads': 3, 'batch_size': 20},
     'mantle': {'threads': 15, 'batch_size': 50},
