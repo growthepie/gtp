@@ -44,7 +44,7 @@ def adapter_rpc():
         load_params = {
             'block_start': 'auto',
             'batch_size': 50,
-            'threads': 3,
+            'threads': 1,
         }
 
         while load_params['threads'] > 0:
