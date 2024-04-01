@@ -29,7 +29,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
             ,'txcount': {
                 'name': 'Transaction count',
@@ -37,7 +38,8 @@ class JSONCreation():
                 'units': ['-'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : False
             }
             ,'daa': {
                 'name': 'Daily active addresses',
@@ -45,7 +47,8 @@ class JSONCreation():
                 'units': ['-'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'maa'
+                'monthly_agg': 'maa',
+                'max_date_fill' : False
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin market cap',
@@ -53,7 +56,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
             ,'fees': {
                 'name': 'Fees paid',
@@ -61,7 +65,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : False
             }
             ,'rent_paid': {
                 'name': 'Rent paid to L1',
@@ -69,7 +74,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : True
             }
             ,'profit': {
                 'name': 'Profit',
@@ -77,7 +83,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : True
             }
             ,'txcosts': {
                 'name': 'Transaction costs',
@@ -85,7 +92,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'weighted_mean',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : True
             }
             ,'fdv': {
                 'name': 'Fully diluted valuation',
@@ -93,7 +101,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
             ,'market_cap': {
                 'name': 'Market cap',
@@ -101,7 +110,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
         }
 
@@ -179,18 +189,20 @@ class JSONCreation():
         yesterday = datetime.now() - timedelta(days=1)
         yesterday = yesterday.date()
 
-        #check if max_date is yesterday
-        if max_date.date() != yesterday:
-            print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
+        ## if max_date_fill is True, fill missing rows until yesterday with 0
+        if self.metrics[metric_id]['max_date_fill']:
+            #check if max_date is yesterday
+            if max_date.date() != yesterday:
+                print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
 
-            date_range = pd.date_range(start=max_date + timedelta(days=1), end=yesterday, freq='D')
+                date_range = pd.date_range(start=max_date + timedelta(days=1), end=yesterday, freq='D')
 
-            for mkey in mks:
-                new_data = {'date': date_range, 'value': [0] * len(date_range), 'metric_key': mkey}
-                new_df = pd.DataFrame(new_data)
-                new_df['unix'] = new_df['date'].apply(lambda x: x.timestamp() * 1000)
+                for mkey in mks:
+                    new_data = {'date': date_range, 'value': [0] * len(date_range), 'metric_key': mkey}
+                    new_df = pd.DataFrame(new_data)
+                    new_df['unix'] = new_df['date'].apply(lambda x: x.timestamp() * 1000)
 
-                df_tmp = pd.concat([df_tmp, new_df], ignore_index=True)
+                    df_tmp = pd.concat([df_tmp, new_df], ignore_index=True)
 
         df_tmp.drop(columns=['date'], inplace=True)
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
