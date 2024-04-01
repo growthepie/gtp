@@ -690,8 +690,8 @@ class JSONCreation():
         chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
         df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(chain_keys))]
 
-        # filter df to date >= 2021-09-01
-        df_tmp = df_tmp.loc[df_tmp.date >= '2021-09-01']
+        # filter df _tmp by date so that date is greather than 2 years ago
+        df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')]  
         
         # group by unix and metric_key and sum up the values or calculate the mean (depending on the metric)
         if metric['all_l2s_aggregate'] == 'sum':
