@@ -2,8 +2,6 @@ from datetime import datetime
 import numpy as np
 import boto3
 import botocore
-from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
 import pandas as pd
 from sqlalchemy import create_engine, exc
 from dotenv import load_dotenv
@@ -11,9 +9,8 @@ import os
 import sys
 import random
 import time
-from web3.datastructures import AttributeDict
-from hexbytes import HexBytes
 import ast
+from src.new_setup.web3 import Web3CC
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -43,19 +40,12 @@ def load_environment():
     return db_name, db_user, db_password, db_host, db_port
 
 # ---------------- Connection Functions ------------------
-def connect_to_node(url):
-    w3 = Web3(HTTPProvider(url))
-    
-    # Apply the geth POA middleware to the Web3 instance
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-    
-    if 'hypersync' in url:
-        print("Hypersync is enabled. Skipping connection check.")
-        return w3
-    if w3.is_connected():
-        return w3
-    else:
-        raise ConnectionError("Failed to connect to the node.")
+def connect_to_node(rpc_config):
+    try:
+        return Web3CC(rpc_config)
+    except ConnectionError as e:
+        print(f"Failed to connect to the node with config {rpc_config}: {e}")
+        raise
 
 def connect_to_s3():
     try:
@@ -605,29 +595,21 @@ def create_db_engine(db_user, db_password, db_host, db_port, db_name):
         sys.exit(1)
 
 # ---------------- Data Interaction --------------------
+def get_latest_block(w3):
+    try:
+        return w3.eth.block_number
+    except Exception as e:
+        print("An error occurred while fetching the latest block:", str(e))
+        return None
+    
 def fetch_block_transaction_details(w3, block):
     transaction_details = []
     block_timestamp = block['timestamp']  # Get the block timestamp
     
     for tx in block['transactions']:
-        # Check if the transaction is a HexBytes instance (older blocks)
-        if isinstance(tx, HexBytes):
-            tx_hash = tx.hex()  # Convert HexBytes to hex string
-        # If it's an AttributeDict or a dictionary (newer blocks), access the hash directly
-        elif isinstance(tx, dict) or isinstance(tx, AttributeDict):
-            tx_hash = tx['hash'].hex() if isinstance(tx['hash'], HexBytes) else tx['hash']
-        else:
-            raise TypeError("Unsupported transaction type")
-
+        tx_hash = tx['hash']
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         
-        # Fetch the transaction using the hash
-        tx = w3.eth.get_transaction(tx_hash)
-
-        ## Wait for a few ms if not using hypersync
-        if 'hypersync' not in w3.provider.endpoint_uri:
-            time.sleep(0.03)  # Sleep for 30ms to avoid rate limiting
-                
         # Convert the receipt and transaction to dictionary if it is not
         if not isinstance(receipt, dict):
             receipt = dict(receipt)
@@ -638,20 +620,13 @@ def fetch_block_transaction_details(w3, block):
         merged_dict = {**receipt, **tx}
         
         # Add or update specific fields
-        merged_dict['hash'] = tx_hash
+        merged_dict['hash'] = tx['hash'].hex()
         merged_dict['block_timestamp'] = block_timestamp
         
         # Add the transaction receipt dictionary to the list
         transaction_details.append(merged_dict)
         
     return transaction_details
-
-def get_latest_block(w3):
-    try:
-        return w3.eth.block_number
-    except Exception as e:
-        print("An error occurred while fetching the latest block:", str(e))
-        return None
     
 def fetch_data_for_range(w3, block_start, block_end):
     print(f"Fetching data for blocks {block_start} to {block_end}...")
@@ -742,7 +717,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             
             try:
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
-                print(f"Data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}")
+                print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
             except Exception as e:
                 print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
                 raise e
