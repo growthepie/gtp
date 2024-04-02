@@ -21,7 +21,7 @@ import json
     },
     dag_id='raw_blast',
     description='Load raw tx data from Blast',
-    tags=['raw', 'near-real-time', 'rpc'],
+    tags=['raw', 'near-real-time', 'rpc', 'new-setup'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )

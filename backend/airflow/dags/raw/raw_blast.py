@@ -6,8 +6,8 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.adapters.adapter_utils import MaxWaitTimeExceededException
+from src.adapters.adapter_raw_rpc import NodeAdapter
+from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
@@ -19,7 +19,7 @@ from airflow.decorators import dag, task
         'email_on_failure': True,
         'retry_delay': timedelta(minutes=5)
     },
-    dag_id='raw_blast',
+    dag_id='old_raw_blast',
     description='Load raw tx data from Blast',
     tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
