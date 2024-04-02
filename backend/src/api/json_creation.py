@@ -29,7 +29,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
             ,'txcount': {
                 'name': 'Transaction count',
@@ -37,7 +38,8 @@ class JSONCreation():
                 'units': ['-'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : False
             }
             ,'daa': {
                 'name': 'Daily active addresses',
@@ -45,7 +47,8 @@ class JSONCreation():
                 'units': ['-'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'maa'
+                'monthly_agg': 'maa',
+                'max_date_fill' : False
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin market cap',
@@ -53,7 +56,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
             ,'fees': {
                 'name': 'Fees paid',
@@ -61,7 +65,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : False
             }
             ,'rent_paid': {
                 'name': 'Rent paid to L1',
@@ -69,7 +74,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : True
             }
             ,'profit': {
                 'name': 'Profit',
@@ -77,7 +83,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum'
+                'monthly_agg': 'sum',
+                'max_date_fill' : True
             }
             ,'txcosts': {
                 'name': 'Transaction costs',
@@ -85,7 +92,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'weighted_mean',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : True
             }
             ,'fdv': {
                 'name': 'Fully diluted valuation',
@@ -93,7 +101,8 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
             ,'market_cap': {
                 'name': 'Market cap',
@@ -101,11 +110,25 @@ class JSONCreation():
                 'units': ['USD', 'ETH'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'avg'
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
             }
         }
 
-        self.fees_list = ['txcosts_avg_eth', 'txcosts_native_median_eth', 'txcosts_median_eth']
+        self.fees_types = {
+            'txcosts_avg' : {
+                'name': 'Average Fee',
+                'metric_keys': ['txcosts_avg_eth'],
+            }
+            ,'txcosts_native_median' : {
+                'name': 'Median Fee',
+                'metric_keys': ['txcosts_native_median_eth'],
+            }
+            , 'txcosts_median' : {
+                'name': 'Transfer ETH',
+                'metric_keys': ['txcosts_median_eth'],
+            }
+        }
 
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
@@ -116,12 +139,13 @@ class JSONCreation():
         self.chains_list = [x.origin_key for x in adapter_mapping]
         #concat all values of chains_list to a string and add apostrophes around each value
         self.chains_string = "'" + "','".join(self.chains_list) + "'"
-
         #only chains that are in the api output
         self.chains_list_in_api = [x.origin_key for x in adapter_mapping if x.in_api == True]
-
         #only chains that are in the api output and deployment is "PROD"
         self.chains_list_in_api_prod = [x.origin_key for x in adapter_mapping if x.in_api == True and x.deployment == "PROD"]
+
+        ## all feest metrics keys
+        self.fees_list = [item for sublist in [self.fees_types[metric]['metric_keys'] for metric in self.fees_types] for item in sublist]
 
     
     ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
@@ -165,18 +189,20 @@ class JSONCreation():
         yesterday = datetime.now() - timedelta(days=1)
         yesterday = yesterday.date()
 
-        #check if max_date is yesterday
-        if max_date.date() != yesterday:
-            print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
+        ## if max_date_fill is True, fill missing rows until yesterday with 0
+        if self.metrics[metric_id]['max_date_fill']:
+            #check if max_date is yesterday
+            if max_date.date() != yesterday:
+                print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
 
-            date_range = pd.date_range(start=max_date + timedelta(days=1), end=yesterday, freq='D')
+                date_range = pd.date_range(start=max_date + timedelta(days=1), end=yesterday, freq='D')
 
-            for mkey in mks:
-                new_data = {'date': date_range, 'value': [0] * len(date_range), 'metric_key': mkey}
-                new_df = pd.DataFrame(new_data)
-                new_df['unix'] = new_df['date'].apply(lambda x: x.timestamp() * 1000)
+                for mkey in mks:
+                    new_data = {'date': date_range, 'value': [0] * len(date_range), 'metric_key': mkey}
+                    new_df = pd.DataFrame(new_data)
+                    new_df['unix'] = new_df['date'].apply(lambda x: x.timestamp() * 1000)
 
-                df_tmp = pd.concat([df_tmp, new_df], ignore_index=True)
+                    df_tmp = pd.concat([df_tmp, new_df], ignore_index=True)
 
         df_tmp.drop(columns=['date'], inplace=True)
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
@@ -664,8 +690,8 @@ class JSONCreation():
         chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
         df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(chain_keys))]
 
-        # filter df to date >= 2021-09-01
-        df_tmp = df_tmp.loc[df_tmp.date >= '2021-09-01']
+        # filter df _tmp by date so that date is greather than 2 years ago
+        df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')]  
         
         # group by unix and metric_key and sum up the values or calculate the mean (depending on the metric)
         if metric['all_l2s_aggregate'] == 'sum':
@@ -900,12 +926,17 @@ class JSONCreation():
                 'rhino_listed': bool(getattr(chain, 'rhino_naming', None)),
                 'rhino_naming': getattr(chain, 'rhino_naming', None)
             }
+        
+        ## create dict for fees without metric_keys field
+        fees_types_api = {key: {sub_key: value for sub_key, value in sub_dict.items() if sub_key != 'metric_keys'} 
+                                  for key, sub_dict in self.fees_types.items()}
 
         master_dict = {
             'current_version' : self.api_version,
             'default_chain_selection' : self.get_default_selection(df_data),
             'chains' : chain_dict,
             'metrics' : self.metrics,
+            'fee_metrics' : fees_types_api,
             'blockspace_categories' : {
                 'main_categories' : main_category_dict,
                 'sub_categories' : sub_category_dict,
@@ -986,6 +1017,10 @@ class JSONCreation():
 
         ## filter out all metric_keys that end with _eth
         df = df[~df.metric_key.str.endswith('_eth')]
+
+        ## filter date to be in the last 365 days
+        df = df.loc[df.date >= (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')]
+
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
         df = df[df.metric_key.isin(self.metrics_list)]
 
@@ -1015,6 +1050,39 @@ class JSONCreation():
             self.save_to_json(fundamentals_dict, 'fundamentals')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals', fundamentals_dict, self.cf_distribution_id)
+    
+    def create_fundamentals_full_json(self, df):
+        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
+
+        ## only keep metrics that are also in the metrics_list (based on metrics dict)
+        df = df[df.metric_key.isin(self.metrics_list)]
+
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
+        ## filter based on settings in adapter_mapping
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+            elif len(adapter.exclude_metrics) > 0:
+                origin_key = adapter.origin_key
+                for metric in adapter.exclude_metrics:
+                    if metric != 'blockspace':
+                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
+                        metric_keys = self.metrics[metric]['metric_keys']
+                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
+        
+        ## put dataframe into a json string
+        fundamentals_dict = df.to_dict(orient='records')
+
+        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'fundamentals_full')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fundamentals_dict, 'fundamentals_full')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals_full', fundamentals_dict, self.cf_distribution_id)
 
     def create_contracts_json(self):
         exec_string = f"""
@@ -1138,5 +1206,6 @@ class JSONCreation():
         self.create_metric_details_jsons(df)
         
         self.create_fundamentals_json(df)
+        self.create_fundamentals_full_json(df)
         self.create_contracts_json()
         self.create_mvp_dict()

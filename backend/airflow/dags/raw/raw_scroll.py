@@ -6,8 +6,8 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.adapters.adapter_utils import MaxWaitTimeExceededException
+from src.adapters.adapter_raw_rpc import NodeAdapter
+from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
@@ -33,6 +33,11 @@ def adapter_rpc():
             'rpc': 'local_node',
             'chain': 'scroll',
             'rpc_urls': [os.getenv("SCROLL_RPC")],
+            # 'max_calls_per_rpc': {
+            #     os.getenv("SCROLL_RPC"): 3,
+            #     #os.getenv("SCROLL_RPC_2"): 3,
+            #     # os.getenv("SCROLL_RPC_3"): 3,
+            # }
         }
 
         # Initialize DbConnector
@@ -44,8 +49,8 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 100,
-            'threads': 1,
+            'batch_size': 20,
+            'threads': 7,
         }
 
         while load_params['threads'] > 0:

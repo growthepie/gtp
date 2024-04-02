@@ -7,7 +7,7 @@ import os
 from datetime import datetime, timedelta
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
-from src.adapters.adapter_starknet import AdapterStarknet
+from src.adapters.adapter_raw_starknet import AdapterStarknet
 
 @dag(
     default_args={

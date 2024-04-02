@@ -1,8 +1,8 @@
-from src.adapters.adapter_gtp_backfill_task import check_and_record_missing_block_ranges
+from src.adapters.funcs_backfill import check_and_record_missing_block_ranges
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
-from src.adapters.adapter_utils import *
+from src.adapters.funcs_rps_utils import *
 import requests
 import pandas as pd
 import json
@@ -173,9 +173,9 @@ class AdapterStarknet(AbstractAdapterRaw):
                     save_data_for_range(transactions_df, current_start, current_end, chain, s3_connection, bucket_name)
                     self.insert_data_into_db(transactions_df, db_connector, 'starknet_tx', 'transaction')
                 
-                # Process and save events
-                if not events_df.empty:
-                    self.insert_data_into_db(events_df, db_connector, 'starknet_events', 'event')
+                # # Process and save events
+                # if not events_df.empty:
+                #     self.insert_data_into_db(events_df, db_connector, 'starknet_events', 'event')
                 
                 print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
                 break

@@ -6,8 +6,8 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.adapters.adapter_utils import MaxWaitTimeExceededException
+from src.adapters.adapter_raw_rpc import NodeAdapter
+from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
@@ -31,11 +31,13 @@ def adapter_rpc():
         adapter_params = {
             'rpc': 'local_node',
             'chain': 'linea',
-            'rpc_urls': [os.getenv("LINEA_RPC"), os.getenv("LINEA_RPC_2")],
-            'max_calls_per_rpc': {
-                os.getenv("LINEA_RPC"): 50,
-                os.getenv("LINEA_RPC_2"): 50,
-            }
+            'rpc_urls': [os.getenv("LINEA_RPC")],
+            # 'rpc_urls': [os.getenv("LINEA_RPC"), os.getenv("LINEA_RPC_2"), os.getenv("LINEA_RPC_3")],
+            # 'max_calls_per_rpc': {
+            #     os.getenv("LINEA_RPC"): 3,
+            #     os.getenv("LINEA_RPC_2"): 3,
+            #     os.getenv("LINEA_RPC_3"): 3,
+            # }
         }
 
         # Initialize DbConnector
@@ -47,8 +49,8 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 100,
-            'threads': 3,
+            'batch_size': 10,
+            'threads': 15,
         }
 
         while load_params['threads'] > 0:

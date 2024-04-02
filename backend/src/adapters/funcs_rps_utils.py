@@ -49,6 +49,9 @@ def connect_to_node(url):
     # Apply the geth POA middleware to the Web3 instance
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
     
+    if 'hypersync' in url:
+        print("Hypersync is enabled. Skipping connection check.")
+        return w3
     if w3.is_connected():
         return w3
     else:
@@ -620,6 +623,10 @@ def fetch_block_transaction_details(w3, block):
         
         # Fetch the transaction using the hash
         tx = w3.eth.get_transaction(tx_hash)
+
+        ## Wait for a few ms if not using hypersync
+        if 'hypersync' not in w3.provider.endpoint_uri:
+            time.sleep(0.03)  # Sleep for 30ms to avoid rate limiting
                 
         # Convert the receipt and transaction to dictionary if it is not
         if not isinstance(receipt, dict):
@@ -735,7 +742,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             
             try:
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
-                print(f"Data inserted for blocks {current_start} to {current_end} successfully.")
+                print(f"Data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}")
             except Exception as e:
                 print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
                 raise e

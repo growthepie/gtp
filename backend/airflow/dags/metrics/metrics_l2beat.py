@@ -21,7 +21,7 @@ from src.adapters.adapter_l2beat import AdapterL2Beat
     description='Load onchain TVL.',
     tags=['metrics', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='00 02 * * *'
+    schedule='50 03 * * *'
 )
 
 def etl():

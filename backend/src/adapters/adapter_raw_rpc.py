@@ -1,7 +1,7 @@
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
-from src.adapters.adapter_utils import *
+from src.adapters.funcs_rps_utils import *
 
 class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -54,10 +54,13 @@ class NodeAdapter(AbstractAdapterRaw):
         else:
             print("Successfully connected to S3.")
 
-        if not self.w3 or not self.w3.is_connected():
-            raise ConnectionError("Not connected to a node.")
+        if 'hypersync' in self.w3.provider.endpoint_uri:
+            print("Hypersync is enabled. Skipping connection check.")
         else:
-            print("Successfully connected to the node.")
+            if not self.w3 or not self.w3.is_connected():
+                raise ConnectionError("Not connected to a node.")
+            else:
+                print("Successfully connected to the node.")
 
         latest_block = get_latest_block(self.w3)
         if latest_block is None:

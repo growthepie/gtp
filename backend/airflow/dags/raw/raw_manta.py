@@ -6,8 +6,8 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_gtp import NodeAdapter
-from src.adapters.adapter_utils import MaxWaitTimeExceededException
+from src.adapters.adapter_raw_rpc import NodeAdapter
+from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 
@@ -44,8 +44,8 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 15,
-            'threads': 3,
+            'batch_size': 20,
+            'threads': 10,
         }
 
         while load_params['threads'] > 0:

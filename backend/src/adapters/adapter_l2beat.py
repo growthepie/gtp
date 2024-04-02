@@ -68,8 +68,8 @@ class AdapterL2Beat(AbstractAdapter):
             df.rename(columns={1:'value'}, inplace=True)
             df['metric_key'] = 'tvl'
             df['origin_key'] = origin_key
-            max_date = df['date'].max()
-            df.drop(df[df.date == max_date].index, inplace=True)
+            # max_date = df['date'].max()
+            # df.drop(df[df.date == max_date].index, inplace=True)
             today = datetime.today().strftime('%Y-%m-%d')
             df.drop(df[df.date == today].index, inplace=True, errors='ignore')
             df.value.fillna(0, inplace=True)

@@ -25,13 +25,14 @@ from src.api.json_creation import JSONCreation
     description='Run some sql aggregations for fees page.',
     tags=['metrics', 'near-real-time'],
     start_date=datetime(2023,4,24),
-    schedule_interval='*/10 * * * *'
+    schedule_interval='*/30 * * * *'
 )
 
 def etl():
         @task()
         def run_aggregate_metrics():
                 db_connector = DbConnector()
+                days = 2
                 for chain in adapter_mapping:
                         origin_key = chain.origin_key
                         if chain.in_fees_api == False:
@@ -47,7 +48,7 @@ def etl():
                                                 'hourly' as granularity,
                                                 AVG(tx_fee) as value
                                         FROM public.{origin_key}_tx
-                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                         GROUP BY 1,2,3,4
                                         having count(*) > 20
                                 """
@@ -65,7 +66,7 @@ def etl():
                                                 '10_min' as granularity,
                                                 AVG(tx_fee) as value
                                         FROM public.{origin_key}_tx
-                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                         GROUP BY 1,2,3,4
                                         having count(*) > 20
                                 """
@@ -82,7 +83,7 @@ def etl():
                                                         date_trunc('hour', "block_timestamp") AS timestamp,
                                                         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
                                                 FROM public.{origin_key}_tx
-                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                                 GROUP BY 1
                                                 having count(*) > 20
                                         )
@@ -107,7 +108,7 @@ def etl():
                                                         date_trunc('hour', block_timestamp) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM block_timestamp) / 10) AS timestamp,
                                                         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
                                                 FROM public.{origin_key}_tx
-                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                                 GROUP BY 1
                                                 having count(*) > 20
                                         )
@@ -134,7 +135,7 @@ def etl():
                                                                 date_trunc('hour', "block_timestamp") AS timestamp,
                                                                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
                                                         FROM public.{origin_key}_tx
-                                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                                                 AND empty_input = TRUE
                                                         GROUP BY 1
                                                         having count(*) > 10
@@ -160,7 +161,7 @@ def etl():
                                                                 date_trunc('hour', block_timestamp) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM block_timestamp) / 10) AS timestamp,
                                                                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
                                                         FROM public.{origin_key}_tx
-                                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '1 days' AND now()
+                                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                                                 AND empty_input = TRUE
                                                         GROUP BY 1
                                                         having count(*) > 10

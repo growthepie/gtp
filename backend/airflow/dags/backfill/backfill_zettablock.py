@@ -8,7 +8,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import os
 from airflow.decorators import dag, task 
 from src.db_connector import DbConnector
-from src.adapters.adapter_gtp_backfill_task import check_and_record_missing_block_ranges
+from src.adapters.funcs_backfill import check_and_record_missing_block_ranges
 from src.adapters.adapter_raw_zettablock import AdapterZettaBlockRaw
 
 @dag(
