@@ -127,6 +127,11 @@ def etl():
         def run_create_fees_json(run_aggregate_metrics:str):
                 db_connector = DbConnector()
                 json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, "v1")
+                df = json_creator.get_data_fees()
+                json_creator.create_fees_table_json(df)
+                json_creator.create_fees_linechart_json(df)
+
+                ## TO BE DEPRECATED:
                 json_creator.create_fees_json()
                 json_creator.create_fees_dict()
    
