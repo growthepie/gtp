@@ -1257,8 +1257,8 @@ class JSONCreation():
                 metric_name = metric_key[:-4]
 
                 for timeframe in self.fees_timespans:
-                    granularity = self.fees_timespans[timeframe][granularity]
-                    filter_days = self.fees_timespans[timeframe][filter_days]
+                    granularity = self.fees_timespans[timeframe]["granularity"]
+                    filter_days = self.fees_timespans[timeframe]["filter_days"]
                     df_tmp = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=24*filter_days)].copy()
                     generated = self.generate_fees_list(df_tmp, metric_key, origin_key, granularity, eth_price, max_ts_all)
                     timeframe_dict[timeframe] = {
