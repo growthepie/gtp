@@ -1250,6 +1250,7 @@ class JSONCreation():
                 continue
             
             eth_price = self.db_connector.get_last_price_usd('ethereum')                
+            fees_dict["chain_data"][origin_key] = {}
 
             for metric_key in self.fees_list:
                 timeframe_dict = {}
