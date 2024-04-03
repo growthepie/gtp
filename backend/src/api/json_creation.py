@@ -130,6 +130,14 @@ class JSONCreation():
             }
         }
 
+        ## mapping of timeframes to granularity
+        self.fees_timespans = {
+            '24hrs' : {'granularity': '10_min', 'filter_days': 1},
+            '7d' : {'granularity': 'hourly', 'filter_days': 7},
+            '30d' : {'granularity': '4_hours', 'filter_days': 30},
+            '180d' : {'granularity': 'daily', 'filter_days': 180},
+            }
+
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
         #concat all values of metrics_list to a string and add apostrophes around each value
@@ -493,7 +501,6 @@ class JSONCreation():
 
         return val_dict
 
-
     def get_all_data(self):
         ## Load all data from database
         chain_user_list = self.chains_list_in_api + ['multiple']
@@ -503,6 +510,10 @@ class JSONCreation():
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"
 
         df = self.download_data(chain_user_string, metrics_user_string)
+        return df
+    
+    def get_data_fees(self):
+        df = self.download_data_fees(self.fees_list)
         return df
     
     ##### LANDING PAGE METHODS #####
@@ -1118,6 +1129,8 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
 
+
+    ### TO BE DEPRECATED ###
     def create_fees_json(self):
         df = self.download_data_fees(self.fees_list)
 
@@ -1169,6 +1182,101 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees', fees_dict, self.cf_distribution_id)
         print(f'DONE -- Fees export')
+    
+    def create_fees_table_json(self, df):
+        fees_dict = {
+            "chain_data" : {}
+        } 
+
+        max_ts_all = df['unix'].max()
+        
+        ## filter df timestamp to be within the last 48 hours (not more needed for table visual)
+        df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=48)]
+
+        ## loop over all chains and generate a fees json for all chains
+        for chain in adapter_mapping:
+            origin_key = chain.origin_key
+            if chain.in_fees_api == False:
+                print(f'..skipped: Fees export for {origin_key}. API is set to False')
+                continue
+            
+            eth_price = self.db_connector.get_last_price_usd('ethereum')
+
+            hourly_dict = {}
+            for metric_key in self.fees_list:
+                ## generate metric_name which is metric_key without the last 4 characters
+                metric_name = metric_key[:-4]
+                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all)
+                hourly_dict[metric_name] = {
+                    "types": generated[1],
+                    "data": generated[0]
+                }
+            
+            # min_10_dict = {}
+            # for metric_key in self.fees_list:
+            #     ## generate metric_name which is metric_key without the last 4 characters
+            #     metric_name = metric_key[:-4]
+            #     generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price, max_ts_all)
+            #     min_10_dict[metric_name] = {
+            #         "types": generated[1],
+            #         "data": generated[0]
+            #     }
+
+            fees_dict["chain_data"][origin_key] = {
+                'hourly': hourly_dict,
+                # 'ten_min': min_10_dict
+            }
+
+        fees_dict = fix_dict_nan(fees_dict, f'fees/table')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, f'fees/table')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/table', fees_dict, self.cf_distribution_id)
+        print(f'DONE -- fees/table.json export')
+
+    def create_fees_linechart_json(self, df):
+        fees_dict = {
+            "chain_data" : {}
+        } 
+
+        max_ts_all = df['unix'].max()
+
+        ## loop over all chains and generate a fees json for all chains
+        for chain in adapter_mapping:
+            origin_key = chain.origin_key
+            if chain.in_fees_api == False:
+                print(f'..skipped: Fees export for {origin_key}. API is set to False')
+                continue
+            
+            eth_price = self.db_connector.get_last_price_usd('ethereum')                
+
+            for metric_key in self.fees_list:
+                timeframe_dict = {}
+                ## generate metric_name which is metric_key without the last 4 characters
+                metric_name = metric_key[:-4]
+
+                for timeframe in self.fees_timespans:
+                    granularity = self.fees_timespans[timeframe][granularity]
+                    filter_days = self.fees_timespans[timeframe][filter_days]
+                    df_tmp = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=24*filter_days)].copy()
+                    generated = self.generate_fees_list(df_tmp, metric_key, origin_key, granularity, eth_price, max_ts_all)
+                    timeframe_dict[timeframe] = {
+                        "types": generated[1],
+                        "granularity": granularity,
+                        "data": generated[0]
+                    }
+            
+
+                fees_dict["chain_data"][origin_key][metric_name] = timeframe_dict
+
+        fees_dict = fix_dict_nan(fees_dict, f'fees/linechart')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, f'fees/linechart')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
+        print(f'DONE -- fees/linechart.json export')
 
     def create_fees_dict(self):
         df = self.download_data_fees(self.fees_list)
