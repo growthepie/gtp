@@ -730,7 +730,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_polygon_zkevm(df)
             elif chain == 'blast':
                 df_prep = prep_dataframe_blast(df)
-            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'manta']:
+            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode']:
                 print('...use op-chain data prep')
                 df_prep = prep_dataframe_opchain(df)
             else:
