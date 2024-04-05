@@ -98,6 +98,11 @@ class AdapterSQL(AbstractAdapter):
         elif load_type == 'active_addresses_agg':
             self.run_active_addresses_agg(origin_keys, days)
             return None
+        
+        elif load_type == 'fees':
+            granularities = load_params.get('granularities', None)
+            self.run_fees_queries(origin_keys, days, granularities)
+            return None
 
         else:
             raise ValueError('load_type not supported')
@@ -260,3 +265,119 @@ class AdapterSQL(AbstractAdapter):
 
             print(f"...upserting active addresses data for {origin_key}. Total rows: {df.shape[0]}...")
             self.db_connector.upsert_table('fact_active_addresses', df)
+
+    def run_fees_queries(self, origin_keys, days, granularities):
+        if origin_keys is None:
+            origin_keys = [chain.origin_key for chain in adapter_mapping if chain.in_fees_api == True]
+            print(f"...no specific origin_key found, aggregating fees for all chains: {origin_keys}...")
+
+        granularities_dict = {
+                'daily'         : """date_trunc('day', "block_timestamp")""", 
+                '4_hours'       : """date_trunc('day', block_timestamp) +  INTERVAL '1 hour' * (EXTRACT(hour FROM block_timestamp)::int / 4 * 4)""", 
+                'hourly'        : """date_trunc('hour', "block_timestamp")""", 
+                '10_min'        : """date_trunc('hour', block_timestamp) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM block_timestamp) / 10)""", 
+        }
+
+        if granularities is None:
+            granularities = granularities_dict
+        else: 
+            granularities = {k: granularities_dict[k] for k in granularities}
+
+
+        for origin_key in origin_keys:                        
+                for granularity in granularities:
+                        timestamp_query = granularities[granularity]
+
+                        ## txcosts_average
+                        print(f"... processing txcosts_average for {origin_key} and {granularity} granularity")
+                        exec_string = f"""
+                                SELECT
+                                        {timestamp_query} AS timestamp,
+                                        '{origin_key}' as origin_key,
+                                        'txcosts_avg_eth' as metric_key,
+                                        '{granularity}' as granularity,
+                                        AVG(tx_fee) as value
+                                FROM public.{origin_key}_tx
+                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
+                                GROUP BY 1,2,3,4
+                                having count(*) > 20
+                        """
+                        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                        df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                        self.db_connector.upsert_table('fact_kpis_granular', df)
+
+                        ## txcosts_median
+                        print(f"... processing txcosts_median for {origin_key} and {granularity} granularity")
+                        exec_string = f"""
+                                WITH 
+                                median_tx AS (
+                                        SELECT
+                                                {timestamp_query} AS timestamp,
+                                                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                                        FROM public.{origin_key}_tx
+                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
+                                        GROUP BY 1
+                                        having count(*) > 20
+                                )
+
+                                SELECT
+                                        '{origin_key}' as origin_key,
+                                        'txcosts_median_eth' as metric_key,
+                                        z.timestamp,
+                                        '{granularity}' as granularity,
+                                        z.median_tx_fee as value
+                                FROM median_tx z
+                        """
+                        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                        df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                        self.db_connector.upsert_table('fact_kpis_granular', df)
+
+
+                        ## txcosts_native_median
+                        if origin_key != 'starknet':
+                                print(f"... processing txcosts_median for {origin_key} and {granularity} granularity")                                        
+                                exec_string = f"""
+                                        WITH 
+                                        median_tx AS (
+                                                SELECT
+                                                        {timestamp_query} AS timestamp,
+                                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                                                FROM public.{origin_key}_tx
+                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
+                                                        AND empty_input = TRUE
+                                                GROUP BY 1
+                                                having count(*) > 10
+                                        )
+
+                                        SELECT
+                                                '{origin_key}' as origin_key,
+                                                'txcosts_native_median_eth' as metric_key,
+                                                z.timestamp,
+                                                '{granularity}' as granularity,
+                                                z.median_tx_fee as value
+                                        FROM median_tx z
+                                """
+                                df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                                df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                                self.db_connector.upsert_table('fact_kpis_granular', df)
+
+                            ## txcosts_swap_eth
+                        if origin_key != 'starknet':
+                                print(f"... processing txcosts_swap_eth for {origin_key} and {granularity} granularity")                                        
+                                exec_string = f"""
+                                        SELECT
+                                                {timestamp_query} AS timestamp,
+                                                '{origin_key}' as origin_key,
+                                                'txcosts_swap_eth' as metric_key,
+                                                '{granularity}' as granularity,
+                                                AVG(tx_fee) as value
+                                        FROM public.{origin_key}_tx
+                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
+                                        AND gas_used between 150000 AND 350000
+                                        GROUP BY 1,2,3,4
+                                        having count(*) > 20
+                                """
+                                df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                                df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                                self.db_connector.upsert_table('fact_kpis_granular', df)
+
