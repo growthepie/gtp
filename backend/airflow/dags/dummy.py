@@ -1,13 +1,12 @@
 from datetime import datetime,timedelta
 import getpass
-import os
 sys_user = getpass.getuser()
 
 import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from airflow.decorators import dag, task 
 
-from airflow.airflow_utils import alert_via_webhook
+from src.misc.airflow_utils import alert_via_webhook
 
 @dag(
     default_args={
