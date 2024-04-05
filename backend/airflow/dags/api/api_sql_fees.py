@@ -46,9 +46,10 @@ def etl():
                         else:
                                 
                                 for granularity in granularities:
+                                        timestamp_query = granularities[granularity]
+
                                         ## txcosts_average
                                         print(f"... processing txcosts_average for {origin_key} and {granularity} granularity")
-                                        timestamp_query = granularities[granularity]
                                         exec_string = f"""
                                                 SELECT
                                                         {timestamp_query} AS timestamp,
@@ -117,6 +118,27 @@ def etl():
                                                                 '{granularity}' as granularity,
                                                                 z.median_tx_fee as value
                                                         FROM median_tx z
+                                                """
+
+                                                df = pd.read_sql(exec_string, db_connector.engine.connect())
+                                                df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                                                db_connector.upsert_table('fact_kpis_granular', df)
+
+                                         ## txcosts_swap_eth
+                                        if origin_key != 'starknet':
+                                                print(f"... processing txcosts_swap_eth for {origin_key} and {granularity} granularity")                                        
+                                                exec_string = f"""
+                                                        SELECT
+                                                                {timestamp_query} AS timestamp,
+                                                                '{origin_key}' as origin_key,
+                                                                'txcosts_swap_eth' as metric_key,
+                                                                '{granularity}' as granularity,
+                                                                AVG(tx_fee) as value
+                                                        FROM public.{origin_key}_tx
+                                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
+                                                        AND gas_used between 150000 AND 350000
+                                                        GROUP BY 1,2,3,4
+                                                        having count(*) > 20
                                                 """
 
                                                 df = pd.read_sql(exec_string, db_connector.engine.connect())

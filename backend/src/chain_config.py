@@ -458,8 +458,8 @@ adapter_mapping = [
         # ,defillama_stablecoin='Mantle' ## stables via Dune
         ,l2beat_tvl_naming='mantle'
 
-        #,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
-        ,block_explorer_type='NA'
+        ,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
+        #,block_explorer_type='NA'
 
         ,rpc_url='https://rpc.mantle.xyz/'
 
