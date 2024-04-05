@@ -8,14 +8,15 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.adapters.adapter_raw_rhino import AdapterRhino
 from src.db_connector import DbConnector
+from src.misc.airflow_utils import alert_via_webhook
 
 @dag(
     default_args= {
         'owner': 'nader',
         'retries': 2,
-        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-        'email_on_failure': True,
-        'retry_delay': timedelta(minutes=5)
+        'email_on_failure': False,
+        'retry_delay': timedelta(minutes=5),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='raw_rhino',
     description='Load raw tx data from Rhino',

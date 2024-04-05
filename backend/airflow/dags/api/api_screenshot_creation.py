@@ -9,14 +9,15 @@ dotenv.load_dotenv()
 
 from src.api.screenshots_to_s3 import run_screenshots
 from airflow.decorators import dag, task 
+from src.misc.airflow_utils import alert_via_webhook
 
 @dag(
     default_args={
         'owner' : 'mseidl',
         'retries' : 2,
-        'email' : ['matthias@orbal-analytics.com', 'mike@growthepie.xyz'],
-        'email_on_failure': True,
-        'retry_delay' : timedelta(minutes=5)
+        'email_on_failure': False,
+        'retry_delay' : timedelta(minutes=5),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='api_screenshot_creation',
     description='Create and store screenshots in s3 bucket',

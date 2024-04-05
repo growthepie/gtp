@@ -10,14 +10,15 @@ from src.adapters.adapter_raw_rpc import NodeAdapter
 from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
+from src.misc.airflow_utils import alert_via_webhook
 
 @dag(
     default_args={
         'owner': 'nader',
         'retries': 2,
-        'email': ['nader@growthepie.xyz', 'matthias@growthepie.xyz'],
-        'email_on_failure': True,
-        'retry_delay': timedelta(minutes=5)
+        'email_on_failure': False,
+        'retry_delay': timedelta(minutes=5),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='raw_base',
     description='Load raw tx data from Base',

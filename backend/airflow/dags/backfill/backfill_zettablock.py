@@ -7,6 +7,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 import os
 from airflow.decorators import dag, task 
+from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 from src.adapters.funcs_backfill import check_and_record_missing_block_ranges
 from src.adapters.adapter_raw_zettablock import AdapterZettaBlockRaw
@@ -15,9 +16,9 @@ from src.adapters.adapter_raw_zettablock import AdapterZettaBlockRaw
     default_args={
         'owner' : 'mseidl',
         'retries' : 2,
-        'email' : ['matthias@orbal-analytics.com'],
-        'email_on_failure': True,
-        'retry_delay' : timedelta(minutes=5)
+        'email_on_failure': False,
+        'retry_delay' : timedelta(minutes=5),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='backfill_zettablock',
     description='Backfill potentially missing Zettablock data.',

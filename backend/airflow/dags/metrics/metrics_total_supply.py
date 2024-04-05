@@ -11,6 +11,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 # import other packages
 from airflow.decorators import dag, task
+from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 from src.adapters.adapter_total_supply import AdapterTotalSupply
 
@@ -18,9 +19,9 @@ from src.adapters.adapter_total_supply import AdapterTotalSupply
     default_args={
         'owner' : 'lorenz',
         'retries' : 2,
-        'email' : ['lorenz@growthepie.xyz', 'matthias@growthepie.xyz'],
-        'email_on_failure': True,
-        'retry_delay' : timedelta(minutes=15)
+        'email_on_failure': False,
+        'retry_delay' : timedelta(minutes=15),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='metrics_total_supply',
     description='Get KPI totalSupply for tokens of L2 chains',

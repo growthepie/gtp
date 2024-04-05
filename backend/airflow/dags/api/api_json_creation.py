@@ -8,6 +8,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
 from src.db_connector import DbConnector
+from src.misc.airflow_utils import alert_via_webhook
 from src.api.json_creation import JSONCreation
 from src.api.blockspace_json_creation import BlockspaceJSONCreation
 
@@ -18,9 +19,9 @@ db_connector = DbConnector()
     default_args={
         'owner' : 'mseidl',
         'retries' : 2,
-        'email' : ['matthias@orbal-analytics.com'],
-        'email_on_failure': True,
+        'email_on_failure': False,
         'retry_delay' : timedelta(minutes=1),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='api_json_creation',
     description='Create json files that are necessary to power the frontend.',

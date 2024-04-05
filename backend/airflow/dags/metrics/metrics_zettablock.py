@@ -6,6 +6,7 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
+from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 from src.adapters.adapter_zettablock import AdapterZettablock
 
@@ -13,9 +14,9 @@ from src.adapters.adapter_zettablock import AdapterZettablock
     default_args={
         'owner' : 'mseidl',
         'retries' : 2,
-        'email' : ['matthias@orbal-analytics.com'],
-        'email_on_failure': True,
-        'retry_delay' : timedelta(minutes=5)
+        'email_on_failure': False,
+        'retry_delay' : timedelta(minutes=5),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='metrics_zettablock',
     description='Load aggregates metrics such as txcount, daa, fees paid.',

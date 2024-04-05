@@ -6,6 +6,7 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task
+from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 from src.chain_config import adapter_mapping
 import src.misc.airtable_functions as at
@@ -23,9 +24,9 @@ table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
     default_args={
         'owner' : 'lorenz',
         'retries' : 2,
-        'email' : ['lorenz@growthepie.xyz', 'manish@growthepie.xyz', 'matthias@growthepie.xyz'],
-        'email_on_failure': True,
-        'retry_delay' : timedelta(minutes=15)
+        'email_on_failure': False,
+        'retry_delay' : timedelta(minutes=15),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='utility_contracts_to_airtable',
     description='Update Airtable for contract labelling',

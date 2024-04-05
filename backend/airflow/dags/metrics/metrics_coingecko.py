@@ -6,6 +6,7 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from airflow.decorators import dag, task 
+from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 from src.adapters.adapter_coingecko import AdapterCoingecko
 
@@ -13,9 +14,9 @@ from src.adapters.adapter_coingecko import AdapterCoingecko
     default_args={
         'owner' : 'mseidl',
         'retries' : 5,
-        'email' : ['matthias@orbal-analytics.com'],
-        'email_on_failure': True,
-        'retry_delay' : timedelta(minutes=10)
+        'email_on_failure': False,
+        'retry_delay' : timedelta(minutes=10),
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='metrics_coingecko',
     description='Load price, volume, and market_cap from coingecko API for all tracked tokens.',
