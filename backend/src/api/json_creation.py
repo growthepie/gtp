@@ -128,6 +128,10 @@ class JSONCreation():
                 'name': 'Transfer ETH',
                 'metric_keys': ['txcosts_median_eth'],
             }
+            , 'txcosts_swap' : {
+                'name': 'Swap',
+                'metric_keys': ['txcosts_swap_eth'],
+            }
         }
 
         ## mapping of timeframes to granularity
