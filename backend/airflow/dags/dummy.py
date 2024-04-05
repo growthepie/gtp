@@ -13,7 +13,7 @@ from src.misc.airflow_utils import alert_via_webhook
         'owner' : 'mseidl',
         'retries' : 1,
         'email_on_failure': False,
-        'retry_delay' : timedelta(minutes=1),
+        'retry_delay' : timedelta(seconds=5),
         'on_failure_callback': alert_via_webhook
     },
     dag_id='dummy',
