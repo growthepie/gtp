@@ -13,7 +13,6 @@ import airflow
 import jinja2
 from airflow.configuration import conf
 from airflow.models import DAG, Variable
-from src.misc.airflow_utils import alert_via_webhook
 from airflow.operators.bash_operator import BashOperator
 from airflow.operators.dummy_operator import DummyOperator
 
@@ -76,8 +75,7 @@ dag = DAG(
         'owner': DAG_OWNER_NAME,
         'depends_on_past': False,
         'email': ALERT_EMAIL_ADDRESSES,
-        'email_on_failure': False,
-        'on_failure_callback': alert_via_webhook,
+        'email_on_failure': True,
         'start_date': START_DATE,
         'retries': 1,
         'retry_delay': timedelta(minutes=1)
