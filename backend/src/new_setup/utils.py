@@ -555,7 +555,93 @@ def prep_dataframe_blast(df):
     # value column divide by 1e18 to convert to eth
     filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
 
-    return filtered_df  
+    return filtered_df
+def prep_dataframe_eth(df):
+
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'input_data',
+        'block_timestamp': 'block_timestamp',
+        'maxFeePerGas': 'max_fee_per_gas',
+        'maxPriorityFeePerGas': 'max_priority_fee_per_gas',
+        'type': 'tx_type',
+        'nonce': 'nonce',
+        'transactionIndex': 'position',
+        'baseFeePerGas': 'base_fee_per_gas',
+        'maxFeePerBlobGas': 'max_fee_per_blob_gas'
+    }
+
+    # Filter the dataframe to only include the relevant columns that exist in the DataFrame
+    existing_columns = [col for col in column_mapping.keys() if col in df.columns]
+    filtered_df = df[existing_columns]
+
+    # Rename the columns based on the above mapping
+    existing_column_mapping = {key: column_mapping[key] for key in existing_columns}
+
+    # Rename the columns based on the updated mapping
+    filtered_df = filtered_df.rename(columns=existing_column_mapping)
+
+    # Ensure numeric columns are handled appropriately
+    for col in ['gas_price', 'gas_used', 'value', 'max_fee_per_gas', 'max_priority_fee_per_gas']:
+        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+    
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+
+    filtered_df['max_fee_per_gas'] = filtered_df['max_fee_per_gas'].astype(float) / 1e18
+    filtered_df['max_priority_fee_per_gas'] = filtered_df['max_priority_fee_per_gas'].astype(float) / 1e18
+    filtered_df['base_fee_per_gas'] = filtered_df['base_fee_per_gas'].astype(float) / 1e18
+    
+    if 'max_fee_per_blob_gas' in filtered_df.columns:
+        filtered_df['max_fee_per_blob_gas'] = filtered_df['max_fee_per_blob_gas'].apply(lambda x: int(x, 16) if isinstance(x, str) and x.startswith('0x') else float(x)) / 1e18
+        
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['input_data'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # replace None in 'to_address' column with empty string
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")             
+
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+    # calculate priority_fee_per_gas
+    if 'max_fee_per_gas' in filtered_df.columns and 'base_fee_per_gas' in filtered_df.columns:
+        filtered_df['base_fee_per_gas'] = pd.to_numeric(filtered_df['base_fee_per_gas'], errors='coerce')
+        filtered_df['priority_fee_per_gas'] = (filtered_df['max_fee_per_gas'] - filtered_df['base_fee_per_gas'])
+    else:
+        filtered_df['priority_fee_per_gas'] = np.nan
+    
+    # drop base_fee_per_gas
+    filtered_df.drop('base_fee_per_gas', axis=1, inplace=True)
+
+    return filtered_df
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
@@ -605,7 +691,8 @@ def get_latest_block(w3):
 def fetch_block_transaction_details(w3, block):
     transaction_details = []
     block_timestamp = block['timestamp']  # Get the block timestamp
-    
+    base_fee_per_gas = block['baseFeePerGas'] if 'baseFeePerGas' in block else None  # Fetch baseFeePerGas from the block
+
     for tx in block['transactions']:
         tx_hash = tx['hash']
         receipt = w3.eth.get_transaction_receipt(tx_hash)
@@ -622,6 +709,8 @@ def fetch_block_transaction_details(w3, block):
         # Add or update specific fields
         merged_dict['hash'] = tx['hash'].hex()
         merged_dict['block_timestamp'] = block_timestamp
+        if base_fee_per_gas:
+            merged_dict['baseFeePerGas'] = base_fee_per_gas
         
         # Add the transaction receipt dictionary to the list
         transaction_details.append(merged_dict)
@@ -703,6 +792,8 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
+            elif chain == 'ethereum':
+                df_prep = prep_dataframe_eth(df)
             elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast']:
                 print('...use op-chain data prep')
                 df_prep = prep_dataframe_opchain(df)
