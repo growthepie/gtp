@@ -619,7 +619,7 @@ def prep_dataframe_eth(df):
         filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
 
     # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
+    for col in ['tx_hash', 'to_address', 'from_address', 'input_data']:
         if col in filtered_df.columns:
             filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
         else:
