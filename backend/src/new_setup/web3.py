@@ -39,7 +39,7 @@ class EthProxy:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                print(f"For {self._web3cc.get_rpc_url()}: Operation failed ({self._web3cc._w3}) with exception: {e}. Retrying in {wait_time} seconds...")
+                print(f"For {self._web3cc.get_rpc_url()}: Operation failed with exception: {e}. Retrying in {wait_time} seconds...")
                 retries += 1
                 time.sleep(wait_time)
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
