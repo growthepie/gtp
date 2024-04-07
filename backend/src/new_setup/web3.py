@@ -34,17 +34,17 @@ class EthProxy:
         wait_time = initial_wait
         while retries < max_retries:
             if self._web3cc.is_rate_limited and retries > 2:
-                print(f"Rate limit exceeded, waiting {wait_time} seconds before retry...")
+                print(f"For {self._web3cc.get_rpc_url()}: Rate limit exceeded, waiting {wait_time} seconds before retry...")
                 time.sleep(wait_time)
             try:
                 return func(*args, **kwargs)
             except Exception as e:
-                print(f"Operation failed with exception: {e}. Retrying in {wait_time} seconds...")
+                print(f"For {self._web3cc.get_rpc_url()}: Operation failed ({self._web3cc._w3}) with exception: {e}. Retrying in {wait_time} seconds...")
                 retries += 1
                 time.sleep(wait_time)
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
 
-        raise Exception(f"Operation failed after {max_retries} retries.")
+        raise Exception(f"For {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries.")
 
 class ResponseNormalizerMiddleware:
     def __init__(self, web3):
@@ -106,3 +106,10 @@ class Web3CC:
         if name in ['cooldown_until', 'initiate_cooldown', '_increment_call_count_and_rate_limit']:
             return object.__getattribute__(self, name)
         return getattr(self._w3, name)
+    
+    def get_rpc_url(self):
+        raw_url = self._w3.provider.endpoint_uri
+        ## remove http:// or https://
+        url = raw_url.split("//")[-1]
+
+        return url
