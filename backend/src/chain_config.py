@@ -636,7 +636,7 @@ adapter_mapping = [
         ,in_api = False
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['profit', 'rent_paid']
+        ,exclude_metrics = ['profit', 'rent_paid', 'fdv', 'market_cap']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
@@ -675,7 +675,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['profit', 'rent_paid']
+        ,exclude_metrics = ['profit', 'rent_paid', 'fdv', 'market_cap']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
