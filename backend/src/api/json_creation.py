@@ -1194,6 +1194,7 @@ class JSONCreation():
     def create_fees_dict(self):
         df = self.download_data_fees(self.fees_list)
 
+        df = df[df.origin_key != 'ethereum']
         for adapter in adapter_mapping:
             ## filter out origin_keys from df if in_api=false
             if adapter.in_fees_api == False:
@@ -1234,9 +1235,6 @@ class JSONCreation():
             if chain.in_fees_api == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
-            if origin_key == 'ethereum':
-                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
-                continue  
             
             eth_price = self.db_connector.get_last_price_usd('ethereum')
 
