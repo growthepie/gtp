@@ -291,19 +291,51 @@ class AdapterSQL(AbstractAdapter):
                         if origin_key == 'ethereum' and granularity != 'hourly':
                                 continue
                         
+                        if origin_key in ['mantle', 'metis']:
+                            ## a little more complex cte because our coingecko data can be 1 day behind
+                            additional_cte = f"""
+                                    date_series AS (
+                                        SELECT CURRENT_DATE - i AS date
+                                        FROM generate_series(0, {days + 1}) i -- this generates the last 3 days including today
+                                    ),
+                                    latest_value AS (
+                                        SELECT value
+                                        FROM public.fact_kpis
+                                        WHERE origin_key = '{origin_key}' AND metric_key = 'price_eth'
+                                        ORDER BY date DESC
+                                        LIMIT 1
+                                    ),
+                                    token_price AS (
+                                        SELECT ds.date, COALESCE(fk.value, lv.value) AS value
+                                        FROM date_series ds
+                                        LEFT JOIN public.fact_kpis fk ON ds.date = fk.date AND fk.origin_key = '{origin_key}' AND fk.metric_key = 'price_eth'
+                                        CROSS JOIN latest_value lv
+                                    )
+                            """
+                            tx_fee_eth_string = 'tx_fee * mp.value'
+                            additional_join = """LEFT JOIN token_price mp on date_trunc('day', block_timestamp) = mp."date" """
+                        else:
+                            additional_cte = ''
+                            tx_fee_eth_string = 'tx_fee'
+                            additional_join = ''
+                        
                         timestamp_query = granularities[granularity]
 
                         ## txcosts_average
                         print(f"... processing txcosts_average for {origin_key} and {granularity} granularity")
+                        if additional_cte != '':
+                            additional_cte_full = 'WITH ' + additional_cte 
                         exec_string = f"""
+                                {additional_cte_full}
                                 SELECT
                                         {timestamp_query} AS timestamp,
                                         '{origin_key}' as origin_key,
                                         'txcosts_avg_eth' as metric_key,
                                         '{granularity}' as granularity,
-                                        AVG(tx_fee) as value
+                                        AVG({tx_fee_eth_string}) as value
                                 FROM public.{origin_key}_tx
-                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
+                                {additional_join}
+                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()                                
                                 GROUP BY 1,2,3,4
                                 having count(*) > 20
                         """
@@ -313,12 +345,16 @@ class AdapterSQL(AbstractAdapter):
 
                         ## txcosts_median
                         print(f"... processing txcosts_median for {origin_key} and {granularity} granularity")
+                        if additional_cte != '':
+                            additional_cte_full = additional_cte + ', '
                         exec_string = f"""
                                 WITH 
+                                {additional_cte_full}
+
                                 median_tx AS (
                                         SELECT
-                                                {timestamp_query} AS timestamp,
-                                                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                                                {timestamp_query} AS block_timestamp,
+                                                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                         GROUP BY 1
@@ -328,10 +364,11 @@ class AdapterSQL(AbstractAdapter):
                                 SELECT
                                         '{origin_key}' as origin_key,
                                         'txcosts_median_eth' as metric_key,
-                                        z.timestamp,
+                                        z.block_timestamp as timestamp,
                                         '{granularity}' as granularity,
-                                        z.median_tx_fee as value
+                                        {tx_fee_eth_string} as value
                                 FROM median_tx z
+                                {additional_join}
                         """
                         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
                         df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
@@ -340,13 +377,17 @@ class AdapterSQL(AbstractAdapter):
 
                         ## txcosts_native_median
                         if origin_key != 'starknet':
-                                print(f"... processing txcosts_median for {origin_key} and {granularity} granularity")                                        
+                                print(f"... processing txcosts_median_native for {origin_key} and {granularity} granularity")  
+                                if additional_cte != '':
+                                    additional_cte_full = additional_cte + ', '                                      
                                 exec_string = f"""
                                         WITH 
+                                        {additional_cte_full}
+
                                         median_tx AS (
                                                 SELECT
-                                                        {timestamp_query} AS timestamp,
-                                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                                                        {timestamp_query} AS block_timestamp,
+                                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                                 FROM public.{origin_key}_tx
                                                 WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                                         AND empty_input = TRUE
@@ -357,10 +398,11 @@ class AdapterSQL(AbstractAdapter):
                                         SELECT
                                                 '{origin_key}' as origin_key,
                                                 'txcosts_native_median_eth' as metric_key,
-                                                z.timestamp,
+                                                z.block_timestamp as timestamp,
                                                 '{granularity}' as granularity,
-                                                z.median_tx_fee as value
+                                                {tx_fee_eth_string} as value
                                         FROM median_tx z
+                                        {additional_join}
                                 """
                                 df = pd.read_sql(exec_string, self.db_connector.engine.connect())
                                 df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
@@ -368,15 +410,20 @@ class AdapterSQL(AbstractAdapter):
 
                         ## txcosts_swap_eth
                         if origin_key != 'starknet':
-                                print(f"... processing txcosts_swap_eth for {origin_key} and {granularity} granularity")                                        
+                                print(f"... processing txcosts_swap_eth for {origin_key} and {granularity} granularity")         
+                                if additional_cte != '':
+                                    additional_cte_full = 'WITH ' + additional_cte                                
                                 exec_string = f"""
+                                        {additional_cte_full}
+
                                         SELECT
                                                 {timestamp_query} AS timestamp,
                                                 '{origin_key}' as origin_key,
                                                 'txcosts_swap_eth' as metric_key,
                                                 '{granularity}' as granularity,
-                                                AVG(tx_fee) as value
+                                                AVG({tx_fee_eth_string}) as value
                                         FROM public.{origin_key}_tx
+                                        {additional_join}
                                         WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
                                         AND gas_used between 150000 AND 350000
                                         GROUP BY 1,2,3,4
