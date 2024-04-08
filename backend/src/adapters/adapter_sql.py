@@ -325,6 +325,8 @@ class AdapterSQL(AbstractAdapter):
                         print(f"... processing txcosts_average for {origin_key} and {granularity} granularity")
                         if additional_cte != '':
                             additional_cte_full = 'WITH ' + additional_cte 
+                        else:
+                            additional_cte_full = ''
                         exec_string = f"""
                                 {additional_cte_full}
                                 SELECT
@@ -347,6 +349,8 @@ class AdapterSQL(AbstractAdapter):
                         print(f"... processing txcosts_median for {origin_key} and {granularity} granularity")
                         if additional_cte != '':
                             additional_cte_full = additional_cte + ', '
+                        else:
+                            additional_cte_full = ''
                         exec_string = f"""
                                 WITH 
                                 {additional_cte_full}
@@ -379,7 +383,9 @@ class AdapterSQL(AbstractAdapter):
                         if origin_key != 'starknet':
                                 print(f"... processing txcosts_median_native for {origin_key} and {granularity} granularity")  
                                 if additional_cte != '':
-                                    additional_cte_full = additional_cte + ', '                                      
+                                    additional_cte_full = additional_cte + ', '    
+                                else:
+                                    additional_cte_full = ''                                  
                                 exec_string = f"""
                                         WITH 
                                         {additional_cte_full}
@@ -412,7 +418,9 @@ class AdapterSQL(AbstractAdapter):
                         if origin_key != 'starknet':
                                 print(f"... processing txcosts_swap_eth for {origin_key} and {granularity} granularity")         
                                 if additional_cte != '':
-                                    additional_cte_full = 'WITH ' + additional_cte                                
+                                    additional_cte_full = 'WITH ' + additional_cte       
+                                else:
+                                    additional_cte_full = ''                         
                                 exec_string = f"""
                                         {additional_cte_full}
 
