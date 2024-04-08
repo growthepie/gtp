@@ -31,7 +31,7 @@ def etl():
         adapter_params = {
         }
         load_params = {
-            'load_type' : 'active_addresses_agg', ## load metrics such as imx txcount, daa, fees paid and user_base metric
+            'load_type' : 'active_addresses_agg',
             'days' : 5, ## days as int or 'auto
         }
 

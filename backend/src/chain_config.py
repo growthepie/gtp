@@ -665,6 +665,37 @@ adapter_mapping = [
         # ,token_circulating_supply_function='totalSupply'
     )
 
+    ,AdapterMapping(
+        origin_key='blast'
+        ,name='Blast'
+        ,name_short = "Blast"
+        ,description="Blast is an EVM-compatible Optimistic Rollup which invests funds deposited into the Ethereum bridge contract in order to offer native yiead to its users. Public launch was in February 2024."
+        ,da_layer = "Celestia"
+
+        ,in_api = False
+        ,in_fees_api = False
+        ,deployment="DEV"
+        ,exclude_metrics = ['profit', 'rent_paid']
+        ,aggregate_blockspace = False
+        ,aggregate_addresses = True
+
+        ,bucket = "Other Optimistic Rollups"
+        ,symbol = "-"
+        ,technology = "Optimistic Rollup"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2024-02-29'
+        ,website='https://blast.io/en'
+        ,block_explorer='https://blastscan.io/'
+        ,twitter="https://twitter.com/Blast_L2"
+
+        #,coingecko_naming=""
+        ,defillama_stablecoin='Blast'
+        ,l2beat_tvl_naming='blast'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/blast.json"
+        ,block_explorer_type='l2beat'
+    )
+
 ] # end of adapter_mappings
 
 adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, in_fees_api = True, description="", da_layer = "", deployment='PROD', exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics

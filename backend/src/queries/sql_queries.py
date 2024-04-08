@@ -599,7 +599,7 @@ sql_q= {
     """
 
         ### PGN
-        ,'pgn_fees_txcount_raw': """
+        ,'pgn_txcount_raw': """
         SELECT date_trunc('day', gpt.block_timestamp) AS day,
                 count(*) AS value,
                 'gitcoin_pgn' AS origin_key
@@ -1242,6 +1242,89 @@ sql_q= {
         LEFT JOIN eth_price eth ON metis.day = eth."date"
         ORDER BY metis.day DESC
     """
+
+        ### Blast
+        ,'blast_txcount_raw': """
+        SELECT date_trunc('day', gpt.block_timestamp) AS day,
+                count(*) AS value,
+                'blast' AS origin_key
+        FROM blast_tx gpt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        """
+
+
+        ,'blast_fees_paid_eth': """
+        with blast_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.blast_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                blast.day,
+                blast.total_tx_fee AS value
+        FROM blast_tx_filtered blast
+        ORDER BY blast.day DESC
+    """
+
+    ,'blast_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.blast_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+        ,'blast_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM blast_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+         ,'blast_aa_last_xxd': """
+        WITH date_range AS (
+                SELECT generate_series(
+                        current_date - INTERVAL '{{Days}} days', 
+                        current_date - INTERVAL '{{Days_Start}} days', 
+                        '1 day'::INTERVAL
+                )::DATE AS day
+        )
+        SELECT 
+                d.day, 
+                COUNT(DISTINCT b.from_address) AS value
+        FROM date_range d
+        LEFT JOIN 
+                blast_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
+        GROUP BY 1
+        """
+
+
+    ,'blast_txcosts_median_eth': """
+        WITH 
+        blast_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.blast_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                blast.day,
+                blast.median_tx_fee as value
+        FROM blast_median blast
+        ORDER BY blast.day DESC
+    """
 }
 
 
@@ -1348,7 +1431,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "cca", origin_key = "zora", sql=get_cross_chain_activity('zora'), currency_dependent = False, query_parameters={})
 
     ## PGN
-    ,SQLQuery(metric_key = "txcount_raw", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+    ,SQLQuery(metric_key = "txcount_raw", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
     ,SQLQuery(metric_key = "txcount", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount"], currency_dependent = False, query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "daa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
     #,SQLQuery(metric_key = "waa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
@@ -1427,7 +1510,7 @@ sql_queries = [
    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", sql=sql_q["starknet_fees_paid_eth"], query_parameters={"Days": 7})
    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", sql=sql_q["starknet_txcosts_median_eth"], query_parameters={"Days": 7})
 
-   ## Mantle
+   ## Metis
    ,SQLQuery(metric_key = "txcount_raw", origin_key = "metis", sql=sql_q["metis_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
    ,SQLQuery(metric_key = "txcount", origin_key = "metis", sql=sql_q["metis_txcount"], currency_dependent = False, query_parameters={"Days": 7})
    ,SQLQuery(metric_key = "daa", origin_key = "metis", sql=sql_q["metis_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
@@ -1438,4 +1521,16 @@ sql_queries = [
    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "metis", sql=sql_q["metis_fees_paid_eth"], query_parameters={"Days": 7})
    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "metis", sql=sql_q["metis_txcosts_median_eth"], query_parameters={"Days": 7})
    ,SQLQuery(metric_key = "cca", origin_key = "metis", sql=get_cross_chain_activity('metis'), currency_dependent = False, query_parameters={})
+
+   ## Blast
+    ,SQLQuery(metric_key = "txcount_raw", origin_key = "blast", sql=sql_q["blast_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+    ,SQLQuery(metric_key = "txcount", origin_key = "blast", sql=sql_q["blast_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "blast", sql=sql_q["blast_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+    #,SQLQuery(metric_key = "waa", origin_key = "blast", sql=sql_q["blast_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+    ,SQLQuery(metric_key = "maa", origin_key = "blast", sql=sql_q["blast_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "blast", sql=sql_q["blast_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "blast", sql=sql_q["blast_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "blast", sql=sql_q["blast_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "blast", sql=sql_q["blast_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "blast", sql=get_cross_chain_activity('blast'), currency_dependent = False, query_parameters={})
 ]
