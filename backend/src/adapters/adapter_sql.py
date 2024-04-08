@@ -286,6 +286,11 @@ class AdapterSQL(AbstractAdapter):
 
         for origin_key in origin_keys:                        
                 for granularity in granularities:
+                        
+                        ## for ethereuem only hourly granularity is supported
+                        if origin_key == 'ethereum' and granularity != 'hourly':
+                                continue
+                        
                         timestamp_query = granularities[granularity]
 
                         ## txcosts_average
@@ -361,7 +366,7 @@ class AdapterSQL(AbstractAdapter):
                                 df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                                 self.db_connector.upsert_table('fact_kpis_granular', df)
 
-                            ## txcosts_swap_eth
+                        ## txcosts_swap_eth
                         if origin_key != 'starknet':
                                 print(f"... processing txcosts_swap_eth for {origin_key} and {granularity} granularity")                                        
                                 exec_string = f"""

@@ -56,7 +56,7 @@ adapter_mapping = [
         ,rhino_naming="ETHEREUM"
 
         ,in_api = True
-        ,in_fees_api = False
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False

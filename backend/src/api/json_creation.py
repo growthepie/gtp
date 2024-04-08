@@ -1150,6 +1150,9 @@ class JSONCreation():
             if chain.in_fees_api == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
+            if origin_key == 'ethereum':
+                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
+                continue            
             
             eth_price = self.db_connector.get_last_price_usd('ethereum')
 
@@ -1187,6 +1190,34 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees', fees_dict, self.cf_distribution_id)
         print(f'DONE -- Fees export')
     
+    ### TO BE DEPRECATED ###
+    def create_fees_dict(self):
+        df = self.download_data_fees(self.fees_list)
+
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_fees_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+
+        ## generate usd values
+        eth_price = self.db_connector.get_last_price_usd('ethereum')
+        df_usd = df.copy()
+        df_usd['value'] = df_usd['value'] * eth_price
+        df_usd['metric_key'] = df_usd['metric_key'].str.replace("_eth", "_usd")
+        df = pd.concat([df, df_usd])
+
+        ## drop column timestamp
+        df = df.drop(columns=['timestamp'])
+
+        ## create dict
+        fees_dict = df.to_dict(orient='records')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, 'fees_dict')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees_dict', fees_dict, self.cf_distribution_id)
+
     def create_fees_table_json(self, df):
         fees_dict = {
             "chain_data" : {}
@@ -1203,6 +1234,9 @@ class JSONCreation():
             if chain.in_fees_api == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
+            if origin_key == 'ethereum':
+                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
+                continue  
             
             eth_price = self.db_connector.get_last_price_usd('ethereum')
 
@@ -1216,16 +1250,6 @@ class JSONCreation():
                     "data": generated[0]
                 }
             
-            # min_10_dict = {}
-            # for metric_key in self.fees_list:
-            #     ## generate metric_name which is metric_key without the last 4 characters
-            #     metric_name = metric_key[:-4]
-            #     generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price, max_ts_all)
-            #     min_10_dict[metric_name] = {
-            #         "types": generated[1],
-            #         "data": generated[0]
-            #     }
-
             fees_dict["chain_data"][origin_key] = {
                 'hourly': hourly_dict,
                 # 'ten_min': min_10_dict
@@ -1252,6 +1276,9 @@ class JSONCreation():
             if chain.in_fees_api == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
+            if origin_key == 'ethereum':
+                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
+                continue  
             
             eth_price = self.db_connector.get_last_price_usd('ethereum')                
             fees_dict["chain_data"][origin_key] = {}
@@ -1282,33 +1309,6 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
         print(f'DONE -- fees/linechart.json export')
-
-    def create_fees_dict(self):
-        df = self.download_data_fees(self.fees_list)
-
-        for adapter in adapter_mapping:
-            ## filter out origin_keys from df if in_api=false
-            if adapter.in_fees_api == False:
-                #print(f"Filtering out origin_keys for adapter {adapter.name}")
-                df = df[df.origin_key != adapter.origin_key]
-
-        ## generate usd values
-        eth_price = self.db_connector.get_last_price_usd('ethereum')
-        df_usd = df.copy()
-        df_usd['value'] = df_usd['value'] * eth_price
-        df_usd['metric_key'] = df_usd['metric_key'].str.replace("_eth", "_usd")
-        df = pd.concat([df, df_usd])
-
-        ## drop column timestamp
-        df = df.drop(columns=['timestamp'])
-
-        ## create dict
-        fees_dict = df.to_dict(orient='records')
-
-        if self.s3_bucket == None:
-            self.save_to_json(fees_dict, 'fees_dict')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees_dict', fees_dict, self.cf_distribution_id)
 
     def create_all_jsons(self):
         df = self.get_all_data()
