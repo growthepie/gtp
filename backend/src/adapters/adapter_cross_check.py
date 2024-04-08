@@ -76,13 +76,16 @@ class AdapterCrossCheck(AbstractAdapter):
                     response_json = api_get_call(project.block_explorer_txcount, sleeper=10, retries=20)
                     df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
 
-                    ## only keep the columns 0 (date) and 1 (transactions)
-                    df = df.iloc[:,[0,1]]
+                    if project.origin_key == 'ethereum':
+                        df = df.iloc[:,[0,2]]
+                        df.rename(columns={2:'value'}, inplace=True)
+                    else:
+                        ## only keep the columns 0 (date) and 1 (transactions)
+                        df = df.iloc[:,[0,1]]                     
+                        df.rename(columns={1:'value'}, inplace=True)
 
                     df['date'] = pd.to_datetime(df[0],unit='s').dt.date
-                    df.drop(df[df[1] == 0].index, inplace=True)
                     df.drop([0], axis=1, inplace=True)
-                    df.rename(columns={1:'value'}, inplace=True)
                     df['metric_key'] = metric_key
                     df['origin_key'] = project.origin_key
 

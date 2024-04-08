@@ -74,6 +74,9 @@ adapter_mapping = [
         ,coingecko_naming="ethereum"
         ,defillama_stablecoin="ethereum"
 
+        ,block_explorer_txcount="https://l2beat.com/api/activity/arbitrum.json"
+        ,block_explorer_type='l2beat'
+
         ,rpc_url='https://eth.llamarpc.com'        
         )
    
