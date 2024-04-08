@@ -672,7 +672,7 @@ adapter_mapping = [
         ,description="Blast is an EVM-compatible Optimistic Rollup which invests funds deposited into the Ethereum bridge contract in order to offer native yiead to its users. Public launch was in February 2024."
         ,da_layer = "Ethereum (calldata)"
 
-        ,in_api = False
+        ,in_api = True
         ,in_fees_api = False
         ,deployment="DEV"
         ,exclude_metrics = ['profit', 'rent_paid']
