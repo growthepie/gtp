@@ -1250,6 +1250,7 @@ sql_q= {
                 'blast' AS origin_key
         FROM blast_tx gpt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        AND gas_price > 0
         GROUP BY (date_trunc('day', gpt.block_timestamp))
         """
 
