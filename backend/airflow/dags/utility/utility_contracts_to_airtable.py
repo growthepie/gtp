@@ -63,7 +63,7 @@ def etl():
         # db connection
         db_connector = DbConnector()
         # get top unlabelled contracts
-        df = db_connector.get_unlabelled_contracts('20', '30')
+        df = db_connector.get_unlabelled_contracts('30', '21')
         df['address'] = df['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
         # add block explorer urls
         block_explorer_mapping = [x for x in adapter_mapping if x.block_explorer is not None]
