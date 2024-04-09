@@ -1326,6 +1326,16 @@ sql_q= {
         FROM blast_median blast
         ORDER BY blast.day DESC
     """
+
+    ### Ethereum
+        ,'ethereum_txcount_raw': """
+        SELECT date_trunc('day', gpt.block_timestamp) AS day,
+                count(*) AS value,
+                'ethereum' AS origin_key
+        FROM ethereum_tx gpt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        """
 }
 
 
@@ -1534,4 +1544,7 @@ sql_queries = [
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "blast", sql=sql_q["blast_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "blast", sql=sql_q["blast_txcosts_median_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "cca", origin_key = "blast", sql=get_cross_chain_activity('blast'), currency_dependent = False, query_parameters={})
+
+    ## Ethereum
+    ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
 ]
