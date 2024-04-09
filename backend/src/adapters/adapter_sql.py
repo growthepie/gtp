@@ -418,24 +418,33 @@ class AdapterSQL(AbstractAdapter):
                         if origin_key != 'starknet':
                                 print(f"... processing txcosts_swap_eth for {origin_key} and {granularity} granularity")         
                                 if additional_cte != '':
-                                    additional_cte_full = 'WITH ' + additional_cte       
+                                    additional_cte_full = additional_cte + ', '    
                                 else:
-                                    additional_cte_full = ''                         
+                                    additional_cte_full = '' 
+                                    
                                 exec_string = f"""
+                                        WITH 
                                         {additional_cte_full}
 
+                                        median_tx AS (
+                                                SELECT
+                                                        {timestamp_query} AS block_timestamp,
+                                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
+                                                FROM public.{origin_key}_tx
+                                                WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
+                                                AND gas_used between 150000 AND 350000
+                                                GROUP BY 1
+                                                having count(*) > 20
+                                        )
+
                                         SELECT
-                                                {timestamp_query} AS timestamp,
                                                 '{origin_key}' as origin_key,
                                                 'txcosts_swap_eth' as metric_key,
+                                                z.block_timestamp as timestamp,
                                                 '{granularity}' as granularity,
-                                                AVG({tx_fee_eth_string}) as value
-                                        FROM public.{origin_key}_tx
+                                                {tx_fee_eth_string} as value
+                                        FROM median_tx z
                                         {additional_join}
-                                        WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' AND now()
-                                        AND gas_used between 150000 AND 350000
-                                        GROUP BY 1,2,3,4
-                                        having count(*) > 20
                                 """
                                 df = pd.read_sql(exec_string, self.db_connector.engine.connect())
                                 df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
