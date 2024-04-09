@@ -304,7 +304,15 @@ class DbConnector:
                 return df['source'].to_list()
         
         ## Unique sender and addresses
-        def get_unique_addresses(self, chain:str, days:int):
+        def get_unique_addresses(self, chain:str, days:int, days_end:int=None):
+
+                if days_end is None:
+                        days_end_string = "DATE_TRUNC('day', NOW())"
+                else:
+                        if days_end > days:
+                                raise ValueError("days_end must be smaller than days")
+                        days_end_string = f"DATE_TRUNC('day', NOW() - INTERVAL '{days_end} days')"
+
                 if chain == 'imx':
                         exec_string = f'''
                                 with union_all as (
@@ -312,7 +320,7 @@ class DbConnector:
                                                 DATE_TRUNC('day', "timestamp") AS day
                                                 , "user" as address
                                         FROM imx_deposits id 
-                                        WHERE "timestamp" < DATE_TRUNC('day', NOW())
+                                        WHERE "timestamp" < {days_end_string}
                                                 AND "timestamp" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         
                                         UNION ALL
@@ -321,7 +329,7 @@ class DbConnector:
                                                 date_trunc('day', "timestamp") as day 
                                                 , "sender" as address
                                         FROM imx_withdrawals  
-                                        WHERE "timestamp" < date_trunc('day', now())
+                                        WHERE "timestamp" < {days_end_string}
                                                 AND "timestamp" >= date_trunc('day',now() - INTERVAL '{days} days')
 
                                         UNION ALL 
@@ -331,7 +339,7 @@ class DbConnector:
                                                 , "user" as address
 
                                         FROM imx_orders   
-                                        WHERE updated_timestamp < date_trunc('day', now())
+                                        WHERE updated_timestamp < {days_end_string}
                                                 AND updated_timestamp >= date_trunc('day',now() - INTERVAL '{days} days')
                                                 
                                         UNION ALL
@@ -340,7 +348,7 @@ class DbConnector:
                                                 date_trunc('day', "timestamp") as day
                                                 , "user" as address
                                         FROM imx_transfers
-                                        WHERE "timestamp" < date_trunc('day', now())
+                                        WHERE "timestamp" < {days_end_string}
                                                 AND "timestamp" >= date_trunc('day',now() - INTERVAL '{days} days')
                                 )
 
@@ -360,7 +368,7 @@ class DbConnector:
                                         '{chain}' as origin_key,
                                         count(*) as txcount
                                 FROM {chain}_tx
-                                WHERE block_timestamp < DATE_TRUNC('day', NOW())
+                                WHERE block_timestamp < {days_end_string}
                                         AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 GROUP BY 1,2,3
                         '''

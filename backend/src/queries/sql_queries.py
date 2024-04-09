@@ -1327,6 +1327,90 @@ sql_q= {
         ORDER BY blast.day DESC
     """
 
+    ### Manta
+    ,'manta_txcount_raw': """
+        SELECT date_trunc('day', gpt.block_timestamp) AS day,
+                count(*) AS value,
+                'manta' AS origin_key
+        FROM manta_tx gpt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        AND gas_price > 0
+        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        """
+
+
+        ,'manta_fees_paid_eth': """
+        with manta_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.manta_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                manta.day,
+                manta.total_tx_fee AS value
+        FROM manta_tx_filtered manta
+        ORDER BY manta.day DESC
+    """
+
+    ,'manta_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.manta_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+        ,'manta_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM manta_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+         ,'manta_aa_last_xxd': """
+        WITH date_range AS (
+                SELECT generate_series(
+                        current_date - INTERVAL '{{Days}} days', 
+                        current_date - INTERVAL '{{Days_Start}} days', 
+                        '1 day'::INTERVAL
+                )::DATE AS day
+        )
+        SELECT 
+                d.day, 
+                COUNT(DISTINCT b.from_address) AS value
+        FROM date_range d
+        LEFT JOIN 
+                manta_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
+        GROUP BY 1
+        """
+
+
+    ,'manta_txcosts_median_eth': """
+        WITH 
+        manta_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.manta_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                manta.day,
+                manta.median_tx_fee as value
+        FROM manta_median manta
+        ORDER BY manta.day DESC
+    """
+
     ### Ethereum
         ,'ethereum_txcount_raw': """
         SELECT date_trunc('day', gpt.block_timestamp) AS day,
@@ -1544,6 +1628,18 @@ sql_queries = [
     ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "blast", sql=sql_q["blast_fees_paid_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "blast", sql=sql_q["blast_txcosts_median_eth"], query_parameters={"Days": 7})
     ,SQLQuery(metric_key = "cca", origin_key = "blast", sql=get_cross_chain_activity('blast'), currency_dependent = False, query_parameters={})
+
+    ## Manta
+    ,SQLQuery(metric_key = "txcount_raw", origin_key = "manta", sql=sql_q["manta_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+    ,SQLQuery(metric_key = "txcount", origin_key = "manta", sql=sql_q["manta_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "manta", sql=sql_q["manta_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+    #,SQLQuery(metric_key = "waa", origin_key = "manta", sql=sql_q["manta_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+    ,SQLQuery(metric_key = "maa", origin_key = "manta", sql=sql_q["manta_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "manta", sql=sql_q["manta_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "manta", sql=sql_q["manta_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "manta", sql=sql_q["manta_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "manta", sql=sql_q["manta_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "manta", sql=get_cross_chain_activity('manta'), currency_dependent = False, query_parameters={})
 
     ## Ethereum
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
