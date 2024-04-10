@@ -1248,10 +1248,10 @@ class JSONCreation():
             "chain_data" : {}
         } 
 
-        max_ts_all = df['unix'].max()
-        
         ## filter df timestamp to be within the last 48 hours (not more needed for table visual)
+        df = df[(df.granularity == 'hourly')]
         df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=25)]
+        max_ts_all = df['unix'].max()
 
         ## loop over all chains and generate a fees json for all chains
         for chain in adapter_mapping:
@@ -1265,7 +1265,7 @@ class JSONCreation():
             hourly_dict = {}
             for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
-                metric_name = metric_key[:-4]
+                metric_name = metric_key[:-4]               
                 generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all, True)
                 hourly_dict[metric_name] = {
                     "types": generated[1],
