@@ -36,7 +36,7 @@ def etl():
 
                 load_params = {
                         'load_type' : 'fees',
-                        'days' : 2,
+                        'days' : 1,
                 }
 
                 # initialize adapter
