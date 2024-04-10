@@ -73,7 +73,7 @@ class AdapterTotalSupply(AbstractAdapter):
                     for index, row in df.iterrows():
                         t = int((row['date'] + timedelta(hours=23, minutes=59, seconds=59)).timestamp())
                         df.loc[index, 'block_number'] = api_get_call(f"https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp={t}&closest=before&apikey={self.api_key}")['result']
-                        time.sleep(0.25)
+                        time.sleep(1)
                     rpc = [x for x in adapter_mapping if x.origin_key == 'ethereum'][0].rpc_url
                 else:
                     df2 = self.db_connector.get_total_supply_blocks(coin.origin_key, days)
@@ -92,7 +92,7 @@ class AdapterTotalSupply(AbstractAdapter):
                 for index, row in df.iterrows():
                     totalsupply = contract.functions.totalSupply().call(block_identifier=row['block_number'])/10**decimals
                     df.loc[index, 'value'] = totalsupply
-                    time.sleep(0.25)
+                    time.sleep(1)
                 
                 # drop the block number
                 df = df.drop(columns=['block_number'])
