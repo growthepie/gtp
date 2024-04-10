@@ -342,7 +342,7 @@ class AdapterSQL(AbstractAdapter):
                                             AVG({tx_fee_eth_string}) as value
                                     FROM public.{origin_key}_tx
                                     {additional_join}
-                                    WHERE tx_fee <> 0 AND block_timestamp > date_trunc('day', now()) - interval '{days} days'                                
+                                    WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' and date_trunc('hour', now()) - interval '1 hour'                   
                                     GROUP BY 1,2,3,4
                                     having count(*) > 20
                             """
@@ -366,7 +366,7 @@ class AdapterSQL(AbstractAdapter):
                                                     {timestamp_query} AS block_timestamp,
                                                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                             FROM public.{origin_key}_tx
-                                            WHERE tx_fee <> 0 AND block_timestamp > date_trunc('day', now()) - interval '{days} days'    
+                                            WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' and date_trunc('hour', now()) - interval '1 hour'
                                             GROUP BY 1
                                             having count(*) > 20
                                     )
@@ -402,7 +402,7 @@ class AdapterSQL(AbstractAdapter):
                                                             {timestamp_query} AS block_timestamp,
                                                             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                                     FROM public.{origin_key}_tx
-                                                    WHERE tx_fee <> 0 AND block_timestamp > date_trunc('day', now()) - interval '{days} days'    
+                                                    WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' and date_trunc('hour', now()) - interval '1 hour'
                                                             AND empty_input = TRUE
                                                     GROUP BY 1
                                                     having count(*) > 10
@@ -439,7 +439,7 @@ class AdapterSQL(AbstractAdapter):
                                                             {timestamp_query} AS block_timestamp,
                                                             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                                     FROM public.{origin_key}_tx
-                                                    WHERE tx_fee <> 0 AND block_timestamp > date_trunc('day', now()) - interval '{days} days'    
+                                                    WHERE tx_fee <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{days} days' and date_trunc('hour', now()) - interval '1 hour'  
                                                     AND gas_used between 150000 AND 350000
                                                     GROUP BY 1
                                                     having count(*) > 20
