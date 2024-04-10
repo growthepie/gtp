@@ -674,6 +674,7 @@ adapter_mapping = [
         ,name_short = "Blast"
         ,description="Blast is an EVM-compatible Optimistic Rollup which invests funds deposited into the Ethereum bridge contract in order to offer native yiead to its users. Public launch was in February 2024."
         ,da_layer = "Ethereum (calldata)"
+        ,rhino_naming='BLAST'
 
         ,in_api = True
         ,in_fees_api = True
@@ -696,6 +697,38 @@ adapter_mapping = [
         ,l2beat_tvl_naming='blast'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/blast.json"
+        ,block_explorer_type='l2beat'
+    )
+
+    ,AdapterMapping(
+        origin_key='mode'
+        ,name='Mode Network'
+        ,name_short = "Mode"
+        ,description="Mode is an Optimistic Rollup and part of the Superchain. Public launch was in January 2024."
+        ,da_layer = "Ethereum (blobs or calldata)"
+        ,rhino_naming='MODE'
+
+        ,in_api = False
+        ,in_fees_api = False
+        ,deployment="DEV"
+        ,exclude_metrics = ['blockspace', 'profit', 'rent_paid', 'fdv', 'market_cap']
+        ,aggregate_blockspace = False
+        ,aggregate_addresses = True
+
+        ,bucket = "OP Chains"
+        ,symbol = "-"
+        ,technology = "Optimistic Rollup"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2024-01-31'
+        ,website='https://mode.network/'
+        ,block_explorer='https://explorer.mode.network/'
+        ,twitter="https://twitter.com/modenetwork"
+
+        #,coingecko_naming=""
+        #,defillama_stablecoin='Mode' ## stables via Dune
+        ,l2beat_tvl_naming='mode'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/mode.json"
         ,block_explorer_type='l2beat'
     )
 
