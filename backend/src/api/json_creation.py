@@ -315,6 +315,9 @@ class JSONCreation():
         df['value_usd'] = df['value'] * eth_price
         df.rename(columns={'value': 'value_eth'}, inplace=True)
 
+        ## order columns in df unix, value_eth, value_usd
+        df = df[['unix', 'value_eth', 'value_usd']]
+
         if normalize:
             ## get max value and min value
             max_value = df['value_eth'].max()
@@ -322,10 +325,21 @@ class JSONCreation():
             ## create new column 'normalized' with normalized values between 0 and 1
             df['normalized'] = (df['value_eth'] - min_value) / (max_value - min_value)
             mk_list = df.values.tolist()
-            mk_list_int = [[int(i[0]),i[1], i[2], i[3]] for i in mk_list]
+            mk_list_int = [
+                [
+                    int(i[0]), ## unix timestamp
+                    i[1], ## eth value
+                    round(i[2], 4), ## usd value
+                    round(i[3], 2) ## normalized value
+                ] for i in mk_list]
         else:
             mk_list = df.values.tolist()
-            mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list]
+            mk_list_int = [
+                [
+                    int(i[0]), ## unix timestamp
+                    i[1], ## eth value
+                    round(i[2], 4) ## usd value
+                ] for i in mk_list]
 
         return mk_list_int, df.columns.to_list()
 
