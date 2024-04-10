@@ -305,6 +305,8 @@ class JSONCreation():
                     new_data = {'timestamp': date_range, 'value': [None] * len(date_range)}
                     new_df = pd.DataFrame(new_data)
                     new_df['unix'] = new_df['timestamp'].apply(lambda x: x.timestamp() * 1000)
+                    ## drop row with smallest timestamp
+                    new_df = new_df[new_df['unix'] != max_ts]
 
                     df = pd.concat([df, new_df], ignore_index=True)
 
