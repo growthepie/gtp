@@ -275,7 +275,7 @@ class JSONCreation():
 
         return mk_list_int, df_tmp.columns.to_list()
 
-    def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price, max_ts_all):
+    def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price, max_ts_all, normalize = False):
         ## filter df to granularity = 'hourly' and metric_key = metric
         df = df[(df.granularity == granularity) & (df.metric_key == metric_key) & (df.origin_key == origin_key)]
         
@@ -315,8 +315,17 @@ class JSONCreation():
         df['value_usd'] = df['value'] * eth_price
         df.rename(columns={'value': 'value_eth'}, inplace=True)
 
-        mk_list = df.values.tolist()
-        mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list]
+        if normalize:
+            ## get max value and min value
+            max_value = df['value_eth'].max()
+            min_value = df['value_eth'].min()
+            ## create new column 'normalized' with normalized values between 0 and 1
+            df['normalized'] = (df['value_eth'] - min_value) / (max_value - min_value)
+            mk_list = df.values.tolist()
+            mk_list_int = [[int(i[0]),i[1], i[2], i[3]] for i in mk_list]
+        else:
+            mk_list = df.values.tolist()
+            mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list]
 
         return mk_list_int, df.columns.to_list()
 
@@ -1227,7 +1236,7 @@ class JSONCreation():
         max_ts_all = df['unix'].max()
         
         ## filter df timestamp to be within the last 48 hours (not more needed for table visual)
-        df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=48)]
+        df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=25)]
 
         ## loop over all chains and generate a fees json for all chains
         for chain in adapter_mapping:
@@ -1242,7 +1251,7 @@ class JSONCreation():
             for metric_key in self.fees_list:
                 ## generate metric_name which is metric_key without the last 4 characters
                 metric_name = metric_key[:-4]
-                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all)
+                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all, True)
                 hourly_dict[metric_name] = {
                     "types": generated[1],
                     "data": generated[0]
