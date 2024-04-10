@@ -1279,7 +1279,7 @@ class JSONCreation():
                 # 'ten_min': min_10_dict
             }
 
-        fees_dict = fix_dict_nan(fees_dict, f'fees/table')
+        fees_dict = fix_dict_nan(fees_dict, f'fees/table', False)
 
         if self.s3_bucket == None:
             self.save_to_json(fees_dict, f'fees/table')

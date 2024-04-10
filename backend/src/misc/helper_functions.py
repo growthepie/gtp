@@ -262,14 +262,15 @@ def count_nans_and_log_paths(obj, path=''):
         paths.append(path)
     return counter, paths
 
-def fix_dict_nan(test_dict, dict_name):
+def fix_dict_nan(test_dict, dict_name, send_notification=True):
     nan_count, nan_paths = count_nans_and_log_paths(test_dict)
     discord_webhook = os.getenv('DISCORD_TX_CHECKER')
 
     if nan_count > 0:
         nan_paths_str = '\n'.join(nan_paths)
-        msg = f"Found {nan_count} NaNs in {dict_name} for the following paths:\n\n{nan_paths_str[:500]}..."
-        send_discord_message(msg , discord_webhook)
+        if send_notification:
+            msg = f"Found {nan_count} NaNs in {dict_name} for the following paths:\n\n{nan_paths_str[:500]}..."
+            send_discord_message(msg , discord_webhook)
         test_dict = replace_nan_with_none(test_dict)
         print(f"..WARNING: replaced {nan_count} NaNs in {dict_name}")
     else:
