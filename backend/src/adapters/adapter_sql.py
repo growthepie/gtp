@@ -135,9 +135,9 @@ class AdapterSQL(AbstractAdapter):
                 elif query.metric_key == 'maa':
                     day_val = 7
                 elif query.metric_key == 'aa_last30d':
-                    day_val = 3
+                    day_val = 2
                 elif query.metric_key == 'aa_last7d':
-                    day_val = 3
+                    day_val = 2
                 else:
                     day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
             else:
