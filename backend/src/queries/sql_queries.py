@@ -1420,6 +1420,91 @@ sql_q= {
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY (date_trunc('day', gpt.block_timestamp))
         """
+
+    ### Mode
+    ,'mode_txcount_raw': """
+        SELECT date_trunc('day', gpt.block_timestamp) AS day,
+                count(*) AS value,
+                'mode' AS origin_key
+        FROM mode_tx gpt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        AND gas_price > 0
+        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        """
+
+
+        ,'mode_fees_paid_eth': """
+        with mode_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.mode_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                mode.day,
+                mode.total_tx_fee AS value
+        FROM mode_tx_filtered mode
+        ORDER BY mode.day DESC
+    """
+
+    ,'mode_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.mode_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        order by 1 DESC
+    """
+
+        ,'mode_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM mode_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+         ,'mode_aa_last_xxd': """
+        WITH date_range AS (
+                SELECT generate_series(
+                        current_date - INTERVAL '{{Days}} days', 
+                        current_date - INTERVAL '{{Days_Start}} days', 
+                        '1 day'::INTERVAL
+                )::DATE AS day
+        )
+        SELECT 
+                d.day, 
+                COUNT(DISTINCT b.from_address) AS value
+        FROM date_range d
+        LEFT JOIN 
+                mode_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
+        GROUP BY 1
+        """
+
+
+    ,'mode_txcosts_median_eth': """
+        WITH 
+        mode_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.mode_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                mode.day,
+                mode.median_tx_fee as value
+        FROM mode_median mode
+        ORDER BY mode.day DESC
+    """
+
 }
 
 
@@ -1643,4 +1728,16 @@ sql_queries = [
 
     ## Ethereum
     ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+
+    ## Mode
+    ,SQLQuery(metric_key = "txcount_raw", origin_key = "mode", sql=sql_q["mode_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+    ,SQLQuery(metric_key = "txcount", origin_key = "mode", sql=sql_q["mode_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "daa", origin_key = "mode", sql=sql_q["mode_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+    #,SQLQuery(metric_key = "waa", origin_key = "mode", sql=sql_q["mode_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+    ,SQLQuery(metric_key = "maa", origin_key = "mode", sql=sql_q["mode_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+    ,SQLQuery(metric_key = "aa_last7d", origin_key = "mode", sql=sql_q["mode_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
+    ,SQLQuery(metric_key = "aa_last30d", origin_key = "mode", sql=sql_q["mode_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
+    ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "mode", sql=sql_q["mode_fees_paid_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "mode", sql=sql_q["mode_txcosts_median_eth"], query_parameters={"Days": 7})
+    ,SQLQuery(metric_key = "cca", origin_key = "mode", sql=get_cross_chain_activity('mode'), currency_dependent = False, query_parameters={})
 ]

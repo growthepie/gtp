@@ -639,7 +639,7 @@ adapter_mapping = [
         ,in_api = False
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['blockspace', 'profit', 'rent_paid', 'fdv', 'market_cap']
+        ,exclude_metrics = ['blockspace', 'profit', 'fdv', 'market_cap']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
@@ -679,7 +679,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['blockspace', 'profit', 'rent_paid', 'fdv', 'market_cap']
+        ,exclude_metrics = ['blockspace', 'fdv', 'market_cap']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
@@ -711,7 +711,7 @@ adapter_mapping = [
         ,in_api = False
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['blockspace', 'profit', 'rent_paid', 'fdv', 'market_cap']
+        ,exclude_metrics = ['blockspace', 'fdv', 'market_cap']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
