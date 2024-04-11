@@ -9,12 +9,24 @@ class NodeAdapter(AbstractAdapterRaw):
         super().__init__("RPC-Raw", adapter_params, db_connector)
         
         self.rpc_configs = adapter_params.get('rpc_configs', [])
+        if not self.rpc_configs:
+            raise ValueError("No RPC configurations provided.")
 
         self.chain = adapter_params['chain']
         self.table_name = f'{self.chain}_tx'
         
-        # Initialize Web3 connection
-        self.w3 = Web3CC(self.rpc_configs[0])
+        # Try to initialize Web3 connection with the provided RPC configs
+        self.w3 = None
+        for rpc_config in self.rpc_configs:
+            try:
+                self.w3 = Web3CC(rpc_config)
+                print(f"Connected to RPC URL: {rpc_config['url']}")
+                break
+            except Exception as e:
+                print(f"Failed to connect to RPC URL: {rpc_config['url']} with error: {e}")
+        
+        if self.w3 is None:
+            raise ConnectionError("Failed to connect to any provided RPC node.")
         
         # Initialize S3 connection
         self.s3_connection, self.bucket_name = connect_to_s3()
