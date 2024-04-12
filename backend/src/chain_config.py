@@ -708,7 +708,7 @@ adapter_mapping = [
         ,da_layer = "Ethereum (blobs or calldata)"
         ,rhino_naming='MODE'
 
-        ,in_api = True
+        ,in_api = False
         ,in_fees_api = True
         ,deployment="DEV"
         ,exclude_metrics = ['blockspace', 'fdv', 'market_cap']
