@@ -68,6 +68,7 @@ class AdapterSQL(AbstractAdapter):
             df = self.db_connector.get_fdv_in_usd(days, origin_keys)
 
         elif load_type == 'metrics':        
+            upsert = load_params.get('upsert', False)
             ## Prepare queries to load
             check_projects_to_load(sql_queries, origin_keys)
 
@@ -89,7 +90,7 @@ class AdapterSQL(AbstractAdapter):
                 self.queries_to_load = [x for x in self.queries_to_load if x.metric_key != 'profit_usd']
 
             ## Load data
-            df = self.extract_data_from_db(self.queries_to_load, days, days_start)
+            df = self.extract_data_from_db(self.queries_to_load, days, days_start, upsert=upsert)
 
         elif load_type == 'blockspace':
             self.run_blockspace_queries(origin_keys, days)
@@ -118,7 +119,7 @@ class AdapterSQL(AbstractAdapter):
         upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
         print_load(self.name, upserted, tbl_name)
 
-    def extract_data_from_db(self, queries_to_load, days, days_start=1):
+    def extract_data_from_db(self, queries_to_load, days, days_start=1, upsert=False):
         query_list = []
         for query in queries_to_load:
             query_list.append(query.origin_key + ' - ' + query.metric_key)
@@ -161,8 +162,15 @@ class AdapterSQL(AbstractAdapter):
                 df['origin_key'] = query.origin_key
             df.value.fillna(0, inplace=True)
 
-            dfMain = pd.concat([dfMain, df], ignore_index=True)
             print(f"Query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
+
+            if upsert == True:
+                df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+                upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
+                print_load(self.name, upserted, tbl_name)
+            else:
+                dfMain = pd.concat([dfMain, df], ignore_index=True)
+            
         return dfMain
     
     def run_blockspace_queries(self, origin_keys, days):

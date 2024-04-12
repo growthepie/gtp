@@ -35,16 +35,17 @@ def etl():
             'days' : 'auto', ## days as int or 'auto
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
-            'currency_dependent' : True
+            'currency_dependent' : True,
+            'upsert' : True, ## upsert after each query run
         }
 
        # initialize adapter
         db_connector = DbConnector()
         ad = AdapterSQL(adapter_params, db_connector)
         # extract
-        df = ad.extract(load_params)
-        # # load
-        ad.load(df)
+        ad.extract(load_params)
+        # # # load
+        # ad.load(df)
 
     @task()
     def run_metrics_independent():
@@ -55,16 +56,17 @@ def etl():
             'days' : 'auto', ## days as int or 'auto
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
-            'currency_dependent' : False
+            'currency_dependent' : False,
+            'upsert' : True, ## upsert after each query run
         }
 
        # initialize adapter
         db_connector = DbConnector()
         ad = AdapterSQL(adapter_params, db_connector)
         # extract
-        df = ad.extract(load_params)
-        # # load
-        ad.load(df)
+        ad.extract(load_params)
+        # # # load
+        # ad.load(df)
 
     @task()
     def run_profit(run_metrics:str):
