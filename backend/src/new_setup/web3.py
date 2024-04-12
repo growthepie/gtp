@@ -2,6 +2,7 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 import time
 import random
+from requests.exceptions import ReadTimeout, ConnectionError
 
 class RateLimitExceededException(Exception):
     """Exception raised when the RPC call rate limit is exceeded."""
@@ -29,22 +30,29 @@ class EthProxy:
         else:
             return attr
 
-    def retry_operation(self, func, *args, max_retries=5, initial_wait=1.0, **kwargs):
+    def retry_operation(self, func, *args, max_retries=5, initial_wait=1.0, max_total_time=300, **kwargs):
         retries = 0
+        total_wait_time = 0
         wait_time = initial_wait
-        while retries < max_retries:
-            if self._web3cc.is_rate_limited and retries > 2:
-                print(f"For {self._web3cc.get_rpc_url()}: Rate limit exceeded, waiting {wait_time} seconds before retry...")
-                time.sleep(wait_time)
+        start_time = time.time()
+
+        while retries < max_retries and total_wait_time < max_total_time:
             try:
                 return func(*args, **kwargs)
-            except Exception as e:
+            except (ReadTimeout, ConnectionError) as e:
                 print(f"For {self._web3cc.get_rpc_url()}: Operation failed with exception: {e}. Retrying in {wait_time} seconds...")
-                retries += 1
                 time.sleep(wait_time)
+                total_wait_time += wait_time
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
+                retries += 1
+            except Exception as e:
+                raise e
 
-        raise Exception(f"For {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries.")
+        current_time = time.time()
+        if current_time - start_time >= max_total_time:
+            raise Exception(f"For {self._web3cc.get_rpc_url()}: Operation failed after reaching max total time of {max_total_time} seconds.")
+        else:
+            raise Exception(f"For {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries.")
 
 class ResponseNormalizerMiddleware:
     def __init__(self, web3):
