@@ -109,8 +109,11 @@ class AdapterSQL(AbstractAdapter):
         else:
             raise ValueError('load_type not supported')
 
-        df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
-        df.value.fillna(0, inplace=True)
+        if df.empty:
+            print(f"...empty df for {load_type}...")
+        else:
+            df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+            df.value.fillna(0, inplace=True)
 
         print_extract(self.name, load_params,df.shape)
         return df
