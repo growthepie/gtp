@@ -126,7 +126,7 @@ adapter_mapping = [
         ,name = "OP Mainnet"
         ,name_short = "OP Mainnet"
         ,description="OP Mainnet (formerly Optimism) uses an optimistic rollup approach, where transactions are assumed to be valid unless proven otherwise, and only invalid transactions are rolled back. OP Mainnet launched in August 2021, making it one of the first rollups. It is fully compatible with the Ethereum Virtual Machine (EVM), making it easy for developers to migrate their applications to the OP Mainnet network."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming="OPTIMISM"
 
         ,in_api = True
@@ -168,7 +168,7 @@ adapter_mapping = [
         ,name = "Arbitrum One"
         ,name_short = "Arbitrum"
         ,description="Arbitrum One is developed by Offchain Labs and its mainnet launched in September 2021. It uses an optimistic rollup approach and is fully compatible with the Ethereum Virtual Machine (EVM), making it developer-friendly."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming="ARBITRUM"
 
         ,in_api = True
@@ -242,7 +242,7 @@ adapter_mapping = [
         ,name = "zkSync Era"
         ,name_short = "zkSync Era"
         ,description="zkSync Era is a Layer 2 protocol that scales Ethereum with cutting-edge ZK tech. Their mission isn't to merely increase Ethereum's throughput, but to fully preserve its foundational values: freedom, self-sovereignty, decentralization at scale."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='ZKSYNC'
 
         ,in_api = True
@@ -275,7 +275,7 @@ adapter_mapping = [
         ,name = "Base"
         ,name_short = "Base"
         ,description="Base is an fully EVM compatible optimistic rollup built on the OP Stack. It is incubated inside of Coinbase. Public mainnet launch was on August 9th 2023."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='BASE'
 
         ,in_api = True
@@ -308,7 +308,7 @@ adapter_mapping = [
         ,name = "Zora"
         ,name_short = "Zora"
         ,description="Zora is a fully EVM compatible optimistic rollup built on the OP Stack with focus on NFTs. Public launch was in June 2023."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
 
         ,in_api = True
         ,in_fees_api = True
@@ -372,7 +372,7 @@ adapter_mapping = [
         ,name="Linea"
         ,name_short = "Linea"
         ,description="Linea is a developer-friendly ZK Rollup, marked as the next stage of ConsenSys zkEVM, which aims to enhance the Ethereum network by facilitating a new wave of decentralized applications. Public launch was in July 2023."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='LINEA'
 
         ,in_api = True
@@ -516,7 +516,7 @@ adapter_mapping = [
         ,name="Starknet"
         ,name_short = "Starknet"
         ,description="Starknet is a ZK Rollup developed by Starkware. It uses it's own programming language and general purpose virtual machine (Cairo VM). The rollup was launched on mainnet in November 2021."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='STARKNET'
 
         ,in_api = True
@@ -705,7 +705,7 @@ adapter_mapping = [
         ,name='Mode Network'
         ,name_short = "Mode"
         ,description="Mode is an Optimistic Rollup and part of the Superchain. Public launch was in January 2024."
-        ,da_layer = "Ethereum (blobs or calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='MODE'
 
         ,in_api = False
