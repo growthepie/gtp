@@ -13,7 +13,7 @@ from src.adapters.adapter_sql import AdapterSQL
 @dag(
     default_args={
         'owner' : 'mseidl',
-        'retries' : 2,
+        'retries' : 1,
         'email_on_failure': False,
         'retry_delay' : timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
