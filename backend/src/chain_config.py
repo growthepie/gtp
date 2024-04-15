@@ -708,11 +708,11 @@ adapter_mapping = [
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='MODE'
 
-        ,in_api = False
+        ,in_api = True
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['blockspace', 'fdv', 'market_cap']
-        ,aggregate_blockspace = False
+        ,exclude_metrics = ['fdv', 'market_cap']
+        ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
         ,bucket = "OP Chains"
