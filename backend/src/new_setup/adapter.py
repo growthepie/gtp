@@ -115,12 +115,17 @@ class NodeAdapter(AbstractAdapterRaw):
         while not block_range_queue.empty():
             block_range = None
             try:
-                block_range = block_range_queue.get_nowait()
+                block_range = block_range_queue.get(timeout=10)
                 print(f"Processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
                 fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector)
+            except Queue.Empty:
+                print("No more blocks to process. Worker is shutting down.")
+                return
             except Exception as e:
-                print(f"Worker raised an exception: {e}")
-                traceback.print_exc()
+                print(f"Worker encountered an error with block range {block_range[0]}-{block_range[1]}: {e}")
+                block_range_queue.put(block_range)  # Re-queue the failed block range
+                print(f"Re-queued block range {block_range[0]}-{block_range[1]}")
+                continue  # Continue to the next iteration of the loop
             finally:
                 if block_range:
                     block_range_queue.task_done()
