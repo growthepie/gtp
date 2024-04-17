@@ -98,7 +98,7 @@ class AdapterCrossCheck(AbstractAdapter):
                     print(f'not implemented {project.block_explorer_type}')
                     raise ValueError('Block Explorer Type not supported')
             except Exception as e:
-                print(f"Error loading txcount data for {project.origin_key}: {e}")
+                print(f"TxCount Cross Check: Error loading comparison txcount data for {project.origin_key}: {e}")
                 send_discord_message(f"Error loading txcount data for {project.origin_key}: {e}", self.webhook_url)
                 continue
         
