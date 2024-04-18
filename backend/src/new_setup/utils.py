@@ -646,13 +646,13 @@ def prep_dataframe_eth(df):
 class MaxWaitTimeExceededException(Exception):
     pass
 
-def handle_retry_exception(current_start, current_end, base_wait_time):
+def handle_retry_exception(current_start, current_end, base_wait_time, rpc_url):
     max_wait_time = 300  # Maximum wait time in seconds
     wait_time = min(max_wait_time, 2 * base_wait_time)
 
     # Check if max_wait_time is reached and raise an exception
     if wait_time >= max_wait_time:
-        raise MaxWaitTimeExceededException(f"Maximum wait time exceeded for blocks {current_start} to {current_end}")
+        raise MaxWaitTimeExceededException(f"For {rpc_url}: Maximum wait time exceeded for blocks {current_start} to {current_end}")
 
     # Add jitter
     jitter = random.uniform(0, wait_time * 0.1)
@@ -770,7 +770,7 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
         print(f"File {file_key} not found in S3 bucket {bucket_name}.")
         raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
-def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector):
+def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
     base_wait_time = 5   # Base wait time in seconds
     while True:
         try:
@@ -808,13 +808,13 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
                 print(f"Data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}")
             except Exception as e:
-                print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
+                print(f"For {rpc_url}: Error inserting data for blocks {current_start} to {current_end}: {e}")
                 raise e
             break  # Break out of the loop on successful execution
 
         except Exception as e:
-            print(f"Error processing blocks {current_start} to {current_end}: {e}")
-            base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time)
+            print(f"For {rpc_url}: Error processing blocks {current_start} to {current_end}: {e}")
+            base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time, rpc_url)
 
 def save_to_s3(df, chain, s3_connection, bucket_name):
     # Convert any 'object' dtype columns to string
