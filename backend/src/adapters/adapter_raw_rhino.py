@@ -74,6 +74,10 @@ class AdapterRhino(AbstractAdapterRaw):
         # Remove duplicates without using inplace=True
         df = df.drop_duplicates(subset=['tx_hash'])
 
+        ## convert 'amount' to int but first remove commas
+        df['amount'] = df['amount'].str.replace(',', '', regex=False)
+        ##df['amount'] = df['amount'].astype(int)
+
         # Handle bytea data type
         for col in ['from_address']:
             if col in df.columns:

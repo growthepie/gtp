@@ -182,7 +182,6 @@ class DbConnector:
                                 price_usd * total_supply as value 
                         FROM tmp
                         WHERE price_usd > 0 and total_supply > 0
-                        ORDER BY 1 desc
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
