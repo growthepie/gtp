@@ -53,7 +53,6 @@ sql_q= {
                 FROM
                         chain_info
                 GROUP BY 1,2 
-                ORDER BY 1 DESC
         """
 
         ### IMX
@@ -67,7 +66,6 @@ sql_q= {
                 WHERE timestamp < date_trunc('day', now())
                         AND timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
                 group by 1
-                order by 1
         ),	
         cte_imx_mints as (
                 select 
@@ -76,7 +74,6 @@ sql_q= {
                 WHERE timestamp < date_trunc('day', now())
                         AND timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
                 group by 1
-                order by 1
         ),    
         cte_imx_trades as (
                 select 
@@ -85,7 +82,6 @@ sql_q= {
                 WHERE timestamp < date_trunc('day', now())
                         AND timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
                 group by 1
-                order by 1
         ),    
         cte_imx_transfers as (
                 select 
@@ -94,7 +90,6 @@ sql_q= {
                 WHERE timestamp < date_trunc('day', now())
                         AND timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
                 group by 1
-                order by 1
         ),
         cte_imx_withdrawals as (
                 select 
@@ -103,7 +98,6 @@ sql_q= {
                 WHERE timestamp < date_trunc('day', now())
                         AND timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
                 group by 1
-                order by 1
         ),
         unioned as (
                 select * from cte_imx_deposits
@@ -120,7 +114,6 @@ sql_q= {
                 day, SUM(value) as val 
         from unioned 
         group by 1
-        order by 1 desc
     """
     
     ## count of all addresses that activels interacted on imx (not mints, because they are not triggered by users themselves). Only fullfilled orders are counted as well.
@@ -177,7 +170,6 @@ sql_q= {
                 Count(distinct address) as val
         from unioned
         group by 1
-        order by 1 desc
     """
 
     ,'imx_fees_paid_usd': """
@@ -193,7 +185,6 @@ sql_q= {
                 and updated_timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
                 and updated_timestamp < date_trunc('day', now())
         group by 1
-        order by 1 desc
     """
 
         ## count of all addresses that actively interacted on imx (not mints, because they are not triggered by users themselves). Only fullfilled orders are counted as well.
@@ -257,7 +248,6 @@ sql_q= {
                 Count(distinct address) as val
         from unioned
         group by 1
-        order by 1 desc
     """
 
     ,'imx_fees_paid_usd': """
@@ -273,7 +263,6 @@ sql_q= {
                 and updated_timestamp >= date_trunc('day',now()) - interval '{{Days}} days'
                 and updated_timestamp < date_trunc('day', now())
         group by 1
-        order by 1 desc
     """
 
 
@@ -328,7 +317,7 @@ sql_q= {
         FROM optimism_tx ot
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
                 and gas_price > 0
-        GROUP BY (date_trunc('day', ot.block_timestamp))
+        GROUP BY 1
         """
 
         ,'optimism_aa_xxx': """
@@ -367,7 +356,7 @@ sql_q= {
                 'base' AS origin_key
         FROM base_tx bt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', bt.block_timestamp))
+        GROUP BY 1
         """
 
         ,'base_aa_xxx': """
@@ -406,7 +395,7 @@ sql_q= {
                 'polygon_zkevm' AS origin_key
         FROM polygon_zkevm_tx pzt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', pzt.block_timestamp))
+        GROUP BY 1
         """
 
         ,'polygon_zkevm_txcount_raw': """
@@ -415,7 +404,7 @@ sql_q= {
                 'polygon_zkevm' AS origin_key
         FROM polygon_zkevm_tx pzt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', pzt.block_timestamp))
+        GROUP BY 1
         """
 
         ,'polygon_zkevm_aa_xxx': """
@@ -460,7 +449,6 @@ sql_q= {
                 z.day,
                 z.median_tx_fee as value
         FROM polygon_zkevm_median z
-        ORDER BY z.day DESC
         """
 
         ,'polygon_zkevm_fees_paid_eth': """
@@ -476,7 +464,6 @@ sql_q= {
                 z.day,
                 z.total_tx_fee AS value
         FROM polygon_zkevm_filtered z
-        ORDER BY z.day DESC
     """
         
         ### zkSync Era
@@ -486,7 +473,7 @@ sql_q= {
                 'zksync_era' AS origin_key
         FROM zksync_era_tx zet
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', zet.block_timestamp))
+        GROUP BY 1
         """
 
         ,'zksync_era_aa_xxx': """
@@ -524,7 +511,7 @@ sql_q= {
                 'zora' AS origin_key
         FROM zora_tx zt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', zt.block_timestamp))
+        GROUP BY 1
         """
 
         ,'zora_fees_paid_eth': """
@@ -540,7 +527,6 @@ sql_q= {
                 z.day,
                 z.total_tx_fee AS value
         FROM zora_tx_filtered z
-        ORDER BY z.day DESC
     """
 
         ,'zora_txcount': """
@@ -550,7 +536,6 @@ sql_q= {
         FROM public.zora_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
     """
 
         ,'zora_aa_xxx': """
@@ -595,7 +580,6 @@ sql_q= {
                 z.day,
                 z.median_tx_fee as value
         FROM zora_median z
-        ORDER BY z.day DESC
     """
 
         ### PGN
@@ -605,7 +589,7 @@ sql_q= {
                 'gitcoin_pgn' AS origin_key
         FROM gitcoin_pgn_tx gpt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        GROUP BY 1
         """
 
 
@@ -622,7 +606,6 @@ sql_q= {
                 pgn.day,
                 pgn.total_tx_fee AS value
         FROM pgn_tx_filtered pgn
-        ORDER BY pgn.day DESC
     """
 
     ,'pgn_txcount': """
@@ -632,7 +615,6 @@ sql_q= {
         FROM public.gitcoin_pgn_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
     """
 
         ,'pgn_aa_xxx': """
@@ -678,7 +660,6 @@ sql_q= {
                 pgn.day,
                 pgn.median_tx_fee as value
         FROM pgn_median pgn
-        ORDER BY pgn.day DESC
     """
 
         ### Linea
@@ -688,7 +669,7 @@ sql_q= {
                 'linea' AS origin_key
         FROM linea_tx
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', linea_tx.block_timestamp))
+        GROUP BY 1
         """
 
     ,'linea_txcount': """
@@ -698,7 +679,6 @@ sql_q= {
         FROM public.linea_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
     """
 
     ,'linea_fees_paid_eth': """
@@ -714,7 +694,6 @@ sql_q= {
                 z.day,
                 z.total_tx_fee AS value
         FROM linea_tx_filtered z
-        ORDER BY z.day DESC
     """
 
         ,'linea_aa_xxx': """
@@ -759,7 +738,6 @@ sql_q= {
                 z.day,
                 z.median_tx_fee as value
         FROM linea_median z
-        ORDER BY z.day DESC
    """
 
         ### Mantle
@@ -769,7 +747,7 @@ sql_q= {
                 'mantle' AS origin_key
         FROM mantle_tx mt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', mt.block_timestamp))
+        GROUP BY 1
         """
 
         ,'mantle_fees_paid_eth': """
@@ -799,7 +777,6 @@ sql_q= {
         FROM mantle_tx_filtered mantle
         LEFT JOIN mnt_price e ON mantle.day = e."date"
         LEFT JOIN eth_price eth ON mantle.day = eth."date"
-        ORDER BY mantle.day DESC
         """
 
         ,'mantle_txcount': """
@@ -809,7 +786,6 @@ sql_q= {
         FROM public.mantle_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
     """
 
         ,'mantle_aa_xxx': """
@@ -867,7 +843,6 @@ sql_q= {
         FROM mantle_median mantle
         LEFT JOIN mnt_price e ON mantle.day = e."date"
         LEFT JOIN eth_price eth ON mantle.day = eth."date"
-        ORDER BY mantle.day DESC
     """
 
     # Scroll
@@ -877,7 +852,7 @@ sql_q= {
                 'scroll' AS origin_key
         FROM scroll_tx st
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', st.block_timestamp))
+        GROUP BY 1
         """
 
         ,'scroll_txcount': """
@@ -887,7 +862,6 @@ sql_q= {
         FROM public.scroll_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
         """
 
         ,'scroll_fees_paid_eth': """
@@ -903,7 +877,6 @@ sql_q= {
                 z.day,
                 z.total_tx_fee AS value
         FROM scroll_tx_filtered z
-        ORDER BY z.day DESC
     """
 
         ,'scroll_aa_xxx': """
@@ -949,7 +922,6 @@ sql_q= {
                 z.day,
                 z.median_tx_fee as value
         FROM scroll_median z
-        ORDER BY z.day DESC
    """
         # Loopring
         ,'loopring_txcount_raw': """
@@ -958,7 +930,7 @@ sql_q= {
                 'loopring' AS origin_key
         FROM loopring_tx st
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', st.block_timestamp))
+        GROUP BY 1
         """
 
         ,'loopring_txcount': """
@@ -968,7 +940,6 @@ sql_q= {
         FROM public.loopring_tx
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
         """
 
         ,'loopring_aa_xxx': """
@@ -1005,7 +976,7 @@ sql_q= {
                 'rhino' AS origin_key
         FROM rhino_tx st
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', st.block_timestamp))
+        GROUP BY 1
         """
 
         ,'rhino_txcount': """
@@ -1015,7 +986,6 @@ sql_q= {
         FROM public.rhino_tx
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
         """
 
         ,'rhino_aa_xxx': """
@@ -1053,7 +1023,7 @@ sql_q= {
                 'starknet' AS origin_key
         FROM starknet_tx st
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', st.block_timestamp))
+        GROUP BY 1
         """
 
         ,'starknet_txcount': """
@@ -1063,7 +1033,6 @@ sql_q= {
         FROM public.starknet_tx
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
         """
         
         ,'starknet_user_base_xxx': """
@@ -1119,7 +1088,6 @@ sql_q= {
                 z.day,
                 z.median_tx_fee as value
         FROM starknet_median z
-        ORDER BY z.day DESC
         """
 
         ,'starknet_fees_paid_eth': """
@@ -1135,7 +1103,6 @@ sql_q= {
                 z.day,
                 z.total_tx_fee AS value
         FROM starknet_tx_filtered z
-        ORDER BY z.day DESC
         """
 
         ### Metis
@@ -1145,7 +1112,7 @@ sql_q= {
                 'metis' AS origin_key
         FROM metis_tx mt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', mt.block_timestamp))
+        GROUP BY 1
         """
 
         ,'metis_fees_paid_eth': """
@@ -1173,7 +1140,6 @@ sql_q= {
         FROM metis_tx_filtered metis
         LEFT JOIN token_price e ON metis.day = e."date"
         LEFT JOIN eth_price eth ON metis.day = eth."date"
-        ORDER BY metis.day DESC
         """
 
         ,'metis_txcount': """
@@ -1184,7 +1150,6 @@ sql_q= {
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
                 AND gas_price > 0
         GROUP BY 1
-        order by 1 DESC
         """
 
         ,'metis_aa_xxx': """
@@ -1240,7 +1205,6 @@ sql_q= {
         FROM metis_median metis
         LEFT JOIN token_price e ON metis.day = e."date"
         LEFT JOIN eth_price eth ON metis.day = eth."date"
-        ORDER BY metis.day DESC
     """
 
         ### Blast
@@ -1251,7 +1215,7 @@ sql_q= {
         FROM blast_tx gpt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         AND gas_price > 0
-        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        GROUP BY 1
         """
 
 
@@ -1268,7 +1232,6 @@ sql_q= {
                 blast.day,
                 blast.total_tx_fee AS value
         FROM blast_tx_filtered blast
-        ORDER BY blast.day DESC
     """
 
     ,'blast_txcount': """
@@ -1278,7 +1241,6 @@ sql_q= {
         FROM public.blast_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
     """
 
         ,'blast_aa_xxx': """
@@ -1324,7 +1286,6 @@ sql_q= {
                 blast.day,
                 blast.median_tx_fee as value
         FROM blast_median blast
-        ORDER BY blast.day DESC
     """
 
     ### Manta
@@ -1335,7 +1296,7 @@ sql_q= {
         FROM manta_tx gpt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         AND gas_price > 0
-        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        GROUP BY 1
         """
 
 
@@ -1352,7 +1313,6 @@ sql_q= {
                 manta.day,
                 manta.total_tx_fee AS value
         FROM manta_tx_filtered manta
-        ORDER BY manta.day DESC
     """
 
     ,'manta_txcount': """
@@ -1362,7 +1322,6 @@ sql_q= {
         FROM public.manta_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
     """
 
         ,'manta_aa_xxx': """
@@ -1408,7 +1367,6 @@ sql_q= {
                 manta.day,
                 manta.median_tx_fee as value
         FROM manta_median manta
-        ORDER BY manta.day DESC
     """
 
     ### Ethereum
@@ -1418,7 +1376,7 @@ sql_q= {
                 'ethereum' AS origin_key
         FROM ethereum_tx gpt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        GROUP BY 1
         """
 
     ### Mode
@@ -1429,7 +1387,7 @@ sql_q= {
         FROM mode_tx gpt
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         AND gas_price > 0
-        GROUP BY (date_trunc('day', gpt.block_timestamp))
+        GROUP BY 1
         """
 
 
@@ -1446,7 +1404,6 @@ sql_q= {
                 mode.day,
                 mode.total_tx_fee AS value
         FROM mode_tx_filtered mode
-        ORDER BY mode.day DESC
     """
 
     ,'mode_txcount': """
@@ -1456,7 +1413,6 @@ sql_q= {
         FROM public.mode_tx
         WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
-        order by 1 DESC
     """
 
         ,'mode_aa_xxx': """
@@ -1502,7 +1458,6 @@ sql_q= {
                 mode.day,
                 mode.median_tx_fee as value
         FROM mode_median mode
-        ORDER BY mode.day DESC
     """
 
 }

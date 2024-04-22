@@ -283,6 +283,7 @@ class AdapterSQL(AbstractAdapter):
             origin_keys = [chain.origin_key for chain in adapter_mapping if chain.in_fees_api == True]
             print(f"...no specific origin_key found, aggregating fees for all chains: {origin_keys}...")
         
+        ## currently excluding the 10th and 90th percentile for regular runs
         if metric_keys is None:
             metric_keys = ['txcosts_avg_eth', 'txcosts_median_eth', 'txcosts_native_median_eth', 'txcosts_swap_eth']
 
@@ -397,43 +398,117 @@ class AdapterSQL(AbstractAdapter):
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
+                        ## txcosts_90th_percentile
+                        if 'txcosts_90th_eth' in metric_keys:
+                            print(f"... processing txcosts_90th for {origin_key} and {granularity} granularity")
+                            if additional_cte != '':
+                                additional_cte_full = additional_cte + ', '
+                            else:
+                                additional_cte_full = ''
+                            exec_string = f"""
+                                    WITH 
+                                    {additional_cte_full}
+
+                                    median_tx AS (
+                                            SELECT
+                                                    {timestamp_query} AS block_timestamp,
+                                                    PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
+                                            FROM public.{origin_key}_tx
+                                            WHERE tx_fee <> 0 
+                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                            GROUP BY 1
+                                            having count(*) > 20
+                                    )
+
+                                    SELECT
+                                            '{origin_key}' as origin_key,
+                                            'txcosts_90th_eth' as metric_key,
+                                            z.block_timestamp as timestamp,
+                                            '{granularity}' as granularity,
+                                            {tx_fee_eth_string} as value
+                                    FROM median_tx z
+                                    {additional_join}
+                            """
+                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                            self.db_connector.upsert_table('fact_kpis_granular', df)
+
+                        ## txcosts_10th_percentile
+                        if 'txcosts_10th_eth' in metric_keys:
+                            print(f"... processing txcosts_10th for {origin_key} and {granularity} granularity")
+                            if additional_cte != '':
+                                additional_cte_full = additional_cte + ', '
+                            else:
+                                additional_cte_full = ''
+                            exec_string = f"""
+                                    WITH 
+                                    {additional_cte_full}
+
+                                    median_tx AS (
+                                            SELECT
+                                                    {timestamp_query} AS block_timestamp,
+                                                    PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
+                                            FROM public.{origin_key}_tx
+                                            WHERE tx_fee <> 0 
+                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                            GROUP BY 1
+                                            having count(*) > 20
+                                    )
+
+                                    SELECT
+                                            '{origin_key}' as origin_key,
+                                            'txcosts_10th_eth' as metric_key,
+                                            z.block_timestamp as timestamp,
+                                            '{granularity}' as granularity,
+                                            {tx_fee_eth_string} as value
+                                    FROM median_tx z
+                                    {additional_join}
+                            """
+                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                            self.db_connector.upsert_table('fact_kpis_granular', df)
 
                         ## txcosts_native_median
                         if 'txcosts_native_median_eth' in metric_keys:
                             if origin_key != 'starknet':
-                                    print(f"... processing txcosts_median_native for {origin_key} and {granularity} granularity")  
-                                    if additional_cte != '':
-                                        additional_cte_full = additional_cte + ', '    
-                                    else:
-                                        additional_cte_full = ''                                  
-                                    exec_string = f"""
-                                            WITH 
-                                            {additional_cte_full}
+                                filter_string = 'AND empty_input = TRUE'
+                            else:
+                                filter_string = 'AND gas_used <= 23'
 
-                                            median_tx AS (
-                                                    SELECT
-                                                            {timestamp_query} AS block_timestamp,
-                                                            PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
-                                                    FROM public.{origin_key}_tx
-                                                    WHERE tx_fee <> 0 
-                                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
-                                                        AND empty_input = TRUE
-                                                    GROUP BY 1
-                                                    having count(*) > 10
-                                            )
+                            print(f"... processing txcosts_median_native for {origin_key} and {granularity} granularity")  
+                            if additional_cte != '':
+                                additional_cte_full = additional_cte + ', '    
+                            else:
+                                additional_cte_full = ''                                  
+                            exec_string = f"""
+                                    WITH 
+                                    {additional_cte_full}
 
+                                    median_tx AS (
                                             SELECT
-                                                    '{origin_key}' as origin_key,
-                                                    'txcosts_native_median_eth' as metric_key,
-                                                    z.block_timestamp as timestamp,
-                                                    '{granularity}' as granularity,
-                                                    {tx_fee_eth_string} as value
-                                            FROM median_tx z
-                                            {additional_join}
-                                    """
-                                    df = pd.read_sql(exec_string, self.db_connector.engine.connect())
-                                    df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
-                                    self.db_connector.upsert_table('fact_kpis_granular', df)
+                                                    {timestamp_query} AS block_timestamp,
+                                                    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
+                                            FROM public.{origin_key}_tx
+                                            WHERE tx_fee <> 0 
+                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                                {filter_string}
+                                            GROUP BY 1
+                                            having count(*) > 10
+                                    )
+
+                                    SELECT
+                                            '{origin_key}' as origin_key,
+                                            'txcosts_native_median_eth' as metric_key,
+                                            z.block_timestamp as timestamp,
+                                            '{granularity}' as granularity,
+                                            {tx_fee_eth_string} as value
+                                    FROM median_tx z
+                                    {additional_join}
+                            """
+
+                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                            self.db_connector.upsert_table('fact_kpis_granular', df)
 
                         ## txcosts_swap_eth
                         if 'txcosts_swap_eth' in metric_keys:
