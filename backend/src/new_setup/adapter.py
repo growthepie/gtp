@@ -61,15 +61,18 @@ class NodeAdapter(AbstractAdapterRaw):
             block_start = int(block_start)
 
         print(f"Running with start block {block_start} and latest block {latest_block}")
+
         # Initialize the block range queue
         block_range_queue = Queue()
-        
-        # Calculate and enqueue all block ranges
-        for current_start in range(block_start, latest_block + 1, batch_size):
-            current_end = min(current_start + batch_size - 1, latest_block)
-            block_range_queue.put((current_start, current_end))
-            
-        # Create and start a thread for each RPC URL in the rpc_configs
+        self.enqueue_block_ranges(block_start, latest_block, batch_size, block_range_queue)
+        self.manage_threads(block_range_queue)     
+
+    def enqueue_block_ranges(self, block_start, block_end, batch_size, queue):
+        for start in range(block_start, block_end + 1, batch_size):
+            end = min(start + batch_size - 1, block_end)
+            queue.put((start, end))
+
+    def manage_threads(self, block_range_queue):
         threads = []
         rpc_errors = {}  # Track errors for each RPC configuration
         error_lock = Lock()
@@ -77,24 +80,54 @@ class NodeAdapter(AbstractAdapterRaw):
         for rpc_config in self.rpc_configs:
             rpc_errors[rpc_config['url']] = 0
             self.active_rpcs.add(rpc_config['url'])  # Mark as active
-            thread = Thread(target=lambda: self.process_rpc_config(rpc_config, block_range_queue, rpc_errors, error_lock))
+            thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
+                rpc, block_range_queue, rpc_errors, error_lock))
             threads.append((rpc_config['url'], thread))
             thread.start()
             print(f"Started thread for {rpc_config['url']}")
 
+        # Start the monitoring thread with access to RPC configurations
+        monitor_thread = Thread(target=self.monitor_workers, args=(
+            threads, block_range_queue, self.rpc_configs, rpc_errors, error_lock))
+        monitor_thread.start()
+        print("Started monitoring thread.")
+        
         # Wait for all threads to complete
         for _, thread in threads:
             thread.join()
-        
-        # Check and remove failed RPC configurations
-        failed_rpc_urls = [rpc_url for rpc_url, errors in rpc_errors.items() if errors >= len([rpc_config['workers'] for rpc_config in self.rpc_configs if rpc_config['url'] == rpc_url])]
-        for rpc_url in failed_rpc_urls:
-            print(f"All workers for {rpc_url} failed. Removing this RPC from rotation.")
-            self.rpc_configs = [rpc for rpc in self.rpc_configs if rpc['url'] != rpc_url]
-            self.active_rpcs.remove(rpc_url)  # Mark as inactive
+        monitor_thread.join()  # Ensure the monitoring thread also completes
+        print("All worker and monitoring threads have completed.")
+
+    def monitor_workers(self, threads, block_range_queue, rpc_configs, rpc_errors, error_lock):
+        while True:
+            active_threads = [thread for _, thread in threads if thread.is_alive()]
+            active = bool(active_threads)
+
+            if block_range_queue.empty() and not active:
+                print("All workers have stopped and the queue is empty.")
+                break
             
+            if block_range_queue.qsize() == 0 and active:
+                print("No more block ranges to process. Waiting for workers to finish.")
+            else:
+                print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {active}")
+                
+            if not block_range_queue.empty() and not active:
+                print("Detected unfinished tasks with no active workers. Restarting workers where configured workers > 5.")
+                # Filter and restart workers for specific RPC configs
+                for rpc_config in rpc_configs:
+                    if rpc_config['workers'] > 5:
+                        print(f"Restarting workers for RPC URL: {rpc_config['url']}")
+                        new_thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
+                            rpc, block_range_queue, rpc_errors, error_lock))
+                        threads.append((rpc_config['url'], new_thread))
+                        new_thread.start()
+                break
+
+            time.sleep(5)  # Sleep to avoid high CPU usage
+
     def process_rpc_config(self, rpc_config, block_range_queue, rpc_errors, error_lock):
-        max_retries = 5
+        max_retries = 3
         retry_delay = 10
         attempt = 0
 
@@ -142,6 +175,11 @@ class NodeAdapter(AbstractAdapterRaw):
             except Exception as e:
                 with error_lock:
                     rpc_errors[rpc_config['url']] += 1  # Increment error count
+                    # Check immediately if the RPC should be removed
+                    if rpc_errors[rpc_config['url']] >= len([rpc['workers'] for rpc in self.rpc_configs if rpc['url'] == rpc_config['url']]):
+                        print(f"All workers for {rpc_config['url']} failed. Removing this RPC from rotation.")
+                        self.rpc_configs = [rpc for rpc in self.rpc_configs if rpc['url'] != rpc_config['url']]
+                        self.active_rpcs.remove(rpc_config['url'])
                 print(f"Error for {rpc_config['url']} on block range {block_range[0]}-{block_range[1]}: {e}")
                 block_range_queue.put(block_range)  # Re-queue the failed block range
                 print(f"Re-queued block range {block_range[0]}-{block_range[1]}")
@@ -152,37 +190,9 @@ class NodeAdapter(AbstractAdapterRaw):
 
     def process_missing_blocks(self, missing_block_ranges, batch_size):
         block_range_queue = Queue()
-
-        # Break down missing blocks into smaller ranges based on the batch size
         for start, end in missing_block_ranges:
-            for block_start in range(start, end + 1, batch_size):
-                block_end = min(block_start + batch_size - 1, end)
-                block_range_queue.put((block_start, block_end))
-
-        threads = []
-        rpc_errors = {}  # Track errors for each RPC configuration
-        error_lock = Lock()
-        
-        for rpc_config in self.rpc_configs:
-            rpc_errors[rpc_config['url']] = 0
-            self.active_rpcs.add(rpc_config['url'])  # Mark as active
-            thread = Thread(target=lambda: self.process_rpc_config(rpc_config, block_range_queue, rpc_errors, error_lock))
-            threads.append((rpc_config['url'], thread))
-            thread.start()
-            print(f"Started thread for {rpc_config['url']}")
-
-        # Wait for all threads to complete
-        for _, thread in threads:
-            thread.join()
-        
-        # Check and remove failed RPC configurations
-        failed_rpc_urls = [rpc_url for rpc_url, errors in rpc_errors.items() if errors >= len([rpc_config['workers'] for rpc_config in self.rpc_configs if rpc_config['url'] == rpc_url])]
-        for rpc_url in failed_rpc_urls:
-            print(f"All workers for {rpc_url} failed. Removing this RPC from rotation.")
-            self.rpc_configs = [rpc for rpc in self.rpc_configs if rpc['url'] != rpc_url]
-            self.active_rpcs.remove(rpc_url)  # Mark as inactive
-
-        print("Missing block backfill process completed.")
+            self.enqueue_block_ranges(start, end, batch_size, block_range_queue)
+        self.manage_threads(block_range_queue)
     
     def fetch_block_transaction_count(self, w3, block_num):
         block = w3.eth.get_block(block_num, full_transactions=False)
@@ -190,7 +200,8 @@ class NodeAdapter(AbstractAdapterRaw):
 
     def backfill_missing_blocks(self, start_block, end_block, batch_size):
         missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)
-
+        print(f"Found {len(missing_block_ranges)} missing block ranges.")
+        print("Filtering out ranges with 0 transactions...")
         filtered_ranges = []
         for start, end in missing_block_ranges:
             if start == end:
@@ -206,4 +217,7 @@ class NodeAdapter(AbstractAdapterRaw):
         
         else:
             print("Backfilling missing blocks")
+            print("Missing block ranges:")
+            for start, end in filtered_ranges:
+                print(f"{start}-{end}")
             self.process_missing_blocks(filtered_ranges, batch_size)

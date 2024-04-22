@@ -2,7 +2,7 @@ from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 import time
 import random
-from requests.exceptions import ReadTimeout, ConnectionError
+from requests.exceptions import ReadTimeout, ConnectionError, HTTPError
 
 class RateLimitExceededException(Exception):
     """Exception raised when the RPC call rate limit is exceeded."""
@@ -25,29 +25,42 @@ class EthProxy:
             def hooked(*args, **kwargs):
                 if name in ["get_block", "get_transaction_receipt", "get_transaction"]:
                     self._increment_call_count()
-                return self.retry_operation(attr, *args, **kwargs)
+                return self.retry_operation(attr, name, *args, **kwargs)
             return hooked
         else:
             return attr
 
-    def retry_operation(self, func, *args, max_retries=5, initial_wait=1.0, **kwargs):
+    def retry_operation(self, func, method_name, *args, max_retries=5, initial_wait=1.0, **kwargs):
         retries = 0
         wait_time = initial_wait
         while retries < max_retries:
             if self._web3cc.is_rate_limited and retries > 2:
-                print(f"For {self._web3cc.get_rpc_url()}: Rate limit exceeded, waiting {wait_time} seconds before retry...")
+                print(f"For {self._web3cc.get_rpc_url()}: Rate limit exceeded, Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             try:
                 return func(*args, **kwargs)
-            except (ReadTimeout, ConnectionError) as e:
-                print(f"For {self._web3cc.get_rpc_url()}: Operation failed with exception: {e}. Retrying in {wait_time} seconds...")
+            except ReadTimeout as e:
+                print(f"For {self._web3cc.get_rpc_url()}: Read timeout while trying {method_name} with params {args}, {kwargs}. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
                 retries += 1
+            except ConnectionError as e:
+                print(f"For {self._web3cc.get_rpc_url()}: Connection error while trying {method_name}. Retrying in {wait_time} seconds...")
+                time.sleep(wait_time)
+                wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
+                retries += 1
+            except HTTPError as e:
+                if e.response.status_code == 429:  # Rate Limit Exceeded
+                    print(f"For {self._web3cc.get_rpc_url()}: HTTP 429 Rate Limit Exceeded. Retrying in {wait_time} seconds...")
+                    time.sleep(wait_time)
+                    wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
+                    retries += 1
+                else:
+                    raise e
             except Exception as e:
                 raise e
 
-        raise Exception(f"For {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries.")
+        raise Exception(f"For {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
 
 class ResponseNormalizerMiddleware:
     def __init__(self, web3):
