@@ -647,7 +647,7 @@ class MaxWaitTimeExceededException(Exception):
     pass
 
 def handle_retry_exception(current_start, current_end, base_wait_time, rpc_url):
-    max_wait_time = 300  # Maximum wait time in seconds
+    max_wait_time = 60  # Maximum wait time in seconds
     wait_time = min(max_wait_time, 2 * base_wait_time)
 
     # Check if max_wait_time is reached and raise an exception
@@ -771,7 +771,7 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
         raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
 def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
-    base_wait_time = 5   # Base wait time in seconds
+    base_wait_time = 3   # Base wait time in seconds
     while True:
         try:
             
