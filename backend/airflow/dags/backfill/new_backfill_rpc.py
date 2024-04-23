@@ -29,7 +29,7 @@ chain_settings = {
         'retry_delay': timedelta(minutes=5),
         'email_on_failure': False,
     },
-    dag_id='backfill_rpc',
+    dag_id='new_backfill_rpc',
     description='DAG for backfilling missing blockchain data',
     tags=['backfill', 'daily'],
     start_date=datetime(2023, 12, 1),
