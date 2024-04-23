@@ -36,53 +36,48 @@ chain_settings = {
     schedule_interval='20 11 * * *'
 )
 def backfiller_dag():
-    @task
-    def run_backfill_task(chain_name, env_var, db_connector, start_date, end_date, batch_size):
-        config = os.getenv(env_var)
-        rpc_configs = json.loads(config)
-        w3 = None
-
-        for rpc_config in rpc_configs:
-            try:
-                w3 = Web3CC(rpc_config)
-                break
-            except Exception as e:
-                print(f"Failed to connect to RPC URL: {rpc_config['url']} with error: {e}")
-
-        if not w3:
-            raise ConnectionError("Failed to connect to any provided RPC node.")
-
-        start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
-        end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
-        start_timestamp = date_to_unix_timestamp(start_date_obj.year, start_date_obj.month, start_date_obj.day)
-        end_timestamp = date_to_unix_timestamp(end_date_obj.year, end_date_obj.month, end_date_obj.day)
-        start_block = find_first_block_of_day(w3, start_timestamp)
-        end_block = find_last_block_of_day(w3, end_timestamp)
-
-        adapter_params = {'chain': chain_name, 'rpc_configs': rpc_configs}
-        node_adapter = NodeAdapter(adapter_params, db_connector)
-
-        try:
-            node_adapter.backfill_missing_blocks(start_block, end_block, batch_size)
-            print("Backfill process completed successfully.")
-        except Exception as e:
-            print(f"Backfiller: An error occurred: {e}", file=sys.stderr)
-            raise
-
-    tasks = {}
-
     for chain, settings in chain_settings.items():
         if settings['active']:
+            @task(task_id=f'new_backfill_{chain}')
+            def run_backfill_task(chain_name, env_var, db_connector, start_date, end_date, batch_size):
+                config = os.getenv(env_var)
+                rpc_configs = json.loads(config)
+                w3 = None
+
+                for rpc_config in rpc_configs:
+                    try:
+                        w3 = Web3CC(rpc_config)
+                        break
+                    except Exception as e:
+                        print(f"Failed to connect to RPC URL: {rpc_config['url']} with error: {e}")
+
+                if not w3:
+                    raise ConnectionError("Failed to connect to any provided RPC node.")
+
+                start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+                end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+                start_timestamp = date_to_unix_timestamp(start_date_obj.year, start_date_obj.month, start_date_obj.day)
+                end_timestamp = date_to_unix_timestamp(end_date_obj.year, end_date_obj.month, end_date_obj.day)
+                start_block = find_first_block_of_day(w3, start_timestamp)
+                end_block = find_last_block_of_day(w3, end_timestamp)
+
+                adapter_params = {'chain': chain_name, 'rpc_configs': rpc_configs}
+                node_adapter = NodeAdapter(adapter_params, db_connector)
+
+                try:
+                    node_adapter.backfill_missing_blocks(start_block, end_block, batch_size)
+                    print("Backfill process completed successfully.")
+                except Exception as e:
+                    print(f"Backfiller: An error occurred: {e}", file=sys.stderr)
+                    raise
+
             env_var = settings['config']
             batch_size = settings['batch_size']
             db_connector = DbConnector()
 
             start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
             end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-            task_id = f"backfill_{chain}"
 
-            tasks[chain] = run_backfill_task.partial(task_id=task_id, chain_name=chain, env_var=env_var, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)()
-
-    return tasks
+            run_backfill_task(chain_name=chain, env_var=env_var, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)
 
 backfiller_dag_instance = backfiller_dag()
