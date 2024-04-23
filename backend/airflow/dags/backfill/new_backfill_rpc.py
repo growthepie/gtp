@@ -71,7 +71,7 @@ def backfiller_dag():
 
     tasks = {}
 
-    for chain, settings in chain_settings:
+    for chain, settings in chain_settings.items():
         if settings['active']:
             env_var = settings['config']
             batch_size = settings['batch_size']
