@@ -709,7 +709,7 @@ adapter_mapping = [
         ,rhino_naming='MODE'
 
         ,in_api = True
-        ,in_fees_api = False
+        ,in_fees_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
