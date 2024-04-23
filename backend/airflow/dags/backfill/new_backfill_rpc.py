@@ -8,10 +8,14 @@ from src.db_connector import DbConnector
 from src.new_setup.utils import Web3CC
 from src.adapters.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
 
-# DAG Configuration Variables
+## DAG Configuration Variables
+# batch_size: Number of blocks to process in a single task run
+# config: Environment variable containing the RPC node configuration
+# active: Whether the chain is active and should be backfilled
+
 chain_settings = {
-    'blast': {'batch_size': 10, 'config': 'BLAST_CONFIG'},
-    'ethereum': {'batch_size': 3, 'config': 'ETH_CONFIG'},
+    'blast': {'batch_size': 10, 'config': 'BLAST_CONFIG', 'active': True},
+    'ethereum': {'batch_size': 3, 'config': 'ETH_CONFIG', 'active': True},
 }
 
 @dag(
@@ -62,16 +66,18 @@ def backfiller_dag():
             raise
 
     tasks = {}
-    for chain in ['blast', 'ethereum']:
-        env_var = chain_settings[chain]['config']
-        batch_size = chain_settings[chain]['batch_size']
-        db_connector = DbConnector()
 
-        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-        end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        task_id = f"backfill_{chain}"
+    for chain in chain_settings:
+        if chain_settings[chain]['active']:
+            env_var = chain_settings[chain]['config']
+            batch_size = chain_settings[chain]['batch_size']
+            db_connector = DbConnector()
 
-        tasks[chain] = run_backfill_task(task_id=task_id, chain_name=chain, env_var=env_var, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)
+            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
+            task_id = f"backfill_{chain}"
+
+            tasks[chain] = run_backfill_task(task_id=task_id, chain_name=chain, env_var=env_var, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)
 
     return tasks
 
