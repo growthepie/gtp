@@ -710,7 +710,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = False
-        ,deployment="DEV"
+        ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
