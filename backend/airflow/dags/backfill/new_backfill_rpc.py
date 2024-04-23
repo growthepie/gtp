@@ -71,17 +71,17 @@ def backfiller_dag():
 
     tasks = {}
 
-    for chain in chain_settings:
-        if chain_settings[chain]['active']:
-            env_var = chain_settings[chain]['config']
-            batch_size = chain_settings[chain]['batch_size']
+    for chain, settings in chain_settings:
+        if settings['active']:
+            env_var = settings['config']
+            batch_size = settings['batch_size']
             db_connector = DbConnector()
 
             start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
             end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
             task_id = f"backfill_{chain}"
 
-            tasks[chain] = run_backfill_task(task_id=task_id, chain_name=chain, env_var=env_var, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)
+            tasks[chain] = run_backfill_task.partial(task_id=task_id, chain_name=chain, env_var=env_var, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)()
 
     return tasks
 
