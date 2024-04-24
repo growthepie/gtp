@@ -6,7 +6,7 @@ from PIL import Image
 import time
 import os
 
-FUND_CAPTURE = [1320, 350, 2075, 770]
+FUND_CAPTURE = [1320, 350, 2075, 775]
 CHAIN_CAPTURE = [765, 245, 2070, 600] 
 BLOCK_CAPTURE = [1320, 350, 2075, 770]
 
@@ -95,7 +95,7 @@ screenshot_data = {
         },
         {
           "label": "Fully Diluted Valuation",
-          "urlKey": "fdv",
+          "urlKey": "fully-diluted-valuation",
           "coords": [1325, 380, 2075, 800]
         },
         {
@@ -117,7 +117,7 @@ screenshot_data = {
           {
             "label": "Chain Overview",
             "urlKey": "chain-overview",
-            "coords" : [760, 310, 2075, 1030] 
+            "coords" : [760, 310, 2075, 1040]
           },
           {
             "label": "Category Comparison",
@@ -163,7 +163,7 @@ screenshot_data = {
           {
             "label": "Polygon zkEVM",
             "urlKey": "polygon-zkevm",
-            "coords": [765, 345, 2070, 730]
+            "coords": [765, 320, 2070, 705]
           },
           {
             "label": "zkSync Era",
@@ -179,6 +179,16 @@ screenshot_data = {
             "label": "Immutable X",
             "urlKey": "immutable-x",
             "coords": [765, 320, 2070, 705] 
+          },
+          {
+            "label": "Blast",
+            "urlKey": "blast",
+            "coords": [765, 320, 2070, 705]
+          },
+          {
+            "label": "Mode Network",
+            "urlKey": "mode",
+            "coords": [765, 295, 2070, 680]
           }
         ]
       }
