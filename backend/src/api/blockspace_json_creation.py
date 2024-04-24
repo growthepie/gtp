@@ -410,7 +410,7 @@ class BlockspaceJSONCreation():
     
     def create_blockspace_single_chain_json(self):
         # define the timeframes in days for the overview data
-        overview_timeframes = [7, 30, 180, "max"]
+        overview_timeframes = [1, 7, 30, 180, "max"]
 
         # get main_category_keys in the blockspace_df
         category_mapping = self.get_category_mapping()
