@@ -11,6 +11,8 @@ import random
 import time
 import ast
 from src.new_setup.web3 import Web3CC
+from sqlalchemy import text
+
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -842,3 +844,26 @@ def save_to_s3(df, chain, s3_connection, bucket_name):
     else:
         print(f"File {file_key} not found in S3 bucket {bucket_name}.")
         raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
+
+def get_chain_config(db_connector, chain_name):
+    raw_sql = text(
+        "SELECT url, workers, max_requests, max_tps "
+        "FROM sys_rpc_config "
+        "WHERE active = TRUE AND origin_key = :chain_name"
+    )
+
+    with db_connector.engine.connect() as connection:
+        result = connection.execute(raw_sql, {"chain_name": chain_name})
+        rows = result.fetchall()
+
+    # Format the data as a list of dictionaries
+    config_list = [
+        {
+            "url": row['url'],
+            "max_req": row['max_requests'] if row['max_requests'] is not None else 0,
+            "max_tps": row['max_tps'] if row['max_tps'] is not None else 0,
+            "workers": row['workers']
+        } for row in rows
+    ]
+
+    return config_list
