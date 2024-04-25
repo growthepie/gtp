@@ -856,14 +856,17 @@ def get_chain_config(db_connector, chain_name):
         result = connection.execute(raw_sql, {"chain_name": chain_name})
         rows = result.fetchall()
 
-    # Format the data as a list of dictionaries
-    config_list = [
-        {
-            "url": row['url'],
-            "max_req": row['max_requests'] if row['max_requests'] is not None else 0,
-            "max_tps": row['max_tps'] if row['max_tps'] is not None else 0,
-            "workers": row['workers']
-        } for row in rows
-    ]
+    config_list = []
+    for row in rows:
+        config = {"url": row['url']}
+        # Add other keys only if they are not None
+        if row['workers'] is not None:
+            config['workers'] = row['workers']
+        if row['max_requests'] is not None:
+            config['max_req'] = row['max_requests']
+        if row['max_tps'] is not None:
+            config['max_tps'] = row['max_tps']
+
+        config_list.append(config)
 
     return config_list
