@@ -245,7 +245,8 @@ class DbConnector:
                         SELECT 
                                 Case tkd.metric_key 
                                         WHEN 'rent_paid_eth' THEN 'rent_paid_usd'
-                                        WHEN 'calldata_eth' THEN 'calldata_usd'
+                                        WHEN 'calldata_da_eth' THEN 'calldata_da_usd'
+                                        WHEN 'calldata_verification_eth' THEN 'calldata_verification_usd'
                                         WHEN 'blobs_eth' THEN 'blobs_usd'
                                         WHEN 'fees_paid_eth' THEN 'fees_paid_usd'
                                         WHEN 'profit_eth' THEN 'profit_usd'

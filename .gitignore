@@ -4,6 +4,7 @@
 my_env/
 
 *.ipynb
+*.html
 backend/output/
 backend/local/
 screenshots/
