@@ -3,14 +3,12 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
 from datetime import datetime, timedelta
 from src.new_setup.adapter import NodeAdapter
-from src.new_setup.utils import MaxWaitTimeExceededException
+from src.new_setup.utils import MaxWaitTimeExceededException, get_chain_config
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-import json
 
 @dag(
     default_args={
@@ -31,18 +29,19 @@ def adapter_rpc():
     @task()
     def run_blast():
 
-        config = os.getenv("BLAST_CONFIG")
+        # Initialize DbConnector
+        db_connector = DbConnector()
+        
+        chain_name = 'blast'
 
-        rpc_configs = json.loads(config)
+        active_rpc_configs = get_chain_config(db_connector, chain_name)
+        print(f"BLAST_CONFIG={active_rpc_configs}")
 
         adapter_params = {
             'rpc': 'local_node',
-            'chain': 'blast',
-            'rpc_configs': rpc_configs,
+            'chain': chain_name,
+            'rpc_configs': active_rpc_configs,
         }
-        
-        # Initialize DbConnector
-        db_connector = DbConnector()
 
         # Initialize NodeAdapter
         adapter = NodeAdapter(adapter_params, db_connector)

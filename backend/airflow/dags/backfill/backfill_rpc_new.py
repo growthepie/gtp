@@ -3,13 +3,11 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
-import json
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.new_setup.adapter import NodeAdapter
 from src.db_connector import DbConnector
-from src.new_setup.utils import Web3CC
+from src.new_setup.utils import Web3CC, get_chain_config
 from src.adapters.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
 
 ## DAG Configuration Variables
@@ -18,8 +16,8 @@ from src.adapters.funcs_backfill import date_to_unix_timestamp, find_first_block
 # active: Whether the chain is active and should be backfilled
 
 chain_settings = {
-    'blast': {'batch_size': 10, 'config': 'BLAST_CONFIG', 'active': True},
-    'ethereum': {'batch_size': 3, 'config': 'ETH_CONFIG', 'active': True},
+    'blast': {'batch_size': 10, 'active': True},
+    'ethereum': {'batch_size': 3, 'active': True},
 }
 
 @dag(
@@ -39,9 +37,8 @@ def backfiller_dag():
     for chain, settings in chain_settings.items():
         if settings['active']:
             @task(task_id=f'new_backfill_{chain}')
-            def run_backfill_task(chain_name, env_var, db_connector, start_date, end_date, batch_size):
-                config = os.getenv(env_var)
-                rpc_configs = json.loads(config)
+            def run_backfill_task(chain_name, db_connector, start_date, end_date, batch_size):
+                rpc_configs = get_chain_config(db_connector, chain_name)
                 w3 = None
 
                 for rpc_config in rpc_configs:
@@ -71,13 +68,12 @@ def backfiller_dag():
                     print(f"Backfiller: An error occurred: {e}", file=sys.stderr)
                     raise
 
-            env_var = settings['config']
             batch_size = settings['batch_size']
             db_connector = DbConnector()
 
             start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
             end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
-            run_backfill_task(chain_name=chain, env_var=env_var, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)
+            run_backfill_task(chain_name=chain, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)
 
 backfiller_dag_instance = backfiller_dag()
