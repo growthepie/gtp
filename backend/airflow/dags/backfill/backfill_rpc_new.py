@@ -8,6 +8,7 @@ from airflow.decorators import dag, task
 from src.new_setup.adapter import NodeAdapter
 from src.db_connector import DbConnector
 from src.new_setup.utils import Web3CC, get_chain_config
+from src.misc.airflow_utils import alert_via_webhook
 from src.adapters.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
 
 ## DAG Configuration Variables
@@ -26,6 +27,7 @@ chain_settings = {
         'retries': 2,
         'retry_delay': timedelta(minutes=5),
         'email_on_failure': False,
+        'on_failure_callback': alert_via_webhook
     },
     dag_id='backfill_rpc_new',
     description='DAG for backfilling missing blockchain data',
