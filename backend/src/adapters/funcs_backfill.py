@@ -55,7 +55,7 @@ def check_and_record_missing_block_ranges(db_connector, table_name, start_block,
 
     if not missing_blocks_result:
         print(f"No missing block ranges found for table: {table_name}.")
-        return False
+        return []
 
     missing_ranges = []
     start_missing_range = None
