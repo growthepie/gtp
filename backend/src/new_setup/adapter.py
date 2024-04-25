@@ -200,6 +200,9 @@ class NodeAdapter(AbstractAdapterRaw):
 
     def backfill_missing_blocks(self, start_block, end_block, batch_size):
         missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)
+        if not missing_block_ranges:
+            print("No missing block ranges found.")
+            return
         print(f"Found {len(missing_block_ranges)} missing block ranges.")
         print("Filtering out ranges with 0 transactions...")
         filtered_ranges = []
