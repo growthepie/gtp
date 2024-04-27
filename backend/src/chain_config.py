@@ -146,7 +146,7 @@ adapter_mapping = [
         ,twitter='https://twitter.com/Optimism'
 
         ,coingecko_naming="optimism"
-        ,defillama_stablecoin='optimism'
+        # ,defillama_stablecoin='optimism' ## stables via Dune
         ,l2beat_tvl_naming="optimism"
 
         # ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
