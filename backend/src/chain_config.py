@@ -636,10 +636,10 @@ adapter_mapping = [
         ,description="Manta Pacific is an Optimium empowering EVM-native zero-knowledge (ZK) applications and general dapps. Public launch was in September 2023."
         ,da_layer = "Celestia"
 
-        ,in_api = False
+        ,in_api = True
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['blockspace', 'profit', 'fdv', 'market_cap']
+        ,exclude_metrics = ['blockspace', 'profit', 'fdv']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
