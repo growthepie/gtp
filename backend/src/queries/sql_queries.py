@@ -54,6 +54,43 @@ sql_q= {
                         chain_info
                 GROUP BY 1,2 
         """
+        
+        ### Ethereum
+        ,'ethereum_txcount_raw': """
+        SELECT date_trunc('day', gpt.block_timestamp) AS day,
+                count(*) AS value
+        FROM ethereum_tx gpt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'ethereum_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM ethereum_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+        ,'ethereum_aa_last_xxd': """
+        WITH date_range AS (
+                SELECT generate_series(
+                        current_date - INTERVAL '{{Days}} days', 
+                        current_date - INTERVAL '{{Days_Start}} days', 
+                        '1 day'::INTERVAL
+                )::DATE AS day
+        )
+        SELECT 
+                d.day, 
+                COUNT(DISTINCT b.from_address) AS value
+        FROM date_range d
+        LEFT JOIN 
+                ethereum_tx b ON b.block_timestamp >= d.day - INTERVAL '{{Timerange}} days' AND b.block_timestamp <= d.day + INTERVAL '1 days'
+        GROUP BY 1
+        """
 
         ### IMX
         ## count of all actions that have a transaction_id (not orders!)
@@ -1464,15 +1501,6 @@ sql_q= {
         GROUP BY 1
         """
 
-         ### Ethereum
-        ,'ethereum_txcount_raw': """
-        SELECT date_trunc('day', gpt.block_timestamp) AS day,
-                count(*) AS value
-        FROM ethereum_tx gpt
-        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY 1
-        """
-
         ### Mode
         ,'mode_txcount_raw': """
         SELECT date_trunc('day', gpt.block_timestamp) AS day,
@@ -1595,6 +1623,12 @@ sql_queries = [
         # ,SQLQuery(metric_key = "user_base_daily", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
         SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7*4, "aggregation": "week"})
         # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7*4*12, "aggregation": "month"})
+
+        ## Ethereum
+        ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        ,SQLQuery(metric_key = "waa", origin_key = "ethereum", sql=sql_q["ethereum_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+        ,SQLQuery(metric_key = "maa", origin_key = "ethereum", sql=sql_q["ethereum_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+        ,SQLQuery(metric_key = "aa_last30d", origin_key = "ethereum", sql=sql_q["ethereum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
         ## IMX
         ,SQLQuery(metric_key = "txcount", origin_key = "imx", sql=sql_q["imx_txcount"], currency_dependent = False, query_parameters={"Days": 7})
@@ -1792,9 +1826,6 @@ sql_queries = [
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "manta", sql=sql_q["manta_txcosts_median_eth"], query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "cca", origin_key = "manta", sql=get_cross_chain_activity('manta'), currency_dependent = False, query_parameters={})
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "manta", sql=sql_q["manta_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
-
-        ## Ethereum
-        ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
 
         ## Mode
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "mode", sql=sql_q["mode_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
