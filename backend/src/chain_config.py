@@ -522,7 +522,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['blockspace', 'rent_paid', 'profit']
+        ,exclude_metrics = ['blockspace']
         ,aggregate_blockspace = False
         ,aggregate_addresses = False
 

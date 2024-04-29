@@ -1171,6 +1171,17 @@ sql_q= {
         FROM starknet_tx_filtered z
         """
 
+        ,'starknet_rent_paid_eth': """
+        SELECT 
+                date as day,
+                SUM(value) as value
+        FROM public.fact_kpis
+        WHERE origin_key = 'starknet' and metric_key in ('calldata_da_eth', 'proof_costs_eth', 'blobs_eth')
+                AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                AND "date" > '2024-02-25'
+        GROUP BY 1
+        """
+
         ### Metis
         ,'metis_txcount_raw': """
         SELECT date_trunc('day', mt.block_timestamp) AS day,
@@ -1741,6 +1752,7 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "starknet", sql=sql_q["starknet_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
         ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", sql=sql_q["starknet_fees_paid_eth"], query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", sql=sql_q["starknet_txcosts_median_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "rent_paid_eth", origin_key = "starknet", sql=sql_q["starknet_rent_paid_eth"], query_parameters={"Days": 7})
 
         ## Metis
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "metis", sql=sql_q["metis_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
