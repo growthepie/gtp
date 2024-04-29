@@ -405,7 +405,7 @@ adapter_mapping = [
         ,name='Scroll'
         ,name_short = "Scroll"
         ,description="Scroll is a general purpose zkEVM rollup. Public launch was in October 2023."
-        ,da_layer = "Ethereum (calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='SCROLL'
 
         ,in_api = True
