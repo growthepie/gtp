@@ -70,7 +70,7 @@ sql_q= {
                 count(DISTINCT from_address) as value
         FROM ethereum_tx tx
         WHERE
-                block_timestamp < date_trunc('day', current_date)
+                block_timestamp < date_trunc('{{aggregation}}', current_date)
                 AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
