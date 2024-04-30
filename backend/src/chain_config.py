@@ -638,7 +638,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = False
-        ,deployment="DEV"
+        ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
