@@ -189,6 +189,10 @@ class JSONCreation():
                     df.rename(columns={col: 'value'}, inplace=True)
         return df
 
+    # Function to trim leading zeros for each group
+    def trim_leading_zeros(self, group):
+        first_non_zero_index = group['value'].ne(0).idxmax()  # Find first non-zero index in each group
+        return group.loc[first_non_zero_index:]  # Return the DataFrame slice starting from this index
 
     # this method returns a list of lists with the unix timestamp and all associated values for a certain metric_id and chain_id
     def generate_daily_list(self, df, metric_id, origin_key):
@@ -215,6 +219,10 @@ class JSONCreation():
                     new_df['unix'] = new_df['date'].apply(lambda x: x.timestamp() * 1000)
 
                     df_tmp = pd.concat([df_tmp, new_df], ignore_index=True)
+
+        ## trime leading zeros
+        df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
+        df_tmp = df_tmp.groupby('metric_key').apply(self.trim_leading_zeros).reset_index(drop=True)
 
         df_tmp.drop(columns=['date'], inplace=True)
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
@@ -810,9 +818,15 @@ class JSONCreation():
 
     ##### JSON GENERATION METHODS #####
     
-    def create_chain_details_jsons(self, df):
+    def create_chain_details_jsons(self, df, origin_keys:list=None):
+        if origin_keys != None:
+            ## create adapter_mapping_filtered that only contains chains that are in the origin_keys list
+            adapter_mapping_filtered = [chain for chain in adapter_mapping if chain.origin_key in origin_keys]
+        else:
+            adapter_mapping_filtered = adapter_mapping
+
         ## loop over all chains and generate a chain details json for all chains and with all possible metrics
-        for chain in adapter_mapping:
+        for chain in adapter_mapping_filtered:
             origin_key = chain.origin_key
             if chain.in_api == False:
                 print(f'..skipped: Chain details export for {origin_key}. API is set to False')
@@ -859,10 +873,15 @@ class JSONCreation():
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id)
             print(f'DONE -- Chain details export for {origin_key}')
 
-    def create_metric_details_jsons(self, df):
-        ## loop over all metrics and generate a metric details json for all metrics and with all possible chains
+    def create_metric_details_jsons(self, df, metric_keys:list=None):
+        if metric_keys != None:
+            ## create metrics_filtered that only contains metrics that are in the metric_keys list
+            metrics_filtered = {key: value for key, value in self.metrics.items() if key in metric_keys}
+        else:
+            metrics_filtered = self.metrics
 
-        for metric in self.metrics:
+        ## loop over all metrics and generate a metric details json for all metrics and with all possible chainn
+        for metric in metrics_filtered:
             chains_dict = {}    
             for chain in adapter_mapping:
                 origin_key = chain.origin_key
