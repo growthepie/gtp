@@ -47,11 +47,12 @@ def run_screenshots(s3_bucket, cf_distribution_id, api_version, user = None):
         os.makedirs(f"{main_path}/fundamentals")
         os.makedirs(f"{main_path}/chains")
         os.makedirs(f"{main_path}/blockspace")
+        os.makedirs(f"{main_path}/blockspace/chain-overview")
  
     for key in screenshot_data:
         label = key.lower()
         for i in screenshot_data[key]["options"]:
-            url = f"{main_url}/{label}/{i['urlKey']}"
+            url = f"{main_url}/{label}/{i['urlKey']}?is_og=true"
             path = f"{main_path}/{label}/{i['urlKey']}.png"
             capture_screenshot(url, path, i["coords"] if "coords" in i else FUND_CAPTURE)
             
@@ -119,6 +120,46 @@ screenshot_data = {
             "urlKey": "chain-overview",
             "coords" : [760, 310, 2075, 1040]
           },
+          {
+            "label": "NFT",
+            "urlKey": "chain-overview/nft",
+            "coords" : [760, 310, 2075, 1040]
+          },
+          {
+            "label": "Token Transfers",
+            "urlKey": "chain-overview/token_transfers",
+            "coords" : [760, 310, 2075, 1040]
+          },
+          {
+            "label": "DeFi",
+            "urlKey": "chain-overview/defi",
+            "coords" : [760, 310, 2075, 1040]
+          },   
+          {
+            "label": "Social",
+            "urlKey": "chain-overview/social",
+            "coords" : [760, 310, 2075, 1040]
+          }, 
+          {
+            "label": "CeFi",
+            "urlKey": "chain-overview/cefi",
+            "coords" : [760, 310, 2075, 1040]
+          },   
+          {
+            "label": "Utility",
+            "urlKey": "chain-overview/utility",
+            "coords" : [760, 310, 2075, 1040]
+          }, 
+          {
+            "label": "Cross Chain",
+            "urlKey": "chain-overview/cross_chain",
+            "coords" : [760, 310, 2075, 1040]
+          },   
+          {
+            "label": "Unlabeled",
+            "urlKey": "chain-overview/unlabeled",
+            "coords" : [760, 310, 2075, 1040]
+          },  
           {
             "label": "Category Comparison",
             "urlKey": "category-comparison",
