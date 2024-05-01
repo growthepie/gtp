@@ -644,6 +644,83 @@ def prep_dataframe_eth(df):
     filtered_df.drop('base_fee_per_gas', axis=1, inplace=True)
 
     return filtered_df
+
+def prep_dataframe_zksync_era(df):
+
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'empty_input',
+        'block_timestamp': 'block_timestamp',
+        'type': 'type',
+        'contractAddress': 'receipt_contract_address'
+    }
+    
+    # Filter the dataframe to only include the relevant columns that exist in the DataFrame
+    existing_columns = [col for col in column_mapping.keys() if col in df.columns]
+    filtered_df = df[existing_columns]
+
+    # Rename the columns based on the above mapping
+    existing_column_mapping = {key: column_mapping[key] for key in existing_columns}
+
+    # Rename the columns based on the updated mapping
+    filtered_df = filtered_df.rename(columns=existing_column_mapping)
+
+    # Convert columns to numeric if they aren't already
+    # Ensure numeric columns are handled appropriately
+    for col in ['gas_price', 'gas_used', 'value']:
+        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+    
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # replace None in 'to_address' column with empty string
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+        
+    # Convert the 'type' integer values to bytea format before insertion
+    filtered_df['type'] = filtered_df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
+
+    # Handle 'to_address', 'from_address', 'receipt_contract_address' for missing values
+    address_columns = ['to_address', 'from_address', 'receipt_contract_address']
+    for col in address_columns:
+        filtered_df[col] = filtered_df[col].fillna('')
+
+        if col == 'receipt_contract_address':
+            filtered_df[col] = filtered_df[col].apply(lambda x: None if not x or x.lower() == 'none' or x.lower() == '4e6f6e65' else x)
+    
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")             
+    
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+    
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+    return filtered_df
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
@@ -794,6 +871,8 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
+            elif chain == 'zksync_era':
+                df_prep = prep_dataframe_zksync_era(df)
             elif chain == 'ethereum':
                 df_prep = prep_dataframe_eth(df)
             elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast']:

@@ -19,6 +19,9 @@ from src.adapters.funcs_backfill import date_to_unix_timestamp, find_first_block
 chain_settings = {
     'blast': {'batch_size': 10, 'active': True},
     'ethereum': {'batch_size': 3, 'active': True},
+    'zksync_era': {'batch_size': 10, 'active': True},
+    'base': {'batch_size': 10, 'active': True},
+    'mantle': {'batch_size': 10, 'active': True},
 }
 
 @dag(
