@@ -847,7 +847,7 @@ class JSONCreation():
             metrics_dict = {}
             for metric in self.metrics:
                 if metric in chain.exclude_metrics:
-                    print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded for this chain')
+                    print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded')
                     continue
                 # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                 #     continue
@@ -902,7 +902,7 @@ class JSONCreation():
                     continue
 
                 if metric in chain.exclude_metrics:
-                    print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded for this chain')
+                    print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                     continue
 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
