@@ -92,7 +92,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = []
+        ,exclude_metrics = ['throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -213,7 +213,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = False
         ,deployment="PROD"
-        ,exclude_metrics = ['txcosts', 'fees', 'profit']
+        ,exclude_metrics = ['txcosts', 'fees', 'profit', 'throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -248,7 +248,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['fdv', 'market_cap']
+        ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -411,7 +411,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['fdv', 'market_cap']
+        ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -444,7 +444,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['profit']
+        ,exclude_metrics = ['profit', 'throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -484,7 +484,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = False
         ,deployment="PROD"
-        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts']
+        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'throughput']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 
@@ -522,7 +522,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['blockspace']
+        ,exclude_metrics = ['blockspace', 'throughput']
         ,aggregate_blockspace = False
         ,aggregate_addresses = False
 
@@ -562,7 +562,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = False
         ,deployment="PROD"
-        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid']
+        ,exclude_metrics = ['blockspace', 'profit', 'fees', 'txcosts', 'rent_paid', 'throughput']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
 

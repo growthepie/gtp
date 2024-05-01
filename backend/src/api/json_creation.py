@@ -27,7 +27,7 @@ class JSONCreation():
                 'name': 'Total value locked (on chain)',
                 'metric_keys': ['tvl', 'tvl_eth'],
                 'units': ['USD', 'ETH'],
-                'avg': False,
+                'avg': False, ##7d rolling average
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False
@@ -108,6 +108,15 @@ class JSONCreation():
                 'name': 'Market cap',
                 'metric_keys': ['market_cap_usd', 'market_cap_eth'],
                 'units': ['USD', 'ETH'],
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'avg',
+                'max_date_fill' : False
+            }
+            ,'throughput': {
+                'name': 'Throughput',
+                'metric_keys': ['gas_per_second'],
+                'units': ['-'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',

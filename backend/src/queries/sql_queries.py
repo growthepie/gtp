@@ -443,7 +443,6 @@ sql_q= {
         GROUP BY 1
         """
 
-
         ### Polygon zkEVM
         ,'polygon_zkevm_txcount': """
         SELECT  date_trunc('day', pzt.block_timestamp) AS day,
@@ -1648,7 +1647,7 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "arbitrum", sql=sql_q["arbitrum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
         ,SQLQuery(metric_key = "cca", origin_key = "arbitrum", sql=get_cross_chain_activity('arbitrum'), currency_dependent = False, query_parameters={})
-        ,SQLQuery(metric_key = "gas_per_second", origin_key = "arbitrum", sql=sql_q["arbitrum_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        #,SQLQuery(metric_key = "gas_per_second", origin_key = "arbitrum", sql=sql_q["arbitrum_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## OP Mainnet
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "optimism", sql=sql_q["optimism_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1657,7 +1656,7 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
         ,SQLQuery(metric_key = "cca", origin_key = "optimism", sql=get_cross_chain_activity('optimism'), currency_dependent = False, query_parameters={})
-        ,SQLQuery(metric_key = "gas_per_second", origin_key = "optimism", sql=sql_q["optimism_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        #,SQLQuery(metric_key = "gas_per_second", origin_key = "optimism", sql=sql_q["optimism_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## Base
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "base", sql=sql_q["base_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
@@ -1666,7 +1665,7 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 6})
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
         ,SQLQuery(metric_key = "cca", origin_key = "base", sql=get_cross_chain_activity('base'), currency_dependent = False, query_parameters={})
-        ,SQLQuery(metric_key = "gas_per_second", origin_key = "base", sql=sql_q["base_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        #,SQLQuery(metric_key = "gas_per_second", origin_key = "base", sql=sql_q["base_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## zkSync Era
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "zksync_era", sql=sql_q["zksync_era_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
