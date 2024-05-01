@@ -123,7 +123,7 @@ class AdapterCoingecko(AbstractAdapter):
                     df.value.fillna(0, inplace=True)
                     dfMain = pd.concat([dfMain,df])
                     print(f"...{self.name} {origin_key} done for {currency} and {fi} with granularity {granularity}. Shape: {df.shape}")
-                time.sleep(10) #only 10-50 calls allowed per minute with free tier
+                time.sleep(12) #only 10-50 calls allowed per minute with free tier
 
         ## Date prep
         if granularity == 'hourly':

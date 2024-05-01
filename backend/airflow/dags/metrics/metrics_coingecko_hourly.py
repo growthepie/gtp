@@ -22,7 +22,7 @@ from src.adapters.adapter_coingecko import AdapterCoingecko
     description='Load price, volume, and market_cap from coingecko API for specific tokens.',
     tags=['metrics', 'hourly'],
     start_date=datetime(2023,4,24),
-    schedule='0 * * * *'
+    schedule='20 * * * *'
 )
 
 def etl():
