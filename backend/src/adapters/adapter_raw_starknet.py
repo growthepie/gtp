@@ -188,7 +188,7 @@ class AdapterStarknet(AbstractAdapterRaw):
         print(f"Fetching data for blocks {current_start} to {current_end}...")
         all_blocks_dfs = []
         all_events_dfs = []
-        strketh_price = self.db_connector.get_last_price_eth('starknet')
+        strketh_price = self.db_connector.get_last_price_eth('starknet', 'hourly')
         print(f"pulled latest STRK/ETH price: {strketh_price}")
 
         for block_id in range(current_start, current_end + 1):

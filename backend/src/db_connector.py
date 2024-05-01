@@ -43,9 +43,18 @@ class DbConnector:
                         return df.shape[0]
                 
 # ------------------------- additional db functions -------------------------
-        def get_last_price_eth(self, origin_key:str):
+        def get_last_price_eth(self, origin_key:str, granularity:str='daily'):
+                if granularity == 'daily':
+                        table_name = 'fact_kpis'
+                        granularity_filter = ''
+                        order_by_col = 'date'
+                elif granularity == 'hourly':
+                        table_name = 'fact_kpis_granular'
+                        granularity_filter = "AND granularity = 'hourly'"
+                        order_by_col = 'timestamp'
+
                 try:
-                        query = f"SELECT value FROM fact_kpis WHERE origin_key = '{origin_key}' AND metric_key = 'price_eth' ORDER BY date DESC LIMIT 1"
+                        query = f"SELECT value FROM {table_name} WHERE origin_key = '{origin_key}' AND metric_key = 'price_eth' {granularity_filter} ORDER BY {order_by_col} DESC LIMIT 1"
                         with self.engine.connect() as connection:
                                 result = connection.execute(query)
                                 latest_price = result.scalar()
@@ -55,9 +64,18 @@ class DbConnector:
                         print(e)
                         return None
                 
-        def get_last_price_usd(self, origin_key:str):
+        def get_last_price_usd(self, origin_key:str, granularity:str='daily'):
+                if granularity == 'daily':
+                        table_name = 'fact_kpis'
+                        granularity_filter = ''
+                        order_by_col = 'date'
+                elif granularity == 'hourly':
+                        table_name = 'fact_kpis_granular'
+                        granularity_filter = "AND granularity = 'hourly'"
+                        order_by_col = 'timestamp'
+
                 try:
-                        query = f"SELECT value FROM fact_kpis WHERE origin_key = '{origin_key}' AND metric_key = 'price_usd' ORDER BY date DESC LIMIT 1"
+                        query = f"SELECT value FROM {table_name} WHERE origin_key = '{origin_key}' AND metric_key = 'price_usd' {granularity_filter} ORDER BY {order_by_col} DESC LIMIT 1"
                         with self.engine.connect() as connection:
                                 result = connection.execute(query)
                                 latest_price = result.scalar()
