@@ -86,6 +86,9 @@ class AdapterCoingecko(AbstractAdapter):
             elif int(days) > 89:
                 days = '89'
                 print(f"... hourly agg: days set to 89 days (more isn't possible)")
+            elif int(days) <= 2:
+                days = '3'
+                print(f"... hourly agg: days set to 3 day (less is automatically in smaller granularity)")
             interval = ''
         else:
             interval = '&interval=daily'
