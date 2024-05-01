@@ -116,7 +116,7 @@ class JSONCreation():
             ,'throughput': {
                 'name': 'Throughput',
                 'metric_keys': ['gas_per_second'],
-                'units': ['-'],
+                'units': ['mgas/s'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
@@ -557,6 +557,9 @@ class JSONCreation():
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"
 
         df = self.download_data(chain_user_string, metrics_user_string)
+
+        ## divide value by 1000000 where metric_key is gas_per_second --> mgas/s
+        df.loc[df['metric_key'] == 'gas_per_second', 'value'] = df['value'] / 1000000
         return df
     
     def get_data_fees(self):
