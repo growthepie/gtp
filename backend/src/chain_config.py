@@ -92,7 +92,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['throughput']
+        ,exclude_metrics = []
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -411,7 +411,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
+        ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
