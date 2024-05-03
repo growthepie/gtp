@@ -31,6 +31,7 @@ class AdapterCoingecko(AbstractAdapter):
     def extract(self, load_params:dict):
 
         self.load_type = load_params['load_type']
+        self.granularity = load_params.get('granularity', 'daily')
 
         if self.load_type == 'project':
             ## Set variables
@@ -44,13 +45,13 @@ class AdapterCoingecko(AbstractAdapter):
             projects_to_load = return_projects_to_load(self.projects, origin_keys)
 
             ## Load data
-
             df = self.extract_projects(
                 projects_to_load=projects_to_load
                 ,vs_currencies=vs_currencies
                 ,days=days
                 ,base_url=self.base_url
                 ,metric_keys=metric_keys
+                ,granularity=self.granularity
                 )
         elif self.load_type == 'imx_tokens':
             df = self.extract_imx_tokens()
@@ -62,8 +63,12 @@ class AdapterCoingecko(AbstractAdapter):
 
     def load(self, df:pd.DataFrame):
         if self.load_type == 'project':
-            upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
-            print_load(self.name, upserted, tbl_name)
+            if self.granularity == 'daily':
+                upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
+                print_load(self.name, upserted, tbl_name)
+            else:
+                self.db_connector.upsert_table('fact_kpis_granular', df)
+                print_load(self.name, df.shape[0], 'fact_kpis_granular')
         elif self.load_type == 'imx_tokens':
             self.db_connector.upsert_table('prices_daily', df)
             print_load(self.name, df.shape[0], 'prices_daily')
@@ -73,7 +78,21 @@ class AdapterCoingecko(AbstractAdapter):
 
     ## ----------------- Helper functions --------------------
 
-    def extract_projects(self, projects_to_load, vs_currencies, days, base_url, metric_keys):
+    def extract_projects(self, projects_to_load, vs_currencies, days, base_url, metric_keys, granularity='daily'):
+        if granularity == 'hourly':
+            if days == 'auto':
+                days = '30'
+                print(f"... hourly agg: auto set to 30 days")
+            elif int(days) > 89:
+                days = '89'
+                print(f"... hourly agg: days set to 89 days (more isn't possible)")
+            elif int(days) <= 2:
+                days = '3'
+                print(f"... hourly agg: days set to 3 day (less is automatically in smaller granularity)")
+            interval = ''
+        else:
+            interval = '&interval=daily'
+        
         dfMain = get_df_kpis()
         for adapter_mapping in projects_to_load:
             origin_key = adapter_mapping.origin_key
@@ -84,7 +103,7 @@ class AdapterCoingecko(AbstractAdapter):
                 day_val = int(days)
 
             for currency in vs_currencies:
-                url = f"{base_url}{naming}/market_chart?vs_currency={currency}&days={day_val}&interval=daily"
+                url = f"{base_url}{naming}/market_chart?vs_currency={currency}&days={day_val}{interval}"
                 response_json = api_get_call(url, sleeper=10, retries=20)
 
                 dfAllFi = pd.json_normalize(response_json)
@@ -97,20 +116,30 @@ class AdapterCoingecko(AbstractAdapter):
                         case 'market_cap':
                             series = dfAllFi['market_caps'].explode()
                     df = pd.DataFrame(columns = ['date', 'value'], data = series.to_list())
-                    df['date'] = pd.to_datetime(df['date'],unit='ms')
-                    df['date'] = df['date'].dt.date
+                    df['date'] = pd.to_datetime(df['date'],unit='ms')                    
                     df['metric_key'] = f"{fi}_{currency}"
                     df['origin_key'] = origin_key
-                    max_date = df['date'].max()
-                    df.drop(df[df.date == max_date].index, inplace=True)
+
                     df.value.fillna(0, inplace=True)
                     dfMain = pd.concat([dfMain,df])
-                    print(f"...{self.name} {origin_key} done for {currency} and {fi}. Shape: {df.shape}")
-                time.sleep(10) #only 10-50 calls allowed per minute with free tier
+                    print(f"...{self.name} {origin_key} done for {currency} and {fi} with granularity {granularity}. Shape: {df.shape}")
+                time.sleep(12) #only 10-50 calls allowed per minute with free tier
 
-        ## remove duplicates and set index
-        dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
-        dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+        ## Date prep
+        if granularity == 'hourly':
+            dfMain['timestamp'] = dfMain['date'].dt.floor('h')
+            dfMain['granularity'] = 'hourly'
+            dfMain.drop(columns=['date'], inplace=True)
+            ## remove duplicates and set index
+            dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'timestamp'], inplace=True)
+            dfMain.set_index(['metric_key', 'origin_key', 'timestamp', 'granularity'], inplace=True)
+        else:
+            dfMain['date'] = dfMain['date'].dt.date
+            max_date = dfMain['date'].max()
+            dfMain.drop(dfMain[dfMain.date == max_date].index, inplace=True)
+            ## remove duplicates and set index
+            dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
+            dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain
     
     def get_imx_tokens(self, db_connector):

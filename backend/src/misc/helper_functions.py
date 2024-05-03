@@ -231,6 +231,78 @@ def send_discord_message(message, webhook_url):
     else:
         print(f"Error sending message: {response.text}")
 
+## Binance functions
+def date_string_to_unix(date_string: str) -> int:
+    dt = datetime.datetime.strptime(date_string, '%Y-%m-%d')
+    timestamp = int(dt.timestamp() * 1000)
+    return timestamp
+
+def get_binance_ohlc(symbol:str, start_time, end_time, interval='daily'):
+    # Set API endpoint and parameters
+    endpoint = 'https://api.binance.com/api/v3/klines'
+    start = date_string_to_unix(start_time)
+    end = date_string_to_unix(end_time)
+
+    if interval == 'daily':
+        interval_api = '1d'
+        datapoints = (end - start) / (1000 * 60 * 60 * 24)
+        second_calc = (1000 * 60 * 60 * 24 * 999)
+    elif interval == 'hourly':
+        interval_api = '1h'
+        datapoints = (end - start) / (1000 * 60 * 60 * 24) * 24
+        second_calc = (1000 * 60 * 60 * 24 * (999/24))
+    
+    dfMain = pd.DataFrame()
+    while datapoints > 0:
+        print(f'{int(datapoints)} datapoints left and current start time is {int(start)}')
+        if start + second_calc > end:
+            end_time = end
+        else:
+            end_time = start + second_calc
+
+        params = {
+            'symbol': symbol.upper()+'USDT',
+            'interval': interval_api,
+            'limit': 1000,
+            'startTime': int(start),
+            'endTime': int(end_time)
+        }
+
+        # Make GET request to API
+        response = requests.get(endpoint, params=params)
+        data = response.json()
+        df = pd.DataFrame(data, columns=['time', 'open', 'high', 'low', 'close', 'volume', 'close_time', 'quote_asset_volume', 'num_trades', 'taker_buy_base_asset_volume', 'taker_buy_quote_asset_volume', 'ignore'])
+        dfMain = pd.concat([dfMain, df])
+
+        start = start + second_calc
+        
+        datapoints -= 1000
+        time.sleep(0.5)
+
+    dfMain['Date'] = pd.to_datetime(dfMain['time'], unit='ms')
+    dfMain.set_index('Date', inplace=True)
+    dfMain = dfMain[['open', 'high', 'low', 'close', 'volume']]
+    dfMain.rename(columns={'open': 'Open', 'high': 'High', 'low': 'Low', 'close': 'Close', 'volume': 'Volume'}, inplace=True)
+    dfMain = dfMain.astype(float)
+    return dfMain
+
+## take binance ohlc input and output price_usd in correct db format
+def prep_binance_ohlc(df, granularity, origin_key):
+    df.reset_index(inplace=True)
+    df = df.drop_duplicates(subset='Date', keep='first')
+
+    df = df[['Date', 'Close']]
+    df['metric_key'] = 'price_usd'
+
+    df['origin_key'] = origin_key
+    df['granularity'] = granularity
+
+    ## rename columns Date to timestamp and Close to value
+    df.rename(columns={'Date': 'timestamp', 'Close': 'value'}, inplace=True)
+
+    df.set_index(['timestamp', 'metric_key', 'origin_key', 'granularity'], inplace=True)
+    return df
+
 ## JSON helper functions
 def replace_nan_with_none(obj):
     if isinstance(obj, dict):

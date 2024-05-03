@@ -116,7 +116,7 @@ class JSONCreation():
             ,'throughput': {
                 'name': 'Throughput',
                 'metric_keys': ['gas_per_second'],
-                'units': ['-'],
+                'units': ['mgas/s'],
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
@@ -262,7 +262,7 @@ class JSONCreation():
         df_tmp['date'] = df_tmp['date'].dt.tz_convert(None) ## get rid of timezone in order to avoid warnings
 
         ## replace earliest date with first day of month (in unix) in unix column
-        df_tmp['unix'] = df_tmp['unix'].mask(df_tmp['date'] == df_tmp['date'].min(), df_tmp['date'].dt.to_period("M").dt.start_time.astype(np.int64) // 10**6)
+        df_tmp['unix'] = (df_tmp['date'].dt.to_period("M").dt.start_time).astype(np.int64) // 10**6
 
         if self.metrics[metric_id]['monthly_agg'] == 'sum':
             df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index()
@@ -557,6 +557,9 @@ class JSONCreation():
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"
 
         df = self.download_data(chain_user_string, metrics_user_string)
+
+        ## divide value by 1000000 where metric_key is gas_per_second --> mgas/s
+        df.loc[df['metric_key'] == 'gas_per_second', 'value'] = df['value'] / 1000000
         return df
     
     def get_data_fees(self):
@@ -844,7 +847,7 @@ class JSONCreation():
             metrics_dict = {}
             for metric in self.metrics:
                 if metric in chain.exclude_metrics:
-                    print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded for this chain')
+                    print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded')
                     continue
                 # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
                 #     continue
@@ -899,7 +902,7 @@ class JSONCreation():
                     continue
 
                 if metric in chain.exclude_metrics:
-                    print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded for this chain')
+                    print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                     continue
 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
