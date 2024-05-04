@@ -565,7 +565,7 @@ sql_q= {
         SELECT
                 date_trunc('day', "block_timestamp") AS day,
                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS value
-        FROM public.zksync_era
+        FROM public.zksync_era_tx
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
 
@@ -575,7 +575,7 @@ sql_q= {
         SELECT
                 date_trunc('day', "block_timestamp") AS day,
                 SUM(tx_fee) AS value
-        FROM public.zksync_era
+        FROM public.zksync_era_tx
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
 
