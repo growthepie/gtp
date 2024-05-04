@@ -1,10 +1,11 @@
 import time
+import os
 import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.chain_config import adapter_mapping
 from src.queries.sql_queries import sql_queries
-from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis, get_missing_days_blockspace
+from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis, get_missing_days_blockspace, send_discord_message
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
 
 ##ToDos: 
@@ -16,6 +17,7 @@ class AdapterSQL(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("SQL Aggregation", adapter_params, db_connector)
+        self.discord_webhook = os.getenv('DISCORD_ALERTS')
         print_init(self.name, self.adapter_params)
 
     """
@@ -131,48 +133,53 @@ class AdapterSQL(AbstractAdapter):
         
         dfMain = pd.DataFrame()
         for query in queries_to_load:
-            if days == 'auto':
-                if query.metric_key == 'user_base_weekly':
-                    day_val = 15
-                elif query.origin_key == 'multi':
-                    day_val = 40
-                elif query.metric_key == 'maa':
-                    day_val = 7
-                elif query.metric_key == 'aa_last30d':
-                    day_val = 2
-                elif query.metric_key == 'aa_last7d':
-                    day_val = 2
+            try:
+                if days == 'auto':
+                    if query.metric_key == 'user_base_weekly':
+                        day_val = 15
+                    elif query.origin_key == 'multi':
+                        day_val = 40
+                    elif query.metric_key == 'maa':
+                        day_val = 7
+                    elif query.metric_key == 'aa_last30d':
+                        day_val = 2
+                    elif query.metric_key == 'aa_last7d':
+                        day_val = 2
+                    else:
+                        day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
                 else:
-                    day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
-            else:
-                day_val = days
-            
-            if query.query_parameters is not None:
-                query.update_query_parameters({'Days': day_val})
-            
-            if query.metric_key in ['aa_last30d', 'aa_last7d']:
-                query.update_query_parameters({'Days_Start': days_start})
-            
-            print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters}")
-            df = pd.read_sql(query.sql, self.db_connector.engine.connect())
-            df['date'] = df['day'].apply(pd.to_datetime)
-            df['date'] = df['date'].dt.date
-            df.drop(['day'], axis=1, inplace=True)
-            df.rename(columns= {'val':'value'}, inplace=True)
-            if 'metric_key' not in df.columns:
-                df['metric_key'] = query.metric_key
-            if 'origin_key' not in df.columns:
-                df['origin_key'] = query.origin_key
-            df.value.fillna(0, inplace=True)
+                    day_val = days
+                
+                if query.query_parameters is not None:
+                    query.update_query_parameters({'Days': day_val})
+                
+                if query.metric_key in ['aa_last30d', 'aa_last7d']:
+                    query.update_query_parameters({'Days_Start': days_start})
+                
+                print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters}")
+                df = pd.read_sql(query.sql, self.db_connector.engine.connect())
+                df['date'] = df['day'].apply(pd.to_datetime)
+                df['date'] = df['date'].dt.date
+                df.drop(['day'], axis=1, inplace=True)
+                df.rename(columns= {'val':'value'}, inplace=True)
+                if 'metric_key' not in df.columns:
+                    df['metric_key'] = query.metric_key
+                if 'origin_key' not in df.columns:
+                    df['origin_key'] = query.origin_key
+                df.value.fillna(0, inplace=True)
 
-            print(f"Query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
+                print(f"Query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
 
-            if upsert == True:
-                df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
-                upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
-                print_load(self.name, upserted, tbl_name)
-            else:
-                dfMain = pd.concat([dfMain, df], ignore_index=True)
+                if upsert == True:
+                    df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+                    upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
+                    print_load(self.name, upserted, tbl_name)
+                else:
+                    dfMain = pd.concat([dfMain, df], ignore_index=True)
+            except Exception as e:
+                print(f"Error loading query: {query.metric_key} - {query.origin_key}. Error: {e}")
+                send_discord_message( f"Error loading query: {query.metric_key} - {query.origin_key}. Error: {e}", self.discord_webhook)
+                continue
             
         return dfMain
     
