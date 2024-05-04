@@ -15,7 +15,7 @@ from src.misc.airflow_utils import alert_via_webhook
         'owner': 'nader',
         'retries': 2,
         'email_on_failure': False,
-        'retry_delay': timedelta(minutes=5),
+        'retry_delay': timedelta(minutes=1),
         'on_failure_callback': alert_via_webhook
     },
     dag_id='raw_mantle',
