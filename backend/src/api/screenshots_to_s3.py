@@ -226,6 +226,16 @@ def get_screenshot_data():
         })
 
     screenshot_data = {
+        "Landing": {
+            "label": "Landing Page",
+            "options": [{
+                "label": "Landing",
+                "url": f"{BASE_URL}",
+                "path_list": ["landing"],
+                "css_selectors": ["#content-container"],
+                "offsets": [[-30, -110, 25, -20]]
+            }]
+        },
         "Fundamentals": {
             "label": "Fundamentals",
             "options": fundamentals_pages
