@@ -3,12 +3,10 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
-import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_rpc import NodeAdapter
+from src.new_setup.adapter import NodeAdapter
+from src.new_setup.utils import MaxWaitTimeExceededException, get_chain_config
 from src.db_connector import DbConnector
-from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 
@@ -21,22 +19,29 @@ from src.misc.airflow_utils import alert_via_webhook
         'on_failure_callback': alert_via_webhook
     },
     dag_id='raw_arbitrum',
-    description='Load raw tx data from arbitrum',
-    tags=['raw', 'near-real-time', 'rpc'],
+    description='Load raw tx data from Arbitrum',
+    tags=['raw', 'near-real-time', 'rpc', 'new-setup'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
+
 def adapter_rpc():
     @task()
     def run_arbitrum():
-        adapter_params = {
-            'rpc': 'local_node',
-            'chain': 'arbitrum',
-            'rpc_urls': [os.getenv("ARBITRUM_RPC")],
-        }
 
         # Initialize DbConnector
         db_connector = DbConnector()
+        
+        chain_name = 'arbitrum'
+
+        active_rpc_configs = get_chain_config(db_connector, chain_name)
+        print(f"ARBITRUM_CONFIG={active_rpc_configs}")
+
+        adapter_params = {
+            'rpc': 'local_node',
+            'chain': chain_name,
+            'rpc_configs': active_rpc_configs,
+        }
 
         # Initialize NodeAdapter
         adapter = NodeAdapter(adapter_params, db_connector)
@@ -44,27 +49,14 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 50,
-            'threads': 1,
+            'batch_size': 10,
         }
 
-        while load_params['threads'] > 0:
-            try:
-                adapter.extract_raw(load_params)
-                break  # Break out of the loop on successful execution
-            except MaxWaitTimeExceededException as e:
-                print(str(e))
-                
-                # Reduce threads if possible, stop if it reaches 1
-                if load_params['threads'] > 1:
-                    load_params['threads'] -= 1
-                    print(f"Reducing threads to {load_params['threads']} and retrying.")
-                else:
-                    print("Reached minimum thread count (1)")
-                    raise e 
-
-                # Wait for 5 minutes before retrying
-                time.sleep(300)
+        try:
+            adapter.extract_raw(load_params)
+        except MaxWaitTimeExceededException as e:
+            print(f"Extraction stopped due to maximum wait time being exceeded: {e}")
+            raise e
 
     run_arbitrum()
 adapter_rpc()
