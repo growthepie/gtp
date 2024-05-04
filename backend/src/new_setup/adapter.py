@@ -92,10 +92,15 @@ class NodeAdapter(AbstractAdapterRaw):
         monitor_thread.start()
         print("Started monitoring thread.")
         
-        # Wait for all threads to complete
-        for _, thread in threads:
-            thread.join()
-        monitor_thread.join()  # Ensure the monitoring thread also completes
+        # Continuously check for and join finished threads
+        while any(t.is_alive() for _, t in threads) or monitor_thread.is_alive():
+            for _, thread in list(threads):
+                if not thread.is_alive():
+                    thread.join()
+                    threads.remove((_, thread))
+            if not monitor_thread.is_alive():
+                monitor_thread.join()
+
         print("All worker and monitoring threads have completed.")
 
     def monitor_workers(self, threads, block_range_queue, rpc_configs, rpc_errors, error_lock):

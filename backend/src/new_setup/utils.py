@@ -392,7 +392,8 @@ def prep_dataframe_arbitrum(df):
         'value': 'value',
         'status': 'status',
         'input': 'empty_input',
-        'block_timestamp': 'block_timestamp'
+        'block_timestamp': 'block_timestamp',
+        'gasUsedForL1': 'gas_used_l1',
     }
 
     # Filter the dataframe to only include the relevant columns
@@ -405,6 +406,7 @@ def prep_dataframe_arbitrum(df):
     filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
     filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
     
+    filtered_df['gas_used_l1'] = filtered_df['gas_used_l1'].apply(hex_to_int)
     # Calculating the tx_fee
     filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used'])  / 1e18
     
