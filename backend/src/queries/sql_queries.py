@@ -348,7 +348,8 @@ sql_q= {
                 sum(gas_used) / (24*60*60) AS value
         FROM    arbitrum_tx
         WHERE   gas_used > 0
-                AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                AND block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -394,7 +395,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    optimism_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -439,7 +441,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    base_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -512,7 +515,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    polygon_zkevm_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
         
@@ -585,7 +589,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    zksync_era_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -670,7 +675,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    zora_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -757,7 +763,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    gitcoin_pgn_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -842,7 +849,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    linea_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -951,11 +959,32 @@ sql_q= {
         """
 
         ,'mantle_gas_per_second': """
-        SELECT  date_trunc('day', block_timestamp) AS day,
-                sum(gas_used) / (24*60*60) AS value
-        FROM    mantle_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-        GROUP BY 1
+        with ratio as (
+                SELECT 
+                        "timestamp", 
+                        avg(case when origin_key = 'mantle' then value end) / avg(case when origin_key = 'ethereum' then value end) as token_ratio
+                FROM public.fact_kpis_granular
+                where metric_key = 'price_usd' and granularity = 'hourly'
+                        and "timestamp" > '2024-03-14'
+                group by 1
+        )
+
+        ,tmp as (
+                SELECT  date_trunc('hour', block_timestamp) AS hour,
+                        SUM(gas_used * token_ratio) - SUM(l1_gas_used) AS l2_gas_used
+                FROM    mantle_tx
+                LEFT JOIN ratio r on r."timestamp" = date_trunc('hour', block_timestamp)
+                WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                        AND block_timestamp < date_trunc('day', now())
+                        AND block_timestamp > '2024-03-14'
+                GROUP BY 1
+        )
+
+        select 
+                date_trunc('day', "hour") AS day,
+                SUM(l2_gas_used) / (24*60*60) as value
+        from tmp t
+        group by 1 
         """
 
         # Scroll
@@ -1040,7 +1069,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    scroll_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -1340,7 +1370,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    metis_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -1426,7 +1457,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    blast_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -1513,7 +1545,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    manta_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -1599,7 +1632,8 @@ sql_q= {
         SELECT  date_trunc('day', block_timestamp) AS day,
                 sum(gas_used) / (24*60*60) AS value
         FROM    mode_tx
-        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
 
