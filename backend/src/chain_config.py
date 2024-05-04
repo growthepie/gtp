@@ -444,7 +444,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['profit', 'throughput']
+        ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
