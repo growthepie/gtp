@@ -22,7 +22,7 @@ chain_settings = {
     'zksync_era': {'batch_size': 10, 'active': True},
     'base': {'batch_size': 10, 'active': True},
     'mantle': {'batch_size': 10, 'active': True},
-    'arbitrum': {'batch_size': 10, 'active': True},
+    'arbitrum': {'batch_size': 30, 'active': True},
 }
 
 @dag(
