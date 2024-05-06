@@ -1,6 +1,7 @@
 import time
 import pandas as pd
 from datetime import datetime
+from lxml import html
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.chain_config import adapter_mapping
@@ -25,6 +26,7 @@ class AdapterL2Beat(AbstractAdapter):
     def extract(self, load_params:dict):
         ## Set variables
         origin_keys = load_params['origin_keys']
+        self.load_type = load_params['load_type']
 
         projects = [x for x in adapter_mapping if x.l2beat_tvl_naming is not None]
         
@@ -33,27 +35,35 @@ class AdapterL2Beat(AbstractAdapter):
         projects_to_load = return_projects_to_load(projects, origin_keys)
 
         ## Load data
-        df = self.extract_data(
-            projects_to_load=projects_to_load
-            ,base_url=self.base_url
-            )
+        if self.load_type == 'tvl':
+            df = self.extract_tvl(
+                projects_to_load=projects_to_load)
+        elif self.load_type == 'stages':
+            df = self.extract_stages(
+                projects_to_load=projects_to_load)
+        else:
+            raise NotImplementedError(f"load_type {self.load_type} not recognized")
 
         print_extract(self.name, load_params,df.shape)
         return df 
 
     def load(self, df:pd.DataFrame):
-        upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
-        print_load(self.name, upserted, tbl_name)
+        if self.load_type == 'tvl':
+            upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
+            print_load(self.name, upserted, tbl_name)
+        elif self.load_type == 'stages':
+            self.db_connector.upsert_table('sys_chains', df)
+            print_load(self.name, df.shape, 'sys_chains')
 
     ## ----------------- Helper functions --------------------
 
-    def extract_data(self, projects_to_load, base_url):
+    def extract_tvl(self, projects_to_load):
         dfMain = get_df_kpis()
-        for adapter_mapping in projects_to_load:
-            origin_key = adapter_mapping.origin_key
+        for chain in projects_to_load:
+            origin_key = chain.origin_key
 
-            naming = adapter_mapping.l2beat_tvl_naming
-            url = f"{base_url}tvl/{naming}.json"           
+            naming = chain.l2beat_tvl_naming
+            url = f"{self.base_url}tvl/{naming}.json"           
 
             response_json = api_get_call(url, sleeper=10, retries=20)
             df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
@@ -75,8 +85,30 @@ class AdapterL2Beat(AbstractAdapter):
             df.value.fillna(0, inplace=True)
             dfMain = pd.concat([dfMain,df])
 
-            print(f"...{self.name} - loaded for {origin_key}. Shape: {df.shape}")
+            print(f"...{self.name} - loaded TVL for {origin_key}. Shape: {df.shape}")
             time.sleep(1)
 
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain
+    
+    def extract_stages(self, projects_to_load):
+        stages = []
+        for chain in projects_to_load:
+            origin_key = chain.origin_key
+            print(f'...loading stage info for {origin_key}')
+            url = f"https://l2beat.com/scaling/projects/{chain.l2beat_tvl_naming}"
+            response = api_get_call(url, as_json=False)
+            tree = html.fromstring(response)
+            element = tree.xpath('/html/body/div[4]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
+            if len(element) == 0:
+                stage = 'NA'
+            else:
+                stage = element[0].xpath('string()')
+
+            
+            stages.append({'origin_key': origin_key, 'l2beat_stage': stage})
+            print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
+            time.sleep(0.5)
+        df = pd.DataFrame(stages)
+        df.set_index('origin_key', inplace=True)
+        return df

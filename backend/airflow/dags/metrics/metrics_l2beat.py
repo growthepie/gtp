@@ -32,6 +32,23 @@ def etl():
         }
         load_params = {
             'origin_keys' : None,
+            'load_type' : 'tvl',
+        }
+
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterL2Beat(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
+
+    def run_stages():
+        adapter_params = {
+        }
+        load_params = {
+            'origin_keys' : None,
+            'load_type' : 'stages',
         }
 
        # initialize adapter
@@ -43,4 +60,5 @@ def etl():
         ad.load(df)
     
     run_tvl()
+    run_stages()
 etl()
