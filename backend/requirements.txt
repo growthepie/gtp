@@ -84,6 +84,7 @@ lazy-object-proxy==1.9.0
 linkify-it-py==2.0.0
 lockfile==0.12.2
 lru-dict==1.2.0
+lxml==5.2.1
 Mako==1.2.4
 Markdown==3.4.3
 markdown-it-py==2.2.0
