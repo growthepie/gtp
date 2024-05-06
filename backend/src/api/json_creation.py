@@ -992,6 +992,8 @@ class JSONCreation():
                 'technology': chain.technology,
                 'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
+                'l2beat_stage': self.db_connector.get_stage(origin_key),
+                'raas': getattr(chain, 'raas', 'null'),
                 'website': chain.website,
                 'twitter': chain.twitter,
                 'block_explorer': chain.block_explorer,

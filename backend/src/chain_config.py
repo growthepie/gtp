@@ -22,6 +22,8 @@ class AdapterMapping(BaseModel):
     bucket: str ## for Menu (and potentially filters): Layer 1, OP Chains, Other Optimistic Rollups, ZK-Rollups, Offchain Data Availability 
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
+    stack: Optional[str]
+    raas: Optional[str]
     symbol: Optional[str]
     launch_date: Optional[str] ## YYYY-MM-DD
     website: Optional[str]
@@ -67,6 +69,7 @@ adapter_mapping = [
         ,technology = 'Mainnet'
         ,purpose = 'General Purpose (EVM)'
         ,launch_date = '2015-07-30'
+
         ,website = 'https://ethereum.org/'
         ,block_explorer = 'https://etherscan.io/'
         ,twitter = 'https://twitter.com/ethereum'
@@ -101,6 +104,7 @@ adapter_mapping = [
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-03-24'
+
         ,website='https://polygon.technology/polygon-zkevm'
         ,block_explorer='https://zkevm.polygonscan.com/'
         ,twitter='https://twitter.com/0xPolygon'
@@ -141,6 +145,7 @@ adapter_mapping = [
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2021-12-16'
+
         ,website='https://optimism.io/'
         ,block_explorer='https://optimistic.etherscan.io/'
         ,twitter='https://twitter.com/Optimism'
@@ -183,6 +188,7 @@ adapter_mapping = [
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2021-08-31'
+
         ,website='https://arbitrum.io/'
         ,block_explorer='https://arbiscan.io/'
         ,twitter='https://twitter.com/arbitrum'
@@ -222,6 +228,7 @@ adapter_mapping = [
         ,technology = "Validium"
         ,purpose = 'Gaming, NFTs'
         ,launch_date='2021-03-26'
+
         ,website='https://www.immutable.com/'
         ,block_explorer='https://immutascan.io/'
         ,twitter='https://twitter.com/immutable'
@@ -257,6 +264,7 @@ adapter_mapping = [
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-03-24'
+
         ,website='https://zksync.io/'
         ,block_explorer='https://explorer.zksync.io/'
         ,twitter='https://twitter.com/zksync'
@@ -290,6 +298,7 @@ adapter_mapping = [
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-07-13'
+
         ,website='https://base.org/'
         ,block_explorer='https://basescan.org/'
         ,twitter='https://twitter.com/base'
@@ -322,6 +331,8 @@ adapter_mapping = [
         ,technology = "Optimistic Rollup"
         ,purpose = 'NFTs'
         ,launch_date='2023-06-21'
+        ,raas = 'Conduit'
+
         ,website='https://zora.co/'
         ,block_explorer='https://explorer.zora.energy/'
         ,twitter='https://twitter.com/ourzora'
@@ -354,6 +365,8 @@ adapter_mapping = [
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-07-26'
+        ,raas = 'Conduit'
+
         ,website='https://publicgoods.network/'
         ,block_explorer='https://explorer.publicgoods.network/'
         ,twitter="https://twitter.com/pgn_eth"
@@ -387,6 +400,7 @@ adapter_mapping = [
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-07-12'
+
         ,website='https://linea.build/'
         ,block_explorer='https://lineascan.build/'
         ,twitter="https://twitter.com/LineaBuild"
@@ -420,6 +434,7 @@ adapter_mapping = [
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-10-17'
+
         ,website='https://scroll.io/'
         ,block_explorer='https://scrollscan.com/'
         ,twitter="https://twitter.com/scroll_zkp"
@@ -453,6 +468,7 @@ adapter_mapping = [
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-07-14'
+
         ,website='https://mantle.xyz/'
         ,block_explorer='https://explorer.mantle.xyz/'
         ,twitter="https://twitter.com/0xMantle"
@@ -493,6 +509,7 @@ adapter_mapping = [
         ,technology = "ZK Rollup"
         ,purpose = 'Token Transfers, NFTs, Swaps'
         ,launch_date='2019-12-04'
+
         ,website='https://loopring.org/'
         ,block_explorer='https://explorer.loopring.io/'
         ,twitter='https://twitter.com/loopringorg'
@@ -531,6 +548,7 @@ adapter_mapping = [
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (Cairo VM)'
         ,launch_date='2021-11-29'
+
         ,website='https://starknet.io/'
         ,block_explorer='https://starkscan.co/'
         ,twitter='https://twitter.com/StarkWareLtd'
@@ -571,6 +589,7 @@ adapter_mapping = [
         ,technology = "Validium"
         ,purpose = 'Bridge'
         ,launch_date='2022-07-13'
+
         ,website='https://rhino.fi/'
         ,block_explorer='https://app.rhino.fi/stats'
         ,twitter='https://twitter.com/rhinofi'
@@ -609,6 +628,7 @@ adapter_mapping = [
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2021-11-19'
+
         ,website='https://metis.io/'
         ,block_explorer='https://explorer.metis.io/'
         ,twitter="https://twitter.com/MetisL2"
@@ -648,6 +668,8 @@ adapter_mapping = [
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2023-09-12'
+        ,raas = 'Caldera'
+
         ,website='https://pacific.manta.network/'
         ,block_explorer='https://pacific-explorer.manta.network/'
         ,twitter="https://twitter.com/MantaNetwork"
@@ -688,6 +710,7 @@ adapter_mapping = [
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2024-02-29'
+
         ,website='https://blast.io/en'
         ,block_explorer='https://blastscan.io/'
         ,twitter="https://twitter.com/Blast_L2"
@@ -720,6 +743,8 @@ adapter_mapping = [
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
         ,launch_date='2024-01-31'
+        ,raas = 'Conduit'
+        
         ,website='https://mode.network/'
         ,block_explorer='https://explorer.mode.network/'
         ,twitter="https://twitter.com/modenetwork"

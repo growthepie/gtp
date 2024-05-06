@@ -85,6 +85,18 @@ class DbConnector:
                         print(e)
                         return None
                 
+        def get_stage(self, origin_key:str):
+                try:
+                        query = f"SELECT l2beat_stage FROM sys_chains WHERE origin_key = '{origin_key}' LIMIT 1"
+                        with self.engine.connect() as connection:
+                                result = connection.execute(query)
+                                stage = result.scalar()
+                                return stage
+                except Exception as e:
+                        print(f"Error retrieving the latest price in USD for {origin_key}.")
+                        print(e)
+                        return None
+                
         def get_max_date(self, metric_key:str, origin_key:str):
                 exec_string = f"SELECT MAX(date) as val FROM fact_kpis WHERE metric_key = '{metric_key}' AND origin_key = '{origin_key}';"
 
