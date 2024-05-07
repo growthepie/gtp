@@ -115,16 +115,17 @@ class NodeAdapter(AbstractAdapterRaw):
                 print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {active}")
                 
             if not block_range_queue.empty() and not active:
-                print("Detected unfinished tasks with no active workers. Restarting workers where configured workers > 5.")
+                print("Detected unfinished tasks with no active workers. Restarting worker.")
                 # Filter and restart workers for specific RPC configs
                 for rpc_config in rpc_configs:
-                    if rpc_config['workers'] > 5:
-                        print(f"Restarting workers for RPC URL: {rpc_config['url']}")
-                        new_thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
-                            rpc, block_range_queue, rpc_errors, error_lock))
-                        threads.append((rpc_config['url'], new_thread))
-                        additional_threads.append(new_thread)
-                        new_thread.start()
+                    # if rpc_config['workers'] > 5:
+                    print(f"Restarting workers for RPC URL: {rpc_config['url']}")
+                    new_thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
+                        rpc, block_range_queue, rpc_errors, error_lock))
+                    threads.append((rpc_config['url'], new_thread))
+                    additional_threads.append(new_thread)
+                    new_thread.start()
+                    break
 
             time.sleep(5)  # Sleep to avoid high CPU usage
 
