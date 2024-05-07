@@ -30,7 +30,7 @@ class EthProxy:
         else:
             return attr
 
-    def retry_operation(self, func, method_name, *args, max_retries=5, initial_wait=1.0, **kwargs):
+    def retry_operation(self, func, method_name, *args, max_retries=3, initial_wait=1.0, **kwargs):
         retries = 0
         wait_time = initial_wait
         while retries < max_retries:

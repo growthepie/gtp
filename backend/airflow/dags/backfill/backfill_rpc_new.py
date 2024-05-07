@@ -10,19 +10,21 @@ from src.db_connector import DbConnector
 from src.new_setup.utils import Web3CC, get_chain_config
 from src.misc.airflow_utils import alert_via_webhook
 from src.adapters.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
+from src.chain_config import adapter_mapping
 
 ## DAG Configuration Variables
 # batch_size: Number of blocks to process in a single task run
 # config: Environment variable containing the RPC node configuration
-# active: Whether the chain is active and should be backfilled
+# backfiller_on: Whether the chain is backfiller_on and should be backfilled
+
+required_chains = ['blast', 'ethereum', 'zksync_era', 'base', 'mantle', 'arbitrum']
 
 chain_settings = {
-    'blast': {'batch_size': 10, 'active': True},
-    'ethereum': {'batch_size': 3, 'active': True},
-    'zksync_era': {'batch_size': 10, 'active': True},
-    'base': {'batch_size': 10, 'active': True},
-    'mantle': {'batch_size': 10, 'active': True},
-    'arbitrum': {'batch_size': 30, 'active': True},
+    adapter.origin_key: {
+        'batch_size': adapter.batch_size, 
+        'backfiller_on': adapter.backfiller_on
+    }
+    for adapter in adapter_mapping if adapter.origin_key in required_chains
 }
 
 @dag(
@@ -41,7 +43,7 @@ chain_settings = {
 )
 def backfiller_dag():
     for chain, settings in chain_settings.items():
-        if settings['active']:
+        if settings['backfiller_on']:
             @task(task_id=f'new_backfill_{chain}')
             def run_backfill_task(chain_name, db_connector, start_date, end_date, batch_size):
                 rpc_configs = get_chain_config(db_connector, chain_name)
