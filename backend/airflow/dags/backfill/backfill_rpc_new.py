@@ -19,8 +19,7 @@ from src.chain_config import adapter_mapping
 
 chain_settings = {
     adapter.origin_key: {
-        'batch_size': adapter.batch_size, 
-        'backfiller_on': adapter.backfiller_on
+        'batch_size': adapter.batch_size
     }
     for adapter in adapter_mapping if adapter.backfiller_on == True
 }
