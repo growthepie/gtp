@@ -26,7 +26,7 @@ from src.adapters.adapter_raw_imx import AdapterRawImx
 )
 
 def etl():
-    @task()
+    @task(execution_timeout=timedelta(minutes=45))
     def run_imx():
         adapter_params = {
             'load_types' : ['withdrawals', 'deposits', 'transfers', 'mints'],

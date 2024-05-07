@@ -28,7 +28,7 @@ from src.misc.airflow_utils import alert_via_webhook
 )
 
 def adapter_loopring_api():
-    @task()
+    @task(execution_timeout=timedelta(minutes=45))
     def run_loopring():
         adapter_params = {
             'chain': 'loopring',

@@ -27,7 +27,7 @@ from src.misc.airflow_utils import alert_via_webhook
     schedule_interval='*/15 * * * *'
 )
 def adapter_rpc():
-    @task()
+    @task(execution_timeout=timedelta(minutes=45))
     def run_optimism():
         adapter_params = {
             'rpc': 'local_node',

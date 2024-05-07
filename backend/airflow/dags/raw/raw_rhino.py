@@ -26,7 +26,7 @@ from src.misc.airflow_utils import alert_via_webhook
 )
 
 def adapter_rhino_tx_loader():
-    @task()
+    @task(execution_timeout=timedelta(minutes=45))
     def run_rhino():
         adapter_params = {
             'chain': 'rhino',

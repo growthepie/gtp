@@ -40,7 +40,7 @@ chain_settings = {
 )
 def backfiller_dag():
     for chain, settings in chain_settings.items():
-        @task(task_id=f'new_backfill_{chain}')
+        @task(task_id=f'new_backfill_{chain}', execution_timeout=timedelta(minutes=90))
         def run_backfill_task(chain_name, db_connector, start_date, end_date, batch_size):
             rpc_configs = get_chain_config(db_connector, chain_name)
             w3 = None
