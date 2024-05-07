@@ -65,6 +65,7 @@ class NodeAdapter(AbstractAdapterRaw):
         # Initialize the block range queue
         block_range_queue = Queue()
         self.enqueue_block_ranges(block_start, latest_block, batch_size, block_range_queue)
+        print(f"Enqueued {block_range_queue.qsize()} block ranges.")
         self.manage_threads(block_range_queue)     
 
     def enqueue_block_ranges(self, block_start, block_end, batch_size, queue):
@@ -92,31 +93,22 @@ class NodeAdapter(AbstractAdapterRaw):
         monitor_thread.start()
         print("Started monitoring thread.")
         
-        # Wait for all threads to complete
-        for _, thread in threads:
-            thread.join()
-        monitor_thread.join()  # Ensure the monitoring thread also completes
+        monitor_thread.join()
         
-        # # Continuously check for and join finished threads
-        # while any(t.is_alive() for _, t in threads) or monitor_thread.is_alive():
-        #     for _, thread in list(threads):
-        #         if not thread.is_alive():
-        #             thread.join()
-        #             threads.remove((_, thread))
-        #     if not monitor_thread.is_alive():
-        #         monitor_thread.join()
-
         print("All worker and monitoring threads have completed.")
 
     def monitor_workers(self, threads, block_range_queue, rpc_configs, rpc_errors, error_lock):
+        additional_threads = []
         while True:
             active_threads = [thread for _, thread in threads if thread.is_alive()]
             active = bool(active_threads)
 
+            # Check if the block range queue is empty and no threads are active
             if block_range_queue.empty() and not active:
                 print("All workers have stopped and the queue is empty.")
                 break
             
+            # Check if there are no more block ranges to process, but threads are still active
             if block_range_queue.qsize() == 0 and active:
                 print("No more block ranges to process. Waiting for workers to finish.")
             else:
@@ -131,11 +123,23 @@ class NodeAdapter(AbstractAdapterRaw):
                         new_thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
                             rpc, block_range_queue, rpc_errors, error_lock))
                         threads.append((rpc_config['url'], new_thread))
+                        additional_threads.append(new_thread)
                         new_thread.start()
-                break
 
             time.sleep(5)  # Sleep to avoid high CPU usage
 
+        # Join all initial threads
+        for _, thread in threads:
+            thread.join()
+            print(f"Thread for RPC URL has completed.")
+
+        # Join all additional threads if any were started
+        for thread in additional_threads:
+            thread.join()
+            print("Additional worker thread has completed.")
+
+        print("All worker and monitoring threads have completed.")
+            
     def process_rpc_config(self, rpc_config, block_range_queue, rpc_errors, error_lock):
         max_retries = 3
         retry_delay = 10
@@ -145,17 +149,17 @@ class NodeAdapter(AbstractAdapterRaw):
         node_connection = None
         while attempt < max_retries:
             try:
-                print(f"Attempting to connect to {rpc_config['url']}, attempt {attempt + 1}")
+                #print(f"Attempting to connect to {rpc_config['url']}, attempt {attempt + 1}")
                 node_connection = connect_to_node(rpc_config)
                 print(f"Successfully connected to {rpc_config['url']}")
                 break
             except Exception as e:
-                print(f"Failed to connect to {rpc_config['url']}: {e}")
+                #print(f"Failed to connect to {rpc_config['url']}: {e}")
                 attempt += 1
                 if attempt >= max_retries:
-                    print(f"Failed to connect to {rpc_config['url']} after {max_retries} attempts. Skipping this RPC.")
+                    #print(f"Failed to connect to {rpc_config['url']} after {max_retries} attempts. Skipping this RPC.")
                     return
-                print(f"Retrying in {retry_delay} seconds...")
+                #print(f"Retrying in {retry_delay} seconds...")
                 time.sleep(retry_delay)
 
         if not node_connection:
@@ -163,7 +167,7 @@ class NodeAdapter(AbstractAdapterRaw):
 
         workers = []
         for _ in range(rpc_config['workers']):
-            worker = Thread(target=self.worker_task, args=(rpc_config, node_connection, block_range_queue, rpc_errors, error_lock,))
+            worker = Thread(target=self.worker_task, args=(rpc_config, node_connection, block_range_queue, rpc_errors, error_lock))
             workers.append(worker)
             worker.start()
 
@@ -176,7 +180,7 @@ class NodeAdapter(AbstractAdapterRaw):
         while rpc_config['url'] in self.active_rpcs and not block_range_queue.empty():
             block_range = None
             try:
-                block_range = block_range_queue.get(timeout=10)
+                block_range = block_range_queue.get(timeout=5)
                 print(f"Processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
                 fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
             except Empty:
