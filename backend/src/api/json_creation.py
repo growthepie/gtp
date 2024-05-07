@@ -993,7 +993,7 @@ class JSONCreation():
                 'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
                 'l2beat_stage': self.db_connector.get_stage(origin_key),
-                'raas': getattr(chain, 'raas', 'null'),
+                'raas': getattr(chain, 'raas', 'self-hosted'),
                 'website': chain.website,
                 'twitter': chain.twitter,
                 'block_explorer': chain.block_explorer,
