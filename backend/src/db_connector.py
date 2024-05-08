@@ -1133,6 +1133,32 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
 
+        ## Sys Chains functions
+
+        ## This function takes a dataframe with origin_key and an additional column as input and updates row-by-row the table sys_chains without overwriting other columns
+        def update_sys_chains(self, df, column_type='str'):
+                columns = df.columns.str.lower()
+                if len(columns) != 2:
+                        raise Exception("Only 2 columns are allowed in the dataframe")
+                if 'origin_key' not in columns:
+                        raise Exception("origin_key column is missing")
+                
+                value_column = columns[columns != 'origin_key'][0]
+
+                ## for each row in the dataframe, create an update statement
+                for index, row in df.iterrows():
+                        if column_type == 'str':
+                                exec_string = f"""
+                                        UPDATE sys_chains
+                                        SET {value_column} = '{row[value_column]}'
+                                        WHERE origin_key = '{row['origin_key']}'
+                                """
+                        else:
+                                raise NotImplementedError("Only string type is supported so far")
+                        self.engine.execute(exec_string)
+                print(f"{len(df)} projects updated in sys_chains")
+                
+
         ### OLI functions
         def get_active_projects(self):
                 exec_string = "SELECT * FROM public.oli_oss_directory WHERE active = true"

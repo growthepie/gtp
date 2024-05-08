@@ -52,7 +52,7 @@ class AdapterL2Beat(AbstractAdapter):
             upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
             print_load(self.name, upserted, tbl_name)
         elif self.load_type == 'stages':
-            self.db_connector.upsert_table('sys_chains', df)
+            self.db_connector.update_sys_chains(df, 'str')
             print_load(self.name, df.shape, 'sys_chains')
 
     ## ----------------- Helper functions --------------------
@@ -110,5 +110,4 @@ class AdapterL2Beat(AbstractAdapter):
             print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
             time.sleep(0.5)
         df = pd.DataFrame(stages)
-        df.set_index('origin_key', inplace=True)
         return df
