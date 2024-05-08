@@ -23,7 +23,7 @@ class AdapterMapping(BaseModel):
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
     stack: Optional[str]
-    raas: Optional[str]
+    raas: str = "self-hosted" ## raas provider, default to self-hosted
     symbol: Optional[str]
     launch_date: Optional[str] ## YYYY-MM-DD
     website: Optional[str]
