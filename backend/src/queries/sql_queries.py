@@ -63,8 +63,9 @@ sql_q= {
         WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
         """
-
-        ,'ethereum_aa_xxx': """
+        
+        ## only loads full weeks (no partial weeks)
+        ,'ethereum_waa': """
         SELECT 
                 date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
                 count(DISTINCT from_address) as value
@@ -73,6 +74,18 @@ sql_q= {
                 block_timestamp < date_trunc('{{aggregation}}', current_date)
                 AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
+        """
+
+        ,'ethereum_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
+                count(DISTINCT from_address) as value
+        FROM ethereum_tx tx
+        WHERE
+                block_timestamp < date_trunc('day', current_date)
+                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+
         """
 
         ,'ethereum_aa_last_xxd': """
@@ -1676,7 +1689,7 @@ sql_queries = [
 
         ## Ethereum
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
-        ,SQLQuery(metric_key = "waa", origin_key = "ethereum", sql=sql_q["ethereum_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+        ,SQLQuery(metric_key = "waa", origin_key = "ethereum", sql=sql_q["ethereum_waa"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
         ,SQLQuery(metric_key = "maa", origin_key = "ethereum", sql=sql_q["ethereum_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "ethereum", sql=sql_q["ethereum_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Days_Start": 1, "Timerange" : 29})
 
