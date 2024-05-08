@@ -1133,9 +1133,8 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
 
-        ## Sys Chains functions
-
-        ## This function takes a dataframe with origin_key and an additional column as input and updates row-by-row the table sys_chains without overwriting other columns
+        ### Sys Chains functions
+        # This function takes a dataframe with origin_key and an additional column as input and updates row-by-row the table sys_chains without overwriting other columns
         def update_sys_chains(self, df, column_type='str'):
                 columns = df.columns.str.lower()
                 if len(columns) != 2:
