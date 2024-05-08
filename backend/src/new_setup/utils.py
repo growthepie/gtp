@@ -386,7 +386,7 @@ def prep_dataframe_arbitrum(df):
         'hash': 'tx_hash',
         'from': 'from_address',
         'to': 'to_address',
-        'gasPrice': 'gas_price',
+        'effectiveGasPrice': 'gas_price',
         'gas': 'gas_limit',
         'gasUsed': 'gas_used',
         'value': 'value',

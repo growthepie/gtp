@@ -215,7 +215,7 @@ adapter_mapping = [
         ,token_circulating_supply_function='totalSupply' 
 
         ,batch_size=10
-        ,backfiller_on=True         
+        ,backfiller_on=False         
         )
 
     ,AdapterMapping(
