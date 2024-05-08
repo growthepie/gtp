@@ -1132,3 +1132,18 @@ class DbConnector:
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+
+        ### OLI functions
+        def get_active_projects(self):
+                exec_string = "SELECT * FROM public.oli_oss_directory WHERE active = true"
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
+        def deactivate_projects(self, names:list):
+                exec_string = f"""
+                        UPDATE oli_oss_directory
+                        SET active = false
+                        WHERE name IN ({', '.join([f"'{name}'" for name in names])})
+                """
+                self.engine.execute(exec_string)
+                print(f"{len(names)} projects deactivated in oli_oss_directory: {names}")
