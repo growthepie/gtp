@@ -214,8 +214,8 @@ adapter_mapping = [
         ,token_deployment_origin_key='arbitrum'
         ,token_circulating_supply_function='totalSupply' 
 
-        ,batch_size=10
-        ,backfiller_on=False         
+        ,batch_size=15
+        ,backfiller_on=True         
         )
 
     ,AdapterMapping(
