@@ -94,7 +94,7 @@ adapter_mapping = [
         origin_key="polygon_zkevm"
         ,name = "Polygon zkEVM"
         ,name_short = "Polygon"
-        ,description="Polygon zkEVM uses zero-knowledge proofs to enable faster and cheaper transactions. It allows users to build and run EVM-compatible smart contracts. It's fully compatible with the Ethereum Virtual Machine, making it easy for developers to migrate their applications to the Polygon network. It launched in March 2023."
+        ,description="Polygon zkEVM uses zero-knowledge proofs and allows users to build and run EVM-compatible smart contracts. Making it easy for developers to migrate their applications to the Polygon network."
         ,da_layer = "Ethereum (calldata)"
         ,rhino_naming="ZKEVM"
 
@@ -135,7 +135,7 @@ adapter_mapping = [
         origin_key="optimism"
         ,name = "OP Mainnet"
         ,name_short = "OP Mainnet"
-        ,description="OP Mainnet (formerly Optimism) uses an optimistic rollup approach, where transactions are assumed to be valid unless proven otherwise, and only invalid transactions are rolled back. OP Mainnet launched in August 2021, making it one of the first rollups. It is fully compatible with the Ethereum Virtual Machine (EVM), making it easy for developers to migrate their applications to the OP Mainnet network."
+        ,description="OP Mainnet (formerly Optimism) uses an optimistic rollup approach and launched in August 2021, making it one of the first rollups. It is fully EVM compatible."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming="OPTIMISM"
 
@@ -178,14 +178,14 @@ adapter_mapping = [
         origin_key='arbitrum'
         ,name = "Arbitrum One"
         ,name_short = "Arbitrum"
-        ,description="Arbitrum One is developed by Offchain Labs and its mainnet launched in September 2021. It uses an optimistic rollup approach and is fully compatible with the Ethereum Virtual Machine (EVM), making it developer-friendly."
+        ,description="Arbitrum One is developed by Offchain Labs. It uses an optimistic rollup approach and is fully EVM compatible, making it developer-friendly."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming="ARBITRUM"
 
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['blockspace']
+        ,exclude_metrics = []
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -222,7 +222,7 @@ adapter_mapping = [
         origin_key="imx"
         ,name = "Immutable X"
         ,name_short = "IMX"
-        ,description="Immutable X is an optimized game-specific zk rollup. It is designed to mint, transfer, and trade tokens and NFTs at higher volumes and zero gas fees. It is not EVM compatible but its easy-to-use APIs and SDKs aim to make development for game devs as easy as possible. It launched in April 2021."
+        ,description="Immutable X is an optimized game-specific zk rollup, designed to mint, transfer, and trade tokens and NFTs at higher volumes and zero gas fees. It is not EVM compatible but its easy-to-use APIs/SDKs aim to make development as easy as possible."
         ,da_layer = "DAC"
 
         ,in_api = True
@@ -257,7 +257,7 @@ adapter_mapping = [
         origin_key="zksync_era"
         ,name = "zkSync Era"
         ,name_short = "zkSync Era"
-        ,description="zkSync Era is a Layer 2 protocol that scales Ethereum with cutting-edge ZK tech. Their mission isn't to merely increase Ethereum's throughput, but to fully preserve its foundational values: freedom, self-sovereignty, decentralization at scale."
+        ,description="zkSync Era scales Ethereum with cutting-edge ZK tech. Their mission isn't to merely increase Ethereum's throughput, but to fully preserve its foundational values: freedom, self-sovereignty, decentralization at scale."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='ZKSYNC'
 
@@ -293,7 +293,7 @@ adapter_mapping = [
         origin_key="base"
         ,name = "Base"
         ,name_short = "Base"
-        ,description="Base is an fully EVM compatible optimistic rollup built on the OP Stack. It is incubated inside of Coinbase. Public mainnet launch was on August 9th 2023."
+        ,description="Base is an fully EVM compatible optimistic rollup built on the OP Stack. It is incubated inside of Coinbase."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='BASE'
 
@@ -329,7 +329,7 @@ adapter_mapping = [
         origin_key="zora"
         ,name = "Zora"
         ,name_short = "Zora"
-        ,description="Zora is a fully EVM compatible optimistic rollup built on the OP Stack with focus on NFTs. Public launch was in June 2023."
+        ,description="Zora is a fully EVM compatible optimistic rollup built on the OP Stack with focus on NFTs."
         ,da_layer = "Ethereum (blobs)"
 
         ,in_api = True
@@ -363,7 +363,7 @@ adapter_mapping = [
         origin_key="gitcoin_pgn"
         ,name="Public Goods Network"
         ,name_short = "PGN"
-        ,description="Public Goods Network is a fully EVM compatible optimistic rollup built on the OP Stack. Public launch was in July 2023."
+        ,description="Public Goods Network is a fully EVM compatible optimistic rollup built on the OP Stack."
         ,da_layer = "Celestia"
 
         ,in_api = True
@@ -397,7 +397,7 @@ adapter_mapping = [
         origin_key="linea"
         ,name="Linea"
         ,name_short = "Linea"
-        ,description="Linea is a developer-friendly ZK Rollup, marked as the next stage of ConsenSys zkEVM, which aims to enhance the Ethereum network by facilitating a new wave of decentralized applications. Public launch was in July 2023."
+        ,description="Linea is a developer-friendly ZK Rollup, marked as the next stage of ConsenSys zkEVM, which aims to enhance the Ethereum network by facilitating a new wave of decentralized applications."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='LINEA'
 
