@@ -7,7 +7,7 @@ from web3.middleware import geth_poa_middleware
 import os
 import sqlalchemy as sa
 
-from backend.src.new_setup.utils import create_db_engine, get_latest_block, load_environment
+from src.new_setup.utils import create_db_engine, get_latest_block, load_environment
 
 def connect_to_node(url):
     w3 = Web3(HTTPProvider(url))
