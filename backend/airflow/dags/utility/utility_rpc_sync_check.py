@@ -6,8 +6,8 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-from backend.src.new_setup.utils import create_db_engine, load_environment
-from backend.src.new_setup.rpc_sync_checker import get_chains_available, fetch_rpc_urls, activate_nodes, fetch_all_blocks, check_sync_state, deactivate_behind_nodes
+from src.new_setup.utils import create_db_engine, load_environment
+from src.new_setup.rpc_sync_checker import get_chains_available, fetch_rpc_urls, activate_nodes, fetch_all_blocks, check_sync_state, deactivate_behind_nodes
 
 @dag(
     default_args={
