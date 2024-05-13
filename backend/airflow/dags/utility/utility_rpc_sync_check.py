@@ -17,11 +17,11 @@ from backend.src.new_setup.rpc_sync_checker import get_chains_available, fetch_r
         'email_on_failure': False,
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='rpc_sync_check',
+    dag_id='utility_rpc_sync_check',
     description='DAG to check if chain nodes are synchronized',
-    tags=['chain', 'daily', 'sync'],
+    tags=['utility', 'hourly',],
     start_date=datetime(2023, 12, 1),
-    schedule_interval='20 11 * * *'
+    schedule_interval='35 * * * *'
 )
 
 def blockchain_sync_dag():
