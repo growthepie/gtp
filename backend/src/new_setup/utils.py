@@ -853,8 +853,10 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
 
 def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
     base_wait_time = 3   # Base wait time in seconds
+    start_time = time.time()
     while True:
         try:
+            elapsed_time = time.time() - start_time
             
             df = fetch_data_for_range(w3, current_start, current_end)
 
@@ -898,6 +900,9 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
         except Exception as e:
             print(f"For {rpc_url}: Error processing blocks {current_start} to {current_end}: {e}")
             base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time, rpc_url)
+            # Check if elapsed time exceeds 5 minutes
+            if elapsed_time >= 300:
+                raise MaxWaitTimeExceededException(f"For {rpc_url}: Maximum wait time exceeded for blocks {current_start} to {current_end}")
 
 def save_to_s3(df, chain, s3_connection, bucket_name):
     # Convert any 'object' dtype columns to string
@@ -930,7 +935,7 @@ def get_chain_config(db_connector, chain_name):
     raw_sql = text(
         "SELECT url, workers, max_requests, max_tps "
         "FROM sys_rpc_config "
-        "WHERE active = TRUE AND origin_key = :chain_name"
+        "WHERE active = TRUE AND origin_key = :chain_name AND synced = TRUE"
     )
 
     with db_connector.engine.connect() as connection:

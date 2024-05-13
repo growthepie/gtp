@@ -60,6 +60,9 @@ class NodeAdapter(AbstractAdapterRaw):
         else:
             block_start = int(block_start)
 
+        if block_start > latest_block:
+            raise ValueError("The start block cannot be higher than the latest block.")
+
         print(f"Running with start block {block_start} and latest block {latest_block}")
 
         # Initialize the block range queue
