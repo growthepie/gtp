@@ -19,14 +19,14 @@ def connect_to_node(url):
     else:
         return None
         
-def fetch_rpc_urls(db_engine, chain_name):
+def fetch_rpc_urls(db_connector, chain_name):
     query = f"""
     SELECT url
     FROM sys_rpc_config
     WHERE origin_key = '{chain_name}';
     """
     try:
-        with db_engine.connect() as conn:
+        with db_connector.engine.connect() as conn:
             result = pd.read_sql(query, conn)
         print(f"Data fetched successfully for chain: {chain_name}")
         return result
@@ -70,7 +70,7 @@ def check_sync_state(blocks):
             notsynced_nodes.append(url)
     return notsynced_nodes
 
-def deactivate_behind_nodes(db_engine, chain_name, notsynced_nodes):
+def deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes):
     if notsynced_nodes:
         query = """
         UPDATE sys_rpc_config
@@ -78,7 +78,7 @@ def deactivate_behind_nodes(db_engine, chain_name, notsynced_nodes):
         WHERE origin_key = :origin_key AND url IN :urls;
         """
         try:
-            with db_engine.begin() as conn:
+            with db_connector.engine.begin() as conn:
                 conn.execute(sa.text(query), {"origin_key": chain_name, "urls": tuple(notsynced_nodes)})
             print("Nodes set to unsynced.")
         except sa.exc.SQLAlchemyError as e:
@@ -87,9 +87,9 @@ def deactivate_behind_nodes(db_engine, chain_name, notsynced_nodes):
     else:
         print("No nodes to deactivate.")
           
-def get_chains_available(db_engine):
+def get_chains_available(db_connector):
     try:
-        with db_engine.connect() as conn:
+        with db_connector.engine.connect() as conn:
             query = """
             SELECT DISTINCT origin_key FROM sys_rpc_config;
             """
@@ -101,7 +101,7 @@ def get_chains_available(db_engine):
         print(e)
         return []
 
-def activate_nodes(db_engine, chain_name, rpc_urls):
+def activate_nodes(db_connector, chain_name, rpc_urls):
     if not rpc_urls.empty:
         rpc_urls = tuple(rpc_urls['url'].tolist())
         query = """
@@ -110,7 +110,7 @@ def activate_nodes(db_engine, chain_name, rpc_urls):
         WHERE origin_key = :origin_key AND url IN :urls;
         """
         try:
-            with db_engine.begin() as conn:
+            with db_connector.engine.begin() as conn:
                 conn.execute(sa.text(query), {"origin_key": chain_name, "urls": rpc_urls})
             print("Nodes set to synced.")
         except sa.exc.SQLAlchemyError as e:
