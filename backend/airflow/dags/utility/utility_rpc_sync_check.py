@@ -13,7 +13,7 @@ from src.new_setup.rpc_sync_checker import get_chains_available, fetch_rpc_urls,
     default_args={
         'owner': 'nader',
         'retries': 2,
-        'retry_delay': timedelta(minutes=5),
+        'retry_delay': timedelta(minutes=1),
         'email_on_failure': False,
         'on_failure_callback': alert_via_webhook
     },
