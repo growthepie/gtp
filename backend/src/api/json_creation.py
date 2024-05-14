@@ -202,6 +202,35 @@ class JSONCreation():
     def trim_leading_zeros(self, group):
         first_non_zero_index = group['value'].ne(0).idxmax()  # Find first non-zero index in each group
         return group.loc[first_non_zero_index:]  # Return the DataFrame slice starting from this index
+    
+    def get_ranking(self, df, metric_id, origin_key):
+        mks = self.metrics[metric_id]['metric_keys']
+        ## remove elements in mks list that end with _eth
+        mks = [x for x in mks if not x.endswith('_eth')]
+
+        ## First filter down to metric
+        df_tmp = df.loc[(df.metric_key.isin(mks)), ["origin_key", "value", "metric_key", "date"]]
+
+        ## then max date of this metric
+        df_tmp = df_tmp.loc[(df_tmp.date == df_tmp.date.max()), ["origin_key", "value", "metric_key", "date"]]
+
+        ## asign rank based on order (descending order if metric_key is not 'txcosts')
+        if metric_id != 'txcosts':
+            df_tmp['rank'] = df_tmp['value'].rank(ascending=False, method='first')
+        else:
+            df_tmp['rank'] = df_tmp['value'].rank(ascending=True, method='first')
+
+        ## get rank for origin_key
+        if df_tmp.loc[df_tmp.origin_key == origin_key].shape[0] > 0:
+            rank = df_tmp.loc[df_tmp.origin_key == origin_key, 'rank'].values[0]
+            rank_max = df_tmp['rank'].max()
+
+            print(f"...rank for {origin_key} and {metric_id} is {int(rank)} out of {int(rank_max)}")
+            return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2)}    
+        else:
+            print(f"...no rank for {origin_key} and {metric_id}")
+            return {'rank': None, 'out_of': None, 'color_scale': None}         
+
 
     # this method returns a list of lists with the unix timestamp and all associated values for a certain metric_id and chain_id
     def generate_daily_list(self, df, metric_id, origin_key):
@@ -845,14 +874,11 @@ class JSONCreation():
                 continue
 
             metrics_dict = {}
+            ranking_dict = {}
             for metric in self.metrics:
                 if metric in chain.exclude_metrics:
                     print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded')
                     continue
-                # if origin_key == 'ethereum' and metric in ['tvl', 'rent_paid', 'profit']:
-                #     continue
-                # if origin_key == 'imx' and metric in ['txcosts', 'fees', 'profit']:
-                #     continue
                 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
@@ -868,11 +894,13 @@ class JSONCreation():
                     }
                 }
 
+                ranking_dict[metric] = self.get_ranking(df, metric, origin_key)
+
             details_dict = {
                 'data': {
                     'chain_id': origin_key,
                     'chain_name': chain.name,
-                    'symbol': chain.symbol,
+                    'ranking': ranking_dict,
                     'metrics': metrics_dict
                 }
             }
