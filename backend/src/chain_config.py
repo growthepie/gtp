@@ -22,7 +22,7 @@ class AdapterMapping(BaseModel):
     bucket: str ## for Menu (and potentially filters): Layer 1, OP Chains, Other Optimistic Rollups, ZK-Rollups, Offchain Data Availability 
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
-    stack: Optional[str]
+    stack: dict = {'label' : None, 'url': None} ## stack, default to NA
     raas: str = "self-hosted" ## raas provider, default to self-hosted
     symbol: Optional[str]
     launch_date: Optional[str] ## YYYY-MM-DD
@@ -109,6 +109,7 @@ adapter_mapping = [
         ,symbol = "MATIC"
         ,technology = "ZK Rollup"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'Polygon zkEVM' , 'url': 'https://docs.polygon.technology/zkEVM/'}
         ,launch_date='2023-03-24'
 
         ,website='https://polygon.technology/polygon-zkevm'
@@ -150,6 +151,7 @@ adapter_mapping = [
         ,symbol = "OP"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack, Superchain' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2021-12-16'
 
         ,website='https://optimism.io/'
@@ -308,6 +310,7 @@ adapter_mapping = [
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack, Superchain' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2023-07-13'
 
         ,website='https://base.org/'
@@ -343,6 +346,7 @@ adapter_mapping = [
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'NFTs'
+        ,stack = {'label' : 'OP Stack, Superchain' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2023-06-21'
         ,raas = 'Conduit'
 
@@ -377,6 +381,7 @@ adapter_mapping = [
         ,symbol = "-"
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2023-07-26'
         ,raas = 'Conduit'
 
@@ -480,6 +485,7 @@ adapter_mapping = [
         ,symbol = "-"
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2023-07-14'
 
         ,website='https://mantle.xyz/'
@@ -642,6 +648,7 @@ adapter_mapping = [
         ,symbol = "METIS"
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2021-11-19'
 
         ,website='https://metis.io/'
@@ -682,6 +689,7 @@ adapter_mapping = [
         ,symbol = "MANTA"
         ,technology = "Optimium"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2023-09-12'
         ,raas = 'Caldera'
 
@@ -724,6 +732,7 @@ adapter_mapping = [
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2024-02-29'
 
         ,website='https://blast.io/en'
@@ -760,6 +769,7 @@ adapter_mapping = [
         ,symbol = "-"
         ,technology = "Optimistic Rollup"
         ,purpose = 'General Purpose (EVM)'
+        ,stack = {'label' : 'OP Stack, Superchain' , 'url': 'https://docs.optimism.io/stack/getting-started'}
         ,launch_date='2024-01-31'
         ,raas = 'Conduit'
 
