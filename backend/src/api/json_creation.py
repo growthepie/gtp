@@ -895,12 +895,29 @@ class JSONCreation():
                 }
 
                 ranking_dict[metric] = self.get_ranking(df, metric, origin_key)
+            
+            ## Hottest Contract
+            if chain.aggregate_blockspace:
+                hottest_contract = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=1, origin_keys=[origin_key], limit=1)
+                hottest_contract = hottest_contract.replace({np.nan: None})
+                hottest_contract = db_addresses_to_checksummed_addresses(hottest_contract, ['address'])
+                
+                hottest_contract_dict = {
+                    "data": hottest_contract[
+                        ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+                    ].values.tolist(),
+                    "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+                }
+            else:
+                print(f'..skipped: Hottest Contract for {origin_key}. aggregate_blockspace is set to False')
+                hottest_contract_dict = None
 
             details_dict = {
                 'data': {
                     'chain_id': origin_key,
                     'chain_name': chain.name,
                     'ranking': ranking_dict,
+                    'hottest_contract': hottest_contract_dict,
                     'metrics': metrics_dict
                 }
             }

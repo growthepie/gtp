@@ -813,7 +813,8 @@ class DbConnector:
         
 
         """
-        This function is used to get the top contracts by category for the landing page's top 6 contracts section. It returns the top 6 contracts by gas fees for all categories and also returns the change in the top_by metric for the given contract and time period.
+        This function is used to get the top contracts by category for the landing page's top 6 contracts section and the single chain hottest contract.
+        It returns the top 6 contracts by gas fees for all categories and also returns the change in the top_by metric for the given contract and time period.
         top_by: gas or txcount
         days: 1, 7, 30, 90, 180, 365
         """
