@@ -22,8 +22,8 @@ class AdapterMapping(BaseModel):
     bucket: str ## for Menu (and potentially filters): Layer 1, OP Chains, Other Optimistic Rollups, ZK-Rollups, Offchain Data Availability 
     technology: str ## -, zk, optimistic
     purpose: str ## is it a general purpose chain, or a specialized one?
-    stack: dict = {'label' : None, 'url': None} ## stack, default to NA
-    raas: str = "self-hosted" ## raas provider, default to self-hosted
+    stack: dict = {'label' : 'Custom', 'url': None} ## stack, default to NA
+    raas: str = "Self-hosted" ## raas provider, default to self-hosted
     symbol: Optional[str]
     launch_date: Optional[str] ## YYYY-MM-DD
     website: Optional[str]
