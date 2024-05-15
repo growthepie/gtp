@@ -224,7 +224,7 @@ adapter_mapping = [
         origin_key="imx"
         ,name = "Immutable X"
         ,name_short = "IMX"
-        ,description="Immutable X is an optimized game-specific zk rollup, designed to mint, transfer, and trade tokens and NFTs at higher volumes and zero gas fees. It is not EVM compatible but its easy-to-use APIs/SDKs aim to make development as easy as possible."
+        ,description="Immutable X is a game-specific zk rollup, designed to mint, transfer, and trade tokens/NFTs at higher volumes and zero gas fees. It is not EVM compatible but leverages easy-to-use APIs and SDKs."
         ,da_layer = "DAC"
 
         ,in_api = True
