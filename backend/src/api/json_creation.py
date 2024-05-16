@@ -30,7 +30,8 @@ class JSONCreation():
                 'avg': False, ##7d rolling average
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': False
             }
             ,'txcount': {
                 'name': 'Transaction count',
@@ -39,7 +40,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': False
             }
             ,'daa': {
                 'name': 'Daily active addresses',
@@ -48,7 +50,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'maa',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': True
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin market cap',
@@ -57,7 +60,8 @@ class JSONCreation():
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': True
             }
             ,'fees': {
                 'name': 'Fees paid',
@@ -66,7 +70,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': True
             }
             ,'rent_paid': {
                 'name': 'Rent paid to L1',
@@ -75,7 +80,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
-                'max_date_fill' : True
+                'max_date_fill' : True,
+                'ranking_bubble': False
             }
             ,'profit': {
                 'name': 'Profit',
@@ -84,7 +90,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
-                'max_date_fill' : True
+                'max_date_fill' : True,
+                'ranking_bubble': True
             }
             ,'txcosts': {
                 'name': 'Transaction costs',
@@ -93,7 +100,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'weighted_mean',
                 'monthly_agg': 'avg',
-                'max_date_fill' : True
+                'max_date_fill' : True,
+                'ranking_bubble': True
             }
             ,'fdv': {
                 'name': 'Fully diluted valuation',
@@ -102,7 +110,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': True
             }
             ,'market_cap': {
                 'name': 'Market cap',
@@ -111,7 +120,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': False
             }
             ,'throughput': {
                 'name': 'Throughput',
@@ -120,7 +130,8 @@ class JSONCreation():
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
-                'max_date_fill' : False
+                'max_date_fill' : False,
+                'ranking_bubble': True
             }
         }
 
@@ -894,7 +905,8 @@ class JSONCreation():
                     }
                 }
 
-                ranking_dict[metric] = self.get_ranking(df, metric, origin_key)
+                if self.metrics[metric]['ranking_bubble']:
+                    ranking_dict[metric] = self.get_ranking(df, metric, origin_key)
             
             ## Hottest Contract
             if chain.aggregate_blockspace:
