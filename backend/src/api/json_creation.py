@@ -1012,6 +1012,12 @@ class JSONCreation():
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
             print(f'DONE -- Metric details export for {metric}')
 
+    def gen_l2beat_link(self, chain):
+        if chain.l2beat_tvl_naming:
+            return f'https://l2beat.com/scaling/projects/{chain.l2beat_tvl_naming}'
+        else:
+            return 'https://l2beat.com'
+
     def create_master_json(self, df_data):
         exec_string = "SELECT sub_category_key, main_category_name, sub_category_name, main_category_key FROM blockspace_category_mapping"
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
@@ -1050,6 +1056,7 @@ class JSONCreation():
                 'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
                 'l2beat_stage': self.db_connector.get_stage(origin_key),
+                'l2beat_link': self.gen_l2beat_link(chain),
                 'raas': chain.raas,
                 'stack': chain.stack,
                 'website': chain.website,

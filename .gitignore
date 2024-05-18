@@ -1,7 +1,10 @@
 .env
+.vscode
 **/__pycache__
 *.pyc
 my_env/
+local_env/
+venv/
 
 *.ipynb
 *.html
@@ -19,8 +22,6 @@ airflow/www/*.log
 airflow-webserver.pid
 standalone_admin_password.txt
 warnings.txt
-
-venv/
 
 
 backend/adapter_starknet_test.py
