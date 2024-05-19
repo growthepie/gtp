@@ -7,7 +7,7 @@ from src.db_connector import DbConnector
 import sqlalchemy as sa
 import time
 
-from src.new_setup.utils import create_db_engine, get_latest_block, load_environment
+from src.new_setup.utils import get_latest_block
 
 def connect_to_node(url):
     retries = 3
@@ -88,7 +88,7 @@ def deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes):
         try:
             with db_connector.engine.begin() as conn:
                 conn.execute(sa.text(query), {"origin_key": chain_name, "urls": tuple(notsynced_nodes)})
-            print("Nodes set to unsynced.")
+            print(f"Nodes: {tuple(notsynced_nodes)} set to unsynced.")
         except sa.exc.SQLAlchemyError as e:
             print("Error updating nodes' synced status.")
             print(e)
