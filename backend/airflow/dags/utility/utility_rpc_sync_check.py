@@ -31,13 +31,18 @@ def blockchain_sync_dag():
         chains = get_chains_available(db_connector)
         
         for chain_name in chains:
+            if chain_name == 'arbitrum':
+                block_threshold = 50
+            else:
+                block_threshold = 20
+                
             print(f"Processing chain: {chain_name}")
             rpc_urls = fetch_rpc_urls(db_connector, chain_name)
             # Set initial nodes as synced
             activate_nodes(db_connector, chain_name, rpc_urls)
             blocks = fetch_all_blocks(rpc_urls)
             # Check if nodes are synced
-            notsynced_nodes = check_sync_state(blocks)
+            notsynced_nodes = check_sync_state(blocks, block_threshold)
             print(f"Nodes not synced for chain {chain_name}:", notsynced_nodes)
             deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes)
             print(f"Done processing chain: {chain_name}")
