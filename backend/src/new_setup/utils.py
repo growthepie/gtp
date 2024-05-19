@@ -12,7 +12,7 @@ import time
 import ast
 from src.new_setup.web3 import Web3CC
 from sqlalchemy import text
-
+from src.chain_config import adapter_mapping
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -879,7 +879,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_zksync_era(df)
             elif chain == 'ethereum':
                 df_prep = prep_dataframe_eth(df)
-            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast']:
+            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone']:
                 print('...use op-chain data prep')
                 df_prep = prep_dataframe_opchain(df)
             else:
@@ -943,6 +943,7 @@ def get_chain_config(db_connector, chain_name):
         rows = result.fetchall()
 
     config_list = []
+    batch_size = 10 # Default batch size
     for row in rows:
         config = {"url": row['url']}
         # Add other keys only if they are not None
@@ -952,7 +953,13 @@ def get_chain_config(db_connector, chain_name):
             config['max_req'] = row['max_requests']
         if row['max_tps'] is not None:
             config['max_tps'] = row['max_tps']
-
+        
         config_list.append(config)
 
-    return config_list
+    # Retrieve batch_size from adapter_mapping
+    for mapping in adapter_mapping:
+        if mapping.origin_key == chain_name:
+            batch_size = mapping.batch_size
+            break
+
+    return config_list, batch_size

@@ -1,3 +1,4 @@
+
 import sys
 import getpass
 sys_user = getpass.getuser()
@@ -15,27 +16,27 @@ from src.misc.airflow_utils import alert_via_webhook
         'owner': 'nader',
         'retries': 2,
         'email_on_failure': False,
-        'retry_delay': timedelta(minutes=1),
+        'retry_delay': timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='raw_ethereum',
-    description='Load raw tx data from ethereum',
+    dag_id='raw_redstone',
+    description='Load raw tx data from Redstone',
     tags=['raw', 'near-real-time', 'rpc', 'new-setup'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
 
 def adapter_rpc():
-    @task(execution_timeout=timedelta(minutes=45))
-    def run_ethereum():
+    @task()
+    def run_redstone():
 
         # Initialize DbConnector
         db_connector = DbConnector()
         
-        chain_name = 'ethereum'
+        chain_name = 'redstone'
 
         active_rpc_configs, batch_size = get_chain_config(db_connector, chain_name)
-        print(f"ETH_CONFIG={active_rpc_configs}")
+        print(f"REDSTONE_CONFIG={active_rpc_configs}")
 
         adapter_params = {
             'rpc': 'local_node',
@@ -58,5 +59,6 @@ def adapter_rpc():
             print(f"Extraction stopped due to maximum wait time being exceeded: {e}")
             raise e
 
-    run_ethereum()
+    run_redstone()
 adapter_rpc()
+    

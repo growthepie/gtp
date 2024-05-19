@@ -34,7 +34,7 @@ def adapter_rpc():
         
         chain_name = 'arbitrum'
 
-        active_rpc_configs = get_chain_config(db_connector, chain_name)
+        active_rpc_configs, batch_size = get_chain_config(db_connector, chain_name)
         print(f"ARBITRUM_CONFIG={active_rpc_configs}")
 
         adapter_params = {
@@ -49,7 +49,7 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 30,
+            'batch_size': batch_size,
         }
 
         try:

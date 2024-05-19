@@ -1,23 +1,31 @@
 import pandas as pd
-import os
 from web3 import Web3, HTTPProvider
 from sqlalchemy import exc
 import threading
 from web3.middleware import geth_poa_middleware
 import os
 import sqlalchemy as sa
+import time
 
 from src.new_setup.utils import create_db_engine, get_latest_block, load_environment
 
 def connect_to_node(url):
+    retries = 3
+    delay = 2
     w3 = Web3(HTTPProvider(url))
     
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
     
-    if w3.is_connected():
-        return w3
-    else:
-        return None
+    for attempt in range(1, retries + 1):
+        if w3.is_connected():
+            return w3
+        else:
+            if attempt < retries:
+                print(f"Attempt {attempt} failed, retrying in {delay} seconds...")
+                time.sleep(delay)
+            else:
+                print(f"Attempt {attempt} failed. No more retries left.")
+    return None
         
 def fetch_rpc_urls(db_connector, chain_name):
     query = f"""
@@ -62,11 +70,11 @@ def fetch_all_blocks(rpc_urls):
 
     return results
 
-def check_sync_state(blocks):
+def check_sync_state(blocks, block_threshold):
     max_block = max(blocks.values())
     notsynced_nodes = []
     for url, block in blocks.items():
-        if block == 0 or max_block - block > 20:
+        if block == 0 or max_block - block > block_threshold:
             notsynced_nodes.append(url)
     return notsynced_nodes
 
@@ -124,11 +132,16 @@ def sync_check():
     db_engine = create_db_engine(db_user, db_password, db_host, db_port, db_name)
     chains = get_chains_available(db_engine)
     for chain_name in chains:
+        if chain_name == 'arbitrum':
+            block_threshold = 50
+        else:
+            block_threshold = 20
+            
         print(f"Processing chain: {chain_name}")
         rpc_urls = fetch_rpc_urls(db_engine, chain_name)
         activate_nodes(db_engine, chain_name, rpc_urls)
         blocks = fetch_all_blocks(rpc_urls)
-        notsynced_nodes = check_sync_state(blocks)
+        notsynced_nodes = check_sync_state(blocks, block_threshold)
         deactivate_behind_nodes(db_engine, chain_name, notsynced_nodes)
         print(f"Done processing chain: {chain_name}")
         
