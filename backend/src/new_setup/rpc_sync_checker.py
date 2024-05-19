@@ -3,7 +3,7 @@ from web3 import Web3, HTTPProvider
 from sqlalchemy import exc
 import threading
 from web3.middleware import geth_poa_middleware
-import os
+from src.db_connector import DbConnector
 import sqlalchemy as sa
 import time
 
@@ -128,9 +128,9 @@ def activate_nodes(db_connector, chain_name, rpc_urls):
         print("No nodes to activate.")
           
 def sync_check():
-    db_name, db_user, db_password, db_host, db_port = load_environment()
-    db_engine = create_db_engine(db_user, db_password, db_host, db_port, db_name)
-    chains = get_chains_available(db_engine)
+    db_connector = DbConnector()
+
+    chains = get_chains_available(db_connector)
     for chain_name in chains:
         if chain_name == 'arbitrum':
             block_threshold = 50
@@ -138,14 +138,13 @@ def sync_check():
             block_threshold = 20
             
         print(f"Processing chain: {chain_name}")
-        rpc_urls = fetch_rpc_urls(db_engine, chain_name)
-        activate_nodes(db_engine, chain_name, rpc_urls)
+        rpc_urls = fetch_rpc_urls(db_connector, chain_name)
+        activate_nodes(db_connector, chain_name, rpc_urls)
         blocks = fetch_all_blocks(rpc_urls)
         notsynced_nodes = check_sync_state(blocks, block_threshold)
-        deactivate_behind_nodes(db_engine, chain_name, notsynced_nodes)
+        deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes)
         print(f"Done processing chain: {chain_name}")
         
-    db_engine.dispose()
     print("All chains processed.")
         
 if __name__ == "__main__":
