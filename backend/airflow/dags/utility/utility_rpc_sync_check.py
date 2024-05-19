@@ -26,25 +26,8 @@ from src.new_setup.rpc_sync_checker import sync_check
 
 def blockchain_sync_dag():
     @task
-    def sync_check():
-        db_connector = DbConnector()
-        chains = get_chains_available(db_connector)
-        
-        for chain_name in chains:
-            print(f"Processing chain: {chain_name}")
-            rpc_urls = fetch_rpc_urls(db_connector, chain_name)
-            # Set initial nodes as synced
-            activate_nodes(db_connector, chain_name, rpc_urls)
-            blocks = fetch_all_blocks(rpc_urls)
-            # Check if nodes are synced
-            notsynced_nodes = check_sync_state(blocks)
-            print(f"Nodes not synced for chain {chain_name}:", notsynced_nodes)
-            deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes)
-            print(f"Done processing chain: {chain_name}")
-        
-        print("All chains processed.")
-
-    sync_check()
+    def sync_checker():
+        sync_check()
 
     sync_checker()
 
