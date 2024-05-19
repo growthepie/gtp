@@ -1018,6 +1018,19 @@ class JSONCreation():
         else:
             return 'https://l2beat.com'
 
+    def gen_l2beat_stage(self, chain):
+        stage = self.db_connector.get_stage(chain.origin_key)
+        if stage == 'Stage 0':
+            hex = "#FF8B36"
+        elif stage == 'Stage 1':
+            hex = "#FFEC44"
+        elif stage == 'Stage 2':
+            hex = "#34762F"
+        else:
+            hex = "#DFDFDF"      
+        
+        return {'stage': stage, 'hex': hex}
+
     def create_master_json(self, df_data):
         exec_string = "SELECT sub_category_key, main_category_name, sub_category_name, main_category_key FROM blockspace_category_mapping"
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
@@ -1055,7 +1068,7 @@ class JSONCreation():
                 'technology': chain.technology,
                 'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
-                'l2beat_stage': self.db_connector.get_stage(origin_key),
+                'l2beat_stage': self.gen_l2beat_stage(chain),
                 'l2beat_link': self.gen_l2beat_link(chain),
                 'raas': chain.raas,
                 'stack': chain.stack,
