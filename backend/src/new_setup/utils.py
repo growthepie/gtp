@@ -761,11 +761,17 @@ def create_db_engine(db_user, db_password, db_host, db_port, db_name):
 
 # ---------------- Data Interaction --------------------
 def get_latest_block(w3):
-    try:
-        return w3.eth.block_number
-    except Exception as e:
-        print("ERROR: occurred while fetching the latest block:", str(e))
-        return None
+    retries = 0
+    while retries < 3:
+        try:
+            return w3.eth.block_number
+        except Exception as e:
+            print("RETRY: occurred while fetching the latest block, but will retry in 3s:", str(e))
+            retries += 1
+            time.sleep(3)
+
+    print("ERROR: Failed to fetch the latest block after 3 retries.")
+    return None
     
 def fetch_block_transaction_details(w3, block):
     transaction_details = []
