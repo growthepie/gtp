@@ -42,10 +42,10 @@ def backfiller_dag():
     for chain, settings in chain_settings.items():
         @task(task_id=f'new_backfill_{chain}', execution_timeout=timedelta(minutes=90))
         def run_backfill_task(chain_name, db_connector, start_date, end_date, batch_size):
-            rpc_configs = get_chain_config(db_connector, chain_name)
+            active_rpc_configs, batch_size = get_chain_config(db_connector, chain_name)
             w3 = None
 
-            for rpc_config in rpc_configs:
+            for rpc_config in active_rpc_configs:
                 try:
                     w3 = Web3CC(rpc_config)
                     break
@@ -62,7 +62,7 @@ def backfiller_dag():
             start_block = find_first_block_of_day(w3, start_timestamp)
             end_block = find_last_block_of_day(w3, end_timestamp)
 
-            adapter_params = {'chain': chain_name, 'rpc_configs': rpc_configs}
+            adapter_params = {'chain': chain_name, 'rpc_configs': active_rpc_configs}
             node_adapter = NodeAdapter(adapter_params, db_connector)
 
             try:
