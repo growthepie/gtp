@@ -848,12 +848,12 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
     s3_path = f"s3://{bucket_name}/{file_key}"
     df.to_parquet(s3_path, index=False)
 
-    # Check if the file exists in S3
-    if s3_file_exists(s3_connection, file_key, bucket_name):
-        print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
-    else:
-        print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
-        raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
+    # # Check if the file exists in S3
+    # if s3_file_exists(s3_connection, file_key, bucket_name):
+    #     print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
+    # else:
+    #     print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
+    #     raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
 def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
     base_wait_time = 3   # Base wait time in seconds
@@ -907,32 +907,32 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             if elapsed_time >= 300:
                 raise MaxWaitTimeExceededException(f"For {rpc_url}: Maximum wait time exceeded for blocks {current_start} to {current_end}")
 
-def save_to_s3(df, chain, s3_connection, bucket_name):
-    # Convert any 'object' dtype columns to string
-    for col in df.columns:
-        if df[col].dtype == 'object':
-            try:
-                df[col] = df[col].apply(str)
-            except Exception as e:
-                print(f"ERROR: converting column {col} to string: {e}")
-                raise e
+# def save_to_s3(df, chain, s3_connection, bucket_name):
+#     # Convert any 'object' dtype columns to string
+#     for col in df.columns:
+#         if df[col].dtype == 'object':
+#             try:
+#                 df[col] = df[col].apply(str)
+#             except Exception as e:
+#                 print(f"ERROR: converting column {col} to string: {e}")
+#                 raise e
     
-    # Generate a unique filename based on the current timestamp
-    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
-    filename = f"{chain}_data_{timestamp}.parquet"
+#     # Generate a unique filename based on the current timestamp
+#     timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+#     filename = f"{chain}_data_{timestamp}.parquet"
     
-    # Create S3 file path
-    file_key = f"{chain}/{filename}"
+#     # Create S3 file path
+#     file_key = f"{chain}/{filename}"
     
-    # Use the S3 functionality in pandas to write directly to S3
-    s3_path = f"s3://{bucket_name}/{file_key}"
-    df.to_parquet(s3_path, index=False)
+#     # Use the S3 functionality in pandas to write directly to S3
+#     s3_path = f"s3://{bucket_name}/{file_key}"
+#     df.to_parquet(s3_path, index=False)
     
-    if s3_file_exists(s3_connection, file_key, bucket_name):
-        print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
-    else:
-        print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
-        raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
+    # if s3_file_exists(s3_connection, file_key, bucket_name):
+    #     print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
+    # else:
+    #     print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
+    #     raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
 def get_chain_config(db_connector, chain_name):
     raw_sql = text(
