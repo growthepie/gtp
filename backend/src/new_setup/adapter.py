@@ -115,7 +115,7 @@ class NodeAdapter(AbstractAdapterRaw):
             if block_range_queue.qsize() == 0 and active:
                 print("No more block ranges to process. Waiting for workers to finish.")
             else:
-                print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {active}")
+                print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {len(active_threads)}")
                 
             if not block_range_queue.empty() and not active:
                 print("Detected unfinished tasks with no active workers. Restarting worker.")
@@ -185,7 +185,7 @@ class NodeAdapter(AbstractAdapterRaw):
             block_range = None
             try:
                 block_range = block_range_queue.get(timeout=5)
-                print(f"Processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
+                print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
                 fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
             except Empty:
                 print("No more blocks to process. Worker is shutting down.")
@@ -198,7 +198,7 @@ class NodeAdapter(AbstractAdapterRaw):
                         print(f"All workers for {rpc_config['url']} failed. Removing this RPC from rotation.")
                         self.rpc_configs = [rpc for rpc in self.rpc_configs if rpc['url'] != rpc_config['url']]
                         self.active_rpcs.remove(rpc_config['url'])
-                print(f"Error for {rpc_config['url']} on block range {block_range[0]}-{block_range[1]}: {e}")
+                print(f"ERROR: for {rpc_config['url']} on block range {block_range[0]}-{block_range[1]}: {e}")
                 block_range_queue.put(block_range)  # Re-queue the failed block range
                 print(f"Re-queued block range {block_range[0]}-{block_range[1]}")
                 break

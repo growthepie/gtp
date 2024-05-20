@@ -46,7 +46,7 @@ def connect_to_node(rpc_config):
     try:
         return Web3CC(rpc_config)
     except ConnectionError as e:
-        print(f"Failed to connect to the node with config {rpc_config}: {e}")
+        print(f"ERROR: failed to connect to the node with config {rpc_config}: {e}")
         raise
 
 def connect_to_s3():
@@ -63,7 +63,7 @@ def connect_to_s3():
                             aws_secret_access_key=aws_secret_access_key)
         return s3, bucket_name
     except Exception as e:
-        print("An error occurred while connecting to S3:", str(e))
+        print("ERROR: An error occurred while connecting to S3:", str(e))
         raise ConnectionError(f"An error occurred while connecting to S3: {str(e)}")
 
 def check_s3_connection(s3_connection):
@@ -378,8 +378,6 @@ def prep_dataframe_linea(df):
     return filtered_df 
 
 def prep_dataframe_arbitrum(df):
-
-    print("Preprocessing dataframe...")
     # Define a mapping of old columns to new columns
     column_mapping = {
         'blockNumber': 'block_number',
@@ -740,7 +738,7 @@ def handle_retry_exception(current_start, current_end, base_wait_time, rpc_url):
     wait_time += jitter
     formatted_wait_time = format(wait_time, ".2f")
 
-    print(f"Retrying for blocks {current_start} to {current_end} after {formatted_wait_time} seconds.")
+    print(f"RETRY: for blocks {current_start} to {current_end} after {formatted_wait_time} seconds. RPC: {rpc_url}")
     time.sleep(wait_time)
 
     return wait_time
@@ -757,17 +755,23 @@ def create_db_engine(db_user, db_password, db_host, db_port, db_name):
         engine.connect()  # test connection
         return engine
     except exc.SQLAlchemyError as e:
-        print("Error connecting to database. Check your database configurations.")
+        print("ERROR: connecting to database. Check your database configurations.")
         print(e)
         sys.exit(1)
 
 # ---------------- Data Interaction --------------------
 def get_latest_block(w3):
-    try:
-        return w3.eth.block_number
-    except Exception as e:
-        print("An error occurred while fetching the latest block:", str(e))
-        return None
+    retries = 0
+    while retries < 3:
+        try:
+            return w3.eth.block_number
+        except Exception as e:
+            print("RETRY: occurred while fetching the latest block, but will retry in 3s:", str(e))
+            retries += 1
+            time.sleep(3)
+
+    print("ERROR: Failed to fetch the latest block after 3 retries.")
+    return None
     
 def fetch_block_transaction_details(w3, block):
     transaction_details = []
@@ -799,7 +803,7 @@ def fetch_block_transaction_details(w3, block):
     return transaction_details
     
 def fetch_data_for_range(w3, block_start, block_end):
-    print(f"Fetching data for blocks {block_start} to {block_end}...")
+    #print(f"...fetching data for blocks {block_start} to {block_end}. RPC: {w3.get_rpc_url()}")
     all_transaction_details = []
 
     try:
@@ -817,7 +821,7 @@ def fetch_data_for_range(w3, block_start, block_end):
         
         # if df doesn't have any records, then handle it gracefully
         if df.empty:
-            print(f"No transactions found for blocks {block_start} to {block_end}.")
+            print(f"...no transactions found for blocks {block_start} to {block_end}.")
             return None  # Or return an empty df as: return pd.DataFrame()
         else:
             return df
@@ -846,9 +850,9 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
 
     # Check if the file exists in S3
     if s3_file_exists(s3_connection, file_key, bucket_name):
-        print(f"File {file_key} uploaded to S3 bucket {bucket_name}.")
+        print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
     else:
-        print(f"File {file_key} not found in S3 bucket {bucket_name}.")
+        print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
         raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
 def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
@@ -862,7 +866,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
 
             # Check if df is None or empty, and if so, return early without further processing.
             if df is None or df.empty:
-                print(f"Skipping blocks {current_start} to {current_end} due to no data.")
+                print(f"...skipping blocks {current_start} to {current_end} due to no data.")
                 return
 
             save_data_for_range(df, current_start, current_end, chain, s3_connection, bucket_name)
@@ -880,7 +884,6 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             elif chain == 'ethereum':
                 df_prep = prep_dataframe_eth(df)
             elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone']:
-                print('...use op-chain data prep')
                 df_prep = prep_dataframe_opchain(df)
             else:
                 df_prep = prep_dataframe(df)
@@ -891,14 +894,14 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             
             try:
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
-                print(f"Data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}")
+                print(f"...data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}. RPC: {w3.get_rpc_url()}")
             except Exception as e:
-                print(f"For {rpc_url}: Error inserting data for blocks {current_start} to {current_end}: {e}")
+                print(f"ERROR: {rpc_url} - inserting data for blocks {current_start} to {current_end}: {e}")
                 raise e
             break  # Break out of the loop on successful execution
 
         except Exception as e:
-            print(f"For {rpc_url}: Error processing blocks {current_start} to {current_end}: {e}")
+            print(f"ERROR: {rpc_url} - processing blocks {current_start} to {current_end}: {e}")
             base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time, rpc_url)
             # Check if elapsed time exceeds 5 minutes
             if elapsed_time >= 300:
@@ -911,7 +914,7 @@ def save_to_s3(df, chain, s3_connection, bucket_name):
             try:
                 df[col] = df[col].apply(str)
             except Exception as e:
-                print(f"Error converting column {col} to string: {e}")
+                print(f"ERROR: converting column {col} to string: {e}")
                 raise e
     
     # Generate a unique filename based on the current timestamp
@@ -926,9 +929,9 @@ def save_to_s3(df, chain, s3_connection, bucket_name):
     df.to_parquet(s3_path, index=False)
     
     if s3_file_exists(s3_connection, file_key, bucket_name):
-        print(f"File {file_key} uploaded to S3 bucket {bucket_name}.")
+        print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
     else:
-        print(f"File {file_key} not found in S3 bucket {bucket_name}.")
+        print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
         raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
 def get_chain_config(db_connector, chain_name):
