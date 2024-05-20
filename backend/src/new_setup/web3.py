@@ -35,23 +35,23 @@ class EthProxy:
         wait_time = initial_wait
         while retries < max_retries:
             if self._web3cc.is_rate_limited and retries > 2:
-                print(f"For {self._web3cc.get_rpc_url()}: Rate limit exceeded, Retrying in {wait_time} seconds...")
+                print(f"RETRY - Rate Limit exceed: for {self._web3cc.get_rpc_url()}: Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             try:
                 return func(*args, **kwargs)
             except ReadTimeout as e:
-                print(f"For {self._web3cc.get_rpc_url()}: Read timeout while trying {method_name} with params {args}, {kwargs}. Retrying in {wait_time} seconds...")
+                print(f"RETRY - Read timeout: for {self._web3cc.get_rpc_url()}: Read timeout while trying {method_name} with params {args}, {kwargs}. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
                 retries += 1
             except ConnectionError as e:
-                print(f"For {self._web3cc.get_rpc_url()}: Connection error while trying {method_name}. Retrying in {wait_time} seconds...")
+                print(f"RETRY - Connection Error: for {self._web3cc.get_rpc_url()}: Connection error while trying {method_name}. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
                 retries += 1
             except HTTPError as e:
                 if e.response.status_code == 429:  # Rate Limit Exceeded
-                    print(f"For {self._web3cc.get_rpc_url()}: HTTP 429 Rate Limit Exceeded. Retrying in {wait_time} seconds...")
+                    print(f"RETRY - Too Many Requests: for {self._web3cc.get_rpc_url()}: Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
                     wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
                     retries += 1
@@ -60,7 +60,7 @@ class EthProxy:
             except Exception as e:
                 raise e
 
-        raise Exception(f"For {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
+        raise Exception(f"ERROR: for {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
 
 class ResponseNormalizerMiddleware:
     def __init__(self, web3):
