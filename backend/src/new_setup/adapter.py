@@ -115,7 +115,7 @@ class NodeAdapter(AbstractAdapterRaw):
             if block_range_queue.qsize() == 0 and active:
                 print("No more block ranges to process. Waiting for workers to finish.")
             else:
-                print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {active}")
+                print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {len(active_threads)}")
                 
             if not block_range_queue.empty() and not active:
                 print("Detected unfinished tasks with no active workers. Restarting worker.")
