@@ -71,8 +71,6 @@ def etl():
             'api_key' : os.getenv("DUNE_API")
         }
         load_params = {
-            'query_names' : None,
-            'days' : 1000,
             'load_type' : 'glo_holders'
         }
 
