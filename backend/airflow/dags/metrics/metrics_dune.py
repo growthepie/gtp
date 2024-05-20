@@ -64,7 +64,27 @@ def etl():
         df = ad.extract(load_params)
         # load
         ad.load(df)
+
+    @task()
+    def run_glo_holders():
+        adapter_params = {
+            'api_key' : os.getenv("DUNE_API")
+        }
+        load_params = {
+            'query_names' : None,
+            'days' : 1000,
+            'load_type' : 'glo_holders'
+        }
+
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterDune(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
     
     run_aggregates()
     run_inscriptions()
+    run_glo_holders()
 etl()

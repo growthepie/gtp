@@ -1,5 +1,6 @@
 import time
 import pandas as pd
+from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
 
@@ -30,26 +31,32 @@ class AdapterDune(AbstractAdapter):
     """
     def extract(self, load_params:dict):
         ## Set variables
-        query_names = load_params['query_names']
-        days = load_params['days']
         self.load_type = load_params['load_type']
+
+        query_names = load_params.get('query_names', None)
+        days = load_params.get('days', 'auto')        
 
         if self.load_type == 'metrics':
             ## Prepare queries to load
             if query_names is not None:
-                self.queries_to_load = [x for x in dune_queries if x.name in query_names and x.name != 'inscriptions']
+                self.queries_to_load = [x for x in dune_queries if x.name in query_names and x.name != 'inscriptions' and x.name != 'glo_holders']
             else:
-                self.queries_to_load = [x for x in dune_queries if x.name != 'inscriptions']
+                self.queries_to_load = [x for x in dune_queries if x.name != 'inscriptions' and x.name != 'glo_holders']
 
             ## Load data
             df = self.extract_data(self.queries_to_load, days)     
             
-            print_extract(self.name, load_params,df.shape)
+            print_extract(self.name, load_params, df.shape)
             return df
         elif self.load_type == 'inscriptions':
             self.queries_to_load = [x for x in dune_queries if x.name == 'inscriptions']
             df = self.extract_inscriptions(self.queries_to_load, days)
-            print_extract(self.name, load_params,df.shape)
+            print_extract(self.name, load_params, df.shape)
+            return df
+        elif self.load_type == 'glo_holders':
+            self.queries_to_load = [x for x in dune_queries if x.name == 'glo_holders']
+            df = self.extract_glo_holders(self.queries_to_load)
+            print_extract(self.name, load_params, df.shape)
             return df
         else:
             raise NotImplementedError(f"load_type {self.load_type} not implemented")
@@ -60,6 +67,10 @@ class AdapterDune(AbstractAdapter):
             print_load(self.name, upserted, tbl_name)
         elif self.load_type == 'inscriptions':
             tbl_name = 'inscription_addresses'
+            upserted = self.db_connector.upsert_table(tbl_name, df)
+            print_load(self.name, upserted, tbl_name)
+        elif self.load_type == 'glo_holders':
+            tbl_name = 'glo_holders'
             upserted = self.db_connector.upsert_table(tbl_name, df)
             print_load(self.name, upserted, tbl_name)
         else:
@@ -125,4 +136,19 @@ class AdapterDune(AbstractAdapter):
         
         print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
         df.set_index(['address', 'origin_key'], inplace=True)
+        return df
+    
+    def extract_glo_holders(self, query):
+        print(f"...start loading {query[0].name} with query_id: {query[0].query_id}")
+        df = self.client.refresh_into_dataframe(query[0])
+
+        ##df.address to bytea
+        df['address'] = df['address'].apply(lambda x: bytes.fromhex(x[2:]))
+        ## date column with current date
+        df['date'] = datetime.now().date()
+        ## parse origin_keys column in df so that it can be loaded into a postgres array - split by comma and add curly braces
+        df['origin_keys'] = df['origin_keys'].apply(lambda x: '{"' + x.replace(',', '","') + '"}')
+        
+        print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
+        df.set_index(['address', 'date'], inplace=True)
         return df
