@@ -803,7 +803,7 @@ def fetch_block_transaction_details(w3, block):
     return transaction_details
     
 def fetch_data_for_range(w3, block_start, block_end):
-    print(f"...fetching data for blocks {block_start} to {block_end}. RPC: {w3.get_rpc_url()}")
+    #print(f"...fetching data for blocks {block_start} to {block_end}. RPC: {w3.get_rpc_url()}")
     all_transaction_details = []
 
     try:
