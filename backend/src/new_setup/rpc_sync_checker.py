@@ -75,6 +75,7 @@ def check_sync_state(blocks, block_threshold):
     notsynced_nodes = []
     for url, block in blocks.items():
         if block == 0 or max_block - block > block_threshold:
+            print(f"Node {url} is not too far behind. Max block: {max_block} // Node block: {block} // Behind by: {max_block - block}")
             notsynced_nodes.append(url)
     return notsynced_nodes
 
@@ -133,7 +134,7 @@ def sync_check():
     chains = get_chains_available(db_connector)
     for chain_name in chains:
         if chain_name == 'arbitrum':
-            block_threshold = 50
+            block_threshold = 100
         else:
             block_threshold = 20
             
