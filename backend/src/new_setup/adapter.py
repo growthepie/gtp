@@ -119,9 +119,14 @@ class NodeAdapter(AbstractAdapterRaw):
                 
             if not block_range_queue.empty() and not active:
                 print("Detected unfinished tasks with no active workers. Restarting worker.")
-                # Filter and restart workers for specific RPC configs
-                for rpc_config in rpc_configs:
-                    # if rpc_config['workers'] > 5:
+
+                # Check if there are any active RPCs
+                active_rpcs = [rpc_config for rpc_config in rpc_configs if rpc_config['url'] in self.active_rpcs]
+                if not active_rpcs:
+                    raise Exception("No active RPCs available. Stopping the DAG.")
+
+                # Restart workers only for active RPCs
+                for rpc_config in active_rpcs:
                     print(f"Restarting workers for RPC URL: {rpc_config['url']}")
                     new_thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
                         rpc, block_range_queue, rpc_errors, error_lock))
