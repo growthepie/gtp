@@ -57,7 +57,7 @@ adapter_mapping = [
         origin_key="ethereum"
         ,name = "Ethereum"
         ,name_short = "Ethereum"
-        ,description = "Ethereum was proposed by Vitalik Buterin in 2013 and launched in 2015. It is arguably the most decentralized smart contract platform to date. The goal is to scale Ethereum through the usage of Layer 2s."
+        ,description = "Ethereum, proposed by Vitalik Buterin in 2013 and launched in 2015, is the most decentralized smart contract to date and aiming to scale via Layer 2s"
         ,da_layer = "-"
         ,rhino_naming="ETHEREUM"
 
@@ -96,7 +96,7 @@ adapter_mapping = [
         origin_key="polygon_zkevm"
         ,name = "Polygon zkEVM"
         ,name_short = "Polygon"
-        ,description="Polygon zkEVM uses zero-knowledge proofs and allows users to build and run EVM-compatible smart contracts. Making it easy for developers to migrate their applications to the Polygon network."
+        ,description="Polygon zkEVM uses zero-knowledge proofs to run EVM-compatible smart contracts, simplifying migration for developers to the Polygon network."
         ,da_layer = "Ethereum (calldata)"
         ,rhino_naming="ZKEVM"
 
@@ -139,7 +139,7 @@ adapter_mapping = [
         origin_key="optimism"
         ,name = "OP Mainnet"
         ,name_short = "OP Mainnet"
-        ,description="OP Mainnet (formerly Optimism) uses an optimistic rollup approach and launched in August 2021, making it one of the first rollups. It is fully EVM compatible."
+        ,description="OP Mainnet uses an optimistic rollup approach and is one of the oldest rollups. It is fully EVM compatible and it's tech-stack is widely used."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming="OPTIMISM"
 
@@ -229,7 +229,7 @@ adapter_mapping = [
         origin_key="imx"
         ,name = "Immutable X"
         ,name_short = "IMX"
-        ,description="Immutable X is a game-specific zk rollup, designed to mint, transfer, and trade tokens/NFTs at higher volumes and zero gas fees. It is not EVM compatible but leverages easy-to-use APIs and SDKs."
+        ,description="Immutable X is a game-specific (not EVM compatible) zk rollup for minting, transferring, and trading tokens/NFTs at high volumes with zero gas fees."
         ,da_layer = "DAC"
 
         ,in_api = True
@@ -265,7 +265,7 @@ adapter_mapping = [
         origin_key="zksync_era"
         ,name = "zkSync Era"
         ,name_short = "zkSync Era"
-        ,description="zkSync Era scales Ethereum with cutting-edge ZK tech. Their mission isn't to merely increase Ethereum's throughput, but to fully preserve its foundational values: freedom, self-sovereignty, decentralization at scale."
+        ,description="zkSync Era scales Ethereum using ZK tech, aiming to boost throughput while preserving Ethereum's core values: freedom, self-sovereignty, and decentralization."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='ZKSYNC'
 
@@ -412,7 +412,7 @@ adapter_mapping = [
         origin_key="linea"
         ,name="Linea"
         ,name_short = "Linea"
-        ,description="Linea is a developer-friendly ZK Rollup, marked as the next stage of ConsenSys zkEVM, which aims to enhance the Ethereum network by facilitating a new wave of decentralized applications."
+        ,description="Linea is a developer-friendly ZK Rollup by ConsenSys, enhancing Ethereum by enabling a new wave of decentralized applications."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='LINEA'
 
@@ -567,7 +567,7 @@ adapter_mapping = [
         origin_key="starknet"
         ,name="Starknet"
         ,name_short = "Starknet"
-        ,description="Starknet is a ZK Rollup developed by Starkware. It uses it's own programming language and general purpose virtual machine (Cairo VM). The rollup was launched on mainnet in November 2021."
+        ,description="Starknet is a ZK Rollup developed by Starkware. It uses it's own programming language and general purpose virtual machine (Cairo VM)."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='STARKNET'
 
@@ -692,7 +692,7 @@ adapter_mapping = [
         origin_key='manta'
         ,name='Manta Pacific'
         ,name_short = "Manta"
-        ,description="Manta Pacific is an Optimium empowering EVM-native zero-knowledge (ZK) applications and general dapps. Public launch was in September 2023."
+        ,description="Manta Pacific is an Optimium empowering EVM-native zero-knowledge (ZK) applications and general dapps."
         ,da_layer = "Celestia"
 
         ,in_api = True
@@ -735,7 +735,7 @@ adapter_mapping = [
         origin_key='blast'
         ,name='Blast'
         ,name_short = "Blast"
-        ,description="Blast is an EVM-compatible Optimistic Rollup which invests funds deposited into the Ethereum bridge contract in order to offer native yiead to its users. Public launch was in February 2024."
+        ,description="Blast is an EVM-compatible Optimistic Rollup which invests bridged funds in order to offer native yield to its users."
         ,da_layer = "Ethereum (calldata)"
         ,rhino_naming='BLAST'
 
@@ -773,7 +773,7 @@ adapter_mapping = [
         origin_key='mode'
         ,name='Mode Network'
         ,name_short = "Mode"
-        ,description="Mode is an Optimistic Rollup and part of the Superchain. Public launch was in January 2024."
+        ,description="Mode is an Optimistic Rollup and part of the Superchain."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='MODE'
 
