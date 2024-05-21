@@ -222,8 +222,9 @@ class JSONCreation():
         ## First filter down to metric
         df_tmp = df.loc[(df.metric_key.isin(mks)), ["origin_key", "value", "metric_key", "date"]]
 
-        ## then max date of this metric
-        df_tmp = df_tmp.loc[(df_tmp.date == df_tmp.date.max()), ["origin_key", "value", "metric_key", "date"]]
+        ## then max date of this metric per origin_key
+        #df_tmp = df_tmp.loc[(df_tmp.date == df_tmp.date.max()), ["origin_key", "value", "metric_key", "date"]]
+        df_tmp = df_tmp.loc[df_tmp.groupby("origin_key")["date"].idxmax()]
 
         ## asign rank based on order (descending order if metric_key is not 'txcosts')
         if metric_id != 'txcosts':
