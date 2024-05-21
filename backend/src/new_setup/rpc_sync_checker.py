@@ -21,10 +21,10 @@ def connect_to_node(url):
             return w3
         else:
             if attempt < retries:
-                print(f"...attempt {attempt} failed for {w3.provider.endpoint_uri}, retrying in {delay} seconds...")
+                #print(f"...attempt {attempt} failed for {w3.provider.endpoint_uri}, retrying in {delay} seconds...")
                 time.sleep(delay)
             else:
-                print(f"NO CONNECTION: Attempt {attempt} failed for {w3.provider.endpoint_uri}. No more retries left.")
+                print(f"...attempt {attempt} failed for {w3.provider.endpoint_uri}. No more retries left.")
     return None
         
 def fetch_rpc_urls(db_connector, chain_name):
