@@ -10,8 +10,8 @@ import time
 from src.new_setup.utils import get_latest_block
 
 def connect_to_node(url):
-    retries = 3
-    delay = 2
+    retries = 5
+    delay = 5
     w3 = Web3(HTTPProvider(url))
     
     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
@@ -21,10 +21,10 @@ def connect_to_node(url):
             return w3
         else:
             if attempt < retries:
-                print(f"Attempt {attempt} failed, retrying in {delay} seconds...")
+                #print(f"...attempt {attempt} failed for {w3.provider.endpoint_uri}, retrying in {delay} seconds...")
                 time.sleep(delay)
             else:
-                print(f"Attempt {attempt} failed. No more retries left.")
+                print(f"...attempt {attempt} failed for {w3.provider.endpoint_uri}. No more retries left.")
     return None
         
 def fetch_rpc_urls(db_connector, chain_name):
@@ -36,10 +36,10 @@ def fetch_rpc_urls(db_connector, chain_name):
     try:
         with db_connector.engine.connect() as conn:
             result = pd.read_sql(query, conn)
-        print(f"Data fetched successfully for chain: {chain_name}")
+        print(f"...RPC data fetched successfully for chain: {chain_name}")
         return result
     except exc.SQLAlchemyError as e:
-        print(f"Error fetching data for chain: {chain_name}")
+        print(f"ERROR: fetching data for chain: {chain_name}")
         print(e)
         return pd.DataFrame()
     
@@ -51,7 +51,7 @@ def fetch_block(url, results):
         else:
             block = None
     except Exception as e:
-        print(f"Failed to connect to {url}: {str(e)}")
+        print(f"ERROR: Failed to connect to {url}: {str(e)}")
         block = None
 
     results[url] = block if block is not None else 0
@@ -74,7 +74,11 @@ def check_sync_state(blocks, block_threshold):
     max_block = max(blocks.values())
     notsynced_nodes = []
     for url, block in blocks.items():
-        if block == 0 or max_block - block > block_threshold:
+        if block == 0:
+            print(f"UNSYNCED: Node {url} is not responding (block == 0).")
+            notsynced_nodes.append(url)
+        elif max_block - block > block_threshold:
+            print(f"UNSYNCED: Node {url} is too far behind. Max block: {max_block} // Node block: {block} // Behind by: {max_block - block}")
             notsynced_nodes.append(url)
     return notsynced_nodes
 
@@ -88,12 +92,12 @@ def deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes):
         try:
             with db_connector.engine.begin() as conn:
                 conn.execute(sa.text(query), {"origin_key": chain_name, "urls": tuple(notsynced_nodes)})
-            print(f"Nodes: {tuple(notsynced_nodes)} set to unsynced.")
+            print(f"UNSYNCED Nodes: {tuple(notsynced_nodes)} set to unsynced.")
         except sa.exc.SQLAlchemyError as e:
-            print("Error updating nodes' synced status.")
+            print("ERROR: updating nodes' synced status.")
             print(e)
     else:
-        print("No nodes to deactivate.")
+        print("...no nodes to deactivate.")
           
 def get_chains_available(db_connector):
     try:
@@ -105,7 +109,7 @@ def get_chains_available(db_connector):
             origin_keys = [row[0] for row in result]
             return origin_keys
     except sa.exc.SQLAlchemyError as e:
-        print("Error retrieving unique origin_keys.")
+        print("ERROR: retrieving unique origin_keys.")
         print(e)
         return []
 
@@ -120,12 +124,12 @@ def activate_nodes(db_connector, chain_name, rpc_urls):
         try:
             with db_connector.engine.begin() as conn:
                 conn.execute(sa.text(query), {"origin_key": chain_name, "urls": rpc_urls})
-            print("Nodes set to synced.")
+            print("...nodes set to synced.")
         except sa.exc.SQLAlchemyError as e:
-            print("Error updating nodes' synced status.")
+            print("ERROR: updating nodes' synced status.")
             print(e)
     else:
-        print("No nodes to activate.")
+        print("...no nodes to activate.")
           
 def sync_check():
     db_connector = DbConnector()
@@ -133,19 +137,19 @@ def sync_check():
     chains = get_chains_available(db_connector)
     for chain_name in chains:
         if chain_name == 'arbitrum':
-            block_threshold = 50
+            block_threshold = 100
         else:
             block_threshold = 20
             
-        print(f"Processing chain: {chain_name}")
+        print(f"START: processing chain: {chain_name}")
         rpc_urls = fetch_rpc_urls(db_connector, chain_name)
         activate_nodes(db_connector, chain_name, rpc_urls)
         blocks = fetch_all_blocks(rpc_urls)
         notsynced_nodes = check_sync_state(blocks, block_threshold)
         deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes)
-        print(f"Done processing chain: {chain_name}")
+        print(f"DONE: processing chain: {chain_name}")
         
-    print("All chains processed.")
+    print("FINISHED: All chains processed.")
         
 if __name__ == "__main__":
     sync_check()

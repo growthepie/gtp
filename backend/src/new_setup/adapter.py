@@ -108,12 +108,12 @@ class NodeAdapter(AbstractAdapterRaw):
 
             # Check if the block range queue is empty and no threads are active
             if block_range_queue.empty() and not active:
-                print("All workers have stopped and the queue is empty.")
+                print("DONE: All workers have stopped and the queue is empty.")
                 break
             
             # Check if there are no more block ranges to process, but threads are still active
             if block_range_queue.qsize() == 0 and active:
-                print("No more block ranges to process. Waiting for workers to finish.")
+                print("...no more block ranges to process. Waiting for workers to finish.")
             else:
                 print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {len(active_threads)}")
                 
@@ -188,7 +188,7 @@ class NodeAdapter(AbstractAdapterRaw):
                 print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
                 fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
             except Empty:
-                print("No more blocks to process. Worker is shutting down.")
+                print("DONE: no more blocks to process. Worker is shutting down.")
                 return
             except Exception as e:
                 with error_lock:
@@ -200,7 +200,7 @@ class NodeAdapter(AbstractAdapterRaw):
                         self.active_rpcs.remove(rpc_config['url'])
                 print(f"ERROR: for {rpc_config['url']} on block range {block_range[0]}-{block_range[1]}: {e}")
                 block_range_queue.put(block_range)  # Re-queue the failed block range
-                print(f"Re-queued block range {block_range[0]}-{block_range[1]}")
+                print(f"RE-QUEUED: block range {block_range[0]}-{block_range[1]}")
                 break
             finally:
                 if block_range:

@@ -28,6 +28,7 @@ class AdapterMapping(BaseModel):
     launch_date: Optional[str] ## YYYY-MM-DD
     website: Optional[str]
     block_explorer: Optional[str]
+    block_explorers : Optional[dict] ## list of block explorers
     twitter: Optional[str]
 
     coingecko_naming: Optional[str] ## to load price, market cap, etc
@@ -75,6 +76,7 @@ adapter_mapping = [
 
         ,website = 'https://ethereum.org/'
         ,block_explorer = 'https://etherscan.io/'
+        ,block_explorers = {'Etherscan': 'https://etherscan.io/', 'Blockscout': 'https://eth.blockscout.com/'}
         ,twitter = 'https://twitter.com/ethereum'
 
         ,coingecko_naming="ethereum"
@@ -114,6 +116,7 @@ adapter_mapping = [
 
         ,website='https://polygon.technology/polygon-zkevm'
         ,block_explorer='https://zkevm.polygonscan.com/'
+        ,block_explorers={'PolygonScan': 'https://zkevm.polygonscan.com/'}
         ,twitter='https://twitter.com/0xPolygon'
 
         ,coingecko_naming="matic-network"
@@ -156,6 +159,7 @@ adapter_mapping = [
 
         ,website='https://optimism.io/'
         ,block_explorer='https://optimistic.etherscan.io/'
+        ,block_explorers={'Optimistic Etherscan': 'https://optimistic.etherscan.io/'}
         ,twitter='https://twitter.com/Optimism'
 
         ,coingecko_naming="optimism"
@@ -199,6 +203,7 @@ adapter_mapping = [
 
         ,website='https://arbitrum.io/'
         ,block_explorer='https://arbiscan.io/'
+        ,block_explorers={'Arbiscan': 'https://arbiscan.io/'}
         ,twitter='https://twitter.com/arbitrum'
 
         ,coingecko_naming="arbitrum"
@@ -242,6 +247,7 @@ adapter_mapping = [
 
         ,website='https://www.immutable.com/'
         ,block_explorer='https://immutascan.io/'
+        ,block_explorers={'Immutascan': 'https://immutascan.io/'}
         ,twitter='https://twitter.com/immutable'
 
         ,coingecko_naming="immutable-x"
@@ -278,6 +284,7 @@ adapter_mapping = [
 
         ,website='https://zksync.io/'
         ,block_explorer='https://explorer.zksync.io/'
+        ,block_explorers={'zkSync Explorer': 'https://explorer.zksync.io/'}
         ,twitter='https://twitter.com/zksync'
 
         #,coingecko_naming="-"
@@ -315,6 +322,7 @@ adapter_mapping = [
 
         ,website='https://base.org/'
         ,block_explorer='https://basescan.org/'
+        ,block_explorers={'BaseScan': 'https://basescan.org/'}
         ,twitter='https://twitter.com/base'
 
         #,coingecko_naming="-"
@@ -352,6 +360,7 @@ adapter_mapping = [
 
         ,website='https://zora.co/'
         ,block_explorer='https://explorer.zora.energy/'
+        ,block_explorers={'Zora Explorer': 'https://explorer.zora.energy/'}
         ,twitter='https://twitter.com/ourzora'
 
         #,coingecko_naming="-"
@@ -387,6 +396,7 @@ adapter_mapping = [
 
         ,website='https://publicgoods.network/'
         ,block_explorer='https://explorer.publicgoods.network/'
+        ,block_explorers={'PGN Explorer': 'https://explorer.publicgoods.network/'}
         ,twitter="https://twitter.com/pgn_eth"
 
         #,coingecko_naming="-"
@@ -421,6 +431,7 @@ adapter_mapping = [
 
         ,website='https://linea.build/'
         ,block_explorer='https://lineascan.build/'
+        ,block_explorers={'LineaScan': 'https://lineascan.build/'}
         ,twitter="https://twitter.com/LineaBuild"
 
         #,coingecko_naming="linea"
@@ -455,6 +466,7 @@ adapter_mapping = [
 
         ,website='https://scroll.io/'
         ,block_explorer='https://scrollscan.com/'
+        ,block_explorers={'ScrollScan': 'https://scrollscan.com/'}
         ,twitter="https://twitter.com/scroll_zkp"
 
         #,coingecko_naming="scroll"
@@ -490,6 +502,7 @@ adapter_mapping = [
 
         ,website='https://mantle.xyz/'
         ,block_explorer='https://explorer.mantle.xyz/'
+        ,block_explorers={'Mantle Explorer': 'https://explorer.mantle.xyz/'}
         ,twitter="https://twitter.com/0xMantle"
 
         ,coingecko_naming="mantle"
@@ -533,6 +546,7 @@ adapter_mapping = [
 
         ,website='https://loopring.org/'
         ,block_explorer='https://explorer.loopring.io/'
+        ,block_explorers={'Loopring Explorer': 'https://explorer.loopring.io/'}
         ,twitter='https://twitter.com/loopringorg'
 
         ,coingecko_naming="loopring"
@@ -572,6 +586,7 @@ adapter_mapping = [
 
         ,website='https://starknet.io/'
         ,block_explorer='https://starkscan.co/'
+        ,block_explorers={'StarkScan': 'https://starkscan.co/'}
         ,twitter='https://twitter.com/StarkWareLtd'
 
         ,coingecko_naming="starknet"
@@ -613,6 +628,7 @@ adapter_mapping = [
 
         ,website='https://rhino.fi/'
         ,block_explorer='https://app.rhino.fi/stats'
+        ,block_explorers={'Rhino Explorer': 'https://app.rhino.fi/stats'}
         ,twitter='https://twitter.com/rhinofi'
 
         ,coingecko_naming="rhinofi"
@@ -653,6 +669,7 @@ adapter_mapping = [
 
         ,website='https://metis.io/'
         ,block_explorer='https://explorer.metis.io/'
+        ,block_explorers={'Metis Explorer': 'https://explorer.metis.io/'}
         ,twitter="https://twitter.com/MetisL2"
 
         ,coingecko_naming="metis-token"
@@ -695,6 +712,7 @@ adapter_mapping = [
 
         ,website='https://pacific.manta.network/'
         ,block_explorer='https://pacific-explorer.manta.network/'
+        ,block_explorers={'Manta Pacific Explorer': 'https://pacific-explorer.manta.network/'}
         ,twitter="https://twitter.com/MantaNetwork"
 
         ,coingecko_naming="manta-network"
@@ -737,6 +755,7 @@ adapter_mapping = [
 
         ,website='https://blast.io/en'
         ,block_explorer='https://blastscan.io/'
+        ,block_explorers={'Blast Explorer': 'https://blastscan.io/'}
         ,twitter="https://twitter.com/Blast_L2"
 
         #,coingecko_naming=""
@@ -775,6 +794,7 @@ adapter_mapping = [
 
         ,website='https://mode.network/'
         ,block_explorer='https://explorer.mode.network/'
+        ,block_explorers={'Mode Explorer': 'https://explorer.mode.network/'}
         ,twitter="https://twitter.com/modenetwork"
 
         #,coingecko_naming=""

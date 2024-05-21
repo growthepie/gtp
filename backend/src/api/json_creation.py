@@ -1075,6 +1075,7 @@ class JSONCreation():
                 'website': chain.website,
                 'twitter': chain.twitter,
                 'block_explorer': chain.block_explorer,
+                'block_explorers': chain.block_explorers,
                 'rhino_listed': bool(getattr(chain, 'rhino_naming', None)),
                 'rhino_naming': getattr(chain, 'rhino_naming', None)
             }
