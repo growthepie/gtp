@@ -26,7 +26,7 @@ class AdapterCrossCheck(AbstractAdapter):
         self.proxy =  {
             'https': os.getenv('PROXY'),
         }
-        self.webhook_url = os.getenv('DISCORD_TX_CHECKER')
+        self.webhook_url = os.getenv('DISCORD_ALERTS')
         print_init(self.name, self.adapter_params)
 
     """

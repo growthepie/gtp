@@ -85,7 +85,7 @@ def api_post_call(url, payload, sleeper=0.5, retries=15, header=None, _remove_co
             time.sleep(retry_counter * sleeper)
     
     if interupt == True:
-        print("Execution ended successfully in api_get_call")
+        print("Execution ended successfully in api_post_call")
         sys.exit()
     else:
         if _remove_control_characters == True:
