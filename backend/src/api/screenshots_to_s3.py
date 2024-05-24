@@ -136,7 +136,7 @@ def run_screenshots(s3_bucket, cf_distribution_id, api_version, user=None, is_lo
             path = f"{main_path}/{path_joined}.png"
 
             # the path to save the image in s3
-            s3_path = f'{api_version}/og_images/{path_joined}.png'
+            s3_path = f'{api_version}/og_images/{path_joined}'
 
             # if the path does not exist locally, create it
             if not os.path.exists(os.path.dirname(path)):
