@@ -7,6 +7,7 @@ from PIL import Image
 import time
 import os
 import requests
+import numpy as np
 
 BASE_URL = 'https://www.growthepie.xyz'
 
@@ -74,6 +75,31 @@ def capture_screenshot(url, output_path, css_selectors, offsets):
             max([c[3] for c in coords])
         ))
 
+        # Convert the result image to a numpy array
+        result_array = np.array(result_image)
+
+        # Remove horizontal pixels that are all black
+        non_black_rows = [i for i in range(result_array.shape[0]) if np.any(
+            result_array[i, :, :] != [0, 0, 0])]
+        result_array = result_array[non_black_rows, :, :]
+
+        # Remove vertical pixels that are all black
+        non_black_cols = [i for i in range(result_array.shape[1]) if np.any(
+            result_array[:, i, :] != [0, 0, 0])]
+        result_array = result_array[:, non_black_cols, :]
+
+        # Convert the numpy array back to an image
+        result_image = Image.fromarray(result_array)
+
+        # the image should be at 1200px wide by 630px tall, so we will resize the image to fit that width and then crop the height
+        image_dimensions = result_image.size
+        result_image = result_image.resize(
+            (1200, int(1200 * image_dimensions[1] / image_dimensions[0])))
+
+        # crop the image to the correct height
+        result_image = result_image.crop((0, 0, 1200, 630))
+
+        # save the image
         result_image.save(output_path)
 
         return result_image
@@ -81,7 +107,7 @@ def capture_screenshot(url, output_path, css_selectors, offsets):
         driver.quit()
 
 
-def run_screenshots(s3_bucket, cf_distribution_id, api_version, user=None):
+def run_screenshots(s3_bucket, cf_distribution_id, api_version, user=None, is_local_test=False):
     print("Running screenshots")
 
     if user == 'ubuntu':
@@ -110,7 +136,7 @@ def run_screenshots(s3_bucket, cf_distribution_id, api_version, user=None):
             path = f"{main_path}/{path_joined}.png"
 
             # the path to save the image in s3
-            s3_path = f'{api_version}/og_images/{path_joined}.png'
+            s3_path = f'{api_version}/og_images/{path_joined}'
 
             # if the path does not exist locally, create it
             if not os.path.exists(os.path.dirname(path)):
@@ -126,7 +152,9 @@ def run_screenshots(s3_bucket, cf_distribution_id, api_version, user=None):
             now = time.strftime("%Y-%m-%d %H:%M:%S")
             print(f"{now} - Uploading screenshot for {url} to s3 path: {s3_path}")
 
-            upload_png_to_cf_s3(s3_bucket, s3_path, path, cf_distribution_id)
+            if not is_local_test:
+                upload_png_to_cf_s3(s3_bucket, s3_path,
+                                    path, cf_distribution_id)
 
 
 def get_page_groups_from_sitemap():
@@ -221,8 +249,8 @@ def get_screenshot_data():
             "url": url,
             "path_list": url.split("/")[3:],
             # first six children of the #content-container that are divs
-            "css_selectors": ["#content-container > div:nth-child(1)", "#content-container > div:nth-child(2)", "#content-container > div:nth-child(3)", "#content-container > div:nth-child(4)", "#content-container > div:nth-child(5)", "#content-container > div:nth-child(6)"],
-            "offsets": [[-10, -10, 10, 10], [-10, -10, 10, 10], [-10, -10, 10, 10], [-10, -10, 10, 10], [-10, -10, 10, 87], [-10, -10, 10, 87]]
+            "css_selectors": ["#chains-page-title", "#chains-content-container"],
+            "offsets": [[-20, -20, 20, 0], [-20, -0, 20, 0]]
         })
 
     screenshot_data = {
