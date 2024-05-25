@@ -408,6 +408,17 @@ class DbConnector:
                 df = df.dropna(subset=['address'])
                 return df
 
+        def get_total_supply_blocks(self, origin_key, days):
+                exec_string = f'''
+                        SELECT 
+                                DATE(block_timestamp) AS date,
+                                MAX(block_number) AS block_number
+                        FROM public.{origin_key}_tx
+                        WHERE DATE(block_timestamp) BETWEEN (CURRENT_DATE - INTERVAL '{days+1} days') AND (CURRENT_DATE - INTERVAL '1 day')
+                        GROUP BY DATE(block_timestamp);
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
 
         ## Blockspace queries
         # This function is used to get aggregate the blockspace data on contract level for a specific chain. The data will be loaded into fact_contract_level table
@@ -499,7 +510,7 @@ class DbConnector:
 
                         SELECT 
                                 date_trunc('day', block_timestamp) as date,
-                                'native_transfer' as sub_category_key,
+                                'native_transfer' as category_id,
                                 '{chain}' as origin_key,
                                 sum({tx_fee_eth_string}) as gas_fees_eth,
                                 sum({tx_fee_usd_string}) as gas_fees_usd,
@@ -548,7 +559,7 @@ class DbConnector:
 
                         SELECT 
                                 date_trunc('day', block_timestamp) as date,
-                                'inscriptions' as sub_category_key,
+                                'inscriptions' as category_id,
                                 '{chain}' as origin_key,
                                 sum({tx_fee_eth_string}) as gas_fees_eth,
                                 sum({tx_fee_usd_string}) as gas_fees_usd,
@@ -607,7 +618,7 @@ class DbConnector:
 
                         SELECT 
                                 date_trunc('day', block_timestamp) as date,
-                                'smart_contract_deployment' as sub_category_key,
+                                'contract_deployment' as category_id,
                                 '{chain}' as origin_key,
                                 sum({tx_fee_eth_string}) as gas_fees_eth,
                                 sum({tx_fee_usd_string}) as gas_fees_usd,
@@ -655,7 +666,7 @@ class DbConnector:
 
                         select 
                                 date_trunc('day', block_timestamp) as date,
-                                'total_usage' as sub_category_key,
+                                'total_usage' as category_id,
                                 '{chain}' as origin_key,
                                 sum({tx_fee_eth_string}) as gas_fees_eth,
                                 sum({tx_fee_usd_string}) as gas_fees_usd, 
@@ -676,7 +687,7 @@ class DbConnector:
         def get_blockspace_sub_categories(self, chain, days):
                 exec_string = f'''
                         SELECT 
-                                lower(bl.sub_category_key) as sub_category_key,
+                                lower(bl.usage_category) as category_id,
                                 '{chain}' as origin_key,
                                 date,
                                 sum(gas_fees_eth) as gas_fees_eth,
@@ -684,7 +695,7 @@ class DbConnector:
                                 sum(txcount) as txcount,
                                 sum(daa) as daa
                         FROM public.blockspace_fact_contract_level cl
-                        inner join blockspace_labels bl on cl.address = bl.address
+                        inner join vw_oli_labels bl on cl.address = bl.address
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and bl.origin_key = '{chain}' 
@@ -703,11 +714,11 @@ class DbConnector:
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount
-                                FROM public.blockspace_fact_sub_category_level
+                                FROM public.blockspace_fact_category_level
                                 where date < DATE_TRUNC('day', NOW())
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         and origin_key = '{chain}'
-                                        and sub_category_key <> 'unlabeled' and sub_category_key <> 'total_usage'
+                                        and category_id <> 'unlabeled' and category_id <> 'total_usage'
                                 group by 1
                         ),
                         total_usage as (
@@ -716,17 +727,17 @@ class DbConnector:
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount
-                                FROM public.blockspace_fact_sub_category_level
+                                FROM public.blockspace_fact_category_level
                                 where date < DATE_TRUNC('day', NOW())
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         and origin_key = '{chain}'
-                                        and sub_category_key = 'total_usage'
+                                        and category_id = 'total_usage'
                                 group by 1
                         )
 
                         select 
                                 t.date,
-                                'unlabeled' as sub_category_key,
+                                'unlabeled' as category_id,
                                 '{chain}' as origin_key,
                                 t.gas_fees_eth - l.gas_fees_eth as gas_fees_eth,
                                 t.gas_fees_usd - l.gas_fees_usd as gas_fees_usd,
@@ -749,15 +760,15 @@ class DbConnector:
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
 
                 if main_category.lower() != 'unlabeled':
-                        main_category_string = f"and bcm.main_category_key = lower('{main_category}')" 
+                        main_category_string = f"and bcm.main_category_id = lower('{main_category}')" 
                         sub_main_string = """
-                                bl.sub_category_key,
-                                bcm.sub_category_name,
-                                bcm.main_category_key,
+                                bl.usage_category as sub_category_key,
+                                bcm.category_name as sub_category_name,
+                                bcm.main_category_id as main_category_key,
                                 bcm.main_category_name,
                         """
                 else:
-                        main_category_string = 'and bcm.main_category_key is null'
+                        main_category_string = 'and bcm.main_category_id is null'
                         sub_main_string = """
                                 'unlabeled' as sub_category_key,
                                 'Unlabeled' as sub_category_name,
@@ -771,16 +782,17 @@ class DbConnector:
                                 SELECT 
                                         cl.address,
                                         cl.origin_key,
-                                        bl.contract_name,
-                                        bl.project_name,
+                                        bl.name as contract_name,
+                                        oss.display_name as project_name,
                                         {sub_main_string}
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
-                                left join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
+                                left join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id) 
+                                left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where 
                                         date < DATE_TRUNC('day', NOW())
                                         {date_string}
@@ -833,19 +845,20 @@ class DbConnector:
                                 SELECT
                                         cl.address,
                                         cl.origin_key,
-                                        bl.contract_name,
-                                        bl.project_name,
-                                        bl.sub_category_key,
-                                        bcm.sub_category_name,
-                                        bcm.main_category_key,
+                                        bl.name as contract_name,
+                                        oss.display_name as project_name,
+                                        bl.usage_category as sub_category_key,
+                                        bcm.category_name as sub_category_name,
+                                        bcm.main_category_id as main_category_key,
                                         bcm.main_category_name,
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
-                                join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key)
+                                join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
+                                join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id)
+                                left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where
                                         date < DATE_TRUNC('day', NOW())
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
@@ -859,25 +872,17 @@ class DbConnector:
                                 SELECT
                                         cl.address,
                                         cl.origin_key,
-                                        bl.contract_name,
-                                        bl.project_name,
-                                        bl.sub_category_key,
-                                        bcm.sub_category_name,
-                                        bcm.main_category_key,
-                                        bcm.main_category_name,
                                         sum(cl.gas_fees_eth) as gas_fees_eth,
                                         sum(cl.gas_fees_usd) as gas_fees_usd,
                                         sum(cl.txcount) as txcount,
                                         round(avg(cl.daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
                                 inner join top_contracts tc on tc.address = cl.address and tc.origin_key = cl.origin_key 
-                                join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
-                                join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key)
                                 where
                                         date < DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days*2} days')
                                         and cl.origin_key IN ('{"','".join(origin_keys)}')
-                                group by 1,2,3,4,5,6,7,8
+                                group by 1,2
                         )
                         -- join the two tables together to get the change in the top_by metric for the given contracts
                         select
@@ -923,15 +928,15 @@ class DbConnector:
         def get_contracts_category_comparison(self, main_category, days, origin_keys:list):
                 date_string = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ''
                 if main_category.lower() != 'unlabeled':
-                        main_category_string = f"and bcm.main_category_key = lower('{main_category}')" 
+                        main_category_string = f"and bcm.main_category_id = lower('{main_category}')" 
                         sub_main_string = """
-                                bl.sub_category_key,
-                                bcm.sub_category_name,
-                                bcm.main_category_key,
+                                bl.usage_category as sub_category_key,
+                                bcm.category_name as sub_category_name,
+                                bcm.main_category_id as main_category_key,
                                 bcm.main_category_name,
                         """
                 else:
-                        main_category_string = 'and bcm.main_category_key is null'
+                        main_category_string = 'and bcm.main_category_id is null'
                         sub_main_string = """
                                 'unlabeled' as sub_category_key,
                                 'Unlabeled' as sub_category_name,
@@ -945,16 +950,17 @@ class DbConnector:
                                 SELECT 
                                         cl.address,
                                         cl.origin_key,
-                                        bl.contract_name,
-                                        bl.project_name,
+                                        bl.name as contract_name,
+                                        oss.display_name as project_name,
                                         {sub_main_string}
                                         sum(gas_fees_eth) as gas_fees_eth,
                                         sum(gas_fees_usd) as gas_fees_usd,
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join blockspace_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
-                                left join blockspace_category_mapping bcm on lower(bl.sub_category_key) = lower(bcm.sub_category_key) 
+                                left join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id) 
+                                left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where 
                                         date < DATE_TRUNC('day', NOW())
                                         and cl.origin_key IN ('{"','".join(origin_keys)}')
@@ -964,7 +970,7 @@ class DbConnector:
                                 order by gas_fees_eth desc
                                 ),
                                 
-                        top_contracts_sub_category_and_origin_key as (
+                        top_contracts_category_and_origin_key as (
                                 SELECT
                                         address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
                                 FROM (
@@ -978,7 +984,7 @@ class DbConnector:
                                 )
                                 
                         select * from (select * from top_contracts order by gas_fees_eth desc limit 50) a
-                        union select * from top_contracts_sub_category_and_origin_key
+                        union select * from top_contracts_category_and_origin_key
                 '''
                 # print(main_category)
                 # print(exec_string)
@@ -991,7 +997,7 @@ class DbConnector:
                                 cte_imx_deposits as (
                                         select 
                                                 date_trunc('day', "timestamp") as day, 
-                                                'bridge' as sub_category_key,
+                                                'bridge' as category_id,
                                                 Count(*) as txcount                    
                                         from imx_deposits
                                         WHERE timestamp < date_trunc('day', now())
@@ -1001,7 +1007,7 @@ class DbConnector:
                                 cte_imx_mints as (
                                                 select 
                                                         date_trunc('day', "timestamp") as day, 
-                                                        'erc721' as sub_category_key,
+                                                        'non_fungible_tokens' as category_id,
                                                         Count(*) as txcount 
                                                 from imx_mints
                                                 WHERE timestamp < date_trunc('day', now())
@@ -1011,7 +1017,7 @@ class DbConnector:
                                 cte_imx_trades as (
                                         select 
                                                 date_trunc('day', "timestamp") as day, 
-                                                'nft_marketplace' as sub_category_key,
+                                                'nft_marketplace' as category_id,
                                                 Count(*) as txcount                        
                                         from imx_trades
                                         WHERE timestamp < date_trunc('day', now())
@@ -1021,7 +1027,7 @@ class DbConnector:
                                 cte_imx_transfers_erc20 as (
                                         select 
                                                 date_trunc('day', "timestamp") as day,
-                                                'erc20' as sub_category_key,
+                                                'fungible_tokens' as category_id,
                                                 Count(*) as txcount
                                         from imx_transfers
                                         WHERE timestamp < date_trunc('day', now())
@@ -1032,7 +1038,7 @@ class DbConnector:
                                 cte_imx_transfers_erc721 as (
                                         select 
                                                 date_trunc('day', "timestamp") as day,
-                                                'erc721' as sub_category_key,
+                                                'non_fungible_tokens' as category_id,
                                                 Count(*) as txcount
                                         from imx_transfers
                                         WHERE timestamp < date_trunc('day', now())
@@ -1043,7 +1049,7 @@ class DbConnector:
                                 cte_imx_transfers_eth as (
                                         select 
                                                 date_trunc('day', "timestamp") as day,
-                                                'native_transfer' as sub_category_key,
+                                                'native_transfer' as category_id,
                                                 Count(*) as txcount
                                         from imx_transfers
                                         WHERE timestamp < date_trunc('day', now())
@@ -1054,7 +1060,7 @@ class DbConnector:
                                 cte_imx_withdrawals as (
                                         select 
                                         date_trunc('day', "timestamp") as day, 
-                                        'bridge' as sub_category_key,
+                                        'bridge' as category_id,
                                         Count(*) as txcount     
                                         from imx_withdrawals  
                                         WHERE timestamp < date_trunc('day', now())
@@ -1078,7 +1084,7 @@ class DbConnector:
                                 )
                                 select 
                                         day as date, 
-                                        sub_category_key,
+                                        category_id,
                                         'imx' as origin_key,
                                         SUM(txcount) as txcount 
                                 from unioned 
@@ -1098,7 +1104,7 @@ class DbConnector:
                                         cl.origin_key, 
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num 
                                 FROM public.blockspace_fact_contract_level cl 
-                                LEFT JOIN blockspace_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
+                                LEFT JOIN vw_oli_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
                                 WHERE bl.address IS NULL 
                                 AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 AND NOT EXISTS (
@@ -1118,18 +1124,6 @@ class DbConnector:
                         WHERE row_num <= {number_of_contracts} 
                         ORDER BY origin_key, row_num
     
-                '''
-                df = pd.read_sql(exec_string, self.engine.connect())
-                return df
-        
-        def get_total_supply_blocks(self, origin_key, days):
-                exec_string = f'''
-                        SELECT 
-                                DATE(block_timestamp) AS date,
-                                MAX(block_number) AS block_number
-                        FROM public.{origin_key}_tx
-                        WHERE DATE(block_timestamp) BETWEEN (CURRENT_DATE - INTERVAL '{days+1} days') AND (CURRENT_DATE - INTERVAL '1 day')
-                        GROUP BY DATE(block_timestamp);
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df

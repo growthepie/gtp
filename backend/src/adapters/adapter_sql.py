@@ -197,10 +197,10 @@ class AdapterSQL(AbstractAdapter):
             if chain == 'imx':
                 print(f"...aggregating imx data for last {days} days...")
                 df = self.db_connector.get_blockspace_imx(days)
-                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
 
                 print(f"...upserting imx data . Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
             
             else:
                 ## aggregate contract data
@@ -214,34 +214,34 @@ class AdapterSQL(AbstractAdapter):
                 ## determine total usage
                 print(f"...aggregating total usage for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_total(chain, days)
-                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
 
                 print(f"...upserting total usage usage for {chain}. Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
                 ## aggregate native transfers
                 print(f"...aggregating native_transfers for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_native_transfers(chain, days)
-                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
 
                 print(f"...upserting native_transfers for {chain}. Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
                 ## aggregate contract deployments
                 print(f"...aggregating smart_contract_deployments for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_contract_deplyments(chain, days)
-                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
 
                 print(f"...upserting smart_contract_deployments for {chain}. Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
                 ## aggregate inscriptions
                 print(f"...aggregating inscriptions for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_inscriptions(chain, days)
-                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
 
                 print(f"...upserting inscriptions for {chain}. Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
                 # ALL below needs to be retriggerd when mapping changes (e.g. new addresses got labeled or new categories added etc.)
                 ## aggregate by sub categories
@@ -249,18 +249,18 @@ class AdapterSQL(AbstractAdapter):
                 days_mapping = 5000
                 print(f"...aggregating sub categories for {chain} and last {days_mapping} days...")
                 df = self.db_connector.get_blockspace_sub_categories(chain, days_mapping)
-                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
 
                 print(f"...upserting sub categories for {chain}. Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
                 ## determine unlabeled usage
                 print(f"...aggregating unlabeled usage for {chain} and last {days_mapping} days...")
                 df = self.db_connector.get_blockspace_unlabeled(chain, days_mapping)
-                df.set_index(['date', 'sub_category_key' ,'origin_key'], inplace=True)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
 
                 print(f"...upserting unlabeled usage for {chain}. Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_sub_category_level', df)
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
             print(F"Finished loading blockspace queries for {chain}")
         print(F"Finished loading blockspace for all chains")

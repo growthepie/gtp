@@ -13,112 +13,6 @@ class BlockspaceJSONCreation():
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
-
-    def download_chain_blockspace_overview_data(self, chain_key):
-        exec_string = f"""
-            SELECT 
-                bs_cm.main_category_key,
-                bs_scl.origin_key as origin_key,
-                bs_scl."date",
-                bs_scl.gas_fees_eth,
-                bs_scl.gas_fees_usd,
-                bs_scl.txcount,
-                gas_fees_eth / NULLIF(SUM(gas_fees_eth) over(partition by date), 0) AS gas_fees_share_eth,
-                gas_fees_usd / NULLIF(SUM(gas_fees_usd) over(partition by date), 0) AS gas_fees_share_usd,
-                txcount / NULLIF(SUM(txcount) over(partition by date), 0) AS txcount_share
-            FROM public.blockspace_fact_sub_category_level bs_scl
-            JOIN public.blockspace_category_mapping bs_cm on bs_scl.sub_category_key = bs_cm.sub_category_key
-            WHERE bs_scl.origin_key = '{chain_key}'
-                and bs_scl."date" >= '2021-01-01'
-                and bs_scl."date" < date_trunc('day', now())
-                -- ignore total_usage
-                and bs_scl.sub_category_key != 'total_usage'
-            ORDER BY bs_scl."date" ASC
-        """
-
-        if chain_key == 'all_l2s':
-            exec_string = f"""
-                SELECT
-                    main_category_key,
-                    by_category.origin_key as origin_key,
-                    by_category."date",
-                    by_category.gas_fees_eth,
-                    by_category.gas_fees_usd,
-                    by_category.txcount,
-                    by_category.gas_fees_eth / NULLIF(totals.gas_fees_eth_total, 0) AS gas_fees_share_eth,
-                    by_category.gas_fees_usd / NULLIF(totals.gas_fees_usd_total, 0) AS gas_fees_share_usd,
-                    by_category.txcount / NULLIF(totals.txcount_total, 0) AS txcount_share 
-                FROM
-                (
-                    SELECT
-                        'all_l2s' AS origin_key,
-                        bs_cm.main_category_key,
-                        bs_scl."date",
-                        SUM(bs_scl.gas_fees_eth) AS gas_fees_eth,
-                        SUM(bs_scl.gas_fees_usd) AS gas_fees_usd,
-                        SUM(bs_scl.txcount) AS txcount 
-                    FROM
-                        public.blockspace_fact_sub_category_level bs_scl 
-                    JOIN
-                        public.blockspace_category_mapping bs_cm 
-                        ON bs_scl.sub_category_key = bs_cm.sub_category_key 
-                    WHERE
-                        bs_scl."date" >= '2021-01-01' 
-                        AND bs_scl."date" < date_trunc('day', NOW()) 
-                        -- ignore total_usage
-                        and bs_scl.sub_category_key != 'total_usage'
-                    GROUP BY
-                        bs_scl."date",
-                        bs_cm.main_category_key 
-                    ORDER BY
-                        bs_scl."date" DESC
-                )
-                by_category 
-                JOIN
-                    (
-                    SELECT
-                        'all_l2s' AS origin_key,
-                        bs_scl."date",
-                        SUM(bs_scl.gas_fees_eth) AS gas_fees_eth_total,
-                        SUM(bs_scl.gas_fees_usd) AS gas_fees_usd_total,
-                        SUM(bs_scl.txcount) AS txcount_total 
-                    FROM
-                        public.blockspace_fact_sub_category_level bs_scl 
-                        JOIN
-                        public.blockspace_category_mapping bs_cm 
-                        ON bs_scl.sub_category_key = bs_cm.sub_category_key 
-                    WHERE
-                        bs_scl."date" >= '2021-01-01' 
-                        AND bs_scl."date" < date_trunc('day', NOW()) 
-                        -- ignore total_usage
-                        and bs_scl.sub_category_key != 'total_usage'
-                    GROUP BY
-                        bs_scl."date" 
-                    )
-                    totals 
-                    ON by_category.date = totals.date 
-                WHERE
-                by_category."date" >= '2021-01-01' 
-                AND by_category."date" < date_trunc('day', NOW()) 
-                ORDER BY
-                by_category."date" ASC
-            """
-
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
-
-        # date to datetime column in UTC
-        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
-
-        # datetime to unix timestamp using timestamp() function
-        df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
-
-        # drop date column
-        df.drop(columns=['date'], inplace=True)
-
-        # fill NaN values with 0
-        df.fillna(0, inplace=True)
-
-        return df
     
     def get_blockspace_overview_daily_data(self, chain_keys):
         where_origin_key = f"AND bs_scl.origin_key = '{chain_keys[0]}'" if len(chain_keys) == 1 else "AND bs_scl.origin_key IN ('" + "','".join(chain_keys) + "')"
@@ -134,10 +28,10 @@ class BlockspaceJSONCreation():
                     SUM(bs_scl.gas_fees_usd) AS gas_fees_usd,
                     SUM(bs_scl.txcount) AS txcount
                 FROM
-                    public.blockspace_fact_sub_category_level bs_scl
+                    public.blockspace_fact_category_level bs_scl
                 WHERE
                     bs_scl."date" < date_trunc('day', NOW())
-                    AND bs_scl.sub_category_key != 'total_usage'
+                    AND bs_scl.category_id != 'total_usage'
                     {where_origin_key}
                 GROUP BY
                     bs_scl."date",
@@ -146,7 +40,7 @@ class BlockspaceJSONCreation():
             SELECT
                 bs_scl.date,
                 {select_origin_key},
-                bs_cm.main_category_key,
+                bs_cm.main_category_id as main_category_key,
                 SUM(bs_scl.gas_fees_eth) AS gas_fees_eth,
                 SUM(bs_scl.gas_fees_usd) AS gas_fees_usd,
                 SUM(bs_scl.txcount) AS txcount,
@@ -154,21 +48,21 @@ class BlockspaceJSONCreation():
                 SUM(bs_scl.gas_fees_usd) / NULLIF(totals.gas_fees_usd, 0) AS gas_fees_share_usd,
                 SUM(bs_scl.txcount) / NULLIF(totals.txcount, 0) AS txcount_share
             FROM
-                public.blockspace_fact_sub_category_level bs_scl
-            JOIN
-                public.blockspace_category_mapping bs_cm
-                ON bs_scl.sub_category_key = bs_cm.sub_category_key
+                public.blockspace_fact_category_level bs_scl
+            LEFT JOIN 
+                vw_oli_category_mapping bs_cm 
+                ON lower(bs_scl.category_id) = lower(bs_cm.category_id) 
             JOIN 
                 totals 
                 ON bs_scl.date = totals.date
             WHERE
                 bs_scl."date" < date_trunc('day', NOW())
-                AND bs_scl.sub_category_key != 'total_usage'
+                AND bs_scl.category_id != 'total_usage'
                 {where_origin_key}
             GROUP BY
                 bs_scl."date",
                 {group_by_origin_key},
-                bs_cm.main_category_key,
+                bs_cm.main_category_id,
                 totals.gas_fees_eth,
                 totals.gas_fees_usd,
                 totals.txcount
@@ -180,14 +74,8 @@ class BlockspaceJSONCreation():
 
         # date to datetime column in UTC
         df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
-
-        # datetime to unix timestamp using timestamp() function
         df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
-
-        # drop date column
         df.drop(columns=['date'], inplace=True)
-
-        # fill NaN values with 0
         df.fillna(0, inplace=True)
 
         return df
@@ -206,11 +94,11 @@ class BlockspaceJSONCreation():
                     SUM(bs_scl.gas_fees_usd) AS gas_fees_usd,
                     SUM(bs_scl.txcount) AS txcount
                 FROM
-                    public.blockspace_fact_sub_category_level bs_scl
+                    public.blockspace_fact_category_level bs_scl
                 WHERE
                     bs_scl."date" < date_trunc('day', NOW())
                     {date_where}
-                    AND bs_scl.sub_category_key != 'total_usage'
+                    AND bs_scl.category_id != 'total_usage'
                     {where_origin_key}
                 GROUP BY
                     {group_by_origin_key}
@@ -219,7 +107,7 @@ class BlockspaceJSONCreation():
                 
             SELECT
                 {select_origin_key},
-                bs_cm.main_category_key,
+                bs_cm.main_category_id as main_category_key,
                 SUM(bs_scl.gas_fees_eth) AS gas_fees_eth,
                 SUM(bs_scl.gas_fees_usd) AS gas_fees_usd,
                 SUM(bs_scl.txcount) AS txcount,
@@ -227,10 +115,10 @@ class BlockspaceJSONCreation():
                 SUM(bs_scl.gas_fees_usd) / NULLIF(totals.gas_fees_usd, 0) AS gas_fees_share_usd,
                 SUM(bs_scl.txcount) / NULLIF(totals.txcount, 0) AS txcount_share
             FROM
-                public.blockspace_fact_sub_category_level bs_scl
-            JOIN
-                public.blockspace_category_mapping bs_cm
-                ON bs_scl.sub_category_key = bs_cm.sub_category_key
+                public.blockspace_fact_category_level bs_scl
+            LEFT JOIN 
+                vw_oli_category_mapping bs_cm 
+                ON lower(bs_scl.category_id) = lower(bs_cm.category_id)
             JOIN
                 totals
                 ON chain_key = totals.chain_key
@@ -238,16 +126,16 @@ class BlockspaceJSONCreation():
                 bs_scl."date" < DATE_TRUNC('day', NOW())
                 {date_where}
                 -- ignore total_usage
-                and bs_scl.sub_category_key != 'total_usage'
+                and bs_scl.category_id != 'total_usage'
                 {where_origin_key}
             GROUP BY
-                bs_cm.main_category_key,
+                bs_cm.main_category_id,
                 {group_by_origin_key},
                 totals.gas_fees_eth,
                 totals.gas_fees_usd,
                 totals.txcount
             ORDER BY
-                bs_cm.main_category_key ASC
+                2 ASC
         """
 
         df = pd.read_sql(exec, self.db_connector.engine.connect())
@@ -258,7 +146,7 @@ class BlockspaceJSONCreation():
         return df
 
     def get_category_mapping(self):
-        exec_string = "SELECT * FROM public.blockspace_category_mapping"
+        exec_string = "SELECT * FROM vw_oli_category_mapping"
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
         return df
     
@@ -286,7 +174,7 @@ class BlockspaceJSONCreation():
         # get main_category_keys in the blockspace_df
         category_mapping = self.get_category_mapping()
 
-        main_category_keys = category_mapping['main_category_key'].unique().tolist()
+        main_category_keys = category_mapping['main_category_id'].unique().tolist()
 
         ## put all origin_keys from adapter_mapping in a list where in_api is True
         chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
@@ -415,7 +303,7 @@ class BlockspaceJSONCreation():
         # get main_category_keys in the blockspace_df
         category_mapping = self.get_category_mapping()
 
-        main_category_keys = category_mapping['main_category_key'].unique().tolist()
+        main_category_keys = category_mapping['main_category_id'].unique().tolist()
 
         #for chain_key in adapter_mapping:
         for chain in adapter_mapping:
@@ -526,8 +414,10 @@ class BlockspaceJSONCreation():
         date_where = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ""
     
         sub_category_key_str = ""
+        sub_category_key_str2 = ""
         if category_type == 'sub_category':
-            sub_category_key_str = "sub_category_key, "          
+            sub_category_key_str = "category_id as sub_category_key, "         
+            sub_category_key_str2 = "sub_category_key, " 
 
         exec = f"""
             -- Total values for each chain (origin_key) over specified days
@@ -536,11 +426,11 @@ class BlockspaceJSONCreation():
                     origin_key, 
                     SUM(gas_fees_eth) AS total_gas_fees_eth,
                     SUM(txcount) AS total_txcount
-                FROM blockspace_fact_sub_category_level
+                FROM blockspace_fact_category_level
                 WHERE date < DATE_TRUNC('day', NOW())
                     {date_where}
                     -- ignore total_usage
-                    and sub_category_key != 'total_usage'
+                    and category_id != 'total_usage'
                     and origin_key IN ('{"','".join(origin_keys)}')
                 GROUP BY origin_key
             )
@@ -548,21 +438,22 @@ class BlockspaceJSONCreation():
             -- Aggregate for each sub_category_key and chain over specified days
             SELECT 
                 origin_key, 
-                bcm.main_category_key,
+                bcm.main_category_id as main_category_key,
                 {sub_category_key_str}
                 SUM(gas_fees_eth) AS gas_fees_eth,
                 SUM(gas_fees_usd) AS gas_fees_usd,
                 SUM(txcount) AS txcount,
                 (SUM(gas_fees_eth) / t.total_gas_fees_eth) AS gas_fees_share,
                 (SUM(txcount) / t.total_txcount) AS txcount_share
-            FROM blockspace_fact_sub_category_level
+            FROM blockspace_fact_category_level bs_scl
             JOIN totals t USING (origin_key)
-            LEFT JOIN blockspace_category_mapping bcm USING (sub_category_key)
+            LEFT JOIN 
+                vw_oli_category_mapping bcm USING (category_id)
             WHERE date < DATE_TRUNC('day', NOW())
                 {date_where}
                 -- ignore total_usage
-                and sub_category_key != 'total_usage'
-            GROUP BY origin_key, bcm.main_category_key, {sub_category_key_str} t.total_gas_fees_eth, t.total_txcount
+                and category_id != 'total_usage'
+            GROUP BY origin_key, main_category_key, {sub_category_key_str2} t.total_gas_fees_eth, t.total_txcount
         """
 
         df = pd.read_sql(exec, self.db_connector.engine)
@@ -576,8 +467,10 @@ class BlockspaceJSONCreation():
         date_where = f"and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ""
         
         sub_category_key_str = ""
+        sub_category_key_str2 = ""
         if category_type == 'sub_category':
-            sub_category_key_str = "sub_category_key, "  
+            sub_category_key_str = "category_id as sub_category_key, " 
+            sub_category_key_str2 = "sub_category_key, "
 
         exec = f"""
             -- Total values for each chain over the specified days
@@ -587,11 +480,11 @@ class BlockspaceJSONCreation():
                     origin_key, 
                     SUM(gas_fees_eth) AS total_gas_fees_eth,
                     SUM(txcount) AS total_txcount
-                FROM blockspace_fact_sub_category_level
+                FROM blockspace_fact_category_level
                 WHERE date < DATE_TRUNC('day', NOW())
                     {date_where}
                     -- ignore total_usage
-                    and sub_category_key != 'total_usage'
+                    and category_id != 'total_usage'
                     and origin_key IN ('{"','".join(origin_keys)}')
                 GROUP BY origin_key, date
                 
@@ -600,19 +493,20 @@ class BlockspaceJSONCreation():
             daily AS (
                 SELECT 
                     origin_key, 
-                    bcm.main_category_key,
+                    bcm.main_category_id as main_category_key,
                     {sub_category_key_str}
                     date,
                     SUM(gas_fees_eth) AS gas_fees_eth,
                     SUM(gas_fees_usd) AS gas_fees_usd,
                     SUM(txcount) AS txcount
-                FROM blockspace_fact_sub_category_level
-                LEFT JOIN blockspace_category_mapping bcm USING (sub_category_key)
+                FROM blockspace_fact_category_level bs_scl
+                LEFT JOIN 
+                    vw_oli_category_mapping bcm USING (category_id)
                 WHERE date < DATE_TRUNC('day', NOW())
                     {date_where}
                     -- ignore total_usage
-                    and sub_category_key != 'total_usage'
-                GROUP BY origin_key, bcm.main_category_key, {sub_category_key_str} date
+                    and category_id != 'total_usage'
+                GROUP BY origin_key, main_category_key, {sub_category_key_str2} date
                 
             )
 
@@ -620,7 +514,7 @@ class BlockspaceJSONCreation():
             SELECT
                 origin_key,
                 main_category_key,
-                {sub_category_key_str}
+                {sub_category_key_str2}
                 date,
                 gas_fees_eth,
                 gas_fees_usd,
@@ -660,11 +554,11 @@ class BlockspaceJSONCreation():
                 origin_key,
                 SUM(gas_fees_eth) AS gas_fees_eth,
                 SUM(txcount) AS txcount
-            FROM blockspace_fact_sub_category_level
+            FROM blockspace_fact_category_level
             WHERE date < DATE_TRUNC('day', NOW())
                 {date_where}
                 -- ignore total_usage
-                and sub_category_key != 'total_usage'
+                and category_id != 'total_usage'
             GROUP BY origin_key
         """
 

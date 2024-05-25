@@ -93,7 +93,7 @@ def etl():
     run_create_master()
     run_create_fundamentals()
     run_create_mvp_dict()
-    run_create_contracts()
+    #run_create_contracts()
     run_create_blockspace_overview()
     run_create_blockspace_category_comparison()
     run_create_chain_blockspace()
