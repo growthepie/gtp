@@ -1033,22 +1033,22 @@ class JSONCreation():
         return {'stage': stage, 'hex': hex}
 
     def create_master_json(self, df_data):
-        exec_string = "SELECT sub_category_key, main_category_name, sub_category_name, main_category_key FROM blockspace_category_mapping"
+        exec_string = "SELECT category_id, category_name, main_category_id, main_category_name FROM vw_oli_category_mapping"
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
 
         ## create dict with main_category_key as key and main_category_name as value, same for sub_categories
         main_category_dict = {}
         sub_category_dict = {}
         for index, row in df.iterrows():
-            main_category_dict[row['main_category_key']] = row['main_category_name']
-            sub_category_dict[row['sub_category_key']] = row['sub_category_name']
+            main_category_dict[row['main_category_id']] = row['main_category_name']
+            sub_category_dict[row['category_id']] = row['category_name']
 
 
         ## create main_category <> sub_category mapping dict
-        df_mapping = df.groupby(['main_category_key']).agg({'sub_category_key': lambda x: list(x)}).reset_index()
+        df_mapping = df.groupby(['main_category_id']).agg({'category_id': lambda x: list(x)}).reset_index()
         mapping_dict = {}
         for index, row in df_mapping.iterrows():
-            mapping_dict[row['main_category_key']] = row['sub_category_key']
+            mapping_dict[row['main_category_id']] = row['category_id']
 
         ## create dict with all chain info
         chain_dict = {}
