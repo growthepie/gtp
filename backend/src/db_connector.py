@@ -856,8 +856,8 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
-                                join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id)
+                                left join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
+                                left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id)
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where
                                         date < DATE_TRUNC('day', NOW())
