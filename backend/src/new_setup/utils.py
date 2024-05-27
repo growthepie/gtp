@@ -946,7 +946,7 @@ def get_chain_config(db_connector, chain_name):
         rows = result.fetchall()
 
     config_list = []
-    batch_size = 10 # Default batch size
+
     for row in rows:
         config = {"url": row['url']}
         # Add other keys only if they are not None
@@ -962,8 +962,7 @@ def get_chain_config(db_connector, chain_name):
     # Retrieve batch_size from adapter_mapping
     for mapping in adapter_mapping:
         if mapping.origin_key == chain_name:
-            if mapping.batch_size is not None:
-                batch_size = mapping.batch_size
-                break
+            batch_size = mapping.batch_size
+            break
 
     return config_list, batch_size

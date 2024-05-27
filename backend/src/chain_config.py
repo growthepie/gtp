@@ -48,7 +48,7 @@ class AdapterMapping(BaseModel):
     token_circulating_supply_function: Optional[str] ## totalSupply
     
     ## backfiller settings
-    batch_size: Optional[int]
+    batch_size: int = 10 ## number of blocks to fetch in one batch, default to 10
     backfiller_on: Optional[bool]
 
 adapter_mapping = [
@@ -221,7 +221,6 @@ adapter_mapping = [
         ,token_deployment_origin_key='arbitrum'
         ,token_circulating_supply_function='totalSupply' 
 
-        ,batch_size=10
         ,backfiller_on=True         
         )
 
@@ -294,7 +293,7 @@ adapter_mapping = [
         ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
         ,block_explorer_type='l2beat'
         ,rpc_url='https://mainnet.era.zksync.io'
-        ,batch_size=10
+
         ,backfiller_on=True              
     )
 
@@ -332,7 +331,6 @@ adapter_mapping = [
         ,block_explorer_txcount='https://basescan.org/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
         ,rpc_url='https://mainnet.base.org' 
-        ,batch_size=10
         ,backfiller_on=True             
     )
 
@@ -519,7 +517,6 @@ adapter_mapping = [
         ,token_deployment_date='2023-06-20'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'
-        ,batch_size=10
         ,backfiller_on=True        
     )
 
@@ -765,7 +762,6 @@ adapter_mapping = [
         ,block_explorer_txcount="https://l2beat.com/api/activity/blast.json"
         ,block_explorer_type='l2beat'
 
-        ,batch_size=10
         ,backfiller_on=True
     )
 
