@@ -52,7 +52,7 @@ def etl():
                 df_inscriptions.set_index(['address', 'origin_key'], inplace=True)
                 db_connector.upsert_table('inscription_addresses', df_inscriptions)
 
-            # add to blockspace labels
+            # add to oli_tag_mapping table
             df = df[df['usage_category'] != 'inscriptions']
             ## keep columns address, origin_key, labelling type and unpivot the other columns
             df = df.melt(id_vars=['address', 'origin_key', 'source'], var_name='tag_id', value_name='value')
@@ -65,7 +65,7 @@ def etl():
             print(f"Uploaded {len(df)} labels to the database")
 
     @task()
-    def write_airtable_contracts():
+    def write_airtable_contracts(read_airtable_contracts:str):
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
@@ -86,7 +86,7 @@ def etl():
         at.push_to_airtable(table, df)
 
     @task()
-    def oss_projects():
+    def oss_projects(write_airtable_contracts:str):
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
