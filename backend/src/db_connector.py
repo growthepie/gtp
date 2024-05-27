@@ -1158,6 +1158,18 @@ class DbConnector:
                 exec_string = "SELECT * FROM public.oli_oss_directory WHERE active = true"
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        def get_projects_for_airtable(self):
+                exec_string = """
+                        SELECT 
+                                "name" as "Name", 
+                                display_name as "Display Name", 
+                                description as "Description", 
+                                main_github as "Github" 
+                        FROM public.oli_oss_directory;
+                        """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
 
         def deactivate_projects(self, names:list):
                 exec_string = f"""

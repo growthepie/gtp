@@ -111,6 +111,7 @@ prison==0.2.1
 protobuf==4.23.2
 psutil==5.9.4
 psycopg2-binary==2.9.6
+pyairtable==2.3.0
 pyarrow==11.0.0
 pycparser==2.21
 pycryptodome==3.18.0

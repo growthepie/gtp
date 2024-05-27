@@ -54,25 +54,31 @@ def read_all_labeled_contracts_airtable(table):
     df = read_airtable(table)
 
     # check if anything was labelled
-    required_columns = ['sub_category_key', 'address', 'origin_key']
+    required_columns = ['usage_category', 'address', 'origin_key']
     if not all(col in df.columns for col in required_columns):
         print('no new labelled contracts found in airtable.')
         return
 
     # show only contracts that have been labeled
-    df = df.dropna(subset=['sub_category_key', 'address', 'origin_key'])
+    df = df.dropna(subset=['usage_category', 'address', 'origin_key'])
 
     # add all columns if they are missing, as api doesn't return empty columns
     if 'contract_name' not in df.columns:
         df['contract_name'] = ''
-    if 'project_name' not in df.columns:
-        df['project_name'] = ''
+    if 'owner_project' not in df.columns:
+        df['owner_project'] = ''
     if 'labelling_type' not in df.columns:
         df['labelling_type'] = ''
 
     # drop not needded columns and clean df
-    df = df[['address', 'origin_key', 'contract_name', 'project_name', 'sub_category_key', 'labelling_type']]
-    df['labelling_type'] = df[df['labelling_type'].notnull()]['labelling_type'].apply(lambda x: x['name'].split()[0])
+    df = df[['address', 'origin_key', 'contract_name', 'owner_project_lookup', 'usage_category_lookup', 'labelling_type']]
+    df.rename(columns={'owner_project_lookup': 'owner_project', 'usage_category_lookup': 'usage_category', 'contract_name': 'name' , 'labelling_type' : 'source'}, inplace=True)
+
+    ## owner_project and usage_category are lists with 1 element, so we extract the element at index 0
+    df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])
+    df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: x[0])
+
+    df['source'] = df[df['source'].notnull()]['source'].apply(lambda x: x['name'].split()[0])
 
     # convert address to bytes
     df['address'] = df['address'].apply(lambda x: x.replace('0x', '\\x'))
