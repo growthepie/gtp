@@ -962,7 +962,8 @@ def get_chain_config(db_connector, chain_name):
     # Retrieve batch_size from adapter_mapping
     for mapping in adapter_mapping:
         if mapping.origin_key == chain_name:
-            batch_size = mapping.batch_size
-            break
+            if mapping.batch_size is not None:
+                batch_size = mapping.batch_size
+                break
 
     return config_list, batch_size
