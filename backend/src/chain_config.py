@@ -733,7 +733,7 @@ adapter_mapping = [
         ,name='Blast'
         ,name_short = "Blast"
         ,description="Blast is an EVM-compatible Optimistic Rollup which invests bridged funds in order to offer native yield to its users."
-        ,da_layer = "Ethereum (calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='BLAST'
 
         ,in_api = True
