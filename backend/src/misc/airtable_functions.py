@@ -24,8 +24,8 @@ def push_to_airtable(table, df):
 # delete all records from airtable
 def clear_all_airtable(table):
 
-    # get all ids (= rows)
-    ids = [i['id'] for i in table.all()]
+    # get all ids (= rows) where the temp_owner_project field is not set (because we don't want to delete these contracts since the labelling is not finished for these)
+    ids = [i['id'] for i in table.all() if 'temp_owner_project' not in i['fields'].keys()]
 
     # api can only handle batches of 10
     for i in range(0, len(ids), 10):
@@ -54,13 +54,13 @@ def read_all_labeled_contracts_airtable(table):
     df = read_airtable(table)
 
     # check if anything was labelled
-    required_columns = ['usage_category', 'address', 'origin_key']
-    if not all(col in df.columns for col in required_columns):
+    required_columns = ['contract_name', 'owner_project', 'usage_category']
+    if not any(col in df.columns for col in required_columns):
         print('no new labelled contracts found in airtable.')
         return
 
     # show only contracts that have been labeled
-    df = df.dropna(subset=['usage_category', 'address', 'origin_key'])
+    df = df.dropna(subset=required_columns, how='all')
 
     # add all columns if they are missing, as api doesn't return empty columns
     if 'contract_name' not in df.columns:

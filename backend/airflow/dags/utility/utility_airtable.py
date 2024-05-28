@@ -61,7 +61,7 @@ def etl():
             df['added_on'] = datetime.now()
             df.set_index(['address', 'origin_key', 'tag_id'], inplace=True)
 
-            db_connector.upsert_table('oli_tag_mapping' ,df)
+            db_connector.upsert_table('oli_tag_mapping', df)
             print(f"Uploaded {len(df)} labels to the database")
 
     @task()
