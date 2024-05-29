@@ -833,6 +833,8 @@ adapter_mapping = [
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/redstone.json"
         ,block_explorer_type='l2beat'
+
+        ,batch_size=50
     )
 
 ] # end of adapter_mappings
