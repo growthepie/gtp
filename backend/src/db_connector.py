@@ -1093,33 +1093,37 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+
+        ## This function is used for our Airtable setup - it returns the top unlabelled contracts by gas fees
         def get_unlabelled_contracts(self, number_of_contracts, days):
                 exec_string = f'''
                         WITH ranked_contracts AS (
                                 SELECT 
                                         cl.address, 
+                                        cl.origin_key, 
+                                        --bl.owner_project AS owner_project,
                                         SUM(gas_fees_eth) AS gas_eth, 
                                         SUM(txcount) AS txcount, 
-                                        SUM(daa) AS daa, 
-                                        cl.origin_key, 
+                                        SUM(daa) AS daa,                                         
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num 
                                 FROM public.blockspace_fact_contract_level cl 
                                 LEFT JOIN vw_oli_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
-                                WHERE bl.address IS NULL 
-                                AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                AND NOT EXISTS (
-                                        SELECT 1
-                                        FROM public.inscription_addresses ia
-                                        WHERE ia.address = cl.address
-                                )
-                                GROUP BY cl.address, cl.origin_key
+                                WHERE bl.usage_category IS NULL 
+                                        AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        AND NOT EXISTS (
+                                                SELECT 1
+                                                FROM public.inscription_addresses ia
+                                                WHERE ia.address = cl.address
+                                        )
+                                GROUP BY 1,2
                         )  
                         SELECT 
                                 address, 
+                                origin_key, 
+                                --owner_project,
                                 gas_eth, 
                                 txcount, 
-                                daa, 
-                                origin_key 
+                                daa                                
                         FROM ranked_contracts 
                         WHERE row_num <= {number_of_contracts} 
                         ORDER BY origin_key, row_num
