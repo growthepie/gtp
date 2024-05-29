@@ -960,6 +960,7 @@ def get_chain_config(db_connector, chain_name):
         config_list.append(config)
 
     # Retrieve batch_size from adapter_mapping
+    batch_size = 10
     for mapping in adapter_mapping:
         if mapping.origin_key == chain_name:
             batch_size = mapping.batch_size
