@@ -801,6 +801,40 @@ adapter_mapping = [
         ,block_explorer_type='l2beat'
     )
 
+    ,AdapterMapping(
+        origin_key='redstone'
+        ,name='Redstone'
+        ,name_short = "Redstone"
+        ,description="-"
+        ,da_layer = "-"
+
+        ,in_api = False
+        ,in_fees_api = False
+        ,deployment="DEV"
+        ,exclude_metrics = []
+        ,aggregate_blockspace = False
+        ,aggregate_addresses = False
+
+        ,bucket = "OP Chains"
+        ,symbol = "-"
+        ,technology = "Optimium"
+        ,purpose = 'Gaming'
+        ,stack = {'label' : 'OP Stack (Plasma)' , 'url': 'https://docs.optimism.io/stack/getting-started'}
+        ,launch_date='2024-05-01'
+
+        ,website='https://redstone.xyz/'
+        ,block_explorer='https://explorer.redstone.xyz/'
+        ,block_explorers={'Blockscout': 'https://explorer.redstone.xyz/'}
+        ,twitter="https://twitter.com/redstonexyz"
+
+        #,coingecko_naming=""
+        #,defillama_stablecoin='-' ## stables via Dune
+        ,l2beat_tvl_naming='redstone'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/redstone.json"
+        ,block_explorer_type='l2beat'
+    )
+
 ] # end of adapter_mappings
 
 adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, in_fees_api = True, description="", da_layer = "", deployment='PROD', exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics
