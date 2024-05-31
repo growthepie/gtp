@@ -49,7 +49,7 @@ def etl():
         json_creator.create_landingpage_json(df)
 
     @task()
-    def run_create_landingpage():
+    def run_create_economics():
         json_creator.create_economics_json(df)
 
     @task()
@@ -80,6 +80,7 @@ def etl():
     run_create_chain_details()
     run_create_metrics_details()
     run_create_landingpage()
+    run_create_economics()
     run_create_master()
     run_create_fundamentals()
     #run_create_contracts()
