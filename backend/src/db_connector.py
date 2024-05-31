@@ -1158,7 +1158,16 @@ class DbConnector:
 
         ### OLI functions
         def get_active_projects(self):
-                exec_string = "SELECT * FROM public.oli_oss_directory WHERE active = true"
+                exec_string = """
+                        SELECT 
+                                id, 
+                                "name", 
+                                display_name, 
+                                description, 
+                                main_github 
+                        FROM public.oli_oss_directory 
+                        WHERE active = true
+                        """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
@@ -1182,3 +1191,28 @@ class DbConnector:
                 """
                 self.engine.execute(exec_string)
                 print(f"{len(names)} projects deactivated in oli_oss_directory: {names}")
+
+        ## This function is used to generate the API endpoints for the OLI labels
+        def get_oli_labels(self, chain_id='origin_key'):
+                if chain_id == 'origin_key':
+                        chain_str = 'origin_key'
+                elif chain_id == 'caip2':
+                        chain_str = 'caip2 as chain_id'
+                else:
+                        raise ValueError("chain_id must be either 'origin_key' or 'caip2'")
+                
+                exec_string = f"""
+                        SELECT 
+                                address,
+                                {chain_str},
+                                name,
+                                owner_project,
+                                usage_category,
+                                is_factory_contract
+                        FROM public.vw_oli_labels
+                        LEFT JOIN sys_chains USING (origin_key)
+                        WHERE owner_project IS NOT NULL
+                        """
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df

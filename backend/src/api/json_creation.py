@@ -916,11 +916,15 @@ class JSONCreation():
                 hottest_contract = hottest_contract.replace({np.nan: None})
                 hottest_contract = db_addresses_to_checksummed_addresses(hottest_contract, ['address'])
                 
+                hottest_contract = hottest_contract[
+                    ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key",
+                     "gas_fees_eth", "gas_fees_usd", "gas_fees_eth_change", "gas_fees_usd_change", "prev_gas_fees_eth",
+                     "prev_gas_fees_usd", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent"]
+                ]
+
                 hottest_contract_dict = {
-                    "data": hottest_contract[
-                        ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
-                    ].values.tolist(),
-                    "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+                    'types': hottest_contract.columns.to_list(),
+                    'data': hottest_contract.values.tolist()
                 }
             else:
                 print(f'..skipped: Hottest Contract for {origin_key}. aggregate_blockspace is set to False')
@@ -1151,12 +1155,16 @@ class JSONCreation():
             # replace NaNs with Nones
             contracts = contracts.replace({np.nan: None})
             contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
+
+            contracts = contracts[
+                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key",
+                  "gas_fees_eth", "gas_fees_usd", "gas_fees_eth_change", "gas_fees_usd_change", 
+                 "prev_gas_fees_eth", "prev_gas_fees_usd", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent"]
+            ]
             
             landing_dict['data']['top_contracts'][f"{days}d"] = {
-                "data": contracts[
-                    ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
-                ].values.tolist(),
-                "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+                'types': contracts.columns.to_list(),
+                'data': contracts.values.tolist()
             }
 
         landing_dict = fix_dict_nan(landing_dict, 'landing_page')
