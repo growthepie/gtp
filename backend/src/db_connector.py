@@ -698,6 +698,7 @@ class DbConnector:
                         inner join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                and cl.origin_key = '{chain}'
                                 and bl.usage_category is not null 
                         group by 1,2,3
                 '''
