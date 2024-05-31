@@ -1335,7 +1335,7 @@ class JSONCreation():
                         "types": ["percentage"],
                         "total": [profit_margin]
                     },
-                    "size:": {
+                    "size": {
                         "types": ["bytes"],
                         "total": [random.randint(10000, 100000) * days] ## TODO: change to real size
                     }
@@ -1371,21 +1371,16 @@ class JSONCreation():
 
 
     def create_labels_full_json(self):
-        df = self.db_connector.get_oli_labels(chain_id='origin_key')
+        order_by = 'txcount'
+        df = self.db_connector.get_labels_page(limit=50000, order_by=order_by)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         df = df.replace({np.nan: None})
-        df = df[['address', 'origin_key', 'name', 'owner_project', 'usage_category']]
-
-        ## TODO: use real usage
-        df['txcount'] = 10000
-        df['gas_fees_usd'] = 333
-        df['active_addresses'] = 4567
 
         labels_dict = {
             'data': {
                 'sort': {
-                    'by': 'txcount',
+                    'by': order_by,
                     'direction': 'desc'
                 },
                 'types': df.columns.to_list(),

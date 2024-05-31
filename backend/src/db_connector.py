@@ -1217,3 +1217,27 @@ class DbConnector:
 
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        ## TODO: filter by contracts only?
+        def get_labels_page(self, limit=50000, order_by='txcount'):
+                exec_string = f"""
+                        SELECT 
+                                address, 
+                                origin_key, 
+                                "name",
+                                owner_project,
+                                usage_category,
+                                sum(txcount) as txcount, 
+                                sum(gas_fees_usd) as gas_fees_usd, 	
+                                sum(daa) as daa	
+                        FROM public.blockspace_fact_contract_level
+                        left join vw_oli_labels using (address, origin_key)
+                        where "date"  >= date_trunc('day',now()) - interval '7 days'
+                                and "date" < date_trunc('day', now())
+                        group by 1,2,3,4,5
+                        order by {order_by} desc
+                        limit {limit}
+                """
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
