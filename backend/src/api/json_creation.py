@@ -922,6 +922,9 @@ class JSONCreation():
                      "prev_gas_fees_usd", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent"]
                 ]
 
+                ## change column names contract_name to name and origin_key to chain
+                hottest_contract = hottest_contract.rename(columns={'contract_name': 'name', 'origin_key': 'chain'})
+
                 hottest_contract_dict = {
                     'types': hottest_contract.columns.to_list(),
                     'data': hottest_contract.values.tolist()
@@ -1152,15 +1155,19 @@ class JSONCreation():
 
         for days in [1,7,30,90,180,365]:
             contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
+
             # replace NaNs with Nones
             contracts = contracts.replace({np.nan: None})
             contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
 
             contracts = contracts[
-                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key",
-                  "gas_fees_eth", "gas_fees_usd", "gas_fees_eth_change", "gas_fees_usd_change", 
-                 "prev_gas_fees_eth", "prev_gas_fees_usd", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent"]
+                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", 
+                 "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", 
+                 "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
             ]
+
+            ## change column names contract_name to name and origin_key to chain
+            contracts = contracts.rename(columns={'contract_name': 'name', 'origin_key': 'chain'})
             
             landing_dict['data']['top_contracts'][f"{days}d"] = {
                 'types': contracts.columns.to_list(),
