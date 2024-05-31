@@ -63,11 +63,6 @@ def etl():
         json_creator.create_fundamentals_full_json(df)
 
     @task()
-    def run_create_mvp_dict():
-        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
-        json_creator.create_mvp_dict()
-
-    @task()
     def run_create_contracts():
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_contracts_json()
@@ -92,7 +87,6 @@ def etl():
     run_create_landingpage()
     run_create_master()
     run_create_fundamentals()
-    run_create_mvp_dict()
     #run_create_contracts()
     run_create_blockspace_overview()
     run_create_blockspace_category_comparison()

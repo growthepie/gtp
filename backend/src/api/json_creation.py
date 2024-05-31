@@ -1256,22 +1256,6 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/contracts', contracts_dict, self.cf_distribution_id)
 
-    def create_mvp_dict(self):
-        exec_string = f""" SELECT * FROM public.mvp_app_level """
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
-
-        ## date to datetime column in UTC
-        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
-        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-
-        ## create dict
-        mvp_dict = df.to_dict(orient='records')
-
-        if self.s3_bucket == None:
-            self.save_to_json(mvp_dict, 'mvp_dict')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
-
     def create_fees_table_json(self, df):
         fees_dict = {
             "chain_data" : {}
@@ -1372,4 +1356,3 @@ class JSONCreation():
         self.create_fundamentals_json(df)
         self.create_fundamentals_full_json(df)
         self.create_contracts_json()
-        self.create_mvp_dict()
