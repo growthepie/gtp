@@ -14,6 +14,7 @@ class AdapterMapping(BaseModel):
 
     in_api: bool ## True when the chain should be included in the API output
     in_fees_api: bool ## True when the chain should be included in the fees API output
+    in_economics_api: Optional[bool] ## True when the chain should be included in the economics API output
     deployment: str ## PROD, DEV
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
@@ -145,6 +146,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -190,6 +192,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -307,6 +310,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -379,6 +383,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = False
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -694,6 +699,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = False
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit']
         ,aggregate_blockspace = False
@@ -775,6 +781,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True

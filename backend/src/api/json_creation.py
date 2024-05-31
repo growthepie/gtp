@@ -3,6 +3,7 @@ import simplejson as json
 import datetime
 import pandas as pd
 import numpy as np
+import random
 from datetime import timedelta, datetime
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
@@ -1166,95 +1167,7 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
         print(f'DONE -- landingpage export')
 
-    def create_fundamentals_json(self, df):
-        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
-
-        ## filter out all metric_keys that end with _eth
-        df = df[~df.metric_key.str.endswith('_eth')]
-
-        ## filter date to be in the last 365 days
-        df = df.loc[df.date >= (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')]
-
-        ## only keep metrics that are also in the metrics_list (based on metrics dict)
-        df = df[df.metric_key.isin(self.metrics_list)]
-
-        ## transform date column to string with format YYYY-MM-DD
-        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-        
-        ## filter based on settings in adapter_mapping
-        for adapter in adapter_mapping:
-            ## filter out origin_keys from df if in_api=false
-            if adapter.in_api == False:
-                #print(f"Filtering out origin_keys for adapter {adapter.name}")
-                df = df[df.origin_key != adapter.origin_key]
-            elif len(adapter.exclude_metrics) > 0:
-                origin_key = adapter.origin_key
-                for metric in adapter.exclude_metrics:
-                    if metric != 'blockspace':
-                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
-                        metric_keys = self.metrics[metric]['metric_keys']
-                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
-        
-        ## put dataframe into a json string
-        fundamentals_dict = df.to_dict(orient='records')
-
-        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'fundamentals')
-
-        if self.s3_bucket == None:
-            self.save_to_json(fundamentals_dict, 'fundamentals')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals', fundamentals_dict, self.cf_distribution_id)
-    
-    def create_fundamentals_full_json(self, df):
-        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
-
-        ## only keep metrics that are also in the metrics_list (based on metrics dict)
-        df = df[df.metric_key.isin(self.metrics_list)]
-
-        ## transform date column to string with format YYYY-MM-DD
-        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-        
-        ## filter based on settings in adapter_mapping
-        for adapter in adapter_mapping:
-            ## filter out origin_keys from df if in_api=false
-            if adapter.in_api == False:
-                #print(f"Filtering out origin_keys for adapter {adapter.name}")
-                df = df[df.origin_key != adapter.origin_key]
-            elif len(adapter.exclude_metrics) > 0:
-                origin_key = adapter.origin_key
-                for metric in adapter.exclude_metrics:
-                    if metric != 'blockspace':
-                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
-                        metric_keys = self.metrics[metric]['metric_keys']
-                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
-        
-        ## put dataframe into a json string
-        fundamentals_dict = df.to_dict(orient='records')
-
-        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'fundamentals_full')
-
-        if self.s3_bucket == None:
-            self.save_to_json(fundamentals_dict, 'fundamentals_full')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals_full', fundamentals_dict, self.cf_distribution_id)
-
-    def create_contracts_json(self):
-        exec_string = f"""
-            SELECT address, contract_name, project_name, sub_category_key, origin_key
-            FROM public.blockspace_labels;
-        """
-
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
-        df = db_addresses_to_checksummed_addresses(df, ['address'])
-
-        contracts_dict = df.to_dict(orient='records')
-        
-        contracts_dict = fix_dict_nan(contracts_dict, 'contracts')
-
-        if self.s3_bucket == None:
-            self.save_to_json(contracts_dict, 'contracts')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/contracts', contracts_dict, self.cf_distribution_id)
+    ### FEES PAGE
 
     def create_fees_table_json(self, df):
         fees_dict = {
@@ -1345,6 +1258,195 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
         print(f'DONE -- fees/linechart.json export')
 
+    ### ECONOMICS SECTION
+    def aggregate_metric(self, df, origin_key, metric_key, days):
+        df = df[(df['origin_key'] == origin_key) & (df['metric_key'] == metric_key)]
+        df = df[(df['date'] >= df['date'].max() - pd.DateOffset(days=days-1))]
+        val = df['value'].sum()
+        return val
+
+    def create_economics_json(self, df):
+        # filter df for all_l2s (all chains except chains that aren't included in the API)
+        chain_keys = [x.origin_key for x in adapter_mapping if x.in_economics_api == True and x.deployment == "PROD"]
+        df = df.loc[(df.origin_key.isin(chain_keys))]
+
+        economics_dict = {
+            "data": {
+                "da_fees" : {
+                    "ethereum": self.generate_all_l2s_metric_dict(df, 'stables_mcap', rolling_avg=True), ##TODO: change to da_fees
+                    "blobs": self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=True), ##TODO: change to da_fees
+                    "celestia": self.generate_all_l2s_metric_dict(df, 'rent_paid', rolling_avg=True), ##TODO: change to da_fees
+                },
+                "chain_breakdown": {}
+            }
+        }
+
+        # overwrites - TODO: can be removed once real da data is available
+        economics_dict['data']['da_fees']['ethereum']['metric_name'] = 'Ethereum Fees'
+        economics_dict['data']['da_fees']['blobs']['metric_name'] = 'Blob Fees'
+        economics_dict['data']['da_fees']['celestia']['metric_name'] = 'Celestia Fees'
+
+        timeframes = [1,7,30,90,180,'max']
+        
+        # iterate over each chain and generate table and chart data
+        for origin_key in chain_keys:
+            randint = random.randint(80, 100)
+            economics_dict['data']['chain_breakdown'][origin_key] = {}
+            # get data for each timeframe (for table aggregates)
+            for timeframe in timeframes:
+                timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
+                days = timeframe if timeframe != 'max' else 2000
+
+                revenue = self.aggregate_metric(df, origin_key, 'rent_paid_eth', days)
+                profit = self.aggregate_metric(df, origin_key, 'profit_eth', days)
+                profit_margin = profit / revenue if revenue != 0 else 0.0
+
+                economics_dict['data']['chain_breakdown'][origin_key][timeframe_key] = {
+                    "revenue": {
+                        "types": ["usd", "eth"],
+                        "total": [self.aggregate_metric(df, origin_key, 'fees_paid_usd', days), self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)]
+                    },		
+                    "costs": {
+                        "types": ["usd", "eth"],
+                        "total": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days)], ## TODO: change to real costs (rent to L1 + DA costs)
+                        "proof_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * (randint/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * (randint/100)], ## TODO: change to real proof costs
+                        "da_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * ((100-randint)/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * ((100-randint)/100)], ## TODO: change to real da costs
+                    },
+                    "profit": {
+                        "types": ["usd", "eth"],
+                        "total": [self.aggregate_metric(df, origin_key, 'profit_usd', days), self.aggregate_metric(df, origin_key, 'profit_eth', days)]
+                    },	
+                    "profit_margin": {
+                        "types": ["percentage"],
+                        "total": [profit_margin]
+                    },
+                    "size:": {
+                        "types": ["bytes"],
+                        "total": [random.randint(10000, 100000) * days] ## TODO: change to real size
+                    }
+                }
+
+            ## add timeseries data for each chain
+            economics_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
+            for metric in ['fees', 'rent_paid', 'profit']:
+                mk_list = self.generate_daily_list(df, metric, origin_key)
+                mk_list_int = mk_list[0]
+                mk_list_columns = mk_list[1]
+
+                metric_to_key = {
+                    'fees': 'revenue',
+                    'rent_paid': 'costs',
+                    'profit': 'profit'
+                }
+
+                key = metric_to_key.get(metric)
+
+                economics_dict['data']['chain_breakdown'][origin_key]['daily'][key] = {
+                    'types' : mk_list_columns,
+                    'data' : mk_list_int
+                }
+
+        economics_dict = fix_dict_nan(economics_dict, 'economics')
+
+        if self.s3_bucket == None:
+            self.save_to_json(economics_dict, 'economics')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/economics', economics_dict, self.cf_distribution_id)
+        print(f'DONE -- economics export')
+
+
+    ### OTHER API ENDPOINTS
+
+    def create_fundamentals_json(self, df):
+        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
+
+        ## filter out all metric_keys that end with _eth
+        df = df[~df.metric_key.str.endswith('_eth')]
+
+        ## filter date to be in the last 365 days
+        df = df.loc[df.date >= (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')]
+
+        ## only keep metrics that are also in the metrics_list (based on metrics dict)
+        df = df[df.metric_key.isin(self.metrics_list)]
+
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
+        ## filter based on settings in adapter_mapping
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+            elif len(adapter.exclude_metrics) > 0:
+                origin_key = adapter.origin_key
+                for metric in adapter.exclude_metrics:
+                    if metric != 'blockspace':
+                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
+                        metric_keys = self.metrics[metric]['metric_keys']
+                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
+        
+        ## put dataframe into a json string
+        fundamentals_dict = df.to_dict(orient='records')
+
+        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'fundamentals')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fundamentals_dict, 'fundamentals')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals', fundamentals_dict, self.cf_distribution_id)
+    
+    def create_fundamentals_full_json(self, df):
+        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
+
+        ## only keep metrics that are also in the metrics_list (based on metrics dict)
+        df = df[df.metric_key.isin(self.metrics_list)]
+
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
+        ## filter based on settings in adapter_mapping
+        for adapter in adapter_mapping:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.in_api == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+            elif len(adapter.exclude_metrics) > 0:
+                origin_key = adapter.origin_key
+                for metric in adapter.exclude_metrics:
+                    if metric != 'blockspace':
+                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
+                        metric_keys = self.metrics[metric]['metric_keys']
+                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
+        
+        ## put dataframe into a json string
+        fundamentals_dict = df.to_dict(orient='records')
+
+        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'fundamentals_full')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fundamentals_dict, 'fundamentals_full')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals_full', fundamentals_dict, self.cf_distribution_id)
+
+    def create_contracts_json(self):
+        exec_string = f"""
+            SELECT address, contract_name, project_name, sub_category_key, origin_key
+            FROM public.blockspace_labels;
+        """
+
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        contracts_dict = df.to_dict(orient='records')
+        
+        contracts_dict = fix_dict_nan(contracts_dict, 'contracts')
+
+        if self.s3_bucket == None:
+            self.save_to_json(contracts_dict, 'contracts')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/contracts', contracts_dict, self.cf_distribution_id)
+
     def create_all_jsons(self):
         df = self.get_all_data()
         self.create_master_json(df)
@@ -1352,6 +1454,8 @@ class JSONCreation():
 
         self.create_chain_details_jsons(df)
         self.create_metric_details_jsons(df)
+
+        self.create_economics_json(df)
         
         self.create_fundamentals_json(df)
         self.create_fundamentals_full_json(df)
