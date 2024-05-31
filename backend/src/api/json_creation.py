@@ -1370,6 +1370,38 @@ class JSONCreation():
         print(f'DONE -- economics export')
 
 
+    def create_labels_full_json(self):
+        df = self.db_connector.get_oli_labels(chain_id='origin_key')
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        df = df.replace({np.nan: None})
+        df = df[['address', 'origin_key', 'name', 'owner_project', 'usage_category']]
+
+        ## TODO: use real usage
+        df['txcount'] = 10000
+        df['gas_fees_usd'] = 333
+        df['active_addresses'] = 4567
+
+        labels_dict = {
+            'data': {
+                'sort': {
+                    'by': 'txcount',
+                    'direction': 'desc'
+                },
+                'types': df.columns.to_list(),
+                'data': df.values.tolist()
+            }
+        }
+
+        labels_dict = fix_dict_nan(labels_dict, 'labels-full')
+
+        if self.s3_bucket == None:
+            self.save_to_json(labels_dict, 'labels-full')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/full', labels_dict, self.cf_distribution_id)
+        print(f'DONE -- labels full export')
+
+
     ### OTHER API ENDPOINTS
 
     def create_fundamentals_json(self, df):
