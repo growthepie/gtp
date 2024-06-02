@@ -52,10 +52,6 @@ def etl():
                 df = json_creator.get_data_fees()
                 json_creator.create_fees_table_json(df)
                 json_creator.create_fees_linechart_json(df)
-
-                ## TO BE DEPRECATED:
-                json_creator.create_fees_json()
-                json_creator.create_fees_dict()
    
         run_create_fees_json(run_aggregate_metrics())
 etl()

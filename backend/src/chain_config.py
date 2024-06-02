@@ -14,6 +14,7 @@ class AdapterMapping(BaseModel):
 
     in_api: bool ## True when the chain should be included in the API output
     in_fees_api: bool ## True when the chain should be included in the fees API output
+    in_economics_api: Optional[bool] ## True when the chain should be included in the economics API output
     deployment: str ## PROD, DEV
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
@@ -48,7 +49,7 @@ class AdapterMapping(BaseModel):
     token_circulating_supply_function: Optional[str] ## totalSupply
     
     ## backfiller settings
-    batch_size: Optional[int]
+    batch_size: int = 10 ## number of blocks to fetch in one batch, default to 10
     backfiller_on: Optional[bool]
 
 adapter_mapping = [
@@ -145,6 +146,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -190,6 +192,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -221,7 +224,6 @@ adapter_mapping = [
         ,token_deployment_origin_key='arbitrum'
         ,token_circulating_supply_function='totalSupply' 
 
-        ,batch_size=10
         ,backfiller_on=True         
         )
 
@@ -294,7 +296,7 @@ adapter_mapping = [
         ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
         ,block_explorer_type='l2beat'
         ,rpc_url='https://mainnet.era.zksync.io'
-        ,batch_size=10
+
         ,backfiller_on=True              
     )
 
@@ -308,6 +310,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -332,7 +335,6 @@ adapter_mapping = [
         ,block_explorer_txcount='https://basescan.org/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
         ,rpc_url='https://mainnet.base.org' 
-        ,batch_size=10
         ,backfiller_on=True             
     )
 
@@ -381,6 +383,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = False
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -519,7 +522,6 @@ adapter_mapping = [
         ,token_deployment_date='2023-06-20'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'
-        ,batch_size=10
         ,backfiller_on=True        
     )
 
@@ -697,6 +699,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = False
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'profit']
         ,aggregate_blockspace = False
@@ -736,7 +739,7 @@ adapter_mapping = [
         ,name='Blast'
         ,name_short = "Blast"
         ,description="Blast is an EVM-compatible Optimistic Rollup which invests bridged funds in order to offer native yield to its users."
-        ,da_layer = "Ethereum (calldata)"
+        ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='BLAST'
 
         ,in_api = True
@@ -765,7 +768,6 @@ adapter_mapping = [
         ,block_explorer_txcount="https://l2beat.com/api/activity/blast.json"
         ,block_explorer_type='l2beat'
 
-        ,batch_size=10
         ,backfiller_on=True
     )
 
@@ -779,6 +781,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -803,6 +806,42 @@ adapter_mapping = [
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mode.json"
         ,block_explorer_type='l2beat'
+    )
+
+    ,AdapterMapping(
+        origin_key='redstone'
+        ,name='Redstone'
+        ,name_short = "Redstone"
+        ,description="-"
+        ,da_layer = "-"
+
+        ,in_api = False
+        ,in_fees_api = False
+        ,deployment="DEV"
+        ,exclude_metrics = []
+        ,aggregate_blockspace = False
+        ,aggregate_addresses = False
+
+        ,bucket = "OP Chains"
+        ,symbol = "-"
+        ,technology = "Optimium"
+        ,purpose = 'Gaming'
+        ,stack = {'label' : 'OP Stack (Plasma)' , 'url': 'https://docs.optimism.io/stack/getting-started'}
+        ,launch_date='2024-05-01'
+
+        ,website='https://redstone.xyz/'
+        ,block_explorer='https://explorer.redstone.xyz/'
+        ,block_explorers={'Blockscout': 'https://explorer.redstone.xyz/'}
+        ,twitter="https://twitter.com/redstonexyz"
+
+        #,coingecko_naming=""
+        #,defillama_stablecoin='-' ## stables via Dune
+        ,l2beat_tvl_naming='redstone'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/redstone.json"
+        ,block_explorer_type='l2beat'
+
+        ,batch_size=50
     )
 
 ] # end of adapter_mappings

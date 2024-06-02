@@ -31,7 +31,7 @@ def etl():
     def run_oss():
         adapter_params = {
             'api_key' : os.getenv("OSO_API"),
-            'webhook' : os.getenv('DISCORD_ALERTS')
+            'webhook' : os.getenv('DISCORD_CONTRACTS')
         }
         load_params = {
         }

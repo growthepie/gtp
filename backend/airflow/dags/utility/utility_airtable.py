@@ -18,7 +18,6 @@ from pyairtable import Api
 AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
 AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
 api = Api(AIRTABLE_API_KEY)
-table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
 
 @dag(
     default_args={
@@ -28,40 +27,51 @@ table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
         'retry_delay' : timedelta(minutes=15),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='utility_contracts_to_airtable',
-    description='Update Airtable for contract labelling',
+    dag_id='utility_airtable',
+    description='Update Airtable for contracts labelling',
     tags=['utility', 'daily'],
     start_date=datetime(2023,9,10),
-    schedule='00 02 * * *'
+    schedule='15 02 * * *'
 )
 
 def etl():
     @task()
-    def read_airtable():
+    def read_airtable_contracts():
         # read current airtable
+        table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
         df = at.read_all_labeled_contracts_airtable(table)
         if df is None:
             print("Nothing to upload")
         else:
             # initialize db connection
             db_connector = DbConnector()
-            if df[df['sub_category_key'] == 'inscriptions'].empty == False:
+
+            if df[df['usage_category'] == 'inscriptions'].empty == False:
                 # add to incription table
-                df_inscriptions = df[df['sub_category_key'] == 'inscriptions'][['address', 'origin_key']]
+                df_inscriptions = df[df['usage_category'] == 'inscriptions'][['address', 'origin_key']]
                 df_inscriptions.set_index(['address', 'origin_key'], inplace=True)
                 db_connector.upsert_table('inscription_addresses', df_inscriptions)
-            # add to blockspace labels
-            df['added_on_time'] = datetime.now()
-            df.set_index(['address', 'origin_key'], inplace=True)
-            db_connector.upsert_table('blockspace_labels' ,df[df['sub_category_key'] != 'inscriptions'])
-            print(f"Uploaded {len(df)} contracts to the database")
+
+            # add to oli_tag_mapping table
+            df = df[df['usage_category'] != 'inscriptions']
+            ## keep columns address, origin_key, labelling type and unpivot the other columns
+            df = df.melt(id_vars=['address', 'origin_key', 'source'], var_name='tag_id', value_name='value')
+            ## filter out rows with empty values
+            df = df[df['value'].notnull()]
+            df['added_on'] = datetime.now()
+            df.set_index(['address', 'origin_key', 'tag_id'], inplace=True)
+
+            db_connector.upsert_table('oli_tag_mapping', df)
+            print(f"Uploaded {len(df)} labels to the database")
 
     @task()
-    def write_airtable():
-        # delete every row in airtable
-        at.clear_all_airtable(table)
-        # db connection
+    def write_airtable_contracts(read_airtable_contracts:str):
+        # db connection and airtable connection
         db_connector = DbConnector()
+        table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
+
+        at.clear_all_airtable(table)
+        
         # get top unlabelled contracts
         df = db_connector.get_unlabelled_contracts('30', '21')
         df['address'] = df['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
@@ -75,9 +85,19 @@ def etl():
         # write to airtable
         at.push_to_airtable(table, df)
 
-    task1 = read_airtable()
-    task2 = write_airtable()
+    @task()
+    def oss_projects(write_airtable_contracts:str):
+        # db connection and airtable connection
+        db_connector = DbConnector()
+        table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
 
-    # Set task dependencies
-    task1 >> task2
+        # delete every row in airtable
+        at.clear_all_airtable(table)
+        # get active projects from db
+        df = db_connector.get_projects_for_airtable()
+        # write to airtable
+        at.push_to_airtable(table, df)
+
+    oss_projects(write_airtable_contracts(read_airtable_contracts()))
+
 etl()

@@ -695,11 +695,11 @@ class DbConnector:
                                 sum(txcount) as txcount,
                                 sum(daa) as daa
                         FROM public.blockspace_fact_contract_level cl
-                        inner join vw_oli_labels bl on cl.address = bl.address
+                        inner join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                and bl.origin_key = '{chain}' 
                                 and cl.origin_key = '{chain}'
+                                and bl.usage_category is not null 
                         group by 1,2,3
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
@@ -856,8 +856,8 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
-                                join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id)
+                                left join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
+                                left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id)
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where
                                         date < DATE_TRUNC('day', NOW())
@@ -1093,33 +1093,37 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+
+        ## This function is used for our Airtable setup - it returns the top unlabelled contracts by gas fees
         def get_unlabelled_contracts(self, number_of_contracts, days):
                 exec_string = f'''
                         WITH ranked_contracts AS (
                                 SELECT 
                                         cl.address, 
+                                        cl.origin_key, 
+                                        --bl.owner_project AS owner_project,
                                         SUM(gas_fees_eth) AS gas_eth, 
                                         SUM(txcount) AS txcount, 
-                                        SUM(daa) AS daa, 
-                                        cl.origin_key, 
+                                        SUM(daa) AS daa,                                         
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num 
                                 FROM public.blockspace_fact_contract_level cl 
                                 LEFT JOIN vw_oli_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
-                                WHERE bl.address IS NULL 
-                                AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                AND NOT EXISTS (
-                                        SELECT 1
-                                        FROM public.inscription_addresses ia
-                                        WHERE ia.address = cl.address
-                                )
-                                GROUP BY cl.address, cl.origin_key
+                                WHERE bl.usage_category IS NULL 
+                                        AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        AND NOT EXISTS (
+                                                SELECT 1
+                                                FROM public.inscription_addresses ia
+                                                WHERE ia.address = cl.address
+                                        )
+                                GROUP BY 1,2
                         )  
                         SELECT 
                                 address, 
+                                origin_key, 
+                                --owner_project,
                                 gas_eth, 
                                 txcount, 
-                                daa, 
-                                origin_key 
+                                daa                                
                         FROM ranked_contracts 
                         WHERE row_num <= {number_of_contracts} 
                         ORDER BY origin_key, row_num
@@ -1155,7 +1159,28 @@ class DbConnector:
 
         ### OLI functions
         def get_active_projects(self):
-                exec_string = "SELECT * FROM public.oli_oss_directory WHERE active = true"
+                exec_string = """
+                        SELECT 
+                                id, 
+                                "name", 
+                                display_name, 
+                                description, 
+                                main_github 
+                        FROM public.oli_oss_directory 
+                        WHERE active = true
+                        """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_projects_for_airtable(self):
+                exec_string = """
+                        SELECT 
+                                "name" as "Name", 
+                                display_name as "Display Name", 
+                                description as "Description", 
+                                main_github as "Github" 
+                        FROM public.oli_oss_directory;
+                        """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
 
@@ -1167,3 +1192,52 @@ class DbConnector:
                 """
                 self.engine.execute(exec_string)
                 print(f"{len(names)} projects deactivated in oli_oss_directory: {names}")
+
+        ## This function is used to generate the API endpoints for the OLI labels
+        def get_oli_labels(self, chain_id='origin_key'):
+                if chain_id == 'origin_key':
+                        chain_str = 'origin_key'
+                elif chain_id == 'caip2':
+                        chain_str = 'caip2 as chain_id'
+                else:
+                        raise ValueError("chain_id must be either 'origin_key' or 'caip2'")
+                
+                exec_string = f"""
+                        SELECT 
+                                address,
+                                {chain_str},
+                                name,
+                                owner_project,
+                                usage_category,
+                                is_factory_contract
+                        FROM public.vw_oli_labels
+                        LEFT JOIN sys_chains USING (origin_key)
+                        WHERE owner_project IS NOT NULL
+                        """
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        ## TODO: filter by contracts only?
+        def get_labels_page(self, limit=50000, order_by='txcount'):
+                exec_string = f"""
+                        SELECT 
+                                address, 
+                                origin_key, 
+                                "name",
+                                owner_project,
+                                usage_category,
+                                sum(txcount) as txcount, 
+                                sum(gas_fees_usd) as gas_fees_usd, 	
+                                sum(daa) as daa	
+                        FROM public.blockspace_fact_contract_level
+                        left join vw_oli_labels using (address, origin_key)
+                        where "date"  >= date_trunc('day',now()) - interval '7 days'
+                                and "date" < date_trunc('day', now())
+                        group by 1,2,3,4,5
+                        order by {order_by} desc
+                        limit {limit}
+                """
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df

@@ -3,6 +3,7 @@ import simplejson as json
 import datetime
 import pandas as pd
 import numpy as np
+import random
 from datetime import timedelta, datetime
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
@@ -915,11 +916,18 @@ class JSONCreation():
                 hottest_contract = hottest_contract.replace({np.nan: None})
                 hottest_contract = db_addresses_to_checksummed_addresses(hottest_contract, ['address'])
                 
+                hottest_contract = hottest_contract[
+                    ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key",
+                     "gas_fees_eth", "gas_fees_usd", "gas_fees_eth_change", "gas_fees_usd_change", "prev_gas_fees_eth",
+                     "prev_gas_fees_usd", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent"]
+                ]
+
+                ## change column names contract_name to name and origin_key to chain
+                hottest_contract = hottest_contract.rename(columns={'contract_name': 'name', 'origin_key': 'chain'})
+
                 hottest_contract_dict = {
-                    "data": hottest_contract[
-                        ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
-                    ].values.tolist(),
-                    "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+                    'types': hottest_contract.columns.to_list(),
+                    'data': hottest_contract.values.tolist()
                 }
             else:
                 print(f'..skipped: Hottest Contract for {origin_key}. aggregate_blockspace is set to False')
@@ -1147,15 +1155,23 @@ class JSONCreation():
 
         for days in [1,7,30,90,180,365]:
             contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
+
             # replace NaNs with Nones
             contracts = contracts.replace({np.nan: None})
             contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
+
+            contracts = contracts[
+                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", 
+                 "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", 
+                 "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+            ]
+
+            ## change column names contract_name to name and origin_key to chain
+            contracts = contracts.rename(columns={'contract_name': 'name', 'origin_key': 'chain'})
             
             landing_dict['data']['top_contracts'][f"{days}d"] = {
-                "data": contracts[
-                    ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
-                ].values.tolist(),
-                "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_eth", "gas_fees_usd", "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+                'types': contracts.columns.to_list(),
+                'data': contracts.values.tolist()
             }
 
         landing_dict = fix_dict_nan(landing_dict, 'landing_page')
@@ -1165,6 +1181,223 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
         print(f'DONE -- landingpage export')
+
+    ### FEES PAGE
+
+    def create_fees_table_json(self, df):
+        fees_dict = {
+            "chain_data" : {}
+        } 
+
+        ## filter df timestamp to be within the last 48 hours (not more needed for table visual)
+        df = df[(df.granularity == 'hourly')]
+        df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=25)]
+        max_ts_all = df['unix'].max()
+
+        ## loop over all chains and generate a fees json for all chains
+        for chain in adapter_mapping:
+            origin_key = chain.origin_key
+            if chain.in_fees_api == False:
+                print(f'..skipped: Fees export for {origin_key}. API is set to False')
+                continue
+            
+            eth_price = self.db_connector.get_last_price_usd('ethereum')
+
+            hourly_dict = {}
+            for metric_key in self.fees_list:
+                ## generate metric_name which is metric_key without the last 4 characters
+                metric_name = metric_key[:-4]               
+                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all, True)
+                hourly_dict[metric_name] = {
+                    "types": generated[1],
+                    "data": generated[0]
+                }
+            
+            fees_dict["chain_data"][origin_key] = {
+                'hourly': hourly_dict,
+                # 'ten_min': min_10_dict
+            }
+
+        fees_dict = fix_dict_nan(fees_dict, f'fees/table', False)
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, f'fees/table')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/table', fees_dict, self.cf_distribution_id)
+        print(f'DONE -- fees/table.json export')
+
+    def create_fees_linechart_json(self, df):
+        fees_dict = {
+            "chain_data" : {}
+        } 
+
+        #max_ts_all = df['unix'].max()
+
+        ## loop over all chains and generate a fees json for all chains
+        for chain in adapter_mapping:
+            origin_key = chain.origin_key
+            if chain.in_fees_api == False:
+                print(f'..skipped: Fees export for {origin_key}. API is set to False')
+                continue
+            if origin_key == 'ethereum':
+                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
+                continue  
+            
+            eth_price = self.db_connector.get_last_price_usd('ethereum')                
+            fees_dict["chain_data"][origin_key] = {}
+
+            for metric_key in self.fees_list:
+                timeframe_dict = {}
+                ## generate metric_name which is metric_key without the last 4 characters
+                metric_name = metric_key[:-4]
+
+                for timeframe in self.fees_timespans:
+                    granularity = self.fees_timespans[timeframe]["granularity"]
+                    filter_days = self.fees_timespans[timeframe]["filter_days"]
+                    df_tmp = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=24*filter_days)].copy()
+                    generated = self.generate_fees_list(df_tmp, metric_key, origin_key, granularity, eth_price)
+                    timeframe_dict[timeframe] = {
+                        "types": generated[1],
+                        "granularity": granularity,
+                        "data": generated[0]
+                    }
+            
+
+                fees_dict["chain_data"][origin_key][metric_name] = timeframe_dict
+
+        fees_dict = fix_dict_nan(fees_dict, f'fees/linechart')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fees_dict, f'fees/linechart')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
+        print(f'DONE -- fees/linechart.json export')
+
+    ### ECONOMICS SECTION
+    def aggregate_metric(self, df, origin_key, metric_key, days):
+        df = df[(df['origin_key'] == origin_key) & (df['metric_key'] == metric_key)]
+        df = df[(df['date'] >= df['date'].max() - pd.DateOffset(days=days-1))]
+        val = df['value'].sum()
+        return val
+
+    def create_economics_json(self, df):
+        # filter df for all_l2s (all chains except chains that aren't included in the API)
+        chain_keys = [x.origin_key for x in adapter_mapping if x.in_economics_api == True and x.deployment == "PROD"]
+        df = df.loc[(df.origin_key.isin(chain_keys))]
+
+        economics_dict = {
+            "data": {
+                "da_fees" : {
+                    "ethereum": self.generate_all_l2s_metric_dict(df, 'stables_mcap', rolling_avg=True), ##TODO: change to da_fees
+                    "blobs": self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=True), ##TODO: change to da_fees
+                    "celestia": self.generate_all_l2s_metric_dict(df, 'rent_paid', rolling_avg=True), ##TODO: change to da_fees
+                },
+                "chain_breakdown": {}
+            }
+        }
+
+        # overwrites - TODO: can be removed once real da data is available
+        economics_dict['data']['da_fees']['ethereum']['metric_name'] = 'Ethereum Fees'
+        economics_dict['data']['da_fees']['blobs']['metric_name'] = 'Blob Fees'
+        economics_dict['data']['da_fees']['celestia']['metric_name'] = 'Celestia Fees'
+
+        timeframes = [1,7,30,90,180,'max']
+        
+        # iterate over each chain and generate table and chart data
+        for origin_key in chain_keys:
+            randint = random.randint(80, 100)
+            economics_dict['data']['chain_breakdown'][origin_key] = {}
+            # get data for each timeframe (for table aggregates)
+            for timeframe in timeframes:
+                timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
+                days = timeframe if timeframe != 'max' else 2000
+
+                revenue = self.aggregate_metric(df, origin_key, 'rent_paid_eth', days)
+                profit = self.aggregate_metric(df, origin_key, 'profit_eth', days)
+                profit_margin = profit / revenue if revenue != 0 else 0.0
+
+                economics_dict['data']['chain_breakdown'][origin_key][timeframe_key] = {
+                    "revenue": {
+                        "types": ["usd", "eth"],
+                        "total": [self.aggregate_metric(df, origin_key, 'fees_paid_usd', days), self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)]
+                    },		
+                    "costs": {
+                        "types": ["usd", "eth"],
+                        "total": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days)], ## TODO: change to real costs (rent to L1 + DA costs)
+                        "proof_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * (randint/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * (randint/100)], ## TODO: change to real proof costs
+                        "da_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * ((100-randint)/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * ((100-randint)/100)], ## TODO: change to real da costs
+                    },
+                    "profit": {
+                        "types": ["usd", "eth"],
+                        "total": [self.aggregate_metric(df, origin_key, 'profit_usd', days), self.aggregate_metric(df, origin_key, 'profit_eth', days)]
+                    },	
+                    "profit_margin": {
+                        "types": ["percentage"],
+                        "total": [profit_margin]
+                    },
+                    "size": {
+                        "types": ["bytes"],
+                        "total": [random.randint(10000, 100000) * days] ## TODO: change to real size
+                    }
+                }
+
+            ## add timeseries data for each chain
+            economics_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
+            for metric in ['fees', 'rent_paid', 'profit']:
+                mk_list = self.generate_daily_list(df, metric, origin_key)
+                mk_list_int = mk_list[0]
+                mk_list_columns = mk_list[1]
+
+                metric_to_key = {
+                    'fees': 'revenue',
+                    'rent_paid': 'costs',
+                    'profit': 'profit'
+                }
+
+                key = metric_to_key.get(metric)
+
+                economics_dict['data']['chain_breakdown'][origin_key]['daily'][key] = {
+                    'types' : mk_list_columns,
+                    'data' : mk_list_int
+                }
+
+        economics_dict = fix_dict_nan(economics_dict, 'economics')
+
+        if self.s3_bucket == None:
+            self.save_to_json(economics_dict, 'economics')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/economics', economics_dict, self.cf_distribution_id)
+        print(f'DONE -- economics export')
+
+
+    def create_labels_full_json(self):
+        order_by = 'txcount'
+        df = self.db_connector.get_labels_page(limit=50000, order_by=order_by)
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        df = df.replace({np.nan: None})
+
+        labels_dict = {
+            'data': {
+                'sort': {
+                    'by': order_by,
+                    'direction': 'desc'
+                },
+                'types': df.columns.to_list(),
+                'data': df.values.tolist()
+            }
+        }
+
+        labels_dict = fix_dict_nan(labels_dict, 'labels-full')
+
+        if self.s3_bucket == None:
+            self.save_to_json(labels_dict, 'labels-full')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/full', labels_dict, self.cf_distribution_id)
+        print(f'DONE -- labels full export')
+
+
+    ### OTHER API ENDPOINTS
 
     def create_fundamentals_json(self, df):
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
@@ -1256,197 +1489,6 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/contracts', contracts_dict, self.cf_distribution_id)
 
-    def create_mvp_dict(self):
-        exec_string = f""" SELECT * FROM public.mvp_app_level """
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
-
-        ## date to datetime column in UTC
-        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
-        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
-
-        ## create dict
-        mvp_dict = df.to_dict(orient='records')
-
-        if self.s3_bucket == None:
-            self.save_to_json(mvp_dict, 'mvp_dict')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/mvp_dict', mvp_dict, self.cf_distribution_id)
-
-
-    ### TO BE DEPRECATED ###
-    def create_fees_json(self):
-        df = self.download_data_fees(self.fees_list)
-
-        fees_dict = {
-            "chain_data" : {}
-        } 
-
-        max_ts_all = df['unix'].max()
-
-        ## loop over all chains and generate a fees json for all chains
-        for chain in adapter_mapping:
-            origin_key = chain.origin_key
-            if chain.in_fees_api == False:
-                print(f'..skipped: Fees export for {origin_key}. API is set to False')
-                continue
-            if origin_key == 'ethereum':
-                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
-                continue            
-            
-            eth_price = self.db_connector.get_last_price_usd('ethereum')
-
-            hourly_dict = {}
-            min_10_dict = {}
-
-            for metric_key in self.fees_list:
-                ## generate metric_name which is metric_key without the last 4 characters
-                metric_name = metric_key[:-4]
-                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price)
-                hourly_dict[metric_name] = {
-                    "types": generated[1],
-                    "data": generated[0]
-                }
-            
-            for metric_key in self.fees_list:
-                ## generate metric_name which is metric_key without the last 4 characters
-                metric_name = metric_key[:-4]
-                generated = self.generate_fees_list(df, metric_key, origin_key, '10_min', eth_price)
-                min_10_dict[metric_name] = {
-                    "types": generated[1],
-                    "data": generated[0]
-                }
-
-            fees_dict["chain_data"][origin_key] = {
-                'hourly': hourly_dict,
-                'ten_min': min_10_dict
-            }
-
-        fees_dict = fix_dict_nan(fees_dict, f'fees')
-
-        if self.s3_bucket == None:
-            self.save_to_json(fees_dict, f'fees')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees', fees_dict, self.cf_distribution_id)
-        print(f'DONE -- Fees export')
-    
-    ### TO BE DEPRECATED ###
-    def create_fees_dict(self):
-        df = self.download_data_fees(self.fees_list)
-
-        df = df[df.origin_key != 'ethereum']
-        for adapter in adapter_mapping:
-            ## filter out origin_keys from df if in_api=false
-            if adapter.in_fees_api == False:
-                #print(f"Filtering out origin_keys for adapter {adapter.name}")
-                df = df[df.origin_key != adapter.origin_key]
-
-        ## generate usd values
-        eth_price = self.db_connector.get_last_price_usd('ethereum')
-        df_usd = df.copy()
-        df_usd['value'] = df_usd['value'] * eth_price
-        df_usd['metric_key'] = df_usd['metric_key'].str.replace("_eth", "_usd")
-        df = pd.concat([df, df_usd])
-
-        ## drop column timestamp
-        df = df.drop(columns=['timestamp'])
-
-        ## create dict
-        fees_dict = df.to_dict(orient='records')
-
-        if self.s3_bucket == None:
-            self.save_to_json(fees_dict, 'fees_dict')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees_dict', fees_dict, self.cf_distribution_id)
-
-    def create_fees_table_json(self, df):
-        fees_dict = {
-            "chain_data" : {}
-        } 
-
-        ## filter df timestamp to be within the last 48 hours (not more needed for table visual)
-        df = df[(df.granularity == 'hourly')]
-        df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=25)]
-        max_ts_all = df['unix'].max()
-
-        ## loop over all chains and generate a fees json for all chains
-        for chain in adapter_mapping:
-            origin_key = chain.origin_key
-            if chain.in_fees_api == False:
-                print(f'..skipped: Fees export for {origin_key}. API is set to False')
-                continue
-            
-            eth_price = self.db_connector.get_last_price_usd('ethereum')
-
-            hourly_dict = {}
-            for metric_key in self.fees_list:
-                ## generate metric_name which is metric_key without the last 4 characters
-                metric_name = metric_key[:-4]               
-                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all, True)
-                hourly_dict[metric_name] = {
-                    "types": generated[1],
-                    "data": generated[0]
-                }
-            
-            fees_dict["chain_data"][origin_key] = {
-                'hourly': hourly_dict,
-                # 'ten_min': min_10_dict
-            }
-
-        fees_dict = fix_dict_nan(fees_dict, f'fees/table', False)
-
-        if self.s3_bucket == None:
-            self.save_to_json(fees_dict, f'fees/table')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/table', fees_dict, self.cf_distribution_id)
-        print(f'DONE -- fees/table.json export')
-
-    def create_fees_linechart_json(self, df):
-        fees_dict = {
-            "chain_data" : {}
-        } 
-
-        #max_ts_all = df['unix'].max()
-
-        ## loop over all chains and generate a fees json for all chains
-        for chain in adapter_mapping:
-            origin_key = chain.origin_key
-            if chain.in_fees_api == False:
-                print(f'..skipped: Fees export for {origin_key}. API is set to False')
-                continue
-            if origin_key == 'ethereum':
-                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
-                continue  
-            
-            eth_price = self.db_connector.get_last_price_usd('ethereum')                
-            fees_dict["chain_data"][origin_key] = {}
-
-            for metric_key in self.fees_list:
-                timeframe_dict = {}
-                ## generate metric_name which is metric_key without the last 4 characters
-                metric_name = metric_key[:-4]
-
-                for timeframe in self.fees_timespans:
-                    granularity = self.fees_timespans[timeframe]["granularity"]
-                    filter_days = self.fees_timespans[timeframe]["filter_days"]
-                    df_tmp = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=24*filter_days)].copy()
-                    generated = self.generate_fees_list(df_tmp, metric_key, origin_key, granularity, eth_price)
-                    timeframe_dict[timeframe] = {
-                        "types": generated[1],
-                        "granularity": granularity,
-                        "data": generated[0]
-                    }
-            
-
-                fees_dict["chain_data"][origin_key][metric_name] = timeframe_dict
-
-        fees_dict = fix_dict_nan(fees_dict, f'fees/linechart')
-
-        if self.s3_bucket == None:
-            self.save_to_json(fees_dict, f'fees/linechart')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
-        print(f'DONE -- fees/linechart.json export')
-
     def create_all_jsons(self):
         df = self.get_all_data()
         self.create_master_json(df)
@@ -1454,8 +1496,9 @@ class JSONCreation():
 
         self.create_chain_details_jsons(df)
         self.create_metric_details_jsons(df)
+
+        self.create_economics_json(df)
         
         self.create_fundamentals_json(df)
         self.create_fundamentals_full_json(df)
         self.create_contracts_json()
-        self.create_mvp_dict()

@@ -118,7 +118,7 @@ class AdapterOSO(AbstractAdapter):
             if len(dropped_projects) > 0:
                 self.db_connector.deactivate_projects(dropped_projects)
 
-                send_discord_message(f"IMPORTANT -- projects removed from OSO directory. We might need to update our tag_mapping table for label 'owner_project': {dropped_projects}", self.webhook_url)
+                send_discord_message(f"OSS projects DROPPED. We might need to update our tag_mapping table for label 'owner_project': {dropped_projects}", self.webhook_url)
             else:
                 print("Nothing to deactivate")
         else:
@@ -137,6 +137,8 @@ class AdapterOSO(AbstractAdapter):
         df_new_projects = df_oss[~df_oss['name'].isin(df_active_projects['name'])]
         new_projects = df_new_projects['name'].to_list()
         print(f"...{len(new_projects)} projects newly added since the last sync: {new_projects}")
+        if len(new_projects) > 0:
+            send_discord_message(f"<@874921624720257037> OSS projects newly ADDED: {new_projects}", self.webhook_url)
 
         ## set index
         df_oss.set_index('name', inplace=True)
