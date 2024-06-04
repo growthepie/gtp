@@ -1079,7 +1079,7 @@ class JSONCreation():
                 'technology': chain.technology,
                 'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
-                'show_labels': chain.in_labels_api,
+                'enable_contracts': chain.in_labels_api,
                 'l2beat_stage': self.gen_l2beat_stage(chain),
                 'l2beat_link': self.gen_l2beat_link(chain),
                 'raas': chain.raas,
