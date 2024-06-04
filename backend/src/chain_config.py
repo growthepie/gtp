@@ -14,7 +14,7 @@ class AdapterMapping(BaseModel):
 
     in_api: bool ## True when the chain should be included in the API output
     in_fees_api: bool ## True when the chain should be included in the fees API output
-    in_economics_api: Optional[bool] ## True when the chain should be included in the economics API output
+    in_economics_api: bool = False ## True when the chain should be included in the economics API output
     in_labels_api: bool = False ## True when the chain should be included in the labels API output
 
     deployment: str ## PROD, DEV
@@ -92,6 +92,28 @@ adapter_mapping = [
         
         ,batch_size=3
         ,backfiller_on=True        
+        )
+
+    ,AdapterMapping(
+        origin_key="celestia"
+        ,name = "Celestia"
+        ,name_short = "Celestia"
+        ,description = "Celestia DA chain."
+        ,da_layer = "-"
+
+        ,in_api = False
+        ,in_fees_api = False
+        ,deployment="PROD"
+        ,exclude_metrics = []
+        ,aggregate_blockspace = False
+        ,aggregate_addresses = False
+
+        ,bucket = "Data Availability"
+        ,symbol = "TIA"
+        ,technology = 'DA'
+        ,purpose = 'DA'
+
+        ,coingecko_naming='celestia'
         )
    
     # Layer 2s    
