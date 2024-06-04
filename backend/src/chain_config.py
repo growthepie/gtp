@@ -66,7 +66,6 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
-        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
