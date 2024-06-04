@@ -1221,20 +1221,40 @@ class DbConnector:
         ## TODO: filter by contracts only?
         def get_labels_page(self, limit=50000, order_by='txcount', origin_keys=None):
                 exec_string = f"""
+                        with prev_period as (
+                                SELECT 
+                                        cl.address, 
+                                        cl.origin_key, 
+                                        sum(txcount) as txcount, 
+                                        sum(gas_fees_usd) as gas_fees_usd, 	
+                                        sum(daa) as daa	
+                                FROM public.blockspace_fact_contract_level cl
+                                where "date"  >= date_trunc('day',now()) - interval '14 days'
+                                        and "date" < date_trunc('day',now()) - interval '7 days'
+                                group by 1,2
+                        )
+
+
                         SELECT 
-                                address, 
-                                origin_key, 
-                                "name",
-                                owner_project,
-                                usage_category,
-                                sum(txcount) as txcount, 
-                                sum(gas_fees_usd) as gas_fees_usd, 	
-                                sum(daa) as daa	
-                        FROM public.blockspace_fact_contract_level
-                        left join vw_oli_labels using (address, origin_key)
+                                cl.address, 
+                                cl.origin_key, 
+                                lab."name",
+                                oss.display_name as owner_project,
+                                lab.usage_category,
+                                sum(cl.txcount) as txcount,
+                                (sum(cl.txcount) - sum(prev.txcount)) / sum(prev.txcount) as txcount_change,
+                                sum(cl.gas_fees_usd) as gas_fees_usd, 	
+                                (sum(cl.gas_fees_usd) - sum(prev.gas_fees_usd)) / sum(prev.gas_fees_usd) as gas_fees_usd_change,
+                                sum(cl.daa) as daa,
+                                (sum(cl.daa) - sum(prev.daa)) / sum(prev.daa) as daa_change
+                        FROM public.blockspace_fact_contract_level cl
+                        left join prev_period prev using (address, origin_key)
+                        left join vw_oli_labels lab using (address, origin_key)
+                        left join oli_oss_directory oss on oss.name = lab.owner_project
                         where "date"  >= date_trunc('day',now()) - interval '7 days'
                                 and "date" < date_trunc('day', now())
                                 and origin_key IN ('{"','".join(origin_keys)}')
+                                and (lab.owner_project is null OR oss.active = true)
                         group by 1,2,3,4,5
                         order by {order_by} desc
                         limit {limit}

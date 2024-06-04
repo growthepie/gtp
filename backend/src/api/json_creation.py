@@ -1385,7 +1385,12 @@ class JSONCreation():
         df = self.db_connector.get_labels_page(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
-        df = df.replace({np.nan: None})
+        df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+
+        df = df.replace({np.nan: None})        
 
         labels_dict = {
             'data': {
@@ -1418,18 +1423,13 @@ class JSONCreation():
         df['gas_fees_usd'] = df['gas_fees_usd'].round(2)
 
         sparkline_dict = {
-            'data': [
-                {
-                    'address': address,
-                    'origin_key': origin_key,
-                    'sparkline': {
-                        'types': ['unix', 'txcount', 'gas_fees', 'active_addresses'],
-                        'data': df[(df['address'] == address) & (df['origin_key'] == origin_key)][['unix', 'txcount', 'gas_fees_usd', 'daa']].values.tolist()
-                    }
-                }
-                for address, origin_key in df[['address', 'origin_key']].drop_duplicates().values
-            ]
+                'data': {'types': ['unix', 'txcount', 'gas_fees', 'active_addresses'],}
         }
+
+        for address, origin_key in df[['address', 'origin_key']].drop_duplicates().values:
+            sparkline_dict['data'][f'{origin_key}_{address}'] = {
+                    'sparkline': df[(df['address'] == address) & (df['origin_key'] == origin_key)][['unix', 'txcount', 'gas_fees_usd', 'daa']].values.tolist()
+            }                     
 
         sparkline_dict = fix_dict_nan(sparkline_dict, 'labels-sparkline')
 
