@@ -1370,9 +1370,16 @@ class JSONCreation():
         print(f'DONE -- economics export')
 
 
-    def create_labels_full_json(self):
+    def create_labels_json(self, type='full'):
+        if type == 'full':
+            limit = 50000
+        elif type == 'quick':
+            limit = 100
+        else:
+            raise ValueError('type must be either "full" or "quick"')
+        
         order_by = 'txcount'
-        df = self.db_connector.get_labels_page(limit=50000, order_by=order_by)
+        df = self.db_connector.get_labels_page(limit=limit, order_by=order_by)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         df = df.replace({np.nan: None})
@@ -1388,13 +1395,46 @@ class JSONCreation():
             }
         }
 
-        labels_dict = fix_dict_nan(labels_dict, 'labels-full')
+        labels_dict = fix_dict_nan(labels_dict, f'labels-{type}')
 
         if self.s3_bucket == None:
-            self.save_to_json(labels_dict, 'labels-full')
+            self.save_to_json(labels_dict, f'labels-{type}')
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/full', labels_dict, self.cf_distribution_id)
-        print(f'DONE -- labels full export')
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/{type}', labels_dict, self.cf_distribution_id)
+        print(f'DONE -- labels {type} export')
+
+    def create_labels_sparkline_json(self):
+        df = self.db_connector.get_labels_page_sparkline()
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+        df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+
+        df['txcount'] = df['txcount'].astype(int)
+        df['daa'] = df['daa'].astype(int)
+        df['gas_fees_usd'] = df['gas_fees_usd'].round(2)
+
+        sparkline_dict = {
+            'data': [
+                {
+                    'address': address,
+                    'origin_key': origin_key,
+                    'sparkline': {
+                        'types': ['unix', 'txcount', 'gas_fees', 'active_addresses'],
+                        'data': df[(df['address'] == address) & (df['origin_key'] == origin_key)][['unix', 'txcount', 'gas_fees_usd', 'daa']].values.tolist()
+                    }
+                }
+                for address, origin_key in df[['address', 'origin_key']].drop_duplicates().values
+            ]
+        }
+
+        sparkline_dict = fix_dict_nan(sparkline_dict, 'labels-sparkline')
+
+        if self.s3_bucket == None:
+            self.save_to_json(sparkline_dict, 'labels-sparkline')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', sparkline_dict, self.cf_distribution_id)
+        print(f'DONE -- sparkline export')
 
 
     ### OTHER API ENDPOINTS

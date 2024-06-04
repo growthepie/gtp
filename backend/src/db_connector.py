@@ -1241,3 +1241,35 @@ class DbConnector:
 
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+
+        def get_labels_page_sparkline(self):
+                exec_string = f"""
+                        with top as (
+                                SELECT 
+                                address, 
+                                origin_key, 
+                                sum(txcount) as txcount_limit
+                        FROM public.blockspace_fact_contract_level
+                        where "date"  >= date_trunc('day',now()) - interval '7 days'
+                                and "date" < date_trunc('day', now())
+                        group by 1,2
+                        order by 3 desc
+                        limit 100
+                        )
+
+                        SELECT 
+                                address, 
+                                origin_key,
+                                "date",
+                                sum(txcount) as txcount, 
+                                sum(gas_fees_usd) as gas_fees_usd, 	
+                                sum(daa) as daa
+                        FROM blockspace_fact_contract_level
+                        inner join top using (address, origin_key)
+                        where "date"  >= date_trunc('day',now()) - interval '30 days'
+                                and "date" < date_trunc('day', now())
+                        group by 1,2,3
+                """
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
