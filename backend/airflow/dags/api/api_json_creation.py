@@ -62,8 +62,9 @@ def etl():
         json_creator.create_fundamentals_full_json(df)
 
     @task()
-    def run_create_contracts():
-        json_creator.create_contracts_json()
+    def run_create_labels():
+        json_creator.create_labels_json('full')
+        json_creator.create_labels_json('quick')
 
     @task()
     def run_create_blockspace_overview():
@@ -83,8 +84,12 @@ def etl():
     run_create_economics()
     run_create_master()
     run_create_fundamentals()
-    #run_create_contracts()
+
+    ## Blockspace
     run_create_blockspace_overview()
     run_create_blockspace_category_comparison()
     run_create_chain_blockspace()
+
+    ## Labels
+    run_create_labels()
 etl()
