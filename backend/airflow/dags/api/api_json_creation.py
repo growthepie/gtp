@@ -65,6 +65,7 @@ def etl():
     def run_create_labels():
         json_creator.create_labels_json('full')
         json_creator.create_labels_json('quick')
+        json_creator.create_labels_sparkline_json()
 
     @task()
     def run_create_blockspace_overview():
