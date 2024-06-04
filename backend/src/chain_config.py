@@ -15,6 +15,8 @@ class AdapterMapping(BaseModel):
     in_api: bool ## True when the chain should be included in the API output
     in_fees_api: bool ## True when the chain should be included in the fees API output
     in_economics_api: Optional[bool] ## True when the chain should be included in the economics API output
+    in_labels_api: bool = False ## True when the chain should be included in the labels API output
+
     deployment: str ## PROD, DEV
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
@@ -64,6 +66,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
@@ -96,13 +99,14 @@ adapter_mapping = [
     ,AdapterMapping(
         origin_key="polygon_zkevm"
         ,name = "Polygon zkEVM"
-        ,name_short = "Polygon"
+        ,name_short = "Polygon zk"
         ,description="Polygon zkEVM uses zero-knowledge proofs to run EVM-compatible smart contracts, simplifying migration for developers to the Polygon network."
         ,da_layer = "Ethereum (calldata)"
         ,rhino_naming="ZKEVM"
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -147,6 +151,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,in_economics_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -193,6 +198,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,in_economics_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -273,6 +279,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
         ,aggregate_blockspace = True
@@ -311,6 +318,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,in_economics_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -347,6 +355,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -384,6 +393,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = False
         ,in_economics_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -421,6 +431,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -456,6 +467,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -491,6 +503,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
@@ -782,6 +795,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,in_economics_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True

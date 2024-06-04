@@ -1219,7 +1219,7 @@ class DbConnector:
                 return df
         
         ## TODO: filter by contracts only?
-        def get_labels_page(self, limit=50000, order_by='txcount'):
+        def get_labels_page(self, limit=50000, order_by='txcount', origin_keys=None):
                 exec_string = f"""
                         SELECT 
                                 address, 
@@ -1234,6 +1234,7 @@ class DbConnector:
                         left join vw_oli_labels using (address, origin_key)
                         where "date"  >= date_trunc('day',now()) - interval '7 days'
                                 and "date" < date_trunc('day', now())
+                                and origin_key IN ('{"','".join(origin_keys)}')
                         group by 1,2,3,4,5
                         order by {order_by} desc
                         limit {limit}
@@ -1242,7 +1243,7 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
 
-        def get_labels_page_sparkline(self):
+        def get_labels_page_sparkline(self, origin_keys=None):
                 exec_string = f"""
                         with top as (
                                 SELECT 
@@ -1252,6 +1253,7 @@ class DbConnector:
                         FROM public.blockspace_fact_contract_level
                         where "date"  >= date_trunc('day',now()) - interval '7 days'
                                 and "date" < date_trunc('day', now())
+                                and origin_key IN ('{"','".join(origin_keys)}')
                         group by 1,2
                         order by 3 desc
                         limit 100

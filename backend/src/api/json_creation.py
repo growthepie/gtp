@@ -176,6 +176,8 @@ class JSONCreation():
         self.chains_list_in_api = [x.origin_key for x in adapter_mapping if x.in_api == True]
         #only chains that are in the api output and deployment is "PROD"
         self.chains_list_in_api_prod = [x.origin_key for x in adapter_mapping if x.in_api == True and x.deployment == "PROD"]
+        #only chains that are in the api output and deployment is "PROD" and in_labels_api is True
+        self.chains_list_in_api_labels = [x.origin_key for x in adapter_mapping if x.in_api == True and x.in_labels_api == True]
 
         ## all feest metrics keys
         self.fees_list = [item for sublist in [self.fees_types[metric]['metric_keys'] for metric in self.fees_types] for item in sublist]
@@ -1077,6 +1079,7 @@ class JSONCreation():
                 'technology': chain.technology,
                 'purpose': chain.purpose,
                 'launch_date': chain.launch_date,
+                'show_labels': chain.in_labels_api,
                 'l2beat_stage': self.gen_l2beat_stage(chain),
                 'l2beat_link': self.gen_l2beat_link(chain),
                 'raas': chain.raas,
@@ -1379,7 +1382,7 @@ class JSONCreation():
             raise ValueError('type must be either "full" or "quick"')
         
         order_by = 'txcount'
-        df = self.db_connector.get_labels_page(limit=limit, order_by=order_by)
+        df = self.db_connector.get_labels_page(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         df = df.replace({np.nan: None})
@@ -1404,7 +1407,7 @@ class JSONCreation():
         print(f'DONE -- labels {type} export')
 
     def create_labels_sparkline_json(self):
-        df = self.db_connector.get_labels_page_sparkline()
+        df = self.db_connector.get_labels_page_sparkline(origin_keys=self.chains_list_in_api_labels)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
