@@ -8,6 +8,7 @@ from datetime import timedelta, datetime
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+from src.misc.glo_prep import Glo
 
 import warnings
 
@@ -1514,6 +1515,7 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals_full', fundamentals_dict, self.cf_distribution_id)
 
+    ## TODO: DEPRECATE
     def create_contracts_json(self):
         exec_string = f"""
             SELECT address, contract_name, project_name, sub_category_key, origin_key
@@ -1531,6 +1533,37 @@ class JSONCreation():
             self.save_to_json(contracts_dict, 'contracts')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/contracts', contracts_dict, self.cf_distribution_id)
+
+    def create_glo_json(self):
+        glo = Glo(self.db_connector)
+        
+        df = glo.run_glo()
+        df_mcap = self.db_connector.get_glo_mcap()
+
+        current_mcap = df_mcap[(df_mcap['metric_key'] == 'market_cap_usd') & (df_mcap['date'] == df_mcap['date'].max())].value.max()
+        df['share'] = df['balance'] / current_mcap
+
+        df_mcap['date'] = pd.to_datetime(df_mcap['date']).dt.tz_localize('UTC')
+        df_mcap['unix'] = df_mcap['date'].apply(lambda x: x.timestamp() * 1000)
+        df_mcap = df_mcap.drop(columns=['date'])
+        df_mcap = df_mcap.pivot(index='unix', columns='metric_key', values='value')
+        df_mcap.reset_index(inplace=True)
+        df_mcap.rename(columns={'market_cap_eth':'eth', 'market_cap_usd':'usd'}, inplace=True)
+
+        glo_dict = {'holders_table':{}, 'chart':{}}
+
+        for index, row in df.iterrows():
+            glo_dict['holders_table'][row['holder']] = {'balance':row['balance'], 'share':row['share'], 'website':row['website'], 'twitter':row['twitter']}
+
+        glo_dict['chart']['types'] = df_mcap.columns.to_list()
+        glo_dict['chart']['data'] = df_mcap.values.tolist()
+
+        glo_dict = fix_dict_nan(glo_dict, 'GLO Dollar')
+
+        if self.s3_bucket == None:
+            self.save_to_json(glo_dict, 'GLO Dollar')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/glo_dollar', glo_dict, self.cf_distribution_id)
 
     def create_all_jsons(self):
         df = self.get_all_data()

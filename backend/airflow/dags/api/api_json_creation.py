@@ -79,12 +79,16 @@ def etl():
     def run_create_chain_blockspace():
         blockspace_json_creator.create_blockspace_single_chain_json()
 
+    @task()
+    def run_create_glo():
+        json_creator.create_glo_json()
+
+    # Main
+    run_create_master()    
     run_create_chain_details()
     run_create_metrics_details()
     run_create_landingpage()
     run_create_economics()
-    run_create_master()
-    run_create_fundamentals()
 
     ## Blockspace
     run_create_blockspace_overview()
@@ -93,4 +97,8 @@ def etl():
 
     ## Labels
     run_create_labels()
+
+    ## Misc
+    run_create_glo()
+    run_create_fundamentals()
 etl()
