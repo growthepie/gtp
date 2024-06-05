@@ -8,5 +8,5 @@ def alert_via_webhook(context):
     exception = context.get('exception')
     webhook_url = Variable.get("DISCORD_ALERTS")
 
-    message = f"<@693484083895992393> -- A failure occurred in {dag_run.dag_id} on task {task_instance.task_id}. Might just be a transient issue -- Exception: {exception[:250]}"
-    send_discord_message(message, webhook_url)
+    message = f"<@693484083895992393> -- A failure occurred in {dag_run.dag_id} on task {task_instance.task_id}. Might just be a transient issue -- Exception: {exception}"
+    send_discord_message(message[:499], webhook_url)
