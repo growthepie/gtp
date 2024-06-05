@@ -7,6 +7,8 @@ from web3.middleware import geth_poa_middleware
 from src.misc.helper_functions import db_addresses_to_checksummed_addresses
 import pandas as pd
 import time
+import json
+import os
 
 class Glo:
     def __init__(self, db_connector):
@@ -16,8 +18,8 @@ class Glo:
     def get_mapping_sheet(self):
         SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly']
 
-        SERVICE_ACCOUNT_FILE = 'growthepie-17b4adf5ad94.json'
-        credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+        credentials_info = json.loads(os.getenv('GOOGLE_CREDENTIALS'))
+        credentials = service_account.Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
 
         SPREADSHEET_ID = '11GWiQhuGyzYVSKLXxLDyZjU0lFYy8HVxVI7NsSeV50A'
         RANGE_NAME = 'A1:H1000'  # Adjust the range as needed
