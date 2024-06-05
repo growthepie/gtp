@@ -1549,6 +1549,7 @@ class JSONCreation():
         df_mcap = df_mcap.pivot(index='unix', columns='metric_key', values='value')
         df_mcap.reset_index(inplace=True)
         df_mcap.rename(columns={'market_cap_eth':'eth', 'market_cap_usd':'usd'}, inplace=True)
+        df_mcap = df_mcap.sort_values(by='unix', ascending=True)
 
         glo_dict = {'holders_table':{}, 'chart':{}}
 
