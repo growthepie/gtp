@@ -55,6 +55,21 @@ class AdapterCoingecko(AbstractAdapter):
                 )
         elif self.load_type == 'imx_tokens':
             df = self.extract_imx_tokens()
+        elif self.load_type == 'direct':
+            metric_keys = load_params['metric_keys']
+            coingecko_ids = load_params['coingecko_ids']
+            days = load_params['days']
+            vs_currencies = load_params['vs_currencies']
+
+            df = self.extract_projects(
+                projects_to_load=coingecko_ids
+                ,vs_currencies=vs_currencies
+                ,days=days
+                ,base_url=self.base_url
+                ,metric_keys=metric_keys
+                ,granularity=self.granularity
+                ,load_type='direct'
+                )
         else:
             raise ValueError(f"load_type {self.load_type} not supported")      
 
@@ -62,7 +77,7 @@ class AdapterCoingecko(AbstractAdapter):
         return df
 
     def load(self, df:pd.DataFrame):
-        if self.load_type == 'project':
+        if self.load_type == 'project' or self.load_type == 'direct':
             if self.granularity == 'daily':
                 upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
                 print_load(self.name, upserted, tbl_name)
@@ -78,7 +93,7 @@ class AdapterCoingecko(AbstractAdapter):
 
     ## ----------------- Helper functions --------------------
 
-    def extract_projects(self, projects_to_load, vs_currencies, days, base_url, metric_keys, granularity='daily'):
+    def extract_projects(self, projects_to_load, vs_currencies, days, base_url, metric_keys, granularity='daily', load_type='project'):
         if granularity == 'hourly':
             if days == 'auto':
                 days = '30'
@@ -94,13 +109,23 @@ class AdapterCoingecko(AbstractAdapter):
             interval = '&interval=daily'
         
         dfMain = get_df_kpis()
-        for adapter_mapping in projects_to_load:
-            origin_key = adapter_mapping.origin_key
-            naming = adapter_mapping.coingecko_naming
+        for token in projects_to_load:
+            if load_type == 'project':
+                origin_key = token.origin_key
+                naming = token.coingecko_naming
+            elif load_type == 'direct':
+                origin_key = naming = token
+            else:
+                raise ValueError(f"load_type {load_type} not supported")
+
             if days == 'auto':
                 day_val = get_missing_days_kpis(self.db_connector, metric_key= 'price_usd', origin_key=origin_key)
             else:
                 day_val = int(days)
+
+            if day_val >= 365:
+                day_val = 365
+                print(f"... days set to 365 days (more isn't possible)")
 
             for currency in vs_currencies:
                 url = f"{base_url}{naming}/market_chart?vs_currency={currency}&days={day_val}{interval}"
