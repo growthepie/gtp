@@ -11,7 +11,8 @@ dune_queries = [
     # ,QueryBase(name="waa", query_id=2607206, params=[QueryParameter.text_type(name="Days", value="30")]) ## Ethereum weekly active addresses
     # ,QueryBase(name="maa", query_id=3358664, params=[QueryParameter.text_type(name="Days", value="60")]) ## Ethereum monthly active addresses
     # ,QueryBase(name="aa_last30d", query_id=3359100, params=[]) ## Ethereum active addresses last 30d
-    ,QueryBase(name="stables_mcap", query_id=2608415, params=[QueryParameter.text_type(name="Days", value="7")]) ## zksync_era, imx, polgyon_zkevm stables_mcap (daily)
+    # ,QueryBase(name="stables_mcap", query_id=2608415, params=[QueryParameter.text_type(name="Days", value="7")]) ## zksync_era, imx, polgyon_zkevm stables_mcap (daily)
+    ,QueryBase(name="stables_mcap", query_id=3808795, params=[QueryParameter.text_type(name="Days", value="7")]) ## zksync_era, imx, polgyon_zkevm stables_mcap (daily)
     ,QueryBase(name="rent_paid", query_id=2986216, params=[QueryParameter.text_type(name="Days", value="7")]) ## Rent paid to mainnet for all L2s
     ,QueryBase(name="inscriptions", query_id=3346613, params=[QueryParameter.text_type(name="Days", value="1000")]) ## Load inscription addresses and store in inscription_addresses table
     ,QueryBase(name="glo_holders", query_id=3732844) ## top 20 glo holders
