@@ -1149,7 +1149,7 @@ class DbConnector:
                                 exec_string = f"""
                                         UPDATE sys_chains
                                         SET {value_column} = '{row[value_column]}'
-                                        WHERE origin_key = '{row['origin_key']}'
+                                        WHERE origin_key = '{row['origin_key']}';
                                 """
                         else:
                                 raise NotImplementedError("Only string type is supported so far")
