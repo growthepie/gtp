@@ -99,7 +99,8 @@ class AdapterL2Beat(AbstractAdapter):
             url = f"https://l2beat.com/scaling/projects/{chain.l2beat_tvl_naming}"
             response = api_get_call(url, as_json=False)
             tree = html.fromstring(response)
-            element = tree.xpath('/html/body/div[4]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
+            #element = tree.xpath('/html/body/div[4]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
+            element = tree.xpath('/html/body/div[1]/div[4]/div/main/div[2]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
             if len(element) == 0:
                 stage = 'NA'
             else:

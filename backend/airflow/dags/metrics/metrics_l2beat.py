@@ -43,6 +43,7 @@ def etl():
         # load
         ad.load(df)
 
+    @task()
     def run_stages():
         adapter_params = {
         }
