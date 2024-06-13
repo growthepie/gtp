@@ -1,13 +1,12 @@
+
 import sys
 import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
-import time
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_rpc import NodeAdapter
-from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
+from src.new_setup.adapter import NodeAdapter
+from src.new_setup.utils import MaxWaitTimeExceededException, get_chain_config
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
@@ -20,24 +19,30 @@ from src.misc.airflow_utils import alert_via_webhook
         'retry_delay': timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='raw_pgn',
-    description='Load raw tx data from PGN',
-    tags=['raw', 'near-real-time', 'rpc'],
+    dag_id='raw_gitcoin_pgn',
+    description='Load raw tx data from Gitcoin_pgn',
+    tags=['raw', 'near-real-time', 'rpc', 'new-setup'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
 
 def adapter_rpc():
     @task(execution_timeout=timedelta(minutes=45))
-    def run_pgn():
-        adapter_params = {
-            'rpc': 'local_node',
-            'chain': 'gitcoin_pgn',
-            'rpc_urls': [os.getenv("GITCOIN_PGN_RPC")],
-        }
+    def run_gitcoin_pgn():
 
         # Initialize DbConnector
         db_connector = DbConnector()
+        
+        chain_name = 'gitcoin_pgn'
+
+        active_rpc_configs, batch_size = get_chain_config(db_connector, chain_name)
+        print(f"GITCOIN_PGN_CONFIG={active_rpc_configs}")
+
+        adapter_params = {
+            'rpc': 'local_node',
+            'chain': chain_name,
+            'rpc_configs': active_rpc_configs,
+        }
 
         # Initialize NodeAdapter
         adapter = NodeAdapter(adapter_params, db_connector)
@@ -45,27 +50,15 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 250,
-            'threads': 3,
+            'batch_size': batch_size,
         }
 
-        while load_params['threads'] > 0:
-            try:
-                adapter.extract_raw(load_params)
-                break  # Break out of the loop on successful execution
-            except MaxWaitTimeExceededException as e:
-                print(str(e))
-                
-                # Reduce threads if possible, stop if it reaches 1
-                if load_params['threads'] > 1:
-                    load_params['threads'] -= 1
-                    print(f"Reducing threads to {load_params['threads']} and retrying.")
-                else:
-                    print("Reached minimum thread count (1)")
-                    raise e 
+        try:
+            adapter.extract_raw(load_params)
+        except MaxWaitTimeExceededException as e:
+            print(f"Extraction stopped due to maximum wait time being exceeded: {e}")
+            raise e
 
-                # Wait for 5 minutes before retrying
-                time.sleep(300)
-
-    run_pgn()
+    run_gitcoin_pgn()
 adapter_rpc()
+    
