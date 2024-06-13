@@ -1551,13 +1551,14 @@ class JSONCreation():
         df_mcap.rename(columns={'market_cap_eth':'eth', 'market_cap_usd':'usd'}, inplace=True)
         df_mcap = df_mcap.sort_values(by='unix', ascending=True)
 
-        glo_dict = {'holders_table':{}, 'chart':{}}
+        glo_dict = {'holders_table':{}, 'chart':{}, 'source':[]}
 
         for index, row in df.iterrows():
             glo_dict['holders_table'][row['holder']] = {'balance':row['balance'], 'share':row['share'], 'website':row['website'], 'twitter':row['twitter']}
 
         glo_dict['chart']['types'] = df_mcap.columns.to_list()
         glo_dict['chart']['data'] = df_mcap.values.tolist()
+        glo_dict['source'] = ["Dune"]
 
         glo_dict = fix_dict_nan(glo_dict, 'GLO Dollar')
 
