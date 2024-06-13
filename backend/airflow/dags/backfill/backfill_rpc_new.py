@@ -75,7 +75,10 @@ def backfiller_dag():
         batch_size = settings['batch_size']
         db_connector = DbConnector()
 
-        start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        if chain == 'polygon_zkevm':
+            start_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
+        else:
+            start_date = (datetime.now() - timedelta(days=5)).strftime('%Y-%m-%d')
         end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
 
         run_backfill_task(chain_name=chain, db_connector=db_connector, start_date=start_date, end_date=end_date, batch_size=batch_size)
