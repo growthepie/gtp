@@ -287,9 +287,9 @@ adapter_mapping = [
 
     ,AdapterMapping(
         origin_key="zksync_era"
-        ,name = "zkSync Era"
-        ,name_short = "zkSync Era"
-        ,description="zkSync Era uses ZK tech, aiming to boost throughput while preserving Ethereum's core values: freedom, self-sovereignty, and decentralization."
+        ,name = "ZKsync Era"
+        ,name_short = "ZKsync Era"
+        ,description="ZKsync Era uses ZK tech, aiming to boost throughput while preserving Ethereum's core values: freedom, self-sovereignty, and decentralization."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='ZKSYNC'
 
