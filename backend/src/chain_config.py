@@ -581,7 +581,7 @@ adapter_mapping = [
         ,twitter='https://twitter.com/loopringorg'
 
         ,coingecko_naming="loopring"
-        ,defillama_stablecoin='Loopring'
+        #,defillama_stablecoin='Loopring' via Dune
         ,l2beat_tvl_naming='loopring'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/loopring.json"
