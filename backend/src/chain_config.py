@@ -36,7 +36,6 @@ class AdapterMapping(BaseModel):
 
     coingecko_naming: Optional[str] ## to load price, market cap, etc
     l2beat_tvl_naming: Optional[str] ## to load tvl
-    defillama_stablecoin : Optional[str] ## to load stablecoin tvl (if commented out, stables are loaded via Dune Query)
 
     ## for txcount cross-check with block explorers
     block_explorer_txcount: Optional[str]
@@ -66,7 +65,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
+        ,exclude_metrics = ['stables_mcap', 'tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
         ,aggregate_addresses = False
 
@@ -82,7 +81,6 @@ adapter_mapping = [
         ,twitter = 'https://twitter.com/ethereum'
 
         ,coingecko_naming="ethereum"
-        ,defillama_stablecoin="ethereum"
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/arbitrum.json"
         ,block_explorer_type='l2beat'
@@ -143,7 +141,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/0xPolygon'
 
         ,coingecko_naming="matic-network"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='polygonzkevm'
 
         ,block_explorer_txcount='https://zkevm.polygonscan.com/chart/tx?output=csv'
@@ -188,7 +185,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/Optimism'
 
         ,coingecko_naming="optimism"
-        # ,defillama_stablecoin='optimism' ## stables via Dune
         ,l2beat_tvl_naming="optimism"
 
         # ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
@@ -234,7 +230,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/arbitrum'
 
         ,coingecko_naming="arbitrum"
-        #,defillama_stablecoin='arbitrum'
         ,l2beat_tvl_naming='arbitrum'
 
         ,block_explorer_txcount='https://arbiscan.io/chart/tx?output=csv'
@@ -275,7 +270,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/immutable'
 
         ,coingecko_naming="immutable-x"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='immutablex'
 
         ,token_address='0xF57e7e7C23978C3cAEC3C3548E3D615c346e79fF'
@@ -313,7 +307,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/zksync'
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='zksync-era'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
@@ -352,7 +345,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/base'
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='base'
 
         ,block_explorer_txcount='https://basescan.org/chart/tx?output=csv'
@@ -389,7 +381,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/ourzora'
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='zora'
 
         ,block_explorer_txcount='https://explorer.zora.energy/api/v2/stats/charts/transactions'
@@ -428,7 +419,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/pgn_eth"
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='publicgoodsnetwork'
 
         ,block_explorer_txcount='https://explorer.publicgoods.network/api/v2/stats/charts/transactions'
@@ -465,7 +455,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/LineaBuild"
 
         #,coingecko_naming="linea"
-        #,defillama_stablecoin='Linea' ## stables via Dune
         ,l2beat_tvl_naming='linea'
 
         ,block_explorer_txcount='https://lineascan.build/chart/tx?output=csv'
@@ -502,7 +491,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/scroll_zkp"
 
         #,coingecko_naming="scroll"
-        #,defillama_stablecoin='' ## stables via Dune
         ,l2beat_tvl_naming='scroll'
 
         ,block_explorer_txcount='https://scrollscan.com/chart/tx?output=csv'
@@ -540,7 +528,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/0xMantle"
 
         ,coingecko_naming="mantle"
-        # ,defillama_stablecoin='Mantle' ## stables via Dune
         ,l2beat_tvl_naming='mantle'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
@@ -581,7 +568,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/loopringorg'
 
         ,coingecko_naming="loopring"
-        #,defillama_stablecoin='Loopring' via Dune
         ,l2beat_tvl_naming='loopring'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/loopring.json"
@@ -621,7 +607,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/StarkWareLtd'
 
         ,coingecko_naming="starknet"
-        #,defillama_stablecoin='Starknet' ## stables via Dune
         ,l2beat_tvl_naming='starknet'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/starknet.json"
@@ -661,7 +646,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/rhinofi'
 
         ,coingecko_naming="rhinofi"
-        #,defillama_stablecoin='' ## stables via Dune
         ,l2beat_tvl_naming='rhinofi'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/rhinofi.json"
@@ -702,7 +686,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/MetisL2"
 
         ,coingecko_naming="metis-token"
-        # ,defillama_stablecoin='Metis' ## stables via Dune
         ,l2beat_tvl_naming='metis'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/metis.json"
@@ -746,7 +729,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/MantaNetwork"
 
         ,coingecko_naming="manta-network"
-        # ,defillama_stablecoin='Metis' ## stables via Dune
         ,l2beat_tvl_naming='mantapacific'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mantapacific.json"
@@ -789,7 +771,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/Blast_L2"
 
         #,coingecko_naming=""
-        ,defillama_stablecoin='Blast'
         ,l2beat_tvl_naming='blast'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/blast.json"
@@ -829,7 +810,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/modenetwork"
 
         #,coingecko_naming=""
-        #,defillama_stablecoin='Mode' ## stables via Dune
         ,l2beat_tvl_naming='mode'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mode.json"
@@ -865,7 +845,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/redstonexyz"
 
         #,coingecko_naming=""
-        #,defillama_stablecoin='-' ## stables via Dune
         ,l2beat_tvl_naming='redstone'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/redstone.json"
