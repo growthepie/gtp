@@ -60,6 +60,7 @@ def read_all_labeled_contracts_airtable(table):
         return
 
     # show only contracts that have been labeled
+    required_columns = [col for col in required_columns if col in df.columns]
     df = df.dropna(subset=required_columns, how='all')
 
     # add all columns if they are missing, as api doesn't return empty columns

@@ -50,7 +50,9 @@ def adapter_rpc():
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
+
             'batch_size': batch_size,
+
         }
 
         try:

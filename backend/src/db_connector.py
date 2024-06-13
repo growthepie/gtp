@@ -93,7 +93,7 @@ class DbConnector:
                                 stage = result.scalar()
                                 return stage
                 except Exception as e:
-                        print(f"Error retrieving the latest price in USD for {origin_key}.")
+                        print(f"Error retrieving the stage for {origin_key}.")
                         print(e)
                         return None
                 
@@ -414,7 +414,7 @@ class DbConnector:
                                 DATE(block_timestamp) AS date,
                                 MAX(block_number) AS block_number
                         FROM public.{origin_key}_tx
-                        WHERE block_timestamp BETWEEN (CURRENT_DATE - INTERVAL '{days+1} days') AND (CURRENT_DATE - INTERVAL '1 day')
+                        WHERE block_timestamp BETWEEN (CURRENT_DATE - INTERVAL '{days+1} days') AND (CURRENT_DATE)
                         GROUP BY 1;
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
@@ -1149,7 +1149,7 @@ class DbConnector:
                                 exec_string = f"""
                                         UPDATE sys_chains
                                         SET {value_column} = '{row[value_column]}'
-                                        WHERE origin_key = '{row['origin_key']}'
+                                        WHERE origin_key = '{row['origin_key']}';
                                 """
                         else:
                                 raise NotImplementedError("Only string type is supported so far")
@@ -1320,3 +1320,15 @@ class DbConnector:
 
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        def get_special_use_rpc(self, origin_key:str):
+                try:
+                        query = f"SELECT url FROM sys_rpc_config WHERE origin_key = '{origin_key}' and special_use = true LIMIT 1"
+                        with self.engine.connect() as connection:
+                                result = connection.execute(query)
+                                rpc = result.scalar()
+                                return rpc
+                except Exception as e:
+                        print(f"Error retrieving a synced rpc for {origin_key}.")
+                        print(e)
+                        return None
