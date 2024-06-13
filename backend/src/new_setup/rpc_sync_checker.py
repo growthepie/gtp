@@ -139,7 +139,7 @@ def sync_check():
         if chain_name == 'arbitrum':
             block_threshold = 100
         else:
-            block_threshold = 20
+            block_threshold = 30
             
         print(f"START: processing chain: {chain_name}")
         rpc_urls = fetch_rpc_urls(db_connector, chain_name)
