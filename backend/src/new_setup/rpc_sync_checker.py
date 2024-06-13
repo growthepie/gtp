@@ -144,10 +144,14 @@ def sync_check():
             
         print(f"START: processing chain: {chain_name}")
         rpc_urls = fetch_rpc_urls(db_connector, chain_name)
-        activate_nodes(db_connector, chain_name, rpc_urls)
-        blocks = fetch_all_blocks(rpc_urls)
-        notsynced_nodes = check_sync_state(blocks, block_threshold)
-        deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes)
+
+        if rpc_urls.empty:
+            print(f"...no RPC urls found for chain: {chain_name} to process.")
+        else:
+            activate_nodes(db_connector, chain_name, rpc_urls)
+            blocks = fetch_all_blocks(rpc_urls)
+            notsynced_nodes = check_sync_state(blocks, block_threshold)
+            deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes)
         print(f"DONE: processing chain: {chain_name}")
         
     print("FINISHED: All chains processed.")
