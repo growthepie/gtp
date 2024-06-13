@@ -31,7 +31,8 @@ def fetch_rpc_urls(db_connector, chain_name):
     query = f"""
     SELECT url
     FROM sys_rpc_config
-    WHERE origin_key = '{chain_name}';
+    WHERE origin_key = '{chain_name}'
+    AND active = true;
     """
     try:
         with db_connector.engine.connect() as conn:

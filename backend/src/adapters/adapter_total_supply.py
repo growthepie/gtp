@@ -79,18 +79,34 @@ class AdapterTotalSupply(AbstractAdapter):
                     df2 = self.db_connector.get_total_supply_blocks(coin.origin_key, days)
                     df2['date'] = pd.to_datetime(df2['date'])
                     df = df.merge(df2, on='date', how='left')
-                    rpc = coin.rpc_url
+                    rpc = self.db_connector.get_special_use_rpc(coin.origin_key)
 
                 # load in the contract
                 w3 = Web3(Web3.HTTPProvider(rpc))
                 contract = w3.eth.contract(address=coin.token_address, abi=coin.token_abi)
                 print(f'...connected to {coin.token_deployment_origin_key} at {rpc}')
+                time.sleep(1)
 
                 # get the total supply for each block
                 decimals = contract.functions.decimals().call()
+                time.sleep(1)
+
                 df['block_number'] = df['block_number'].astype(int)
                 for index, row in df.iterrows():
-                    totalsupply = contract.functions.totalSupply().call(block_identifier=row['block_number'])/10**decimals
+                    retry_counter = 0
+                    while True:
+                        try:
+                            totalsupply = contract.functions.totalSupply().call(block_identifier=row['block_number'])/10**decimals
+                            break
+                        except Exception as e:
+                            if retry_counter > 5:
+                                print(f"Error with {coin.origin_key}: {e}")
+                                totalsupply = None
+                                raise e
+                            print(f"..{retry_counter} - retrying {coin.origin_key} for block {row['block_number']}: {e}")
+                            retry_counter += 1
+                            time.sleep(3)
+
                     df.loc[index, 'value'] = totalsupply
                     time.sleep(1)
                 
@@ -100,8 +116,8 @@ class AdapterTotalSupply(AbstractAdapter):
                 print(f"Loaded {coin.origin_key} for {days} days. Total of {df.shape[0]} rows.")
 
                 dfMain = pd.concat([dfMain,df])
-            except:
-                print(f"Error with {coin.origin_key}")
+            except Exception as e:
+                print(f"Error with {coin.origin_key}: {e}")
                 continue
         
         #print(dfMain.to_markdown())
