@@ -9,13 +9,7 @@ from src.misc.airflow_utils import alert_via_webhook
 from src.adapters.funcs_backfill import backfiller_task
 
 chain_settings = {
-    'gitcoin_pgn': {'threads': 10, 'batch_size': 50},
-    'linea': {'threads': 5, 'batch_size': 10},
-    'zora': {'threads': 15, 'batch_size': 50},
-    'scroll': {'threads': 3, 'batch_size': 20},
     'optimism': {'threads': 3, 'batch_size': 50},
-    'metis': {'threads': 1, 'batch_size': 50},
-    'polygon_zkevm': {'threads': 5, 'batch_size': 150},
 }
 
 @dag(

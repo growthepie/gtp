@@ -154,6 +154,8 @@ adapter_mapping = [
         ,token_deployment_date='2019-04-20'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'        
+
+        ,backfiller_on=True  
         )
 
     ,AdapterMapping(
@@ -390,6 +392,8 @@ adapter_mapping = [
 
         ,block_explorer_txcount='https://explorer.zora.energy/api/v2/stats/charts/transactions'
         ,block_explorer_type='blockscout'
+
+        ,backfiller_on=True  
     )
 
     ,AdapterMapping(
@@ -427,6 +431,8 @@ adapter_mapping = [
 
         ,block_explorer_txcount='https://explorer.publicgoods.network/api/v2/stats/charts/transactions'
         ,block_explorer_type='blockscout'
+
+        ,backfiller_on=True  
     )
 
     ,AdapterMapping(
@@ -462,6 +468,8 @@ adapter_mapping = [
 
         ,block_explorer_txcount='https://lineascan.build/chart/tx?output=csv'
         ,block_explorer_type='etherscan'     
+
+        ,backfiller_on=True  
     )
 
     ,AdapterMapping(
@@ -496,7 +504,9 @@ adapter_mapping = [
         ,l2beat_tvl_naming='scroll'
 
         ,block_explorer_txcount='https://scrollscan.com/chart/tx?output=csv'
-        ,block_explorer_type='etherscan'      
+        ,block_explorer_type='etherscan'   
+
+        ,backfiller_on=True     
     )
 
     ,AdapterMapping(
@@ -701,6 +711,8 @@ adapter_mapping = [
         ,token_deployment_date='2020-12-12'
         ,token_deployment_origin_key='ethereum'
         ,token_circulating_supply_function='totalSupply'
+
+        ,backfiller_on=True  
     )
 
     ,AdapterMapping(
@@ -743,6 +755,8 @@ adapter_mapping = [
         ,token_deployment_date='2024-01-24'
         ,token_deployment_origin_key='manta'
         ,token_circulating_supply_function='totalSupply'
+
+        ,backfiller_on=True  
     )
 
     ,AdapterMapping(
@@ -818,6 +832,8 @@ adapter_mapping = [
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mode.json"
         ,block_explorer_type='l2beat'
+
+        ,backfiller_on=True  
     )
 
     ,AdapterMapping(
@@ -854,6 +870,7 @@ adapter_mapping = [
         ,block_explorer_type='l2beat'
 
         ,batch_size=50
+        ,backfiller_on=True  
     )
 
 ] # end of adapter_mappings
