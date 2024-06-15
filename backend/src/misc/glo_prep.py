@@ -95,7 +95,7 @@ class Glo:
         print(f"..loaded {len(df)} holders from DB")
         return df   
 
-    def run_glo(self, top=20):
+    def run_glo(self, top=30):
         df = self.get_mapping_sheet()
         df = self.clean_mapping_sheet(df)
         df = self.resolve_ens_mapping_sheet(df)
