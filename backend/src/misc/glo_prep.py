@@ -102,7 +102,7 @@ class Glo:
         df_holders = self.get_glo_holders()
         df_full = df_holders.merge(df, how='left', on='address')
 
-        df_full['holder'] = df_full['org'].fillna(df['address'])
+        df_full['holder'] = df_full['org'].fillna(df_full['address'])
         df_full = df_full.groupby('holder').sum().reset_index()
         df_full = df_full.sort_values('balance', ascending=False).head(top)
         df_full = df_full.drop(columns=['org', 'address'])
