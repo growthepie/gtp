@@ -1,5 +1,6 @@
 import time
 import pandas as pd
+from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.chain_config import adapter_mapping
@@ -160,8 +161,9 @@ class AdapterCoingecko(AbstractAdapter):
             dfMain.set_index(['metric_key', 'origin_key', 'timestamp', 'granularity'], inplace=True)
         else:
             dfMain['date'] = dfMain['date'].dt.date
-            max_date = dfMain['date'].max()
-            dfMain.drop(dfMain[dfMain.date == max_date].index, inplace=True)
+            today = datetime.today().strftime('%Y-%m-%d')
+            dfMain.drop(dfMain[dfMain.date == today].index, inplace=True, errors='ignore')
+
             ## remove duplicates and set index
             dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
             dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
