@@ -27,7 +27,7 @@ from src.misc.airflow_utils import alert_via_webhook
 )
 
 def adapter_rpc():
-    @task(execution_timeout=timedelta(minutes=45))
+    @task(execution_timeout=timedelta(minutes=(24*60)))
     def run_karak():
 
         # Initialize DbConnector
