@@ -511,7 +511,7 @@ adapter_mapping = [
         ,name='Mantle'
         ,name_short = "Mantle"
         ,description="Mantle is an OVM based EVM-compatible rollup. Public launch was in July 2023."
-        ,da_layer = "MantleDA"
+        ,da_layer = "EigenDA"
         ,rhino_naming='MANTLE'
 
         ,in_api = True
@@ -671,8 +671,7 @@ adapter_mapping = [
         ,name='Metis'
         ,name_short = "Metis"
         ,description="Metis Andromeda is an EVM equivalent Optimium. Public launch was in November 2021."
-        #,da_layer = "MEMO"
-        ,da_layer = "Ethereum (calldata)"
+        ,da_layer = "MEMO"
 
         ,in_api = True
         ,in_fees_api = True
