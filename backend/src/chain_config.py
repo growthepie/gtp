@@ -291,7 +291,7 @@ adapter_mapping = [
         ,in_fees_api = True
         ,in_labels_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['throughput']
+        ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -308,6 +308,12 @@ adapter_mapping = [
 
         ,coingecko_naming="zksync"
         ,l2beat_tvl_naming='zksync-era'
+
+        # ,token_address='0x5A7d6b2F92C77FAD6CCaBd7EE0624E64907Eaf3E'
+        # ,token_abi=json.loads('[{"inputs":[{"internalType":"address","name":"_logic","type":"address"},{"internalType":"address","name":"admin_","type":"address"},{"internalType":"bytes","name":"_data","type":"bytes"}],"stateMutability":"payable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"previousAdmin","type":"address"},{"indexed":false,"internalType":"address","name":"newAdmin","type":"address"}],"name":"AdminChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"beacon","type":"address"}],"name":"BeaconUpgraded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"implementation","type":"address"}],"name":"Upgraded","type":"event"},{"stateMutability":"payable","type":"fallback"},{"stateMutability":"payable","type":"receive"}]')
+        # ,token_deployment_date='2024-06-16'
+        # ,token_deployment_origin_key='zksync_era'
+        # ,token_circulating_supply_function='totalSupply'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
         ,block_explorer_type='l2beat'
