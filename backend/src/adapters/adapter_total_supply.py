@@ -75,6 +75,10 @@ class AdapterTotalSupply(AbstractAdapter):
                         df.loc[index, 'block_number'] = api_get_call(f"https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp={t}&closest=before&apikey={self.api_key}")['result']
                         time.sleep(1)
                     rpc = self.db_connector.get_special_use_rpc('ethereum')
+                elif coin.origin_key == 'zksync_era':
+                    df['value'] = 21000000000
+                    dfMain = pd.concat([dfMain,df])
+                    continue
                 else:
                     df2 = self.db_connector.get_total_supply_blocks(coin.origin_key, days)
                     df2['date'] = pd.to_datetime(df2['date'])
