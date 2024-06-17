@@ -914,7 +914,7 @@ class JSONCreation():
                     ranking_dict[metric] = self.get_ranking(df, metric, origin_key)
             
             ## Hottest Contract
-            if chain.aggregate_blockspace:
+            if chain.aggregate_blockspace and 'blockspace' not in chain.exclude_metrics:
                 hottest_contract = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=1, origin_keys=[origin_key], limit=1)
                 hottest_contract = hottest_contract.replace({np.nan: None})
                 hottest_contract = db_addresses_to_checksummed_addresses(hottest_contract, ['address'])
@@ -933,7 +933,7 @@ class JSONCreation():
                     'data': hottest_contract.values.tolist()
                 }
             else:
-                print(f'..skipped: Hottest Contract for {origin_key}. aggregate_blockspace is set to False')
+                print(f'..skipped: Hottest Contract for {origin_key}. Flag aggregate_blockspace is set to False or blockspace is excluded.')
                 hottest_contract_dict = None
 
             details_dict = {
