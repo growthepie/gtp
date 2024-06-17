@@ -4,7 +4,7 @@ from googleapiclient.discovery import build
 from web3 import Web3, HTTPProvider
 from web3.middleware import geth_poa_middleware
 
-from src.misc.helper_functions import db_addresses_to_checksummed_addresses
+from src.misc.helper_functions import db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses
 import pandas as pd
 import time
 import json
@@ -101,6 +101,7 @@ class Glo:
         df = self.resolve_ens_mapping_sheet(df)
         df_holders = self.get_glo_holders()
         df_full = df_holders.merge(df, how='left', on='address')
+        df_full = string_addresses_to_checksummed_addresses(df_full, ['address'])
 
         df_full['holder'] = df_full['org'].fillna(df_full['address'])
         df_full = df_full.groupby('holder').sum().reset_index()

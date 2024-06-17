@@ -189,6 +189,11 @@ def db_addresses_to_checksummed_addresses(df, address_cols):
         df[col] = df[col].apply(lambda x: eth_utils.to_checksum_address(bytes(x)))
     return df
 
+def string_addresses_to_checksummed_addresses(df, address_cols):
+    for col in address_cols:
+        df[col] = df[col].apply(lambda x: eth_utils.to_checksum_address(str(x)))
+    return df
+
 ## Some simple Adapter print functions
 def clean_params(params:dict):
     if 'api_key' in params:
