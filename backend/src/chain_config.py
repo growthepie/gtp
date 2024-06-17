@@ -291,7 +291,7 @@ adapter_mapping = [
         ,in_fees_api = True
         ,in_labels_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
+        ,exclude_metrics = ['throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -306,7 +306,7 @@ adapter_mapping = [
         ,block_explorers={'zkSync Explorer': 'https://explorer.zksync.io/', 'Blockscout': 'https://zksync.blockscout.com/'}
         ,twitter='https://twitter.com/zksync'
 
-        #,coingecko_naming="-"
+        ,coingecko_naming="zksync"
         ,l2beat_tvl_naming='zksync-era'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
