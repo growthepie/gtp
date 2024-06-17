@@ -410,6 +410,13 @@ def upload_png_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id):
     print(f'..uploaded to {s3_path}')
     empty_cloudfront_cache(cf_distribution_id, f'/{s3_path}.png')
 
+def upload_parquet_to_cf_s3(bucket, path_name, df, cf_distribution_id):
+    s3_url = f"s3://{bucket}/{path_name}.parquet"
+    df.to_parquet(s3_url)
+
+    print(f'..uploaded to {path_name}')
+    empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.parquet')
+
 ## This function uploads a dataframe to S3 longterm bucket as parquet file
 def dataframe_to_s3(path_name, df):
     s3_url = f"s3://{os.getenv('S3_LONG_TERM_BUCKET')}/{path_name}.parquet"

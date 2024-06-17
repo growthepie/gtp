@@ -1262,8 +1262,53 @@ class DbConnector:
 
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        def get_labels_lite_db(self, limit=50000, order_by='txcount', origin_keys=None):
+                exec_string = f"""
+                        with prev_period as (
+                                SELECT 
+                                        cl.address, 
+                                        cl.origin_key, 
+                                        sum(txcount) as txcount, 
+                                        sum(gas_fees_usd) as gas_fees_usd, 	
+                                        sum(daa) as daa	
+                                FROM public.blockspace_fact_contract_level cl
+                                where "date"  >= date_trunc('day',now()) - interval '14 days'
+                                        and "date" < date_trunc('day',now()) - interval '7 days'
+                                group by 1,2
+                        )
 
-        def get_labels_page_sparkline(self, origin_keys=None):
+
+                        SELECT 
+                                cl.address, 
+                                cl.origin_key, 
+                                lab."name",
+                                lab.owner_project,
+                                oss.display_name as owner_project_clear,
+                                lab.usage_category,
+                                sum(cl.txcount) as txcount,
+                                (sum(cl.txcount) - sum(prev.txcount)) / sum(prev.txcount) as txcount_change,
+                                sum(cl.gas_fees_usd) as gas_fees_usd, 	
+                                (sum(cl.gas_fees_usd) - sum(prev.gas_fees_usd)) / sum(prev.gas_fees_usd) as gas_fees_usd_change,
+                                sum(cl.daa) as daa,
+                                (sum(cl.daa) - sum(prev.daa)) / sum(prev.daa) as daa_change
+                        FROM public.blockspace_fact_contract_level cl
+                        left join prev_period prev using (address, origin_key)
+                        left join vw_oli_labels lab using (address, origin_key)
+                        left join oli_oss_directory oss on oss.name = lab.owner_project
+                        where "date"  >= date_trunc('day',now()) - interval '7 days'
+                                and "date" < date_trunc('day', now())
+                                and origin_key IN ('{"','".join(origin_keys)}')
+                                and (lab.owner_project is null OR oss.active = true)
+                        group by 1,2,3,4,5,6
+                        order by {order_by} desc
+                        limit {limit}
+                """
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
+        def get_labels_page_sparkline(self, limit=100, origin_keys=None):
                 exec_string = f"""
                         with top as (
                                 SELECT 
@@ -1276,7 +1321,7 @@ class DbConnector:
                                 and origin_key IN ('{"','".join(origin_keys)}')
                         group by 1,2
                         order by 3 desc
-                        limit 100
+                        limit {limit}
                         )
 
                         SELECT 

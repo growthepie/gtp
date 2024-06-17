@@ -7,7 +7,7 @@ import random
 from datetime import timedelta, datetime
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
-from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 
 import warnings
@@ -1440,6 +1440,49 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', sparkline_dict, self.cf_distribution_id)
         print(f'DONE -- sparkline export')
 
+    def create_labels_parquet(self, type='full'):
+        if type == 'full':
+            limit = 1000000
+        elif type == 'quick':
+            limit = 100
+        else:
+            raise ValueError('type must be either "full" or "quick"')
+        
+        order_by = 'txcount'
+        df = self.db_connector.get_labels_lite_db(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/{type}', df, self.cf_distribution_id)
+        print(f'DONE -- labels {type}.parquet export')
+
+    def create_projects_parquet(self):        
+        df = self.db_connector.get_active_projects()
+
+        df = df.drop(columns=['id'])
+        df = df.rename(columns={'name': 'owner_project'})
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', df, self.cf_distribution_id)
+        print(f'DONE -- labels projects.parquet export')
+
+    def create_labels_sparkline_parquet(self):
+        df = self.db_connector.get_labels_page_sparkline(limit = 1000000, origin_keys=self.chains_list_in_api_labels)
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+        df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+
+        df['txcount'] = df['txcount'].astype(int)
+        df['daa'] = df['daa'].astype(int)
+        df['gas_fees_usd'] = df['gas_fees_usd'].round(2)                 
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', df, self.cf_distribution_id)
+        print(f'DONE -- sparkline.parquet export')
 
     ### OTHER API ENDPOINTS
 
