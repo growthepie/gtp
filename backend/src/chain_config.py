@@ -670,7 +670,8 @@ adapter_mapping = [
         ,name='Metis'
         ,name_short = "Metis"
         ,description="Metis Andromeda is an EVM equivalent Optimium. Public launch was in November 2021."
-        ,da_layer = "MEMO"
+        #,da_layer = "MEMO"
+        ,da_layer = "Ethereum (calldata)"
 
         ,in_api = True
         ,in_fees_api = True
