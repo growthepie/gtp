@@ -673,7 +673,7 @@ adapter_mapping = [
         ,da_layer = "MEMO"
 
         ,in_api = True
-        ,in_fees_api = False
+        ,in_fees_api = True
         ,deployment="DEV"
         ,exclude_metrics = ['blockspace', 'profit', 'rent_paid']
         ,aggregate_blockspace = True
