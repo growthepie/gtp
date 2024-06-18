@@ -36,7 +36,6 @@ class AdapterMapping(BaseModel):
 
     coingecko_naming: Optional[str] ## to load price, market cap, etc
     l2beat_tvl_naming: Optional[str] ## to load tvl
-    defillama_stablecoin : Optional[str] ## to load stablecoin tvl (if commented out, stables are loaded via Dune Query)
 
     ## for txcount cross-check with block explorers
     block_explorer_txcount: Optional[str]
@@ -66,7 +65,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
+        ,exclude_metrics = ['stables_mcap', 'tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
         ,aggregate_addresses = False
 
@@ -82,7 +81,6 @@ adapter_mapping = [
         ,twitter = 'https://twitter.com/ethereum'
 
         ,coingecko_naming="ethereum"
-        ,defillama_stablecoin="ethereum"
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/arbitrum.json"
         ,block_explorer_type='l2beat'
@@ -143,7 +141,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/0xPolygon'
 
         ,coingecko_naming="matic-network"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='polygonzkevm'
 
         ,block_explorer_txcount='https://zkevm.polygonscan.com/chart/tx?output=csv'
@@ -188,7 +185,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/Optimism'
 
         ,coingecko_naming="optimism"
-        # ,defillama_stablecoin='optimism' ## stables via Dune
         ,l2beat_tvl_naming="optimism"
 
         # ,block_explorer_txcount='https://optimistic.etherscan.io/chart/tx?output=csv' 
@@ -234,7 +230,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/arbitrum'
 
         ,coingecko_naming="arbitrum"
-        #,defillama_stablecoin='arbitrum'
         ,l2beat_tvl_naming='arbitrum'
 
         ,block_explorer_txcount='https://arbiscan.io/chart/tx?output=csv'
@@ -275,7 +270,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/immutable'
 
         ,coingecko_naming="immutable-x"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='immutablex'
 
         ,token_address='0xF57e7e7C23978C3cAEC3C3548E3D615c346e79fF'
@@ -287,9 +281,9 @@ adapter_mapping = [
 
     ,AdapterMapping(
         origin_key="zksync_era"
-        ,name = "zkSync Era"
-        ,name_short = "zkSync Era"
-        ,description="zkSync Era uses ZK tech, aiming to boost throughput while preserving Ethereum's core values: freedom, self-sovereignty, and decentralization."
+        ,name = "ZKsync Era"
+        ,name_short = "ZKsync Era"
+        ,description="ZKsync Era uses ZK tech, aiming to boost throughput while preserving Ethereum's core values: freedom, self-sovereignty, and decentralization."
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='ZKSYNC'
 
@@ -297,7 +291,7 @@ adapter_mapping = [
         ,in_fees_api = True
         ,in_labels_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
+        ,exclude_metrics = ['throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
@@ -312,9 +306,15 @@ adapter_mapping = [
         ,block_explorers={'zkSync Explorer': 'https://explorer.zksync.io/', 'Blockscout': 'https://zksync.blockscout.com/'}
         ,twitter='https://twitter.com/zksync'
 
-        #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
+        ,coingecko_naming="zksync"
         ,l2beat_tvl_naming='zksync-era'
+        
+        ## hard coded 21,000,000,000 for now
+        ,token_address='0x01a6715d3560241E09E865a46122bf347A576c09' ##read as proxy contract
+        ,token_deployment_date='2024-06-16'
+        ,token_deployment_origin_key='zksync_era'
+        # ,token_abi=json.loads('[{"inputs":[{"internalType":"uint256","name":"expiry","type":"uint256"}],"name":"DelegateSignatureExpired","type":"error"},{"inputs":[],"name":"DelegateSignatureIsInvalid","type":"error"},{"inputs":[],"name":"ERC6372InconsistentClock","type":"error"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"spender","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"delegator","type":"address"},{"indexed":true,"internalType":"address","name":"fromDelegate","type":"address"},{"indexed":true,"internalType":"address","name":"toDelegate","type":"address"}],"name":"DelegateChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"delegate","type":"address"},{"indexed":false,"internalType":"uint256","name":"previousBalance","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"newBalance","type":"uint256"}],"name":"DelegateVotesChanged","type":"event"},{"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"uint8","name":"version","type":"uint8"}],"name":"Initialized","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"role","type":"bytes32"},{"indexed":true,"internalType":"bytes32","name":"previousAdminRole","type":"bytes32"},{"indexed":true,"internalType":"bytes32","name":"newAdminRole","type":"bytes32"}],"name":"RoleAdminChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"role","type":"bytes32"},{"indexed":true,"internalType":"address","name":"account","type":"address"},{"indexed":true,"internalType":"address","name":"sender","type":"address"}],"name":"RoleGranted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"role","type":"bytes32"},{"indexed":true,"internalType":"address","name":"account","type":"address"},{"indexed":true,"internalType":"address","name":"sender","type":"address"}],"name":"RoleRevoked","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":false,"internalType":"uint256","name":"value","type":"uint256"}],"name":"Transfer","type":"event"},{"inputs":[],"name":"BURNER_ADMIN_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"BURNER_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"CLOCK_MODE","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DEFAULT_ADMIN_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DELEGATION_TYPEHASH","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"DOMAIN_SEPARATOR","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MINTER_ADMIN_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"MINTER_ROLE","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"}],"name":"allowance","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"approve","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_from","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"burn","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"},{"internalType":"uint32","name":"pos","type":"uint32"}],"name":"checkpoints","outputs":[{"components":[{"internalType":"uint32","name":"fromBlock","type":"uint32"},{"internalType":"uint224","name":"votes","type":"uint224"}],"internalType":"struct ERC20VotesUpgradeable.Checkpoint","name":"","type":"tuple"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"clock","outputs":[{"internalType":"uint48","name":"","type":"uint48"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"decimals","outputs":[{"internalType":"uint8","name":"","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"subtractedValue","type":"uint256"}],"name":"decreaseAllowance","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"delegatee","type":"address"}],"name":"delegate","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"delegatee","type":"address"},{"internalType":"uint256","name":"nonce","type":"uint256"},{"internalType":"uint256","name":"expiry","type":"uint256"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"delegateBySig","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_signer","type":"address"},{"internalType":"address","name":"_delegatee","type":"address"},{"internalType":"uint256","name":"_expiry","type":"uint256"},{"internalType":"bytes","name":"_signature","type":"bytes"}],"name":"delegateOnBehalf","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"delegates","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"timepoint","type":"uint256"}],"name":"getPastTotalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"},{"internalType":"uint256","name":"timepoint","type":"uint256"}],"name":"getPastVotes","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"}],"name":"getRoleAdmin","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"getVotes","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"grantRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"hasRole","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"addedValue","type":"uint256"}],"name":"increaseAllowance","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_admin","type":"address"},{"internalType":"address","name":"_mintReceiver","type":"address"},{"internalType":"uint256","name":"_mintAmount","type":"uint256"}],"name":"initialize","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"initializeV2","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_to","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"mint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"nonces","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"account","type":"address"}],"name":"numCheckpoints","outputs":[{"internalType":"uint32","name":"","type":"uint32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"spender","type":"address"},{"internalType":"uint256","name":"value","type":"uint256"},{"internalType":"uint256","name":"deadline","type":"uint256"},{"internalType":"uint8","name":"v","type":"uint8"},{"internalType":"bytes32","name":"r","type":"bytes32"},{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"permit","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"renounceRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"role","type":"bytes32"},{"internalType":"address","name":"account","type":"address"}],"name":"revokeRole","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transfer","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"amount","type":"uint256"}],"name":"transferFrom","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"nonpayable","type":"function"}]')
+        # ,token_circulating_supply_function='totalSupply'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/zksync-era.json"
         ,block_explorer_type='l2beat'
@@ -352,7 +352,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/base'
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='base'
 
         ,block_explorer_txcount='https://basescan.org/chart/tx?output=csv'
@@ -389,7 +388,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/ourzora'
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='zora'
 
         ,block_explorer_txcount='https://explorer.zora.energy/api/v2/stats/charts/transactions'
@@ -428,7 +426,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/pgn_eth"
 
         #,coingecko_naming="-"
-        #,defillama_stablecoin=''  ## stables via Dune
         ,l2beat_tvl_naming='publicgoodsnetwork'
 
         ,block_explorer_txcount='https://explorer.publicgoods.network/api/v2/stats/charts/transactions'
@@ -465,7 +462,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/LineaBuild"
 
         #,coingecko_naming="linea"
-        #,defillama_stablecoin='Linea' ## stables via Dune
         ,l2beat_tvl_naming='linea'
 
         ,block_explorer_txcount='https://lineascan.build/chart/tx?output=csv'
@@ -502,7 +498,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/scroll_zkp"
 
         #,coingecko_naming="scroll"
-        #,defillama_stablecoin='' ## stables via Dune
         ,l2beat_tvl_naming='scroll'
 
         ,block_explorer_txcount='https://scrollscan.com/chart/tx?output=csv'
@@ -516,7 +511,7 @@ adapter_mapping = [
         ,name='Mantle'
         ,name_short = "Mantle"
         ,description="Mantle is an OVM based EVM-compatible rollup. Public launch was in July 2023."
-        ,da_layer = "MantleDA"
+        ,da_layer = "EigenDA"
         ,rhino_naming='MANTLE'
 
         ,in_api = True
@@ -540,7 +535,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/0xMantle"
 
         ,coingecko_naming="mantle"
-        # ,defillama_stablecoin='Mantle' ## stables via Dune
         ,l2beat_tvl_naming='mantle'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mantle.json"
@@ -581,7 +575,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/loopringorg'
 
         ,coingecko_naming="loopring"
-        ,defillama_stablecoin='Loopring'
         ,l2beat_tvl_naming='loopring'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/loopring.json"
@@ -621,7 +614,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/StarkWareLtd'
 
         ,coingecko_naming="starknet"
-        #,defillama_stablecoin='Starknet' ## stables via Dune
         ,l2beat_tvl_naming='starknet'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/starknet.json"
@@ -661,7 +653,6 @@ adapter_mapping = [
         ,twitter='https://twitter.com/rhinofi'
 
         ,coingecko_naming="rhinofi"
-        #,defillama_stablecoin='' ## stables via Dune
         ,l2beat_tvl_naming='rhinofi'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/rhinofi.json"
@@ -682,8 +673,8 @@ adapter_mapping = [
         ,description="Metis Andromeda is an EVM equivalent Optimium. Public launch was in November 2021."
         ,da_layer = "MEMO"
 
-        ,in_api = False
-        ,in_fees_api = False
+        ,in_api = True
+        ,in_fees_api = True
         ,deployment="DEV"
         ,exclude_metrics = ['blockspace', 'profit', 'rent_paid']
         ,aggregate_blockspace = True
@@ -702,7 +693,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/MetisL2"
 
         ,coingecko_naming="metis-token"
-        # ,defillama_stablecoin='Metis' ## stables via Dune
         ,l2beat_tvl_naming='metis'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/metis.json"
@@ -746,7 +736,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/MantaNetwork"
 
         ,coingecko_naming="manta-network"
-        # ,defillama_stablecoin='Metis' ## stables via Dune
         ,l2beat_tvl_naming='mantapacific'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mantapacific.json"
@@ -789,7 +778,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/Blast_L2"
 
         #,coingecko_naming=""
-        ,defillama_stablecoin='Blast'
         ,l2beat_tvl_naming='blast'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/blast.json"
@@ -829,7 +817,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/modenetwork"
 
         #,coingecko_naming=""
-        #,defillama_stablecoin='Mode' ## stables via Dune
         ,l2beat_tvl_naming='mode'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/mode.json"
@@ -865,7 +852,6 @@ adapter_mapping = [
         ,twitter="https://twitter.com/redstonexyz"
 
         #,coingecko_naming=""
-        #,defillama_stablecoin='-' ## stables via Dune
         ,l2beat_tvl_naming='redstone'
 
         ,block_explorer_txcount="https://l2beat.com/api/activity/redstone.json"

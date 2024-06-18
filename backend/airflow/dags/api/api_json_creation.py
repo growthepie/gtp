@@ -67,6 +67,11 @@ def etl():
         json_creator.create_labels_json('quick')
         json_creator.create_labels_sparkline_json()
 
+        json_creator.create_labels_parquet('full')
+        json_creator.create_labels_parquet('quick')
+        json_creator.create_labels_sparkline_parquet()
+        json_creator.create_projects_parquet()
+
     @task()
     def run_create_blockspace_overview():
         blockspace_json_creator.create_blockspace_overview_json()

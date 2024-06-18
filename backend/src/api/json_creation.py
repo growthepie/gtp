@@ -7,7 +7,7 @@ import random
 from datetime import timedelta, datetime
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
-from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 
 import warnings
@@ -914,7 +914,7 @@ class JSONCreation():
                     ranking_dict[metric] = self.get_ranking(df, metric, origin_key)
             
             ## Hottest Contract
-            if chain.aggregate_blockspace:
+            if chain.aggregate_blockspace and 'blockspace' not in chain.exclude_metrics:
                 hottest_contract = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=1, origin_keys=[origin_key], limit=1)
                 hottest_contract = hottest_contract.replace({np.nan: None})
                 hottest_contract = db_addresses_to_checksummed_addresses(hottest_contract, ['address'])
@@ -933,7 +933,7 @@ class JSONCreation():
                     'data': hottest_contract.values.tolist()
                 }
             else:
-                print(f'..skipped: Hottest Contract for {origin_key}. aggregate_blockspace is set to False')
+                print(f'..skipped: Hottest Contract for {origin_key}. Flag aggregate_blockspace is set to False or blockspace is excluded.')
                 hottest_contract_dict = None
 
             details_dict = {
@@ -1440,6 +1440,49 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', sparkline_dict, self.cf_distribution_id)
         print(f'DONE -- sparkline export')
 
+    def create_labels_parquet(self, type='full'):
+        if type == 'full':
+            limit = 1000000
+        elif type == 'quick':
+            limit = 100
+        else:
+            raise ValueError('type must be either "full" or "quick"')
+        
+        order_by = 'txcount'
+        df = self.db_connector.get_labels_lite_db(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+        df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/{type}', df, self.cf_distribution_id)
+        print(f'DONE -- labels {type}.parquet export')
+
+    def create_projects_parquet(self):        
+        df = self.db_connector.get_active_projects()
+
+        df = df.drop(columns=['id'])
+        df = df.rename(columns={'name': 'owner_project'})
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', df, self.cf_distribution_id)
+        print(f'DONE -- labels projects.parquet export')
+
+    def create_labels_sparkline_parquet(self):
+        df = self.db_connector.get_labels_page_sparkline(limit = 1000000, origin_keys=self.chains_list_in_api_labels)
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+        df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+
+        df['txcount'] = df['txcount'].astype(int)
+        df['daa'] = df['daa'].astype(int)
+        df['gas_fees_usd'] = df['gas_fees_usd'].round(2)                 
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', df, self.cf_distribution_id)
+        print(f'DONE -- sparkline.parquet export')
 
     ### OTHER API ENDPOINTS
 
@@ -1551,13 +1594,14 @@ class JSONCreation():
         df_mcap.rename(columns={'market_cap_eth':'eth', 'market_cap_usd':'usd'}, inplace=True)
         df_mcap = df_mcap.sort_values(by='unix', ascending=True)
 
-        glo_dict = {'holders_table':{}, 'chart':{}}
+        glo_dict = {'holders_table':{}, 'chart':{}, 'source':[]}
 
         for index, row in df.iterrows():
             glo_dict['holders_table'][row['holder']] = {'balance':row['balance'], 'share':row['share'], 'website':row['website'], 'twitter':row['twitter']}
 
         glo_dict['chart']['types'] = df_mcap.columns.to_list()
         glo_dict['chart']['data'] = df_mcap.values.tolist()
+        glo_dict['source'] = ["Dune"]
 
         glo_dict = fix_dict_nan(glo_dict, 'GLO Dollar')
 

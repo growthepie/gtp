@@ -66,8 +66,10 @@ def read_all_labeled_contracts_airtable(table):
     # add all columns if they are missing, as api doesn't return empty columns
     if 'contract_name' not in df.columns:
         df['contract_name'] = ''
-    if 'owner_project' not in df.columns:
-        df['owner_project'] = ''
+    if 'owner_project_lookup' not in df.columns:
+        df['owner_project_lookup'] = None
+    if 'usage_category_lookup' not in df.columns:
+        df['usage_category_lookup'] = None
     if 'labelling_type' not in df.columns:
         df['labelling_type'] = ''
 

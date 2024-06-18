@@ -292,7 +292,7 @@ class AdapterSQL(AbstractAdapter):
         
         ## currently excluding the 10th and 90th percentile for regular runs
         if metric_keys is None:
-            metric_keys = ['txcosts_avg_eth', 'txcosts_median_eth', 'txcosts_native_median_eth', 'txcosts_swap_eth']
+            metric_keys = ['txcosts_avg_eth', 'txcosts_median_eth', 'txcosts_native_median_eth', 'txcosts_swap_eth', 'txcount']
 
         granularities_dict = {
                 'daily'         : """date_trunc('day', "block_timestamp")""", 
@@ -554,4 +554,23 @@ class AdapterSQL(AbstractAdapter):
                                     df = pd.read_sql(exec_string, self.db_connector.engine.connect())
                                     df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                                     self.db_connector.upsert_table('fact_kpis_granular', df)
+                        
+                        if 'txcount' in metric_keys:
+                            print(f"... processing txcount for {origin_key} and {granularity} granularity")
+                            exec_string = f"""
+                                    SELECT
+                                            {timestamp_query} AS timestamp,
+                                            '{origin_key}' as origin_key,
+                                            'txcount' as metric_key,
+                                            '{granularity}' as granularity,
+                                            Count(*) as value
+                                    FROM public.{origin_key}_tx
+                                    WHERE tx_fee <> 0 
+                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')                 
+                                    GROUP BY 1,2,3,4
+                                    having count(*) > 20
+                            """
+                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                            self.db_connector.upsert_table('fact_kpis_granular', df)
 
