@@ -291,7 +291,7 @@ adapter_mapping = [
         ,in_fees_api = True
         ,in_labels_api = True
         ,deployment="PROD"
-        ,exclude_metrics = ['fdv', 'market_cap', 'throughput']
+        ,exclude_metrics = ['throughput']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
