@@ -7,7 +7,7 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_raw_starknet import AdapterStarknet
-from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
+from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException, get_chain_config
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
@@ -30,21 +30,23 @@ from src.misc.airflow_utils import alert_via_webhook
 def adapter_rpc():
     @task(execution_timeout=timedelta(minutes=45))
     def run_starknet():
-        adapter_params = {
-            'chain': 'starknet',
-            'rpc_url': os.getenv("STARKNET_RPC"),
-        }
 
         # Initialize DbConnector
         db_connector = DbConnector()
+        chain_name = 'starknet'
 
         # Initialize NodeAdapter
         adapter = AdapterStarknet(adapter_params, db_connector)
-
+        rpc_url, batch_size = get_chain_config(db_connector, chain_name)
+        
+        adapter_params = {
+            'chain': chain_name,
+            'rpc_url': rpc_url,
+        }
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
-            'batch_size': 20,
+            'batch_size': batch_size,
             'threads': 1,
         }
 
