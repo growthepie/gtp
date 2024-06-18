@@ -122,6 +122,7 @@ class AdapterTotalSupply(AbstractAdapter):
                 dfMain = pd.concat([dfMain,df])
             except Exception as e:
                 print(f"Error with {coin.origin_key}: {e}")
+                #raise e
                 continue
         
         #print(dfMain.to_markdown())
