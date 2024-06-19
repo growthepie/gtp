@@ -37,19 +37,23 @@ def adapter_rpc():
         chain_name = 'starknet'
 
         # Initialize NodeAdapter
-        adapter = AdapterStarknet(adapter_params, db_connector)
-        rpc_url, batch_size = get_chain_config(db_connector, chain_name)
-        
+        rpc_list, batch_size = get_chain_config(db_connector, chain_name)
+        rpc_url = [rpc['url'] for rpc in rpc_list]
+        print(f"RPC_URL={rpc_url}")
+
         adapter_params = {
             'chain': chain_name,
             'rpc_url': rpc_url,
         }
+        
         # Initial load parameters
         load_params = {
             'block_start': 'auto',
             'batch_size': batch_size,
             'threads': 1,
         }
+        
+        adapter = AdapterStarknet(adapter_params, db_connector)
 
         while load_params['threads'] > 0:
             try:

@@ -935,11 +935,19 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
     #     raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
 def get_chain_config(db_connector, chain_name):
-    raw_sql = text(
-        "SELECT url, workers, max_requests, max_tps "
-        "FROM sys_rpc_config "
-        "WHERE active = TRUE AND origin_key = :chain_name AND synced = TRUE"
-    )
+    # Determine the SQL query based on the chain name
+    if chain_name.lower() == "celestia" or chain_name.lower() == "starknet":
+        raw_sql = text(
+            "SELECT url, workers, max_requests, max_tps "
+            "FROM sys_rpc_config "
+            "WHERE origin_key = :chain_name AND active = TRUE "
+        )
+    else:
+        raw_sql = text(
+            "SELECT url, workers, max_requests, max_tps "
+            "FROM sys_rpc_config "
+            "WHERE active = TRUE AND origin_key = :chain_name AND synced = TRUE"
+        )
 
     with db_connector.engine.connect() as connection:
         result = connection.execute(raw_sql, {"chain_name": chain_name})
