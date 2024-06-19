@@ -7,7 +7,8 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_raw_starknet import AdapterStarknet
-from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException, get_chain_config
+from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
+from src.new_setup.utils import get_chain_config
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
