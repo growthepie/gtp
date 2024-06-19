@@ -38,7 +38,8 @@ def adapter_rpc():
 
         # Initialize NodeAdapter
         rpc_list, batch_size = get_chain_config(db_connector, chain_name)
-        rpc_url = [rpc['url'] for rpc in rpc_list]
+        rpc_urls = [rpc['url'] for rpc in rpc_list]
+        rpc_url = rpc_urls[0]
         print(f"RPC_URL={rpc_url}")
 
         adapter_params = {
