@@ -292,13 +292,30 @@ class AdapterSQL(AbstractAdapter):
         
         ## currently excluding the 10th and 90th percentile for regular runs
         if metric_keys is None:
-            metric_keys = ['txcosts_avg_eth', 'txcosts_median_eth', 'txcosts_native_median_eth', 'txcosts_swap_eth', 'txcount']
-
+            metric_keys = ['txcosts_avg_eth', 'txcosts_median_eth', 'txcosts_native_median_eth', 'txcosts_swap_eth', 'txcount', 'throughput']
+        
+        ## different granularities have different timestamp queries, seconds conversion and end timestamps 
         granularities_dict = {
-                'daily'         : """date_trunc('day', "block_timestamp")""", 
-                '4_hours'       : """date_trunc('day', block_timestamp) +  INTERVAL '1 hour' * (EXTRACT(hour FROM block_timestamp)::int / 4 * 4)""", 
-                'hourly'        : """date_trunc('hour', "block_timestamp")""", 
-                '10_min'        : """date_trunc('hour', block_timestamp) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM block_timestamp) / 10)""", 
+                'daily': [
+                    """date_trunc('day', "block_timestamp")""", 
+                    (24*60*60), 
+                    """date_trunc('day', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')"""
+                    ],
+                '4_hours': [
+                    """date_trunc('day', block_timestamp) +  INTERVAL '1 hour' * (EXTRACT(hour FROM block_timestamp)::int / 4 * 4)""", 
+                    (4*60*60),
+                    """---"""
+                    ],
+                'hourly': [
+                    """date_trunc('hour', "block_timestamp")""", 
+                    (60*60),
+                    """date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')"""
+                    ],
+                '10_min': [
+                    """date_trunc('hour', block_timestamp) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM block_timestamp) / 10)""", 
+                    (10*60),
+                    """---"""
+                    ],
         }
 
         if granularities is None:
@@ -306,10 +323,20 @@ class AdapterSQL(AbstractAdapter):
         else: 
             granularities = {k: granularities_dict[k] for k in granularities}
 
+        for origin_key in origin_keys: 
+                query = f"select date_trunc('day', max(block_timestamp)) +  INTERVAL '1 hour' * (EXTRACT(hour FROM max(block_timestamp))::int / 4 * 4) from {origin_key}_tx limit 1"
+                with self.db_connector.engine.connect() as connection:
+                    granularities['4_hours'][2] = f""" '{str(connection.execute(query).scalar())}' """
 
-        for origin_key in origin_keys:                        
+                query = f"select date_trunc('hour', max(block_timestamp)) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM max(block_timestamp)) / 10) from {origin_key}_tx limit 1"
+                with self.db_connector.engine.connect() as connection:
+                    granularities['10_min'][2] = f""" '{str(connection.execute(query).scalar())}' """                 
+                                   
                 for granularity in granularities:
-                        
+                        timestamp_query = granularities[granularity][0]
+                        seconds_conversion = granularities[granularity][1]
+                        timestamp_end = granularities[granularity][2]
+
                         ## for ethereuem only hourly granularity is supported
                         if origin_key == 'ethereum' and granularity != 'hourly':
                                 continue
@@ -341,8 +368,6 @@ class AdapterSQL(AbstractAdapter):
                             additional_cte = ''
                             tx_fee_eth_string = 'tx_fee'
                             additional_join = ''
-                        
-                        timestamp_query = granularities[granularity]
 
                         ## txcosts_average
                         if 'txcosts_avg_eth' in metric_keys:
@@ -362,9 +387,9 @@ class AdapterSQL(AbstractAdapter):
                                     FROM public.{origin_key}_tx
                                     {additional_join}
                                     WHERE tx_fee <> 0 
-                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')                 
+                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                        and  block_timestamp < {timestamp_end}                
                                     GROUP BY 1,2,3,4
-                                    having count(*) > 20
                             """
                             df = pd.read_sql(exec_string, self.db_connector.engine.connect())
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
@@ -387,9 +412,9 @@ class AdapterSQL(AbstractAdapter):
                                                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                             FROM public.{origin_key}_tx
                                             WHERE tx_fee <> 0 
-                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                                and  block_timestamp < {timestamp_end}   
                                             GROUP BY 1
-                                            having count(*) > 20
                                     )
 
                                     SELECT
@@ -422,9 +447,9 @@ class AdapterSQL(AbstractAdapter):
                                                     PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                             FROM public.{origin_key}_tx
                                             WHERE tx_fee <> 0 
-                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                                and  block_timestamp < {timestamp_end}   
                                             GROUP BY 1
-                                            having count(*) > 20
                                     )
 
                                     SELECT
@@ -457,9 +482,9 @@ class AdapterSQL(AbstractAdapter):
                                                     PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                             FROM public.{origin_key}_tx
                                             WHERE tx_fee <> 0 
-                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                                and  block_timestamp < {timestamp_end} 
                                             GROUP BY 1
-                                            having count(*) > 20
                                     )
 
                                     SELECT
@@ -497,10 +522,10 @@ class AdapterSQL(AbstractAdapter):
                                                     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                             FROM public.{origin_key}_tx
                                             WHERE tx_fee <> 0 
-                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                                AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                                and  block_timestamp < {timestamp_end}  
                                                 {filter_string}
                                             GROUP BY 1
-                                            having count(*) > 10
                                     )
 
                                     SELECT
@@ -536,10 +561,10 @@ class AdapterSQL(AbstractAdapter):
                                                             PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                                     FROM public.{origin_key}_tx
                                                     WHERE tx_fee <> 0 
-                                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')    
+                                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                                        and  block_timestamp < {timestamp_end}    
                                                     AND gas_used between 150000 AND 350000
                                                     GROUP BY 1
-                                                    having count(*) > 20
                                             )
 
                                             SELECT
@@ -566,9 +591,28 @@ class AdapterSQL(AbstractAdapter):
                                             Count(*) as value
                                     FROM public.{origin_key}_tx
                                     WHERE tx_fee <> 0 
-                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days' and  block_timestamp < date_trunc('hour', CURRENT_TIMESTAMP AT TIME ZONE 'UTC')                 
+                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days'
+                                        and block_timestamp < {timestamp_end}                  
                                     GROUP BY 1,2,3,4
-                                    having count(*) > 20
+                            """
+                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
+                            self.db_connector.upsert_table('fact_kpis_granular', df)
+
+                        if 'throughput' in metric_keys:
+                            print(f"... processing throughput for {origin_key} and {granularity} granularity")
+                            exec_string = f"""
+                                    SELECT
+                                            {timestamp_query} AS timestamp,
+                                            '{origin_key}' as origin_key,
+                                            'gas_per_second' as metric_key,
+                                            '{granularity}' as granularity,
+                                            sum(gas_used) / {seconds_conversion} AS value
+                                    FROM public.{origin_key}_tx
+                                    WHERE tx_fee <> 0 
+                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days'
+                                        and  block_timestamp < {timestamp_end} 
+                                    GROUP BY 1,2,3,4
                             """
                             df = pd.read_sql(exec_string, self.db_connector.engine.connect())
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
