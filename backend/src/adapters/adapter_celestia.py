@@ -1,8 +1,9 @@
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 import traceback
-from src.adapters.funcs_rps_utils import *
+from src.new_setup.utils import *
 import requests
 import base64
+import json
 
 class AdapterCelestia(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -58,8 +59,17 @@ class AdapterCelestia(AbstractAdapterRaw):
         for rpc_endpoint in self.rpc_list:
             try:
                 response = requests.post(rpc_endpoint, json=payload, headers=headers)
-                if response and response.status_code == 200:
-                    return response
+                if response.status_code == 200:
+                    # Check if the response has a JSON body and contains 'result'
+                    response_json = response.json()
+                    if 'result' in response_json:
+                        return response  # Returning the response object that contains 'result'
+                    else:
+                        print(f"'result' not found in response from {rpc_endpoint}")
+                else:
+                    print(f"Response from {rpc_endpoint} returned status code {response.status_code}")
+            except ValueError:
+                print(f"Failed to decode JSON from {rpc_endpoint}")
             except Exception as e:
                 print(f"RPC failed at {rpc_endpoint} with error: {e}")
         print("All RPC endpoints failed.")
@@ -90,6 +100,19 @@ class AdapterCelestia(AbstractAdapterRaw):
                 break  # No more pages to fetch
             page += 1
             tx_search = self.fetch_block_transaction_details(block_number, page)
+        
+        if not df.empty:
+            df = df.where(pd.notnull(df), None)
+            # Convert all `NaN` values for JSON-compatible columns to JSON nulls
+            json_columns = ['blob_sizes', 'namespaces']  # list of the columns that need JSON serialization
+            for col in json_columns:
+                if col in df.columns:
+                    df[col] = df[col].apply(lambda x: json.dumps(x) if isinstance(x, list) else json.dumps(None))
+                else:
+                    df[col] = json.dumps(None)  # Set the column with JSON null as default
+        else:
+            print(f"No transactions found for block number {block_number}")
+        
         return df
      
     def get_block_timestamp(self, block_number):
@@ -102,7 +125,11 @@ class AdapterCelestia(AbstractAdapterRaw):
         }
         response = self.request_rpc(payload, headers)
         if response:
-            return response.json()['result']['block']['header']['time']
+            try:
+                return response.json()['result']['block']['header']['time']
+            except KeyError:
+                print(f"Unexpected response structure: {response.json()}")
+                return None
         print(f"Failed to fetch block timestamp for block {block_number}.")
         return None
 
@@ -133,10 +160,11 @@ class AdapterCelestia(AbstractAdapterRaw):
             return pd.DataFrame()
 
         data = []
-        txs_decoded = decode_base64(tx['result']['txs'])
-        block = txs_decoded[0]['height']
+        txs = tx['result']['txs']
+        block = txs[0]['height']
         timestamp = self.get_block_timestamp(block)
-        for trx in txs_decoded:
+        for trx in txs:
+            decoded_trx = decode_base64(trx)
             row = {}
             row['block_timestamp'] = timestamp
             row['block_number'] = block
@@ -149,7 +177,7 @@ class AdapterCelestia(AbstractAdapterRaw):
             
             row['gas_wanted'] = int(trx['tx_result']['gas_wanted'])
             row['gas_used'] = int(trx['tx_result']['gas_used'])
-            attributes = [i['attributes'] for i in trx['tx_result']['events']]
+            attributes = [i['attributes'] for i in decoded_trx['tx_result']['events']]
             for a in attributes:
                 for attr in a:
                     key = attr['key']
@@ -201,6 +229,9 @@ class AdapterCelestia(AbstractAdapterRaw):
                 df.drop_duplicates(subset=['tx_hash'], inplace=True)
                 df.set_index('tx_hash', inplace=True)
                 df.index.name = 'tx_hash'
+                if 'signer' not in df.columns:
+                    df['signer'] = None
+                df.replace({pd.NA: None, 'null': None, 'None': None}, inplace=True)
 
                 # Upsert data into the database
                 try:
@@ -213,11 +244,22 @@ class AdapterCelestia(AbstractAdapterRaw):
 
             except Exception as e:
                 print(f"Error processing blocks {current_start} to {current_end}: {e}")
-                base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time)
+                base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time, self.rpc_list[0])
 
 def decode_base64(element):
     if isinstance(element, dict):
-        return {key: decode_base64(value) for key, value in element.items()}
+        new_element = {}
+        for key, value in element.items():
+            if key == 'height':
+                # Validate and convert height to an integer if possible
+                try:
+                    new_element[key] = int(value)
+                except ValueError:
+                    # If conversion fails, set to a default value or handle appropriately
+                    new_element[key] = None
+            else:
+                new_element[key] = decode_base64(value)
+        return new_element
     elif isinstance(element, list):
         return [decode_base64(item) for item in element]
     elif isinstance(element, str):
@@ -228,4 +270,4 @@ def decode_base64(element):
         except Exception:
             return element
     else:
-        return element  
+        return element
