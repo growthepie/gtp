@@ -677,6 +677,8 @@ class JSONCreation():
                     else:
                         change_val = (cur_val - prev_val) / prev_val
                         change_val = round(change_val, 4)
+                        if change_val > 10:
+                            change_val = 9.99
                 changes_dict[f'{change}d'].append(change_val)
 
         df_tmp = self.df_rename(df_tmp, metric_id)
@@ -731,6 +733,8 @@ class JSONCreation():
                     else:
                         change_val = (cur_val - prev_val) / prev_val
                         change_val = round(change_val, 4)
+                        if change_val >= 10:
+                            change_val = 9.99
                 changes_dict[f'{change}d'].append(change_val)
 
         df_tmp = self.df_rename(df_tmp, metric_id)
