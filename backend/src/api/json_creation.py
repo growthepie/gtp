@@ -15,6 +15,15 @@ import warnings
 # Suppress specific FutureWarnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
+def merge_dicts(default, custom):
+    merged = default.copy()
+    for key, value in custom.items():
+        if isinstance(value, dict) and key in merged:
+            merged[key] = merge_dicts(merged[key], value)
+        else:
+            merged[key] = value
+    return merged
+
 class JSONCreation():
 
     def __init__(self, s3_bucket, cf_distribution_id, db_connector, api_version):
@@ -24,11 +33,57 @@ class JSONCreation():
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
 
+        ## Decimals: only relevant if value isn't aggregated
+        ## When aggregated (starting >1k), we always show 2 decimals
+        ## in case of ETH and decimals >6, show Gwei
+        ## prefix and suffix should also show in axis
+        self.units = {
+            'value': {
+                'currency': False,
+                'prefix': None,
+                'suffix': None,
+                'decimals': 0,
+                'decimals_tooltip': 0,
+                'agg': True,
+                'agg_tooltip': True,
+            },
+            'usd': {
+                'currency': True,
+                'prefix': '$',
+                'suffix': None,
+                'decimals': 2,
+                'decimals_tooltip': 2,
+                'agg': True, 
+                'agg_tooltip': False,
+            },
+            'eth': {
+                'currency': True,
+                'prefix': 'Ξ',
+                'suffix': None,
+                'decimals': 2,
+                'decimals_tooltip': 2,
+                'agg': True,
+                'agg_tooltip': False,
+            },
+            # 'mgas/s': {
+            #     'currency': False,
+            #     'prefix': None,
+            #     'suffix': 'Mgas/s',
+            #     'decimals': 2,
+            #     'decimals_tooltip': 2,
+            #     'agg': False, 
+            #     'agg_tooltip': False,
+            # }
+        }
+
         self.metrics = {
             'tvl': {
-                'name': 'Total value locked (on chain)',
+                'name': 'Total Value Locked',
                 'metric_keys': ['tvl', 'tvl_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                },
                 'avg': False, ##7d rolling average
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
@@ -36,9 +91,11 @@ class JSONCreation():
                 'ranking_bubble': False
             }
             ,'txcount': {
-                'name': 'Transaction count',
+                'name': 'Transaction Count',
                 'metric_keys': ['txcount'],
-                'units': ['-'],
+                'units': {
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
@@ -46,9 +103,11 @@ class JSONCreation():
                 'ranking_bubble': False
             }
             ,'daa': {
-                'name': 'Daily active addresses',
+                'name': 'Active Addresses',
                 'metric_keys': ['daa'],
-                'units': ['-'],
+                'units': {
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'maa',
@@ -56,9 +115,12 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'stables_mcap': {
-                'name': 'Stablecoin market cap',
+                'name': 'Stablecoin Market Cap',
                 'metric_keys': ['stables_mcap', 'stables_mcap_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                },
                 'avg': False,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
@@ -66,9 +128,12 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'fees': {
-                'name': 'Fees paid',
+                'name': 'Fees Paid by Users',
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
@@ -76,9 +141,12 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'rent_paid': {
-                'name': 'Rent paid to L1',
+                'name': 'Rent Paid to L1',
                 'metric_keys': ['rent_paid_usd', 'rent_paid_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
@@ -86,9 +154,12 @@ class JSONCreation():
                 'ranking_bubble': False
             }
             ,'profit': {
-                'name': 'Profit',
+                'name': 'Onchain Profit',
                 'metric_keys': ['profit_usd', 'profit_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
@@ -96,9 +167,12 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'txcosts': {
-                'name': 'Transaction costs',
+                'name': 'Transaction Costs',
                 'metric_keys': ['txcosts_median_usd', 'txcosts_median_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
+                    'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'weighted_mean',
                 'monthly_agg': 'avg',
@@ -106,9 +180,12 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'fdv': {
-                'name': 'Fully diluted valuation',
+                'name': 'Fully Diluted Valuation',
                 'metric_keys': ['fdv_usd', 'fdv_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
@@ -116,9 +193,12 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'market_cap': {
-                'name': 'Market cap',
+                'name': 'Market Cap',
                 'metric_keys': ['market_cap_usd', 'market_cap_eth'],
-                'units': ['USD', 'ETH'],
+                'units': {
+                    'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
@@ -128,7 +208,9 @@ class JSONCreation():
             ,'throughput': {
                 'name': 'Throughput',
                 'metric_keys': ['gas_per_second'],
-                'units': ['mgas/s'],
+                'units': {
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'Mgas/s'},
+                },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
@@ -138,31 +220,70 @@ class JSONCreation():
         }
 
         self.fees_types = {
-            'txcosts_avg' : {
-                'name': 'Average Fee',
-                'metric_keys': ['txcosts_avg_eth'],
-            }
-            ,'txcosts_native_median' : {
+            'txcosts_native_median' : {
                 'name': 'Median Fee',
                 'metric_keys': ['txcosts_native_median_eth'],
+                'units': {
+                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
+                    'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
+                },
+                'currency': True,
+                'priority': 1
             }
             , 'txcosts_median' : {
                 'name': 'Transfer ETH',
                 'metric_keys': ['txcosts_median_eth'],
+                'units': {
+                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
+                    'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
+                },
+                'currency': True,
+                'priority': 2
             }
+            # , 'tps' : {
+            #     'name': 'TPS',
+            #     'metric_keys': ['txcount'],
+            #     'units': {
+            #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False},
+            #     },
+            #     'currency': False,
+            #     'priority': 3
+            # }
             , 'txcosts_swap' : {
                 'name': 'Swap',
                 'metric_keys': ['txcosts_swap_eth'],
+                'units': {
+                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
+                    'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
+                },
+                'currency': True,
+                'priority': 4
             }
+            ,'txcosts_avg' : {
+                'name': 'Average Fee',
+                'metric_keys': ['txcosts_avg_eth'],
+                'units': {
+                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
+                    'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
+                },
+                'currency': True,
+                'priority': 5
+            }          
         }
 
         ## mapping of timeframes to granularity
         self.fees_timespans = {
-            '24hrs' : {'granularity': '10_min', 'filter_days': 1},
-            '7d' : {'granularity': 'hourly', 'filter_days': 7},
-            '30d' : {'granularity': '4_hours', 'filter_days': 30},
-            '180d' : {'granularity': 'daily', 'filter_days': 180},
+            '24hrs' : {'granularity': '10_min', 'filter_days': 1, 'tps_divisor': 60*10},
+            '7d' : {'granularity': 'hourly', 'filter_days': 7, 'tps_divisor': 60*60},
+            '30d' : {'granularity': '4_hours', 'filter_days': 30, 'tps_divisor': 60*60*4},
+            '180d' : {'granularity': 'daily', 'filter_days': 180, 'tps_divisor': 60*60*24},
             }
+        
+        for metric_key, metric_value in self.metrics.items():
+            metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
+
+        for metric_key, metric_value in self.fees_types.items():
+            metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
 
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
@@ -192,7 +313,7 @@ class JSONCreation():
         if col_name_removal:
             df.columns.name = None
 
-        if 'USD' in self.metrics[metric_id]['units'] or 'ETH' in self.metrics[metric_id]['units']:
+        if 'usd' in self.metrics[metric_id]['units'] or 'eth' in self.metrics[metric_id]['units']:
             for col in df.columns.to_list():
                 if col == 'unix':
                     continue
@@ -337,7 +458,8 @@ class JSONCreation():
 
         return mk_list_int, df_tmp.columns.to_list()
 
-    def generate_fees_list(self, df, metric_key, origin_key, granularity, eth_price, max_ts_all = None, normalize = False):
+    def generate_fees_list(self, df, metric, origin_key, granularity, timespan, eth_price, max_ts_all = None, normalize = False):
+        metric_key = self.fees_types[metric]['metric_keys'][0]
         ## filter df to granularity = 'hourly' and metric_key = metric
         df = df[(df.granularity == granularity) & (df.metric_key == metric_key) & (df.origin_key == origin_key)]
         
@@ -376,35 +498,58 @@ class JSONCreation():
         df = df.sort_values(by='timestamp', ascending=False)
         ## only keep columns unix, value_usd
         df = df[['unix', 'value']]
-        ## calculate value_usd by multiplying value with eth_price
-        df['value_usd'] = df['value'] * eth_price
-        df.rename(columns={'value': 'value_eth'}, inplace=True)
 
-        ## order columns in df unix, value_eth, value_usd
-        df = df[['unix', 'value_eth', 'value_usd']]
+        if self.fees_types[metric]['currency']:
+            main_col = 'value_eth'
+            ## calculate value_usd by multiplying value with eth_price
+            df['value_usd'] = df['value'] * eth_price
+            df.rename(columns={'value': main_col}, inplace=True)
+            ## order columns in df unix, value_eth, value_usd
+            df = df[['unix', main_col, 'value_usd']]
+        elif metric == 'tps':
+            df['value'] = df['value'] / self.fees_timespans[timespan]['tps_divisor']
+            main_col = 'value'
+        else:
+            main_col = 'value'
 
         if normalize:
             ## get max value and min value
-            max_value = df['value_eth'].max()
-            min_value = df['value_eth'].min()
+            max_value = df[main_col].max()
+            min_value = df[main_col].min()
             ## create new column 'normalized' with normalized values between 0 and 1
-            df['normalized'] = (df['value_eth'] - min_value) / (max_value - min_value)
+            df['normalized'] = (df[main_col] - min_value) / (max_value - min_value)
             mk_list = df.values.tolist()
-            mk_list_int = [
-                [
-                    int(i[0]), ## unix timestamp
-                    i[1], ## eth value
-                    round(i[2], 4), ## usd value
-                    round(i[3], 2) ## normalized value
-                ] for i in mk_list]
+            if self.fees_types[metric]['currency']:
+                mk_list_int = [
+                    [
+                        int(i[0]), ## unix timestamp
+                        i[1], ## eth value
+                        round(i[2], 4), ## usd value
+                        round(i[3], 2) ## normalized value
+                    ] for i in mk_list]
+            else:
+                mk_list_int = [
+                    [
+                        int(i[0]), ## unix timestamp
+                        i[1], ## value
+                        round(i[2], 2) ## normalized value
+                    ] for i in mk_list]
         else:
             mk_list = df.values.tolist()
-            mk_list_int = [
-                [
-                    int(i[0]), ## unix timestamp
-                    i[1], ## eth value
-                    round(i[2], 4) ## usd value
-                ] for i in mk_list]
+            if self.fees_types[metric]['currency']:
+                mk_list_int = [
+                    [
+                        int(i[0]), ## unix timestamp
+                        i[1], ## eth value
+                        round(i[2], 4) ## usd value
+                    ] for i in mk_list]
+            else:
+                mk_list_int = [
+                    [
+                        int(i[0]), ## unix timestamp
+                        i[1] ## value
+                    ] for i in mk_list]
+                
 
         return mk_list_int, df.columns.to_list()
 
@@ -462,8 +607,33 @@ class JSONCreation():
         exec_string = f"""
             SELECT *
             FROM public.fact_kpis_granular kpi
-            where kpi."timestamp" >= '2021-01-01'
+            where kpi."timestamp" >= CURRENT_DATE - INTERVAL '181 days'
                 and kpi.metric_key in ({"'" + "','".join(metric_keys) + "'"})
+                and granularity = 'daily'
+
+            UNION ALL
+
+            SELECT *
+            FROM public.fact_kpis_granular kpi
+            where kpi."timestamp" >= CURRENT_DATE - INTERVAL '31 days'
+                and kpi.metric_key in ({"'" + "','".join(metric_keys) + "'"})
+                and granularity = '4_hours'
+
+            UNION ALL
+
+            SELECT *
+            FROM public.fact_kpis_granular kpi
+            where kpi."timestamp" >= CURRENT_DATE - INTERVAL '8 days'
+                and kpi.metric_key in ({"'" + "','".join(metric_keys) + "'"})
+                and granularity = 'hourly'
+
+            UNION ALL
+
+            SELECT *
+            FROM public.fact_kpis_granular kpi
+            where kpi."timestamp" >= CURRENT_DATE - INTERVAL '2 days'
+                and kpi.metric_key in ({"'" + "','".join(metric_keys) + "'"})
+                and granularity = '10_min'
         """
 
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
@@ -1117,6 +1287,8 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/master', master_dict, self.cf_distribution_id)
 
+        print(f'DONE -- master.json export')
+
     def create_landingpage_json(self, df):
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         chain_keys = self.chains_list_in_api + ['multiple']
@@ -1195,7 +1367,7 @@ class JSONCreation():
 
         ## filter df timestamp to be within the last 48 hours (not more needed for table visual)
         df = df[(df.granularity == 'hourly')]
-        df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=25)]
+        df = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=30)]
         max_ts_all = df['unix'].max()
 
         ## loop over all chains and generate a fees json for all chains
@@ -1208,11 +1380,9 @@ class JSONCreation():
             eth_price = self.db_connector.get_last_price_usd('ethereum')
 
             hourly_dict = {}
-            for metric_key in self.fees_list:
-                ## generate metric_name which is metric_key without the last 4 characters
-                metric_name = metric_key[:-4]               
-                generated = self.generate_fees_list(df, metric_key, origin_key, 'hourly', eth_price, max_ts_all, True)
-                hourly_dict[metric_name] = {
+            for metric in self.fees_types:             
+                generated = self.generate_fees_list(df, metric, origin_key, 'hourly', '7d', eth_price, max_ts_all, True)
+                hourly_dict[metric] = {
                     "types": generated[1],
                     "data": generated[0]
                 }
@@ -1250,24 +1420,21 @@ class JSONCreation():
             eth_price = self.db_connector.get_last_price_usd('ethereum')                
             fees_dict["chain_data"][origin_key] = {}
 
-            for metric_key in self.fees_list:
-                timeframe_dict = {}
-                ## generate metric_name which is metric_key without the last 4 characters
-                metric_name = metric_key[:-4]
-
-                for timeframe in self.fees_timespans:
-                    granularity = self.fees_timespans[timeframe]["granularity"]
-                    filter_days = self.fees_timespans[timeframe]["filter_days"]
+            for metric in self.fees_types:
+                timespan_dict = {}
+                for timespan in self.fees_timespans:
+                    granularity = self.fees_timespans[timespan]["granularity"]
+                    filter_days = self.fees_timespans[timespan]["filter_days"]
                     df_tmp = df[df['timestamp'].dt.tz_localize(None) > datetime.now() - timedelta(hours=24*filter_days)].copy()
-                    generated = self.generate_fees_list(df_tmp, metric_key, origin_key, granularity, eth_price)
-                    timeframe_dict[timeframe] = {
+                    generated = self.generate_fees_list(df_tmp, metric, origin_key, granularity, timespan, eth_price)
+                    timespan_dict[timespan] = {
                         "types": generated[1],
                         "granularity": granularity,
                         "data": generated[0]
                     }
             
 
-                fees_dict["chain_data"][origin_key][metric_name] = timeframe_dict
+                fees_dict["chain_data"][origin_key][metric] = timespan_dict
 
         fees_dict = fix_dict_nan(fees_dict, f'fees/linechart')
 
