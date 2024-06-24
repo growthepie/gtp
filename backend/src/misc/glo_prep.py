@@ -22,7 +22,7 @@ class Glo:
         credentials = service_account.Credentials.from_service_account_info(credentials_info, scopes=SCOPES)
 
         SPREADSHEET_ID = '11GWiQhuGyzYVSKLXxLDyZjU0lFYy8HVxVI7NsSeV50A'
-        RANGE_NAME = 'A1:H1000'  # Adjust the range as needed
+        RANGE_NAME = 'A1:L1000'  # Adjust the range as needed
 
         service = build('sheets', 'v4', credentials=credentials)
         sheet = service.spreadsheets()
@@ -45,11 +45,15 @@ class Glo:
             'Wallet address1 (ID: id-962732a7)': 'wallet1', 
             'Wallet address2 (ID: id-0d857e84)': 'wallet2', 
             'Wallet address3 (ID: id-4c34c3f3)': 'wallet3',
+            'Wallet address4': 'wallet4',
+            'Wallet address5': 'wallet5',
+            'Wallet address6': 'wallet6',
+            'Wallet address7': 'wallet7',
             'How would you like us to display your wallet balance? (ID: mc-116efa79)': 'rule'}
             )
 
         ### move columns wallet1, wallet2, wallet3 to rows
-        df = pd.melt(df, id_vars=['org', 'website', 'twitter', 'rule'], value_vars=['wallet1', 'wallet2', 'wallet3'], var_name='wallet', value_name='address')
+        df = pd.melt(df, id_vars=['org', 'website', 'twitter', 'rule'], value_vars=['wallet1', 'wallet2', 'wallet3', 'wallet4', 'wallet5', 'wallet6', 'wallet7'], var_name='wallet', value_name='address')
         df = df[df['address'] != '']
         df = df.drop(columns=['wallet'])
         df = df.drop_duplicates(subset=['org', 'address'])
