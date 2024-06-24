@@ -228,7 +228,8 @@ class JSONCreation():
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
                 'currency': True,
-                'priority': 1
+                'priority': 1,
+                'invert_normalization': False
             }
             , 'txcosts_median' : {
                 'name': 'Transfer ETH',
@@ -238,7 +239,8 @@ class JSONCreation():
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
                 'currency': True,
-                'priority': 2
+                'priority': 2,
+                'invert_normalization': False
             }
             # , 'tps' : {
             #     'name': 'TPS',
@@ -247,7 +249,8 @@ class JSONCreation():
             #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False},
             #     },
             #     'currency': False,
-            #     'priority': 3
+            #     'priority': 3,
+            #     'invert_normalization': True
             # }
             , 'txcosts_swap' : {
                 'name': 'Swap',
@@ -257,7 +260,8 @@ class JSONCreation():
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
                 'currency': True,
-                'priority': 4
+                'priority': 4,
+                'invert_normalization': False
             }
             ,'txcosts_avg' : {
                 'name': 'Average Fee',
@@ -267,7 +271,8 @@ class JSONCreation():
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
                 'currency': True,
-                'priority': 5
+                'priority': 5,
+                'invert_normalization': False
             }          
         }
 
@@ -518,6 +523,10 @@ class JSONCreation():
             min_value = df[main_col].min()
             ## create new column 'normalized' with normalized values between 0 and 1
             df['normalized'] = (df[main_col] - min_value) / (max_value - min_value)
+
+            if self.fees_types[metric]['invert_normalization']:
+                df['normalized'] = 1 - df['normalized']
+
             mk_list = df.values.tolist()
             if self.fees_types[metric]['currency']:
                 mk_list_int = [
