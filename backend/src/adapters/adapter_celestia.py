@@ -141,7 +141,7 @@ class AdapterCelestia(AbstractAdapterRaw):
             row['block_timestamp'] = timestamp
             row['block_number'] = block
             
-            # Format tx_hash for bytea storage in PostgreSQL
+            # Format tx_hash for bytea storage in PostgreSQL (test) ignore test
             if trx['hash'].startswith('0x'):
                 row['tx_hash'] = '\\x' + trx['hash'][2:]  # Remove '0x' and prepend '\\x'
             else:
