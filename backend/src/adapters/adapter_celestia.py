@@ -4,6 +4,8 @@ from src.new_setup.utils import *
 import requests
 import base64
 import json
+from queue import Queue
+from threading import Thread
 
 class AdapterCelestia(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -36,17 +38,51 @@ class AdapterCelestia(AbstractAdapterRaw):
         block_start = int(block_start)
         latest_block = int(latest_block)
         batch_size = int(batch_size)
-        for current_start in range(block_start, latest_block + 1, batch_size):
-            current_end = current_start + batch_size - 1
-            if current_end > latest_block:
-                current_end = latest_block
+        
+        # Initialize the block range queue
+        block_range_queue = Queue()
+        self.enqueue_block_ranges(block_start, latest_block, batch_size, block_range_queue)
+        print(f"Enqueued {block_range_queue.qsize()} block ranges.")
 
-            try:
-                self.fetch_and_process_range(current_start, current_end, self.chain, self.table_name, self.s3_connection, self.bucket_name, self.db_connector)
-            except Exception as e:
-                print(f"Error processing range {current_start}-{current_end}: {e}")
-                traceback.print_exc()
+        # Manage threads to process block ranges from the queue
+        self.manage_threads(block_range_queue)
 
+    def enqueue_block_ranges(self, block_start, latest_block, batch_size, queue):
+        # Enqueue block ranges into the queue for processing
+        for start in range(block_start, latest_block + 1, batch_size):
+            end = min(start + batch_size - 1, latest_block)
+            queue.put((start, end))
+            
+    def manage_threads(self, block_range_queue):
+        thread_list = []
+        for rpc_endpoint in self.rpc_list:
+            t = Thread(target=self.process_block_ranges, args=(block_range_queue, rpc_endpoint))
+            t.start()
+            thread_list.append(t)
+
+        # Wait for all threads to complete
+        for thread in thread_list:
+            thread.join()
+
+    def process_block_ranges(self, block_range_queue, rpc_endpoint):
+        retry_limit = 3
+        while not block_range_queue.empty():
+            block_start, block_end = block_range_queue.get()
+            attempt = 0
+            while attempt < retry_limit:
+                try:
+                    self.fetch_and_process_range(block_start, block_end, self.chain, self.table_name, self.s3_connection, self.bucket_name, self.db_connector)
+                    break
+                except Exception as e:
+                    attempt += 1
+                    print(f"Retry {attempt} for range {block_start}-{block_end} failed: {e}")
+                    time.sleep(5)
+            
+            if attempt == retry_limit:
+                print(f"Max retries reached for range {block_start}-{block_end}. Re-queuing for another try.")
+                time.sleep(10)
+                block_range_queue.put((block_start, block_end))
+                   
     def fetch_data_for_range(self, block_start, block_end):
         df = pd.DataFrame()
         for block_number in range(block_start, block_end + 1):
@@ -60,12 +96,8 @@ class AdapterCelestia(AbstractAdapterRaw):
             try:
                 response = requests.post(rpc_endpoint, json=payload, headers=headers)
                 if response.status_code == 200:
-                    # Check if the response has a JSON body and contains 'result'
                     response_json = response.json()
-                    if 'result' in response_json:
-                        return response  # Returning the response object that contains 'result'
-                    else:
-                        print(f"'result' not found in response from {rpc_endpoint}")
+                    return response_json
                 else:
                     print(f"Response from {rpc_endpoint} returned status code {response.status_code}")
             except ValueError:
@@ -84,32 +116,32 @@ class AdapterCelestia(AbstractAdapterRaw):
             "params": {}
         }
         response = self.request_rpc(payload, headers)
-        if response:
-            block_number = response.json()['result']['header']['height']
+        if response and 'result' in response and 'header' in response['result']:
+            block_number = response['result']['header']['height']
             return block_number
+        print("Failed to retrieve the latest block number.")
         return None
 
     def retrieve_block_data(self, block_number):
         df = pd.DataFrame()
         page = 1
-        tx_search = self.fetch_block_transaction_details(block_number, page)
-        while tx_search and tx_search['result']['txs']:
-            # Append the data frame with new data
+        should_continue, tx_search = self.fetch_block_transaction_details(block_number, page)
+        while should_continue and tx_search and tx_search['result']['txs']:
+            print(f"Processing page {page} for block {block_number}...")
             df = pd.concat([df, self.prep_dataframe_celestia(tx_search)], ignore_index=True)
             if len(tx_search['result']['txs']) < 100:
                 break  # No more pages to fetch
             page += 1
-            tx_search = self.fetch_block_transaction_details(block_number, page)
-        
+            should_continue, tx_search = self.fetch_block_transaction_details(block_number, page)
+
         if not df.empty:
             df = df.where(pd.notnull(df), None)
-            # Convert all `NaN` values for JSON-compatible columns to JSON nulls
-            json_columns = ['blob_sizes', 'namespaces']  # list of the columns that need JSON serialization
+            json_columns = ['blob_sizes', 'namespaces']
             for col in json_columns:
                 if col in df.columns:
                     df[col] = df[col].apply(lambda x: json.dumps(x) if isinstance(x, list) else json.dumps(None))
                 else:
-                    df[col] = json.dumps(None)  # Set the column with JSON null as default
+                    df[col] = json.dumps(None)
         else:
             print(f"No transactions found for block number {block_number}")
         
@@ -124,12 +156,8 @@ class AdapterCelestia(AbstractAdapterRaw):
             "id": 1
         }
         response = self.request_rpc(payload, headers)
-        if response:
-            try:
-                return response.json()['result']['block']['header']['time']
-            except KeyError:
-                print(f"Unexpected response structure: {response.json()}")
-                return None
+        if response and 'result' in response and 'block' in response['result'] and 'header' in response['result']['block']:
+            return response['result']['block']['header']['time']
         print(f"Failed to fetch block timestamp for block {block_number}.")
         return None
 
@@ -141,7 +169,7 @@ class AdapterCelestia(AbstractAdapterRaw):
             "params": {
                 "query": f"tx.height={str(block_number)}",
                 "prove": True,
-                "page": f'{page}',
+                "page": str(page),
                 "per_page": '100',
                 "order_by": "asc",
                 "match_events": True
@@ -150,10 +178,20 @@ class AdapterCelestia(AbstractAdapterRaw):
         }
         response = self.request_rpc(payload, headers)
         if response:
-            return response.json()
-        print("Failed to fetch transaction details for block.")
-        return None
-
+            if 'result' in response:
+                return (True, response)
+            elif 'error' in response and 'data' in response['error']:
+                error_data = response['error']['data']
+                if 'page should be within' in error_data:
+                    range_msg = error_data.split('[')[1].split(']')[0]
+                    upper_limit = int(range_msg.split(',')[1].strip())
+                    if page > upper_limit:
+                        print(f"Requested page {page} exceeds available pages. Max page is {upper_limit}.")
+                        return (False, None)  # Indicates end of available pages
+                print(response['error']['message'])
+        print(f"Failed to fetch transaction details for block {block_number}.")
+        return (False, None)
+    
     def prep_dataframe_celestia(self, tx):
         if tx['result']['txs'] == None or tx['result']['txs'] == []:
             print('No transactions found in this block!')
