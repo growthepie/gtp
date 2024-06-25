@@ -252,6 +252,16 @@ class JSONCreation():
             #     'priority': 3,
             #     'invert_normalization': True
             # }
+            # , 'throughput' : {
+            #     'name': 'Throughput',
+            #     'metric_keys': ['gas_per_second'],
+            #     'units': {
+            #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'Mgas/s'},
+            #     },
+            #     'currency': False,
+            #     'priority': 4,
+            #     'invert_normalization': True
+            # }
             , 'txcosts_swap' : {
                 'name': 'Swap',
                 'metric_keys': ['txcosts_swap_eth'],
@@ -260,7 +270,7 @@ class JSONCreation():
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
                 'currency': True,
-                'priority': 4,
+                'priority': 5,
                 'invert_normalization': False
             }
             ,'txcosts_avg' : {
@@ -271,7 +281,7 @@ class JSONCreation():
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
                 'currency': True,
-                'priority': 5,
+                'priority': 6,
                 'invert_normalization': False
             }          
         }
@@ -513,6 +523,9 @@ class JSONCreation():
             df = df[['unix', main_col, 'value_usd']]
         elif metric == 'tps':
             df['value'] = df['value'] / self.fees_timespans[timespan]['tps_divisor']
+            main_col = 'value'
+        elif metric == 'throughput':
+            df['value'] = df['value'] / (1000 * 1000)
             main_col = 'value'
         else:
             main_col = 'value'
@@ -1047,6 +1060,25 @@ class JSONCreation():
         print(f'Default selection by aa_last7d: {top_5}')
         return top_5
     
+    def gen_l2beat_link(self, chain):
+        if chain.l2beat_tvl_naming:
+            return f'https://l2beat.com/scaling/projects/{chain.l2beat_tvl_naming}'
+        else:
+            return 'https://l2beat.com'
+
+    def gen_l2beat_stage(self, chain):
+        stage = self.db_connector.get_stage(chain.origin_key)
+        if stage == 'Stage 0':
+            hex = "#FF8B36"
+        elif stage == 'Stage 1':
+            hex = "#FFEC44"
+        elif stage == 'Stage 2':
+            hex = "#34762F"
+        else:
+            hex = "#DFDFDF"      
+        
+        return {'stage': stage, 'hex': hex}
+    
     ##### FILE HANDLERS #####
     def save_to_json(self, data, path):
         #create directory if not exists
@@ -1055,9 +1087,154 @@ class JSONCreation():
         with open(f'output/{self.api_version}/{path}.json', 'w') as fp:
             json.dump(data, fp, ignore_nan=True)
 
+    ############################################################
+    ##### Main Platfrom #####
+    ############################################################
+    def create_master_json(self, df_data):
+        exec_string = "SELECT category_id, category_name, main_category_id, main_category_name FROM vw_oli_category_mapping"
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
 
-    ##### JSON GENERATION METHODS #####
-    
+        ## create dict with main_category_key as key and main_category_name as value, same for sub_categories
+        main_category_dict = {}
+        sub_category_dict = {}
+        for index, row in df.iterrows():
+            main_category_dict[row['main_category_id']] = row['main_category_name']
+            sub_category_dict[row['category_id']] = row['category_name']
+
+
+        ## create main_category <> sub_category mapping dict
+        df_mapping = df.groupby(['main_category_id']).agg({'category_id': lambda x: list(x)}).reset_index()
+        mapping_dict = {}
+        for index, row in df_mapping.iterrows():
+            mapping_dict[row['main_category_id']] = row['category_id']
+
+        ## create dict with all chain info
+        chain_dict = {}
+        for chain in adapter_mapping:
+            origin_key = chain.origin_key
+            if chain.in_api == False:
+                print(f'..skipped: Master json export for {origin_key}. API is set to False')
+                continue
+
+            chain_dict[origin_key] = {
+                'name': chain.name,
+                'deployment': chain.deployment,
+                'name_short': chain.name_short,
+                'description': chain.description,
+                'da_layer': chain.da_layer,
+                'symbol': chain.symbol,
+                'bucket': chain.bucket,
+                'technology': chain.technology,
+                'purpose': chain.purpose,
+                'launch_date': chain.launch_date,
+                'enable_contracts': chain.in_labels_api,
+                'l2beat_stage': self.gen_l2beat_stage(chain),
+                'l2beat_link': self.gen_l2beat_link(chain),
+                'raas': chain.raas,
+                'stack': chain.stack,
+                'website': chain.website,
+                'twitter': chain.twitter,
+                'block_explorer': chain.block_explorer,
+                'block_explorers': chain.block_explorers,
+                'rhino_listed': bool(getattr(chain, 'rhino_naming', None)),
+                'rhino_naming': getattr(chain, 'rhino_naming', None)
+            }
+        
+        ## create dict for fees without metric_keys field
+        fees_types_api = {key: {sub_key: value for sub_key, value in sub_dict.items() if sub_key != 'metric_keys'} 
+                                  for key, sub_dict in self.fees_types.items()}
+
+        master_dict = {
+            'current_version' : self.api_version,
+            'default_chain_selection' : self.get_default_selection(df_data),
+            'chains' : chain_dict,
+            'metrics' : self.metrics,
+            'fee_metrics' : fees_types_api,
+            'blockspace_categories' : {
+                'main_categories' : main_category_dict,
+                'sub_categories' : sub_category_dict,
+                'mapping' : mapping_dict,
+            }
+        }
+
+        master_dict = fix_dict_nan(master_dict, 'master')
+
+        if self.s3_bucket == None:
+            self.save_to_json(master_dict, 'master')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/master', master_dict, self.cf_distribution_id)
+
+        print(f'DONE -- master.json export')
+
+    def create_landingpage_json(self, df):
+        # filter df for all_l2s (all chains except chains that aren't included in the API)
+        chain_keys = self.chains_list_in_api + ['multiple']
+        df = df.loc[(df.origin_key.isin(chain_keys))]
+
+        landing_dict = {
+            "data": {
+                "metrics" : {
+                    "user_base" : {
+                        "metric_name": "Ethereum ecosystem user-base",
+                        "source": self.db_connector.get_metric_sources('user_base', []),
+                        "weekly": {
+                            "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
+                            "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
+                            "l2_dominance": self.l2_user_share(df, 'weekly'),
+                            "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
+                            "cross_chain_users": self.cross_chain_users(df),
+                            "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df),
+                            "chains": self.generate_chains_userbase_dict(df, 'weekly')
+                            }
+                        },
+                    "table_visual" : self.get_landing_table_dict(df)
+                    },
+                "all_l2s": {
+                    "chain_id": "all_l2s",
+                    "chain_name": "All L2s",
+                    "symbol": "-",
+                    "metrics": {}
+                },
+                "top_contracts": {
+                }
+            }
+        }
+
+        for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
+            landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
+
+         ## put all origin_keys from adapter_mapping in a list where in_api is True
+        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
+
+        for days in [1,7,30,90,180,365]:
+            contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
+
+            # replace NaNs with Nones
+            contracts = contracts.replace({np.nan: None})
+            contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
+
+            contracts = contracts[
+                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", 
+                 "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", 
+                 "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
+            ]
+
+            ## change column names contract_name to name and origin_key to chain
+            contracts = contracts.rename(columns={'contract_name': 'name', 'origin_key': 'chain'})
+            
+            landing_dict['data']['top_contracts'][f"{days}d"] = {
+                'types': contracts.columns.to_list(),
+                'data': contracts.values.tolist()
+            }
+
+        landing_dict = fix_dict_nan(landing_dict, 'landing_page')
+
+        if self.s3_bucket == None:
+            self.save_to_json(landing_dict, 'landing_page')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
+        print(f'DONE -- landingpage export')
+
     def create_chain_details_jsons(self, df, origin_keys:list=None):
         if origin_keys != None:
             ## create adapter_mapping_filtered that only contains chains that are in the origin_keys list
@@ -1207,171 +1384,9 @@ class JSONCreation():
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
             print(f'DONE -- Metric details export for {metric}')
 
-    def gen_l2beat_link(self, chain):
-        if chain.l2beat_tvl_naming:
-            return f'https://l2beat.com/scaling/projects/{chain.l2beat_tvl_naming}'
-        else:
-            return 'https://l2beat.com'
-
-    def gen_l2beat_stage(self, chain):
-        stage = self.db_connector.get_stage(chain.origin_key)
-        if stage == 'Stage 0':
-            hex = "#FF8B36"
-        elif stage == 'Stage 1':
-            hex = "#FFEC44"
-        elif stage == 'Stage 2':
-            hex = "#34762F"
-        else:
-            hex = "#DFDFDF"      
-        
-        return {'stage': stage, 'hex': hex}
-
-    def create_master_json(self, df_data):
-        exec_string = "SELECT category_id, category_name, main_category_id, main_category_name FROM vw_oli_category_mapping"
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
-
-        ## create dict with main_category_key as key and main_category_name as value, same for sub_categories
-        main_category_dict = {}
-        sub_category_dict = {}
-        for index, row in df.iterrows():
-            main_category_dict[row['main_category_id']] = row['main_category_name']
-            sub_category_dict[row['category_id']] = row['category_name']
-
-
-        ## create main_category <> sub_category mapping dict
-        df_mapping = df.groupby(['main_category_id']).agg({'category_id': lambda x: list(x)}).reset_index()
-        mapping_dict = {}
-        for index, row in df_mapping.iterrows():
-            mapping_dict[row['main_category_id']] = row['category_id']
-
-        ## create dict with all chain info
-        chain_dict = {}
-        for chain in adapter_mapping:
-            origin_key = chain.origin_key
-            if chain.in_api == False:
-                print(f'..skipped: Master json export for {origin_key}. API is set to False')
-                continue
-
-            chain_dict[origin_key] = {
-                'name': chain.name,
-                'deployment': chain.deployment,
-                'name_short': chain.name_short,
-                'description': chain.description,
-                'da_layer': chain.da_layer,
-                'symbol': chain.symbol,
-                'bucket': chain.bucket,
-                'technology': chain.technology,
-                'purpose': chain.purpose,
-                'launch_date': chain.launch_date,
-                'enable_contracts': chain.in_labels_api,
-                'l2beat_stage': self.gen_l2beat_stage(chain),
-                'l2beat_link': self.gen_l2beat_link(chain),
-                'raas': chain.raas,
-                'stack': chain.stack,
-                'website': chain.website,
-                'twitter': chain.twitter,
-                'block_explorer': chain.block_explorer,
-                'block_explorers': chain.block_explorers,
-                'rhino_listed': bool(getattr(chain, 'rhino_naming', None)),
-                'rhino_naming': getattr(chain, 'rhino_naming', None)
-            }
-        
-        ## create dict for fees without metric_keys field
-        fees_types_api = {key: {sub_key: value for sub_key, value in sub_dict.items() if sub_key != 'metric_keys'} 
-                                  for key, sub_dict in self.fees_types.items()}
-
-        master_dict = {
-            'current_version' : self.api_version,
-            'default_chain_selection' : self.get_default_selection(df_data),
-            'chains' : chain_dict,
-            'metrics' : self.metrics,
-            'fee_metrics' : fees_types_api,
-            'blockspace_categories' : {
-                'main_categories' : main_category_dict,
-                'sub_categories' : sub_category_dict,
-                'mapping' : mapping_dict,
-            }
-        }
-
-        master_dict = fix_dict_nan(master_dict, 'master')
-
-        if self.s3_bucket == None:
-            self.save_to_json(master_dict, 'master')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/master', master_dict, self.cf_distribution_id)
-
-        print(f'DONE -- master.json export')
-
-    def create_landingpage_json(self, df):
-        # filter df for all_l2s (all chains except chains that aren't included in the API)
-        chain_keys = self.chains_list_in_api + ['multiple']
-        df = df.loc[(df.origin_key.isin(chain_keys))]
-
-        landing_dict = {
-            "data": {
-                "metrics" : {
-                    "user_base" : {
-                        "metric_name": "Ethereum ecosystem user-base",
-                        "source": self.db_connector.get_metric_sources('user_base', []),
-                        "weekly": {
-                            "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
-                            "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
-                            "l2_dominance": self.l2_user_share(df, 'weekly'),
-                            "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
-                            "cross_chain_users": self.cross_chain_users(df),
-                            "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df),
-                            "chains": self.generate_chains_userbase_dict(df, 'weekly')
-                            }
-                        },
-                    "table_visual" : self.get_landing_table_dict(df)
-                    },
-                "all_l2s": {
-                    "chain_id": "all_l2s",
-                    "chain_name": "All L2s",
-                    "symbol": "-",
-                    "metrics": {}
-                },
-                "top_contracts": {
-                }
-            }
-        }
-
-        for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
-            landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
-
-         ## put all origin_keys from adapter_mapping in a list where in_api is True
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
-
-        for days in [1,7,30,90,180,365]:
-            contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
-
-            # replace NaNs with Nones
-            contracts = contracts.replace({np.nan: None})
-            contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
-
-            contracts = contracts[
-                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", 
-                 "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", 
-                 "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
-            ]
-
-            ## change column names contract_name to name and origin_key to chain
-            contracts = contracts.rename(columns={'contract_name': 'name', 'origin_key': 'chain'})
-            
-            landing_dict['data']['top_contracts'][f"{days}d"] = {
-                'types': contracts.columns.to_list(),
-                'data': contracts.values.tolist()
-            }
-
-        landing_dict = fix_dict_nan(landing_dict, 'landing_page')
-
-        if self.s3_bucket == None:
-            self.save_to_json(landing_dict, 'landing_page')
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/landing_page', landing_dict, self.cf_distribution_id)
-        print(f'DONE -- landingpage export')
-
+    #######################################################################
     ### FEES PAGE
+    #######################################################################
 
     def create_fees_table_json(self, df):
         fees_dict = {
@@ -1418,8 +1433,6 @@ class JSONCreation():
             "chain_data" : {}
         } 
 
-        #max_ts_all = df['unix'].max()
-
         ## loop over all chains and generate a fees json for all chains
         for chain in adapter_mapping:
             origin_key = chain.origin_key
@@ -1457,7 +1470,10 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
         print(f'DONE -- fees/linechart.json export')
 
+    #######################################################################
     ### ECONOMICS SECTION
+    #######################################################################
+
     def aggregate_metric(self, df, origin_key, metric_key, days):
         df = df[(df['origin_key'] == origin_key) & (df['metric_key'] == metric_key)]
         df = df[(df['date'] >= df['date'].max() - pd.DateOffset(days=days-1))]
@@ -1553,6 +1569,9 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/economics', economics_dict, self.cf_distribution_id)
         print(f'DONE -- economics export')
 
+    #######################################################################
+    ### LABELS
+    #######################################################################
 
     def create_labels_json(self, type='full'):
         if type == 'full':
@@ -1664,7 +1683,9 @@ class JSONCreation():
         upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', df, self.cf_distribution_id)
         print(f'DONE -- sparkline.parquet export')
 
-    ### OTHER API ENDPOINTS
+    #######################################################################
+    ### API ENDPOINTS
+    #######################################################################
 
     def create_fundamentals_json(self, df):
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
