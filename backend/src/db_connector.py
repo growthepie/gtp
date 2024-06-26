@@ -1106,7 +1106,8 @@ class DbConnector:
                                         SUM(gas_fees_eth) AS gas_eth, 
                                         SUM(txcount) AS txcount, 
                                         SUM(daa) AS daa,                                         
-                                        ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num 
+                                        ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num_gas,
+                                        ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(daa) DESC) AS row_num_daa
                                 FROM public.blockspace_fact_contract_level cl 
                                 LEFT JOIN vw_oli_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
                                 WHERE bl.usage_category IS NULL 
@@ -1126,7 +1127,7 @@ class DbConnector:
                                 txcount, 
                                 daa                                
                         FROM ranked_contracts 
-                        WHERE row_num <= {number_of_contracts} 
+                        WHERE row_num_gas <= {number_of_contracts} OR row_num_daa <= {number_of_contracts}
                         ORDER BY origin_key, row_num
     
                 '''
