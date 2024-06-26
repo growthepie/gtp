@@ -228,6 +228,7 @@ class JSONCreation():
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
+                'category': 'Fees',
                 'currency': True,
                 'priority': 1,
                 'invert_normalization': False
@@ -240,6 +241,7 @@ class JSONCreation():
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
+                'category': 'Fees',
                 'currency': True,
                 'priority': 2,
                 'invert_normalization': False
@@ -251,6 +253,7 @@ class JSONCreation():
             #     'units': {
             #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False},
             #     },
+            #     'category': 'Fees',
             #     'currency': False,
             #     'priority': 3,
             #     'invert_normalization': True
@@ -262,6 +265,7 @@ class JSONCreation():
             #     'units': {
             #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'Mgas/s'},
             #     },
+            #     'category': 'Activity',
             #     'currency': False,
             #     'priority': 4,
             #     'invert_normalization': True
@@ -274,6 +278,7 @@ class JSONCreation():
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
+                'category': 'Activity',
                 'currency': True,
                 'priority': 5,
                 'invert_normalization': False
@@ -286,6 +291,7 @@ class JSONCreation():
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
+                'category': 'Fees',
                 'currency': True,
                 'priority': 6,
                 'invert_normalization': False
