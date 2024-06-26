@@ -222,6 +222,7 @@ class JSONCreation():
         self.fees_types = {
             'txcosts_native_median' : {
                 'name': 'Median Fee',
+                'name_short': 'Median Fee',
                 'metric_keys': ['txcosts_native_median_eth'],
                 'units': {
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
@@ -233,6 +234,7 @@ class JSONCreation():
             }
             , 'txcosts_median' : {
                 'name': 'Transfer ETH',
+                'name_short': 'Transfer ETH Fee',
                 'metric_keys': ['txcosts_median_eth'],
                 'units': {
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
@@ -243,7 +245,8 @@ class JSONCreation():
                 'invert_normalization': False
             }
             # , 'tps' : {
-            #     'name': 'TPS',
+            #     'name': 'Transactions per Second',
+            #     'name_short': 'TPS',
             #     'metric_keys': ['txcount'],
             #     'units': {
             #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False},
@@ -254,6 +257,7 @@ class JSONCreation():
             # }
             # , 'throughput' : {
             #     'name': 'Throughput',
+            #     'name_short': 'Throughput',
             #     'metric_keys': ['gas_per_second'],
             #     'units': {
             #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'Mgas/s'},
@@ -263,7 +267,8 @@ class JSONCreation():
             #     'invert_normalization': True
             # }
             , 'txcosts_swap' : {
-                'name': 'Swap',
+                'name': 'Swap Fee',
+                'name_short': 'Swap Fee',
                 'metric_keys': ['txcosts_swap_eth'],
                 'units': {
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
@@ -275,6 +280,7 @@ class JSONCreation():
             }
             ,'txcosts_avg' : {
                 'name': 'Average Fee',
+                'name_short': 'Average Fee',
                 'metric_keys': ['txcosts_avg_eth'],
                 'units': {
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
