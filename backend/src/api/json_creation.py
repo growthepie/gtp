@@ -246,30 +246,30 @@ class JSONCreation():
                 'priority': 2,
                 'invert_normalization': False
             }
-            # , 'tps' : {
-            #     'name': 'Transactions per Second',
-            #     'name_short': 'TPS',
-            #     'metric_keys': ['txcount'],
-            #     'units': {
-            #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False},
-            #     },
-            #     'category': 'Fees',
-            #     'currency': False,
-            #     'priority': 3,
-            #     'invert_normalization': True
-            # }
-            # , 'throughput' : {
-            #     'name': 'Throughput',
-            #     'name_short': 'Throughput',
-            #     'metric_keys': ['gas_per_second'],
-            #     'units': {
-            #         'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'Mgas/s'},
-            #     },
-            #     'category': 'Activity',
-            #     'currency': False,
-            #     'priority': 4,
-            #     'invert_normalization': True
-            # }
+            , 'tps' : {
+                'name': 'Transactions per Second',
+                'name_short': 'TPS',
+                'metric_keys': ['txcount'],
+                'units': {
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False},
+                },
+                'category': 'Activity',
+                'currency': False,
+                'priority': 3,
+                'invert_normalization': True
+            }
+            , 'throughput' : {
+                'name': 'Throughput',
+                'name_short': 'Throughput',
+                'metric_keys': ['gas_per_second'],
+                'units': {
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'Mgas/s'},
+                },
+                'category': 'Activity',
+                'currency': False,
+                'priority': 4,
+                'invert_normalization': True
+            }
             , 'txcosts_swap' : {
                 'name': 'Swap Fee',
                 'name_short': 'Swap Fee',
@@ -278,7 +278,7 @@ class JSONCreation():
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
                 },
-                'category': 'Activity',
+                'category': 'Fees',
                 'currency': True,
                 'priority': 5,
                 'invert_normalization': False
