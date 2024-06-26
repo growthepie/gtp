@@ -604,13 +604,18 @@ class AdapterSQL(AbstractAdapter):
                             if origin_key in ['starknet', 'mantle', 'zksync_era']:
                                     continue
                             print(f"... processing throughput for {origin_key} and {granularity} granularity")
+
+                            if origin_key in ['arbitrum']:
+                                gas_query = "(sum(gas_used) - sum(gas_used_l1))"
+                            else:
+                                gas_query = "sum(gas_used)"
                             exec_string = f"""
                                     SELECT
                                             {timestamp_query} AS timestamp,
                                             '{origin_key}' as origin_key,
                                             'gas_per_second' as metric_key,
                                             '{granularity}' as granularity,
-                                            sum(gas_used) / {seconds_conversion} AS value
+                                            {gas_query} / {seconds_conversion} AS value
                                     FROM public.{origin_key}_tx
                                     WHERE tx_fee <> 0 
                                         AND block_timestamp > date_trunc('day', now()) - interval '{days} days'

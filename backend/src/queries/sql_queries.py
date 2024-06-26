@@ -356,16 +356,6 @@ sql_q= {
         GROUP BY 1
         """
 
-        ,'arbitrum_gas_per_second': """
-        SELECT  date_trunc('day', block_timestamp) AS day,
-                sum(gas_used) / (24*60*60) AS value
-        FROM    arbitrum_tx
-        WHERE   gas_used > 0
-                AND block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
-                AND block_timestamp < date_trunc('day', now())
-        GROUP BY 1
-        """
-
         ### OP Mainnet
         ,'optimism_txcount_raw': """
         SELECT  date_trunc('day', ot.block_timestamp) AS day,
