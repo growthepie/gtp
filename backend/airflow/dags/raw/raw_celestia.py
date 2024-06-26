@@ -6,7 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from datetime import datetime, timedelta
 from src.adapters.adapter_celestia import AdapterCelestia
 from src.db_connector import DbConnector
-from src.new_setup.utils import MaxWaitTimeExceededException, get_chain_config
+from src.adapters.rpc_funcs.utils import MaxWaitTimeExceededException, get_chain_config
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 

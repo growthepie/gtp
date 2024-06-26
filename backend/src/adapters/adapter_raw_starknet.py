@@ -1,8 +1,8 @@
-from src.adapters.funcs_backfill import check_and_record_missing_block_ranges
+from src.adapters.rpc_funcs.funcs_backfill import check_and_record_missing_block_ranges
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import traceback
-from src.adapters.funcs_rps_utils import *
+from src.adapters.rpc_funcs.utils import hex_to_int, connect_to_s3, check_s3_connection, handle_retry_exception, check_db_connection, save_data_for_range
 import requests
 import pandas as pd
 import json

@@ -2,8 +2,6 @@ from datetime import datetime
 import numpy as np
 import boto3
 import botocore
-from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
 import pandas as pd
 from sqlalchemy import create_engine, exc
 from dotenv import load_dotenv
@@ -11,9 +9,10 @@ import os
 import sys
 import random
 import time
-from web3.datastructures import AttributeDict
-from hexbytes import HexBytes
 import ast
+from src.adapters.rpc_funcs.web3 import Web3CC
+from sqlalchemy import text
+from src.chain_config import adapter_mapping
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -43,19 +42,12 @@ def load_environment():
     return db_name, db_user, db_password, db_host, db_port
 
 # ---------------- Connection Functions ------------------
-def connect_to_node(url):
-    w3 = Web3(HTTPProvider(url))
-    
-    # Apply the geth POA middleware to the Web3 instance
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-    
-    if 'hypersync' in url:
-        print("Hypersync is enabled. Skipping connection check.")
-        return w3
-    if w3.is_connected():
-        return w3
-    else:
-        raise ConnectionError("Failed to connect to the node.")
+def connect_to_node(rpc_config):
+    try:
+        return Web3CC(rpc_config)
+    except ConnectionError as e:
+        print(f"ERROR: failed to connect to the node with config {rpc_config}: {e}")
+        raise
 
 def connect_to_s3():
     try:
@@ -71,7 +63,7 @@ def connect_to_s3():
                             aws_secret_access_key=aws_secret_access_key)
         return s3, bucket_name
     except Exception as e:
-        print("An error occurred while connecting to S3:", str(e))
+        print("ERROR: An error occurred while connecting to S3:", str(e))
         raise ConnectionError(f"An error occurred while connecting to S3: {str(e)}")
 
 def check_s3_connection(s3_connection):
@@ -386,21 +378,20 @@ def prep_dataframe_linea(df):
     return filtered_df 
 
 def prep_dataframe_arbitrum(df):
-
-    print("Preprocessing dataframe...")
     # Define a mapping of old columns to new columns
     column_mapping = {
         'blockNumber': 'block_number',
         'hash': 'tx_hash',
         'from': 'from_address',
         'to': 'to_address',
-        'gasPrice': 'gas_price',
+        'effectiveGasPrice': 'gas_price',
         'gas': 'gas_limit',
         'gasUsed': 'gas_used',
         'value': 'value',
         'status': 'status',
         'input': 'empty_input',
-        'block_timestamp': 'block_timestamp'
+        'block_timestamp': 'block_timestamp',
+        'gasUsedForL1': 'gas_used_l1',
     }
 
     # Filter the dataframe to only include the relevant columns
@@ -413,6 +404,7 @@ def prep_dataframe_arbitrum(df):
     filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
     filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
     
+    filtered_df['gas_used_l1'] = filtered_df['gas_used_l1'].apply(hex_to_int)
     # Calculating the tx_fee
     filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used'])  / 1e18
     
@@ -565,25 +557,248 @@ def prep_dataframe_blast(df):
     # value column divide by 1e18 to convert to eth
     filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
 
-    return filtered_df  
+    return filtered_df
+def prep_dataframe_eth(df):
+
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'input_data',
+        'block_timestamp': 'block_timestamp',
+        'maxFeePerGas': 'max_fee_per_gas',
+        'maxPriorityFeePerGas': 'max_priority_fee_per_gas',
+        'type': 'tx_type',
+        'nonce': 'nonce',
+        'transactionIndex': 'position',
+        'baseFeePerGas': 'base_fee_per_gas',
+        'maxFeePerBlobGas': 'max_fee_per_blob_gas'
+    }
+
+    # Filter the dataframe to only include the relevant columns that exist in the DataFrame
+    existing_columns = [col for col in column_mapping.keys() if col in df.columns]
+    filtered_df = df[existing_columns]
+
+    # Rename the columns based on the above mapping
+    existing_column_mapping = {key: column_mapping[key] for key in existing_columns}
+
+    # Rename the columns based on the updated mapping
+    filtered_df = filtered_df.rename(columns=existing_column_mapping)
+
+    # Ensure numeric columns are handled appropriately
+    for col in ['gas_price', 'gas_used', 'value', 'max_fee_per_gas', 'max_priority_fee_per_gas']:
+        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+    
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+
+    filtered_df['max_fee_per_gas'] = filtered_df['max_fee_per_gas'].astype(float) / 1e18
+    filtered_df['max_priority_fee_per_gas'] = filtered_df['max_priority_fee_per_gas'].astype(float) / 1e18
+    filtered_df['base_fee_per_gas'] = filtered_df['base_fee_per_gas'].astype(float) / 1e18
+    
+    if 'max_fee_per_blob_gas' in filtered_df.columns:
+        filtered_df['max_fee_per_blob_gas'] = filtered_df['max_fee_per_blob_gas'].apply(lambda x: int(x, 16) if isinstance(x, str) and x.startswith('0x') else float(x)) / 1e18
+        
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['input_data'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # replace None in 'to_address' column with empty string
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address', 'input_data']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")             
+
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+    # calculate priority_fee_per_gas
+    if 'max_fee_per_gas' in filtered_df.columns and 'base_fee_per_gas' in filtered_df.columns:
+        filtered_df['base_fee_per_gas'] = pd.to_numeric(filtered_df['base_fee_per_gas'], errors='coerce')
+        filtered_df['priority_fee_per_gas'] = (filtered_df['max_fee_per_gas'] - filtered_df['base_fee_per_gas'])
+    else:
+        filtered_df['priority_fee_per_gas'] = np.nan
+    
+    # drop base_fee_per_gas
+    filtered_df.drop('base_fee_per_gas', axis=1, inplace=True)
+
+    return filtered_df
+
+def prep_dataframe_zksync_era(df):
+
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'gasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'empty_input',
+        'block_timestamp': 'block_timestamp',
+        'type': 'type',
+        'contractAddress': 'receipt_contract_address'
+    }
+    
+    # Filter the dataframe to only include the relevant columns that exist in the DataFrame
+    existing_columns = [col for col in column_mapping.keys() if col in df.columns]
+    filtered_df = df[existing_columns]
+
+    # Rename the columns based on the above mapping
+    existing_column_mapping = {key: column_mapping[key] for key in existing_columns}
+
+    # Rename the columns based on the updated mapping
+    filtered_df = filtered_df.rename(columns=existing_column_mapping)
+
+    # Convert columns to numeric if they aren't already
+    # Ensure numeric columns are handled appropriately
+    for col in ['gas_price', 'gas_used', 'value']:
+        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+    
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+
+    # replace None in 'to_address' column with empty string
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+        
+    # Convert the 'type' integer values to bytea format before insertion
+    filtered_df['type'] = filtered_df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
+
+    # Handle 'to_address', 'from_address', 'receipt_contract_address' for missing values
+    address_columns = ['to_address', 'from_address', 'receipt_contract_address']
+    for col in address_columns:
+        filtered_df[col] = filtered_df[col].fillna('')
+
+        if col == 'receipt_contract_address':
+            filtered_df[col] = filtered_df[col].apply(lambda x: None if not x or x.lower() == 'none' or x.lower() == '4e6f6e65' else x)
+    
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")             
+    
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+    
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+    return filtered_df
+
+def prep_dataframe_taiko(df):
+
+    print("Preprocessing dataframe...")
+    # Define a mapping of old columns to new columns
+    column_mapping = {
+        'blockNumber': 'block_number',
+        'hash': 'tx_hash',
+        'from': 'from_address',
+        'to': 'to_address',
+        'effectiveGasPrice': 'gas_price',
+        'gas': 'gas_limit',
+        'gasUsed': 'gas_used',
+        'value': 'value',
+        'status': 'status',
+        'input': 'empty_input',
+        'block_timestamp': 'block_timestamp'
+    }
+
+    # Filter the dataframe to only include the relevant columns
+    filtered_df = df[list(column_mapping.keys())]
+
+    # Rename the columns based on the above mapping
+    filtered_df = filtered_df.rename(columns=column_mapping)
+    
+    # Convert columns to numeric if they aren't already
+    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
+    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
+    
+    # Calculating the tx_fee
+    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
+    
+    # Convert the 'input' column to boolean to indicate if it's empty or not
+    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
+
+    # Convert block_timestamp to datetime
+    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
+
+    # status column: 1 if status is success, 0 if failed else -1
+    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
+    
+    # replace None in 'to_address' column with empty string
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+        
+    # Handle bytea data type
+    for col in ['tx_hash', 'to_address', 'from_address']:
+        if col in filtered_df.columns:
+            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
+        else:
+            print(f"Column {col} not found in dataframe.")
+
+    # gas_price column in eth
+    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
+
+    # value column divide by 1e18 to convert to eth
+    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
+
+    return filtered_df    
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
 
-def handle_retry_exception(current_start, current_end, base_wait_time):
-    max_wait_time = 300  # Maximum wait time in seconds
+def handle_retry_exception(current_start, current_end, base_wait_time, rpc_url):
+    max_wait_time = 60  # Maximum wait time in seconds
     wait_time = min(max_wait_time, 2 * base_wait_time)
 
     # Check if max_wait_time is reached and raise an exception
     if wait_time >= max_wait_time:
-        raise MaxWaitTimeExceededException(f"Maximum wait time exceeded for blocks {current_start} to {current_end}")
+        raise MaxWaitTimeExceededException(f"For {rpc_url}: Maximum wait time exceeded for blocks {current_start} to {current_end}")
 
     # Add jitter
     jitter = random.uniform(0, wait_time * 0.1)
     wait_time += jitter
     formatted_wait_time = format(wait_time, ".2f")
 
-    print(f"Retrying for blocks {current_start} to {current_end} after {formatted_wait_time} seconds.")
+    print(f"RETRY: for blocks {current_start} to {current_end} after {formatted_wait_time} seconds. RPC: {rpc_url}")
     time.sleep(wait_time)
 
     return wait_time
@@ -600,34 +815,33 @@ def create_db_engine(db_user, db_password, db_host, db_port, db_name):
         engine.connect()  # test connection
         return engine
     except exc.SQLAlchemyError as e:
-        print("Error connecting to database. Check your database configurations.")
+        print("ERROR: connecting to database. Check your database configurations.")
         print(e)
         sys.exit(1)
 
 # ---------------- Data Interaction --------------------
+def get_latest_block(w3):
+    retries = 0
+    while retries < 3:
+        try:
+            return w3.eth.block_number
+        except Exception as e:
+            print("RETRY: occurred while fetching the latest block, but will retry in 3s:", str(e))
+            retries += 1
+            time.sleep(3)
+
+    print("ERROR: Failed to fetch the latest block after 3 retries.")
+    return None
+    
 def fetch_block_transaction_details(w3, block):
     transaction_details = []
     block_timestamp = block['timestamp']  # Get the block timestamp
-    
-    for tx in block['transactions']:
-        # Check if the transaction is a HexBytes instance (older blocks)
-        if isinstance(tx, HexBytes):
-            tx_hash = tx.hex()  # Convert HexBytes to hex string
-        # If it's an AttributeDict or a dictionary (newer blocks), access the hash directly
-        elif isinstance(tx, dict) or isinstance(tx, AttributeDict):
-            tx_hash = tx['hash'].hex() if isinstance(tx['hash'], HexBytes) else tx['hash']
-        else:
-            raise TypeError("Unsupported transaction type")
+    base_fee_per_gas = block['baseFeePerGas'] if 'baseFeePerGas' in block else None  # Fetch baseFeePerGas from the block
 
+    for tx in block['transactions']:
+        tx_hash = tx['hash']
         receipt = w3.eth.get_transaction_receipt(tx_hash)
         
-        # Fetch the transaction using the hash
-        tx = w3.eth.get_transaction(tx_hash)
-
-        ## Wait for a few ms if not using hypersync
-        if 'hypersync' not in w3.provider.endpoint_uri:
-            time.sleep(0.03)  # Sleep for 30ms to avoid rate limiting
-                
         # Convert the receipt and transaction to dictionary if it is not
         if not isinstance(receipt, dict):
             receipt = dict(receipt)
@@ -638,23 +852,18 @@ def fetch_block_transaction_details(w3, block):
         merged_dict = {**receipt, **tx}
         
         # Add or update specific fields
-        merged_dict['hash'] = tx_hash
+        merged_dict['hash'] = tx['hash'].hex()
         merged_dict['block_timestamp'] = block_timestamp
+        if base_fee_per_gas:
+            merged_dict['baseFeePerGas'] = base_fee_per_gas
         
         # Add the transaction receipt dictionary to the list
         transaction_details.append(merged_dict)
         
     return transaction_details
-
-def get_latest_block(w3):
-    try:
-        return w3.eth.block_number
-    except Exception as e:
-        print("An error occurred while fetching the latest block:", str(e))
-        return None
     
 def fetch_data_for_range(w3, block_start, block_end):
-    print(f"Fetching data for blocks {block_start} to {block_end}...")
+    #print(f"...fetching data for blocks {block_start} to {block_end}. RPC: {w3.get_rpc_url()}")
     all_transaction_details = []
 
     try:
@@ -672,7 +881,7 @@ def fetch_data_for_range(w3, block_start, block_end):
         
         # if df doesn't have any records, then handle it gracefully
         if df.empty:
-            print(f"No transactions found for blocks {block_start} to {block_end}.")
+            print(f"...no transactions found for blocks {block_start} to {block_end}.")
             return None  # Or return an empty df as: return pd.DataFrame()
         else:
             return df
@@ -699,23 +908,25 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
     s3_path = f"s3://{bucket_name}/{file_key}"
     df.to_parquet(s3_path, index=False)
 
-    # Check if the file exists in S3
-    if s3_file_exists(s3_connection, file_key, bucket_name):
-        print(f"File {file_key} uploaded to S3 bucket {bucket_name}.")
-    else:
-        print(f"File {file_key} not found in S3 bucket {bucket_name}.")
-        raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
+    # # Check if the file exists in S3
+    # if s3_file_exists(s3_connection, file_key, bucket_name):
+    #     print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
+    # else:
+    #     print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
+    #     raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
-def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector):
-    base_wait_time = 5   # Base wait time in seconds
+def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
+    base_wait_time = 3   # Base wait time in seconds
+    start_time = time.time()
     while True:
         try:
+            elapsed_time = time.time() - start_time
             
             df = fetch_data_for_range(w3, current_start, current_end)
 
             # Check if df is None or empty, and if so, return early without further processing.
             if df is None or df.empty:
-                print(f"Skipping blocks {current_start} to {current_end} due to no data.")
+                print(f"...skipping blocks {current_start} to {current_end} due to no data.")
                 return
 
             save_data_for_range(df, current_start, current_end, chain, s3_connection, bucket_name)
@@ -728,8 +939,13 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
-            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast']:
-                print('...use op-chain data prep')
+            elif chain == 'zksync_era':
+                df_prep = prep_dataframe_zksync_era(df)
+            elif chain == 'ethereum':
+                df_prep = prep_dataframe_eth(df)
+            elif chain == 'taiko':
+                df_prep = prep_dataframe_taiko(df)
+            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'lyra', 'karak', 'ancient8']:
                 df_prep = prep_dataframe_opchain(df)
             else:
                 df_prep = prep_dataframe(df)
@@ -740,15 +956,18 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             
             try:
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
-                print(f"Data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}")
+                print(f"...data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}. RPC: {w3.get_rpc_url()}")
             except Exception as e:
-                print(f"Error inserting data for blocks {current_start} to {current_end}: {e}")
+                print(f"ERROR: {rpc_url} - inserting data for blocks {current_start} to {current_end}: {e}")
                 raise e
             break  # Break out of the loop on successful execution
 
         except Exception as e:
-            print(f"Error processing blocks {current_start} to {current_end}: {e}")
-            base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time)
+            print(f"ERROR: {rpc_url} - processing blocks {current_start} to {current_end}: {e}")
+            base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time, rpc_url)
+            # Check if elapsed time exceeds 5 minutes
+            if elapsed_time >= 300:
+                raise MaxWaitTimeExceededException(f"For {rpc_url}: Maximum wait time exceeded for blocks {current_start} to {current_end}")
 
 def save_to_s3(df, chain, s3_connection, bucket_name):
     # Convert any 'object' dtype columns to string
@@ -757,7 +976,7 @@ def save_to_s3(df, chain, s3_connection, bucket_name):
             try:
                 df[col] = df[col].apply(str)
             except Exception as e:
-                print(f"Error converting column {col} to string: {e}")
+                print(f"ERROR: converting column {col} to string: {e}")
                 raise e
     
     # Generate a unique filename based on the current timestamp
@@ -772,7 +991,49 @@ def save_to_s3(df, chain, s3_connection, bucket_name):
     df.to_parquet(s3_path, index=False)
     
     if s3_file_exists(s3_connection, file_key, bucket_name):
-        print(f"File {file_key} uploaded to S3 bucket {bucket_name}.")
+        print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
     else:
-        print(f"File {file_key} not found in S3 bucket {bucket_name}.")
+        print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
         raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
+
+def get_chain_config(db_connector, chain_name):
+    # Determine the SQL query based on the chain name
+    if chain_name.lower() == "celestia" or chain_name.lower() == "starknet":
+        raw_sql = text(
+            "SELECT url, workers, max_requests, max_tps "
+            "FROM sys_rpc_config "
+            "WHERE origin_key = :chain_name AND active = TRUE "
+        )
+    else:
+        raw_sql = text(
+            "SELECT url, workers, max_requests, max_tps "
+            "FROM sys_rpc_config "
+            "WHERE active = TRUE AND origin_key = :chain_name AND synced = TRUE"
+        )
+
+    with db_connector.engine.connect() as connection:
+        result = connection.execute(raw_sql, {"chain_name": chain_name})
+        rows = result.fetchall()
+
+    config_list = []
+
+    for row in rows:
+        config = {"url": row['url']}
+        # Add other keys only if they are not None
+        if row['workers'] is not None:
+            config['workers'] = row['workers']
+        if row['max_requests'] is not None:
+            config['max_req'] = row['max_requests']
+        if row['max_tps'] is not None:
+            config['max_tps'] = row['max_tps']
+        
+        config_list.append(config)
+
+    # Retrieve batch_size from adapter_mapping
+    batch_size = 10
+    for mapping in adapter_mapping:
+        if mapping.origin_key == chain_name:
+            batch_size = mapping.batch_size
+            break
+
+    return config_list, batch_size

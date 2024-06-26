@@ -1,5 +1,7 @@
+import os
+
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from src.adapters.funcs_rps_utils import *
+from src.adapters.rpc_funcs.utils import connect_to_s3, check_s3_connection, check_db_connection, save_to_s3
 import pandas as pd
 import requests
 

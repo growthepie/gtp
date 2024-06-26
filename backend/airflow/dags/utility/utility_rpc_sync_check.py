@@ -6,8 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.new_setup.rpc_sync_checker import sync_check
+from src.adapters.rpc_funcs.rpc_sync_checker import sync_check
 
 @dag(
     default_args={

@@ -1,12 +1,8 @@
 import os
 from dotenv import load_dotenv
-import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 import time
 from sqlalchemy import text
-from src.adapters.funcs_rps_utils import *
-from src.db_connector import DbConnector
 
 
 # Load environment variables

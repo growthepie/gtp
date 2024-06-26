@@ -7,7 +7,7 @@ from src.db_connector import DbConnector
 import sqlalchemy as sa
 import time
 
-from src.new_setup.utils import get_latest_block
+from backend.src.adapters.rpc_funcs.utils import get_latest_block
 
 def connect_to_node(url):
     retries = 5

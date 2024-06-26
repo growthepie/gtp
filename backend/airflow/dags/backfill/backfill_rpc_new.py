@@ -5,11 +5,11 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
-from src.new_setup.adapter import NodeAdapter
+from src.adapters.adapter_raw_rpc import NodeAdapter
 from src.db_connector import DbConnector
-from src.new_setup.utils import Web3CC, get_chain_config
+from src.adapters.rpc_funcs.utils import Web3CC, get_chain_config
 from src.misc.airflow_utils import alert_via_webhook
-from src.adapters.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
+from src.adapters.rpc_funcs.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
 from src.chain_config import adapter_mapping
 
 ## DAG Configuration Variables

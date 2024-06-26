@@ -7,7 +7,7 @@ import os
 import time
 from datetime import datetime, timedelta
 from src.adapters.adapter_raw_loopring import AdapterLoopring
-from src.adapters.funcs_rps_utils import MaxWaitTimeExceededException
+from src.adapters.rpc_funcs.utils import MaxWaitTimeExceededException
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook

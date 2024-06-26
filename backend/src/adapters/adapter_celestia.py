@@ -1,11 +1,13 @@
-from src.adapters.abstract_adapters import AbstractAdapterRaw
-import traceback
-from src.new_setup.utils import *
 import requests
 import base64
 import json
 from queue import Queue
 from threading import Thread
+import time
+import pandas as pd
+
+from src.adapters.abstract_adapters import AbstractAdapterRaw
+from src.adapters.rpc_funcs.utils import connect_to_s3, save_data_for_range, handle_retry_exception
 
 class AdapterCelestia(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
