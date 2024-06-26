@@ -600,6 +600,9 @@ class AdapterSQL(AbstractAdapter):
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
                         if 'throughput' in metric_keys:
+                            ## skip throughput calc for certain chains
+                            if origin_key in ['starknet', 'mantle', 'zksync_era']:
+                                    continue
                             print(f"... processing throughput for {origin_key} and {granularity} granularity")
                             exec_string = f"""
                                     SELECT
