@@ -32,7 +32,7 @@ chain_settings = {
         'email_on_failure': False,
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='backfill_rpc_new',
+    dag_id='backfill_rpc',
     description='DAG for backfilling missing blockchain data',
     tags=['backfill', 'daily'],
     start_date=datetime(2023, 12, 1),

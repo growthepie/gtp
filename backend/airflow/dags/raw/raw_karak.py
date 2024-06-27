@@ -21,7 +21,7 @@ from src.misc.airflow_utils import alert_via_webhook
     },
     dag_id='raw_karak',
     description='Load raw tx data from Karak',
-    tags=['raw', 'near-real-time', 'rpc', 'new-setup'],
+    tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
 )
