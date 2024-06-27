@@ -49,7 +49,7 @@ class AdapterMapping(BaseModel):
     token_circulating_supply_function: Optional[str] ## totalSupply
     
     ## backfiller settings
-    batch_size: int = 10 ## number of blocks to fetch in one batch, default to 10
+    batch_size: int = 20 ## number of blocks to fetch in one batch, default to 10
     backfiller_on: Optional[bool]
 
 adapter_mapping = [
@@ -356,7 +356,9 @@ adapter_mapping = [
 
         ,block_explorer_txcount='https://basescan.org/chart/tx?output=csv'
         ,block_explorer_type='etherscan'
-        ,backfiller_on=True             
+
+        ,backfiller_on=True    
+        ,batch_size=10         
     )
 
     ,AdapterMapping(
