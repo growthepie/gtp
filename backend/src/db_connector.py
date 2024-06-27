@@ -97,6 +97,18 @@ class DbConnector:
                         print(e)
                         return None
                 
+        def get_chain_info(self, origin_key:str, column:str):
+                try:
+                        query = f"SELECT {column} FROM sys_chains WHERE origin_key = '{origin_key}' LIMIT 1"
+                        with self.engine.connect() as connection:
+                                result = connection.execute(query)
+                                value = result.scalar()
+                                return value
+                except Exception as e:
+                        print(f"Error retrieving {column} for {origin_key}.")
+                        print(e)
+                        return None
+                
         def get_max_date(self, metric_key:str, origin_key:str):
                 exec_string = f"SELECT MAX(date) as val FROM fact_kpis WHERE metric_key = '{metric_key}' AND origin_key = '{origin_key}';"
 

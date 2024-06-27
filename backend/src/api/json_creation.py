@@ -1130,6 +1130,8 @@ class JSONCreation():
 
             chain_dict[origin_key] = {
                 'name': chain.name,
+                'caip2': self.db_connector.get_chain_info(origin_key, 'caip2'),
+                'evm_chain_id': self.db_connector.get_chain_info(origin_key, 'evm_chain_id'),
                 'deployment': chain.deployment,
                 'name_short': chain.name_short,
                 'description': chain.description,
