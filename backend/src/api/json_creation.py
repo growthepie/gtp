@@ -220,10 +220,10 @@ class JSONCreation():
         }
 
         self.fees_types = {
-            'txcosts_native_median' : {
+            'txcosts_median' : {
                 'name': 'Median Fee',
                 'name_short': 'Median Fee',
-                'metric_keys': ['txcosts_native_median_eth'],
+                'metric_keys': ['txcosts_median_eth'],
                 'units': {
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
@@ -233,10 +233,10 @@ class JSONCreation():
                 'priority': 1,
                 'invert_normalization': False
             }
-            , 'txcosts_median' : {
-                'name': 'Transfer ETH',
-                'name_short': 'Transfer ETH Fee',
-                'metric_keys': ['txcosts_median_eth'],
+            ,'txcosts_native_median' : {
+                'name': 'Transfer ETH Fee',
+                'name_short': 'Transfer ETH',
+                'metric_keys': ['txcosts_native_median_eth'],
                 'units': {
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
                     'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
