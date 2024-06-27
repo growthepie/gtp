@@ -1102,7 +1102,6 @@ class DbConnector:
                                 SELECT 
                                         cl.address, 
                                         cl.origin_key, 
-                                        --bl.owner_project AS owner_project,
                                         SUM(gas_fees_eth) AS gas_eth, 
                                         SUM(txcount) AS txcount, 
                                         SUM(daa) AS daa,                                         
@@ -1122,13 +1121,12 @@ class DbConnector:
                         SELECT 
                                 address, 
                                 origin_key, 
-                                --owner_project,
                                 gas_eth, 
                                 txcount, 
                                 daa                                
                         FROM ranked_contracts 
                         WHERE row_num_gas <= {number_of_contracts} OR row_num_daa <= {number_of_contracts}
-                        ORDER BY origin_key, row_num
+                        ORDER BY origin_key, row_num_gas, row_num_daa
     
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
