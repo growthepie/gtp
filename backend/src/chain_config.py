@@ -67,7 +67,7 @@ adapter_mapping = [
         ,deployment="PROD"
         ,exclude_metrics = ['stables_mcap', 'tvl', 'rent_paid', 'profit', 'blockspace', 'fdv']
         ,aggregate_blockspace = False
-        ,aggregate_addresses = False
+        ,aggregate_addresses = True
 
         ,bucket = "Layer 1"
         ,symbol = "ETH"
@@ -845,7 +845,7 @@ adapter_mapping = [
         ,deployment="DEV"
         ,exclude_metrics = []
         ,aggregate_blockspace = False
-        ,aggregate_addresses = False
+        ,aggregate_addresses = True
 
         ,bucket = "OP Chains"
         ,symbol = "-"

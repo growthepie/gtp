@@ -349,7 +349,7 @@ class DbConnector:
                 return df['source'].to_list()
         
         ## Unique sender and addresses
-        def get_unique_addresses(self, chain:str, days:int, days_end:int=None):
+        def aggregate_unique_addresses(self, chain:str, days:int, days_end:int=None):
 
                 if days_end is None:
                         days_end_string = "DATE_TRUNC('day', NOW())"
@@ -397,29 +397,74 @@ class DbConnector:
                                                 AND "timestamp" >= date_trunc('day',now() - INTERVAL '{days} days')
                                 )
 
-                                SELECT
-                                        day as date,
-                                        address,
-                                        '{chain}' as origin_key,
-                                        count(*) as txcount
-                                FROM union_all
-                                GROUP BY 1,2,3
+                                INSERT INTO fact_active_addresses (address, date, origin_key, txcount)
+                                        SELECT                                                
+                                                address,
+                                                day as date,
+                                                '{chain}' as origin_key,
+                                                count(*) as txcount
+                                        FROM union_all
+                                        GROUP BY 1,2,3
+                                ON CONFLICT (origin_key, date, address)
+                                DO UPDATE SET txcount = EXCLUDED.txcount;
                         '''
                 else:
                         exec_string = f'''
-                                SELECT 
-                                        date_trunc('day', block_timestamp) as date,
-                                        from_address as address,
-                                        '{chain}' as origin_key,
-                                        count(*) as txcount
-                                FROM {chain}_tx
-                                WHERE block_timestamp < {days_end_string}
-                                        AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                GROUP BY 1,2,3
+                                INSERT INTO fact_active_addresses (address, date, origin_key, txcount)
+                                        SELECT 
+                                                from_address as address,
+                                                date_trunc('day', block_timestamp) as date,                                                
+                                                '{chain}' as origin_key,
+                                                count(*) as txcount
+                                        FROM {chain}_tx
+                                        WHERE block_timestamp < {days_end_string}
+                                                AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                                and from_address is not null
+                                        GROUP BY 1,2,3
+                                ON CONFLICT (origin_key, date, address)
+                                DO UPDATE SET txcount = EXCLUDED.txcount;
                         '''
-                df = pd.read_sql(exec_string, self.engine.connect())
-                df = df.dropna(subset=['address'])
-                return df
+                with self.engine.connect() as connection:
+                        connection.execute(exec_string)
+                print(f"Unique addresses for {chain} and {days} days aggregated and loaded into fact_active_addresses.")
+        
+        ## This method aggregates on top of fact_active_addresses and stores memory efficient hll hashes in fact_active_addresses_hll
+        def aggregate_unique_addresses_hll(self, chain:str, days:int):   
+                ## in starknets case go straight to the source (raw tx data) because we don't add it to fact_active_addresses  
+                if chain in ['starknet']:    
+                        exec_string = f'''
+                                INSERT INTO fact_active_addresses_hll (origin_key, date, hll_addresses)
+                                        SELECT 
+                                                '{chain}' as origin_key,
+                                                date_trunc('day', block_timestamp) as date,
+                                                hll_add_agg(hll_hash_text(from_address), 17,5,-1,1)        
+                                        FROM {chain}_tx
+                                        WHERE block_timestamp < DATE_TRUNC('day', NOW())
+                                                AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        GROUP BY 1,2
+                                ON CONFLICT (origin_key, date)
+                                DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
+                        '''
+
+                else:
+                        exec_string = f'''
+                                INSERT INTO fact_active_addresses_hll (origin_key, date, hll_addresses) 
+                                        select 
+                                                origin_key, 
+                                                date, 
+                                                hll_add_agg(hll_hash_bytea(address), 17,5,-1,1)
+                                        from fact_active_addresses 
+                                        where origin_key = '{chain}' 
+                                                and date < DATE_TRUNC('day', NOW())
+                                                AND date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        group by 1,2
+                                ON CONFLICT (origin_key, date)
+                                DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
+                        '''
+                with self.engine.connect() as connection:
+                        connection.execute(exec_string)
+
+                print(f"HLL hashes for {chain} and {days} days loaded into fact_active_addresses_hll.")
 
         def get_total_supply_blocks(self, origin_key, days):
                 exec_string = f'''

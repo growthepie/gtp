@@ -142,9 +142,9 @@ class AdapterSQL(AbstractAdapter):
                     elif query.metric_key == 'maa':
                         day_val = 7
                     elif query.metric_key == 'aa_last30d':
-                        day_val = 2
+                        day_val = 5
                     elif query.metric_key == 'aa_last7d':
-                        day_val = 2
+                        day_val = 5
                     else:
                         day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
                 else:
@@ -153,8 +153,8 @@ class AdapterSQL(AbstractAdapter):
                 if query.query_parameters is not None:
                     query.update_query_parameters({'Days': day_val})
                 
-                if query.metric_key in ['aa_last30d', 'aa_last7d']:
-                    query.update_query_parameters({'Days_Start': days_start})
+                # if query.metric_key in ['aa_last30d', 'aa_last7d']:
+                #     query.update_query_parameters({'Days_Start': days_start})
                 
                 print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters}")
                 df = pd.read_sql(query.sql, self.db_connector.engine.connect())
@@ -268,22 +268,19 @@ class AdapterSQL(AbstractAdapter):
     def run_active_addresses_agg(self, origin_keys, days, days_end=None):
         if origin_keys is None:
             origin_keys = [chain.origin_key for chain in adapter_mapping if chain.aggregate_addresses == True]
-            print(f"...no specific origin_key found, aggregating blockspace for all chains: {origin_keys}...")
+            print(f"...no specific origin_key found, aggregating active addresses for all chains: {origin_keys}...")
 
         for origin_key in origin_keys:
             if days == 'auto':
-                days = 7
+                days = 5
             else:
                 days = int(days)
 
-            print(f"...aggregating active addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
-            df = self.db_connector.get_unique_addresses(origin_key, days, days_end)
-            ## drop rows with null addresses (i.e. Loopring)
-            df = df.dropna(subset=['address'])
-            df.set_index(['address', 'date', 'origin_key'], inplace=True)
+            print(f"...aggregating + inserting active addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
+            self.db_connector.aggregate_unique_addresses(origin_key, days, days_end)
 
-            print(f"...upserting active addresses data for {origin_key}. Total rows: {df.shape[0]}...")
-            self.db_connector.upsert_table('fact_active_addresses', df)
+            print(f"...HLL: aggregating + inserting active addresses data for {origin_key} and last {days} days...")
+            self.db_connector.aggregate_unique_addresses_hll(origin_key, days)
 
     def run_fees_queries(self, origin_keys, days, granularities, metric_keys=None):
         if origin_keys is None:
