@@ -15,21 +15,6 @@ from src.adapters.adapter_sql import AdapterSQL
 from src.api.json_creation import JSONCreation
 from src.chain_config import adapter_mapping
 
-@dag(
-    default_args={
-        'owner' : 'mseidl',
-        'retries' : 2,
-        'email_on_failure': False,
-        'retry_delay' : timedelta(minutes=5),
-        'on_failure_callback': alert_via_webhook
-    },
-    dag_id='api_sql_fees',
-    description='Run some sql aggregations for fees page.',
-    tags=['metrics', 'near-real-time'],
-    start_date=datetime(2023,4,24),
-    schedule_interval='10,40 * * * *'
-)
-
 def create_aggregate_metrics_task(origin_key):
     @task(task_id=f'agg_fees_metrics_{origin_key}')
     def run_aggregate_metrics():
@@ -49,6 +34,20 @@ def create_aggregate_metrics_task(origin_key):
     
     return run_aggregate_metrics
 
+@dag(
+    default_args={
+        'owner' : 'mseidl',
+        'retries' : 2,
+        'email_on_failure': False,
+        'retry_delay' : timedelta(minutes=5),
+        'on_failure_callback': alert_via_webhook
+    },
+    dag_id='api_sql_fees',
+    description='Run some sql aggregations for fees page.',
+    tags=['metrics', 'near-real-time'],
+    start_date=datetime(2023,4,24),
+    schedule_interval='10,40 * * * *'
+)
 def fees_json_gen_dag():
         @task()
         def run_create_fees_json():
