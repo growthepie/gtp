@@ -15,20 +15,20 @@ from src.adapters.adapter_sql import AdapterSQL
 from src.api.json_creation import JSONCreation
 from src.chain_config import adapter_mapping
 
+# initialize adapter
+adapter_params = {}
+db_connector = DbConnector()
+ad = AdapterSQL(adapter_params, db_connector)
+
 def create_aggregate_metrics_task(origin_key):
     @task(task_id=f'agg_fees_metrics_{origin_key}')
     def run_aggregate_metrics():
-        adapter_params = {}
-
         load_params = {
             'load_type': 'fees',
             'days': 1,
             'origin_keys': [origin_key],
         }
-
-        # initialize adapter
-        db_connector = DbConnector()
-        ad = AdapterSQL(adapter_params, db_connector)
+        
         # extract
         ad.extract(load_params)
     
