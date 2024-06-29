@@ -1,34 +1,23 @@
 def get_cross_chain_activity(origin_key):
     query = f"""
-        with excl_chain as (
-            select 
-                address,
-                origin_key 
-            from fact_active_addresses faa 
-            where faa."date" between current_date - interval '7 days' and current_date
-                and origin_key not in ('{origin_key}', 'starknet', 'ethereum')
-        )
-
-        , tmp as (
-            SELECT 
-                    aa.address AS address,
-                    CASE WHEN count(distinct ex.origin_key) > 1 THEN 'multiple' ELSE MAX(ex.origin_key) END as cca 
-            FROM fact_active_addresses aa
-            left join excl_chain ex on aa.address = ex.address
-            WHERE aa."date" between current_date - interval '7 days' and current_date
-                and aa.origin_key = '{origin_key}'
-            group by 1
-        )
+        with step_1 as (
+                SELECT 
+                        #hll_union_agg(hll_addresses) as unioned,
+                        #hll_union_agg(case when origin_key = '{origin_key}' then hll_addresses end) as chain_a,
+                        #hll_union_agg(case when origin_key <> '{origin_key}' then hll_addresses end) as other_chains
+                FROM fact_active_addresses_hll
+                where 
+                        origin_key not in ('ethereum', 'starknet')
+                        and "date" between current_date - interval '7 days' and current_date
+                order by 1 desc
+                )
 
         select 
-            coalesce(
-                'cca_last7d_' || cca,
-                'cca_last7d_exclusive'
-            ) as metric_key,
-            (current_date - interval '1 days')::DATE as day,
-            Count(*) as value
-        from tmp
-        group by 1,2
+                (current_date - interval '1 days')::DATE as day,
+                'cca_last7d_exclusive' as metric_key,
+                --(chain_a + other_chains - unioned)::int as intersecting,                
+                (chain_a - (chain_a + other_chains - unioned))::int as value --chain_a - intersecting
+        from step_1
     """
     return query
 
