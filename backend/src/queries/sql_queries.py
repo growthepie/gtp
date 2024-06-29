@@ -68,23 +68,25 @@ sql_q= {
         ## only loads full weeks (no partial weeks)
         ,'ethereum_waa': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM ethereum_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('{{aggregation}}', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'ethereum' 
+                AND date < date_trunc('{{aggregation}}', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
         ,'ethereum_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM ethereum_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'ethereum' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
 
         """
@@ -170,58 +172,15 @@ sql_q= {
     
     ## count of all addresses that activels interacted on imx (not mints, because they are not triggered by users themselves). Only fullfilled orders are counted as well.
     ,'imx_aa_xxx': """
-         with 
-        cte_imx_deposits as (
-                select 
-                        date_trunc('{{aggregation}}', "timestamp") as day 
-                        , "user" as address
-                        , 'deposits' as tx_type
-                from imx_deposits
-                WHERE timestamp < date_trunc('day', now())
-                        AND timestamp >= date_trunc('{{aggregation}}',now() - interval '{{Days}} days')
-        ),
-        cte_imx_withdrawals as (
-                select 
-                        date_trunc('{{aggregation}}', "timestamp") as day 
-                        , "sender" as address
-                        , 'withdrawals' as tx_type
-                from imx_withdrawals  
-                WHERE timestamp < date_trunc('day', now())
-                        AND timestamp >= date_trunc('{{aggregation}}',now() - interval '{{Days}} days')
-        ),
-        cte_imx_orders as (
-                select 
-                        date_trunc('{{aggregation}}', "updated_timestamp") as day 
-                        , "user" as address
-                        , 'orders' as tx_type
-                from imx_orders   
-                WHERE updated_timestamp < date_trunc('day', now())
-                        AND updated_timestamp >= date_trunc('{{aggregation}}',now() - interval '{{Days}} days')
-        ),
-        cte_imx_transfers as (
-                select 
-                        date_trunc('{{aggregation}}', "timestamp") as day
-                        , "user" as address
-                        , 'transfers' as tx_type
-                from imx_transfers
-                WHERE timestamp < date_trunc('day', now())
-                        AND timestamp >= date_trunc('{{aggregation}}',now() - interval '{{Days}} days')
-        ),    
-        unioned as (
-                select * from cte_imx_deposits
-                union all
-                select * from cte_imx_withdrawals
-                union all
-                select * from cte_imx_orders
-                union all
-                select * from cte_imx_transfers
-        )
-        
-        select
-                day,
-                Count(distinct address) as val
-        from unioned
-        group by 1
+        SELECT 
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
+        WHERE
+                origin_key = 'imx' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
     """
 
     ,'imx_fees_paid_usd': """
@@ -286,13 +245,13 @@ sql_q= {
 
         ,'arbitrum_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM arbitrum_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                tx.gas_used > 0
-                AND block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'arbitrum' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
 
         """
@@ -327,12 +286,13 @@ sql_q= {
 
         ,'optimism_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM optimism_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'optimism' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -374,12 +334,13 @@ sql_q= {
 
         ,'base_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM base_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'base' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -429,12 +390,13 @@ sql_q= {
 
         ,'polygon_zkevm_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM polygon_zkevm_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'polygon_zkevm' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -504,12 +466,13 @@ sql_q= {
 
         ,'zksync_era_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM zksync_era_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'zksync_era' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -595,12 +558,13 @@ sql_q= {
 
         ,'zora_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM public.zora_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'zora' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -683,12 +647,13 @@ sql_q= {
 
         ,'pgn_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM gitcoin_pgn_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'gitcoin_pgn' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -771,12 +736,13 @@ sql_q= {
 
         ,'linea_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM linea_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'linea' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -872,12 +838,13 @@ sql_q= {
 
         ,'mantle_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM mantle_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'mantle' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -992,12 +959,13 @@ sql_q= {
 
         ,'scroll_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM scroll_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'scroll' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -1065,12 +1033,13 @@ sql_q= {
 
         ,'loopring_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM loopring_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'loopring' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -1112,12 +1081,13 @@ sql_q= {
 
         ,'rhino_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM rhino_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'rhino' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -1170,12 +1140,13 @@ sql_q= {
 
         ,'starknet_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM starknet_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'starknet' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -1287,12 +1258,13 @@ sql_q= {
 
         ,'metis_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM metis_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'metis' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -1386,12 +1358,13 @@ sql_q= {
 
         ,'blast_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM blast_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'blast' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -1474,12 +1447,13 @@ sql_q= {
 
         ,'manta_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM manta_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'manta' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 
@@ -1563,12 +1537,13 @@ sql_q= {
 
         ,'mode_aa_xxx': """
         SELECT 
-                date_trunc('{{aggregation}}', tx.block_timestamp) AS day,
-                count(DISTINCT from_address) as value
-        FROM mode_tx tx
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
         WHERE
-                block_timestamp < date_trunc('day', current_date)
-                AND block_timestamp >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+                origin_key = 'mode' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
         GROUP BY  1
         """
 

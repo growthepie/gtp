@@ -139,8 +139,10 @@ class AdapterSQL(AbstractAdapter):
                         day_val = 15
                     elif query.origin_key == 'multi':
                         day_val = 40
-                    elif query.metric_key in ['aa_last30d', 'aa_last7d', 'cca', 'maa']:
+                    elif query.metric_key in ['aa_last30d', 'aa_last7d', 'maa']:
                         day_val = 5
+                    elif query.metric_key == 'cca':
+                        day_val = 0 ## no days needed
                     else:
                         day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
                 else:
