@@ -2,6 +2,7 @@ import pandas as pd
 import json
 import os
 
+from src.adapters.clients.bigquery import BigQuery
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import api_post_call, send_discord_message, print_init, print_load, print_extract
 
@@ -14,12 +15,8 @@ class AdapterOSO(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("OSO", adapter_params, db_connector)
-        self.base_url = "https://opensource-observer.hasura.app/v1/graphql"
-        self.api_key = adapter_params['api_key']
-        self.headers = {
-                'Authorization': self.api_key,
-                'Content-Type': 'application/json'
-        }
+        google_creds = adapter_params['google_creds']
+        self.bq = BigQuery(google_creds)
         self.webhook_url = adapter_params['webhook']
         print_init(self.name, self.adapter_params)
 
@@ -41,52 +38,43 @@ class AdapterOSO(AbstractAdapter):
     ## ----------------- Helper functions --------------------
 
     def load_oss_projects(self):
-        payload = {
-            "query": """
-                query GetProjects {
-                    projects_v1 {
-                        project_id
-                        project_name
-                        display_name
-                        project_namespace
-                        project_source
-                        description
-                    }
-                }
-            """,
-            "variables": {}
-        }
-        response = api_post_call(url = self.base_url, payload = json.dumps(payload), header = self.headers)
-        df = pd.DataFrame(response['data']['projects_v1'])
+        ## Load the data from BigQuery
+        query = """
+                SELECT 
+                project_id,
+                project_name,
+                display_name,
+                project_namespace,
+                project_source,
+                description
+            FROM `growthepie.oso_production.projects_v1`
+        """
 
+        df = self.bq.execute_bigquery(query)
         df = df.rename(columns={'project_id': 'id', 'project_name': 'name', 'project_namespace': 'namespace', 'project_source': 'source'})
         return df
 
     def load_oss_github_slugs(self):
-        payload = {
-            "query": """
-                query GetArtifacts {
-                    artifacts_by_project_v1(where: {artifact_type: {_eq: "REPOSITORY"}}) {
-                        artifact_name
-                        project_name
-                    }
-                }
-            """,
-            "variables": {}
-        }
-        response = api_post_call(url = self.base_url, payload = json.dumps(payload), header = self.headers)
-        df = pd.DataFrame(response['data']['artifacts_by_project_v1'])
+        ## Load the data from BigQuery
+        query = """
+                WITH org_repos AS (
+                    SELECT 
+                        project_name,
+                        artifact_namespace AS github_org,
+                        COUNT(*) AS count_repos,
+                        ROW_NUMBER() OVER (PARTITION BY project_name ORDER BY COUNT(*) DESC) AS row_num
+                    FROM `growthepie.oso_production.artifacts_by_project_v1`
+                    WHERE artifact_source = 'GITHUB'
+                    GROUP BY project_name, artifact_namespace
+                )
+                SELECT 
+                    project_name,
+                    github_org as github_slug
+                FROM org_repos
+                WHERE row_num = 1;
+        """
 
-        ## extract github_slug from artifact_name (basically splitting the URL)
-        df['github_slug'] = df['artifact_name'].apply(lambda x: x.split('/')[0])
-
-        ## group by project_id and github_slug and get the count of repositories and only keep the org with the maximum count
-        df = df.groupby(['project_name', 'github_slug']).size().reset_index(name='count')
-        df = df.sort_values('count', ascending=False).groupby('project_name').head(1)
-
-        ## only keep columns project_id and github_org
-        df = df[['project_name', 'github_slug']]
-
+        df = self.bq.execute_bigquery(query)
         ## rename column project_slug to name and github_slug to main_github
         df = df.rename(columns={'project_name': 'name', 'github_slug': 'main_github'})
         return df
@@ -98,7 +86,7 @@ class AdapterOSO(AbstractAdapter):
         # df_github_slugs = self.load_oss_github_slugs()
 
 
-        ## ToDo: reverse this change once the github slugs are available
+        ## TODO: reverse this change once the github slugs are available
         # ## join the two dataframes on project_id
         # df = pd.merge(df_projects, df_github_slugs, on='name', how='left')
         # df['active'] = True

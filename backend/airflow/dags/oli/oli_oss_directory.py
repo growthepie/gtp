@@ -30,7 +30,7 @@ def etl():
     @task()
     def run_oss():
         adapter_params = {
-            'api_key' : os.getenv("OSO_API"),
+            'google_creds' : os.getenv("GOOGLE_CREDENTIALS"),
             'webhook' : os.getenv('DISCORD_CONTRACTS')
         }
         load_params = {
