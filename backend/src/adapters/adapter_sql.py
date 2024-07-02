@@ -311,13 +311,15 @@ class AdapterSQL(AbstractAdapter):
             granularities = {k: granularities_dict[k] for k in granularities}
 
         for origin_key in origin_keys: 
-                query = f"select date_trunc('day', max(block_timestamp)) +  INTERVAL '1 hour' * (EXTRACT(hour FROM max(block_timestamp))::int / 4 * 4) from {origin_key}_tx limit 1"
-                with self.db_connector.engine.connect() as connection:
-                    granularities['4_hours'][2] = f""" '{str(connection.execute(query).scalar())}' """
+                if '4_hours' in granularities:
+                    query = f"select date_trunc('day', max(block_timestamp)) +  INTERVAL '1 hour' * (EXTRACT(hour FROM max(block_timestamp))::int / 4 * 4) from {origin_key}_tx limit 1"
+                    with self.db_connector.engine.connect() as connection:
+                        granularities['4_hours'][2] = f""" '{str(connection.execute(query).scalar())}' """
 
-                query = f"select date_trunc('hour', max(block_timestamp)) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM max(block_timestamp)) / 10) from {origin_key}_tx limit 1"
-                with self.db_connector.engine.connect() as connection:
-                    granularities['10_min'][2] = f""" '{str(connection.execute(query).scalar())}' """                 
+                if '10_min' in granularities:
+                    query = f"select date_trunc('hour', max(block_timestamp)) + INTERVAL '10 min' * FLOOR(EXTRACT(minute FROM max(block_timestamp)) / 10) from {origin_key}_tx limit 1"
+                    with self.db_connector.engine.connect() as connection:
+                        granularities['10_min'][2] = f""" '{str(connection.execute(query).scalar())}' """                 
                                    
                 for granularity in granularities:
                         timestamp_query = granularities[granularity][0]
