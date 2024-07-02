@@ -77,8 +77,6 @@ def backfiller_dag():
 
         if chain == 'polygon_zkevm':
             start_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
-        elif chain == 'taiko':
-            start_date = (datetime.now() - timedelta(days=35)).strftime('%Y-%m-%d')
         else:
             start_date = (datetime.now() - timedelta(days=5)).strftime('%Y-%m-%d')
         end_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
