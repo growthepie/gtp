@@ -869,6 +869,47 @@ adapter_mapping = [
         ,backfiller_on=True  
     )
 
+    ,AdapterMapping(
+        origin_key='taiko'
+        ,name='Taiko'
+        ,name_short = "Taiko"
+        ,description="Taiko is an Ethereum-equivalent EVM chain which combines based sequencing with a multi-proof design."
+        ,da_layer = "Ethereum (blobs)"
+        ,rhino_naming='TAIKO'
+
+        ,in_api = False
+        ,in_fees_api = False
+        ,deployment="DEV"
+        ,exclude_metrics = ['rent_paid', 'profit']
+        ,aggregate_blockspace = True
+        ,aggregate_addresses = True
+
+        ,bucket = "Other Optimistic Rollups"
+        ,symbol = "-"
+        ,technology = "Optimistic Rollup"
+        ,purpose = 'General Purpose (EVM)'
+        ,launch_date='2024-05-27'
+
+        ,website='https://taiko.xyz/'
+        ,block_explorer='https://taikoscan.io/'
+        ,block_explorers={'Taikoscan': 'https://taikoscan.io/'}
+        ,twitter="https://twitter.com/taikoxyz"
+
+        ,coingecko_naming="taiko"
+        ,l2beat_tvl_naming='taiko'
+
+        ,block_explorer_txcount="https://l2beat.com/api/activity/taiko.json"
+        ,block_explorer_type='l2beat'
+
+        ,token_address='0x10dea67478c5F8C5E2D90e5E9B26dBe60c54d800'
+        ,token_abi=json.loads('[{"inputs":[{"internalType":"address","name":"_logic","type":"address"},{"internalType":"bytes","name":"_data","type":"bytes"}],"stateMutability":"payable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"previousAdmin","type":"address"},{"indexed":false,"internalType":"address","name":"newAdmin","type":"address"}],"name":"AdminChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"beacon","type":"address"}],"name":"BeaconUpgraded","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"implementation","type":"address"}],"name":"Upgraded","type":"event"},{"stateMutability":"payable","type":"fallback"},{"stateMutability":"payable","type":"receive"}]')
+        ,token_deployment_date='2024-06-05'
+        ,token_deployment_origin_key='ethereum'
+        ,token_circulating_supply_function='totalSupply'
+
+        ,backfiller_on=True
+    )
+
 ] # end of adapter_mappings
 
 adapter_all2_mapping = adapter_mapping + [AdapterMapping(origin_key='all_l2s', name='All L2s', in_api=True, in_fees_api = True, description="", da_layer = "", deployment='PROD', exclude_metrics=[], aggregate_blockspace=False, aggregate_addresses=False, technology='-', purpose='-', name_short='-', bucket='-')] ## for multi-chain metrics
