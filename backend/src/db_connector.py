@@ -497,7 +497,7 @@ class DbConnector:
                 else:
                         additional_cte = ''
                         tx_fee_eth_string = 'tx_fee'
-                        tx_fee_usd_string = 'tx_fee * p.value'                        
+                        tx_fee_usd_string = 'tx_fee * p.value'                       
                         additional_join = ''
 
                 exec_string = f'''
@@ -508,33 +508,43 @@ class DbConnector:
                         )
 
                         {additional_cte}
-
-                        select
-                                to_address as address,
-                                date_trunc('day', block_timestamp) as date,
-                                sum({tx_fee_eth_string}) as gas_fees_eth,
-                                sum({tx_fee_usd_string}) as gas_fees_usd,
-                                count(*) as txcount,
-                                count(distinct from_address) as daa,
-                                '{chain}' as origin_key
-                        from {chain}_tx tx 
-                        LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
-                        {additional_join}
-                        where block_timestamp < DATE_TRUNC('day', NOW())
-                                and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                and empty_input = false -- we don't have to store addresses that received native transfers
-                                and tx_fee > 0 -- no point in counting txs with 0 fees (most likely system tx)
-                                and to_address <> '' 
-                                and to_address is not null -- filter out contract creations arbitrum, optimism
-                                and to_address <> '\\x0000000000000000000000000000000000008006' -- filter out contract creations zksync
-                                and to_address <> 'None' -- filter out zora and pgn contract creation
-                                and not (from_address = to_address and empty_input = false) -- filter out inscriptions (step 1: from_address = to_address + empty_input = false)
-                                and not (to_address in (select distinct address from inscription_addresses) and empty_input = false) -- filter out inscriptions (step 2: to_address in inscription_addresses + empty_input = false)
-                        group by 1,2
-                        having count(*) > 1
+                        
+                        INSERT INTO blockspace_fact_contract_level (address, date, gas_fees_eth, gas_fees_usd, txcount, daa, origin_key)
+                                select
+                                        to_address as address,
+                                        date_trunc('day', block_timestamp) as date,
+                                        sum({tx_fee_eth_string}) as gas_fees_eth,
+                                        sum({tx_fee_usd_string}) as gas_fees_usd,
+                                        count(*) as txcount,
+                                        count(distinct from_address) as daa,
+                                        '{chain}' as origin_key
+                                from {chain}_tx tx 
+                                LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                                {additional_join}
+                                where block_timestamp < DATE_TRUNC('day', NOW())
+                                        and block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        and empty_input = false -- we don't have to store addresses that received native transfers
+                                        and tx_fee > 0 -- no point in counting txs with 0 fees (most likely system tx)
+                                        and to_address <> '' 
+                                        and to_address is not null -- filter out contract creations arbitrum, optimism
+                                        and to_address <> '\\x0000000000000000000000000000000000008006' -- filter out contract creations zksync
+                                        and to_address <> 'None' -- filter out zora and pgn contract creation
+                                        and not (from_address = to_address and empty_input = false) -- filter out inscriptions (step 1: from_address = to_address + empty_input = false)
+                                        and not (to_address in (select distinct address from inscription_addresses) and empty_input = false) -- filter out inscriptions (step 2: to_address in inscription_addresses + empty_input = false)
+                                group by 1,2
+                                having count(*) > 1
+                        ON CONFLICT (origin_key, date, address)
+                        DO UPDATE SET
+                                txcount = EXCLUDED.txcount,
+                                daa = EXCLUDED.daa,
+                                gas_fees_eth = EXCLUDED.gas_fees_eth,
+                                gas_fees_usd = EXCLUDED.gas_fees_usd;
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
-                return df
+                # df = pd.read_sql(exec_string, self.engine.connect())
+                # return df
+
+                with self.engine.connect() as connection:
+                        connection.execute(exec_string)
         
         # This function is used to get the native_transfer daily aggregate per chain. The data will be loaded into fact_sub_category_level table        
         def get_blockspace_native_transfers(self, chain, days):

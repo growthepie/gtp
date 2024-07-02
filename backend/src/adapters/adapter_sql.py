@@ -202,18 +202,13 @@ class AdapterSQL(AbstractAdapter):
             
             else:
                 ## aggregate contract data
-                print(f"...aggregating contract data for {chain} and last {days} days...")
-                df = self.db_connector.get_blockspace_contracts(chain, days)
-                df.set_index(['address', 'date', 'origin_key'], inplace=True)
-
-                print(f"...upserting contract data for {chain}. Total rows: {df.shape[0]}...")
-                self.db_connector.upsert_table('blockspace_fact_contract_level', df)
+                print(f"...aggregating + upserting contract data for {chain} and last {days} days...")
+                self.db_connector.get_blockspace_contracts(chain, days)
 
                 ## determine total usage
                 print(f"...aggregating total usage for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_total(chain, days)
                 df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
-
                 print(f"...upserting total usage usage for {chain}. Total rows: {df.shape[0]}...")
                 self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
@@ -221,7 +216,6 @@ class AdapterSQL(AbstractAdapter):
                 print(f"...aggregating native_transfers for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_native_transfers(chain, days)
                 df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
-
                 print(f"...upserting native_transfers for {chain}. Total rows: {df.shape[0]}...")
                 self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
@@ -229,7 +223,6 @@ class AdapterSQL(AbstractAdapter):
                 print(f"...aggregating smart_contract_deployments for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_contract_deplyments(chain, days)
                 df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
-
                 print(f"...upserting smart_contract_deployments for {chain}. Total rows: {df.shape[0]}...")
                 self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
@@ -237,7 +230,6 @@ class AdapterSQL(AbstractAdapter):
                 print(f"...aggregating inscriptions for {chain} and last {days} days...")
                 df = self.db_connector.get_blockspace_inscriptions(chain, days)
                 df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
-
                 print(f"...upserting inscriptions for {chain}. Total rows: {df.shape[0]}...")
                 self.db_connector.upsert_table('blockspace_fact_category_level', df)
 
