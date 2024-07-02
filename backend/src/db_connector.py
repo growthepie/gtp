@@ -1,4 +1,5 @@
 from pangres import upsert
+from sqlalchemy import text
 import sqlalchemy
 import pandas as pd
 
@@ -542,9 +543,13 @@ class DbConnector:
                 '''
                 # df = pd.read_sql(exec_string, self.engine.connect())
                 # return df
-
-                with self.engine.connect() as connection:
-                        connection.execute(exec_string)
+                try:
+                        with self.engine.connect() as connection:
+                                with connection.begin():
+                                        connection.execute(text(exec_string))
+                        print(f"...data inserted successfully for {chain} and {days}.")
+                except Exception as e:
+                        print(f"An error occurred: {e}")
         
         # This function is used to get the native_transfer daily aggregate per chain. The data will be loaded into fact_sub_category_level table        
         def get_blockspace_native_transfers(self, chain, days):
