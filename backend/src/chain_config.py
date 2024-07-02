@@ -877,10 +877,10 @@ adapter_mapping = [
         ,da_layer = "Ethereum (blobs)"
         ,rhino_naming='TAIKO'
 
-        ,in_api = False
+        ,in_api = True
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['rent_paid', 'profit']
+        ,exclude_metrics = ['blockspace', 'rent_paid', 'profit']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
