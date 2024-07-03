@@ -265,9 +265,11 @@ class AdapterSQL(AbstractAdapter):
                 days = 5
             else:
                 days = int(days)
-
-            print(f"...aggregating + inserting active addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
-            self.db_connector.aggregate_unique_addresses(origin_key, days, days_end)
+            
+            ## Starknet data isn't stored in fact_active_addresses as we only keep EVM addresses in here
+            if origin_key != 'starknet':
+                print(f"...aggregating + inserting active addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
+                self.db_connector.aggregate_unique_addresses(origin_key, days, days_end)
 
             print(f"...HLL: aggregating + inserting active addresses data for {origin_key} and last {days} days...")
             self.db_connector.aggregate_unique_addresses_hll(origin_key, days)

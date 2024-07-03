@@ -425,9 +425,14 @@ class DbConnector:
                                 ON CONFLICT (origin_key, date, address)
                                 DO UPDATE SET txcount = EXCLUDED.txcount;
                         '''
-                with self.engine.connect() as connection:
-                        connection.execute(exec_string)
-                print(f"Unique addresses for {chain} and {days} days aggregated and loaded into fact_active_addresses.")
+                try:
+                        with self.engine.connect() as connection:
+                                with connection.begin():
+                                        connection.execute(text(exec_string))
+                        print(f"Unique addresses for {chain} and {days} days aggregated and loaded into fact_active_addresses.")
+                except Exception as e:
+                        print(f"An error occurred: {e}")
+                
         
         ## This method aggregates on top of fact_active_addresses and stores memory efficient hll hashes in fact_active_addresses_hll
         def aggregate_unique_addresses_hll(self, chain:str, days:int):   
@@ -462,10 +467,13 @@ class DbConnector:
                                 ON CONFLICT (origin_key, date)
                                 DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
                         '''
-                with self.engine.connect() as connection:
-                        connection.execute(exec_string)
-
-                print(f"HLL hashes for {chain} and {days} days loaded into fact_active_addresses_hll.")
+                try:
+                        with self.engine.connect() as connection:
+                                with connection.begin():
+                                        connection.execute(text(exec_string))
+                        print(f"HLL hashes for {chain} and {days} days loaded into fact_active_addresses_hll.")
+                except Exception as e:
+                        print(f"An error occurred: {e}")                
 
         def get_total_supply_blocks(self, origin_key, days):
                 exec_string = f'''
