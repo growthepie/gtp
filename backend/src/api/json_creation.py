@@ -914,6 +914,11 @@ class JSONCreation():
             ## calculate the cross_chain activity percentage
             total_users = self.get_aa_last7d(df, origin_key)
             cross_chain_activity = 1 - (exclusive_ussers / total_users)
+
+            if cross_chain_activity < 0:
+                cross_chain_activity = 0
+            if cross_chain_activity > 1:
+                cross_chain_activity = 1
             #print(f'cross_chain_activity for {origin_key} is {cross_chain_activity} based on {exclusive_ussers} exclusive users and {total_users} total users.')
 
             return round(cross_chain_activity, 4)
