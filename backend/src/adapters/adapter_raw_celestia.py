@@ -88,7 +88,7 @@ class AdapterCelestia(AbstractAdapterRaw):
     def fetch_data_for_range(self, block_start, block_end):
         df = pd.DataFrame()
         for block_number in range(block_start, block_end + 1):
-            print(f"Fetching data for block {block_number}")
+            #print(f"Fetching data for block {block_number}")
             block_df = self.retrieve_block_data(block_number)
             df = pd.concat([df, block_df], ignore_index=True)
         return df
@@ -129,7 +129,7 @@ class AdapterCelestia(AbstractAdapterRaw):
         page = 1
         should_continue, tx_search = self.fetch_block_transaction_details(block_number, page)
         while should_continue and tx_search and tx_search['result']['txs']:
-            print(f"Processing page {page} for block {block_number}...")
+            #print(f"Processing page {page} for block {block_number}...")
             df = pd.concat([df, self.prep_dataframe_celestia(tx_search)], ignore_index=True)
             if len(tx_search['result']['txs']) < 100:
                 break  # No more pages to fetch
@@ -252,6 +252,7 @@ class AdapterCelestia(AbstractAdapterRaw):
 
     def fetch_and_process_range(self, current_start, current_end, chain, table_name, s3_connection, bucket_name, db_connector):
         base_wait_time = 5   # Base wait time in seconds
+        print(f"...processing blocks {current_start} to {current_end}...")
         while True:
             try:
                 # Fetching Celestia block data for the specified range
