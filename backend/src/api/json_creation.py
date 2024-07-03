@@ -1506,19 +1506,25 @@ class JSONCreation():
 
         economics_dict = {
             "data": {
-                "da_fees" : {
-                    "ethereum": self.generate_all_l2s_metric_dict(df, 'stables_mcap', rolling_avg=True), ##TODO: change to da_fees
-                    "blobs": self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=True), ##TODO: change to da_fees
-                    "celestia": self.generate_all_l2s_metric_dict(df, 'rent_paid', rolling_avg=True), ##TODO: change to da_fees
+                "da_charts" : {
+                    "ethereum": {
+                        "blob_size": self.generate_all_l2s_metric_dict(df, 'txcount', rolling_avg=True), ##TODO: change to da blobs
+                        "blob_fees": self.generate_all_l2s_metric_dict(df, 'tvl', rolling_avg=True), ##TODO: change to da_fees
+                    },
+                    "celestia": {
+                        "blob_size": self.generate_all_l2s_metric_dict(df, 'daa', rolling_avg=True), ##TODO: change to da blobs
+                        "blob_fees": self.generate_all_l2s_metric_dict(df, 'stables_mcap', rolling_avg=True), ##TODO: change to da_fees
+                    },
                 },
                 "chain_breakdown": {}
             }
         }
 
         # overwrites - TODO: can be removed once real da data is available
-        economics_dict['data']['da_fees']['ethereum']['metric_name'] = 'Ethereum Fees'
-        economics_dict['data']['da_fees']['blobs']['metric_name'] = 'Blob Fees'
-        economics_dict['data']['da_fees']['celestia']['metric_name'] = 'Celestia Fees'
+        economics_dict['data']['da_charts']['ethereum']['blob_size']['metric_name'] = 'Ethereum Blob Size'
+        economics_dict['data']['da_charts']['celestia']['blob_size']['metric_name'] = 'Celestia Blob Size'
+        economics_dict['data']['da_charts']['ethereum']['blob_fees']['metric_name'] = 'Ethereum Fees'
+        economics_dict['data']['da_charts']['celestia']['blob_fees']['metric_name'] = 'Celestia Fees'
 
         timeframes = [1,7,30,90,180,'max']
         
