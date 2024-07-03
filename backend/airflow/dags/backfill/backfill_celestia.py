@@ -3,12 +3,13 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+import os
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_celestia import AdapterCelestia
 from src.db_connector import DbConnector
-from src.adapters.rpc_funcs.utils import MaxWaitTimeExceededException, get_chain_config
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
+from src.adapters.adapter_raw_celestia import AdapterCelestia
+from src.adapters.rpc_funcs.utils import get_chain_config
 
 @dag(
     default_args={
@@ -18,25 +19,28 @@ from src.misc.airflow_utils import alert_via_webhook
         'retry_delay': timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='raw_celestia',
-    description='Load raw tx data from Celestia',
-    tags=['raw', 'near-real-time', 'rpc'],
+    dag_id='backfill_celestia',
+    description='Backfill potentially missing Celestia data',
+    tags=['backfill', 'daily'],
     start_date=datetime(2023, 9, 1),
-    schedule_interval='*/15 * * * *'
+    schedule_interval='30 09 * * *'
 )
-def adapter_rpc():
-    @task(execution_timeout=timedelta(minutes=45))
-    def run_celestia():
+
+def backfill_tia():
+    @task()
+    def run_backfill_tia():
+        adapter_params = {
+            'chain': 'celestia',
+            'rpc_url': os.getenv("TIA_RPC"),
+        }
 
         # Initialize DbConnector
         db_connector = DbConnector()
-        
+
         chain_name = 'celestia'
 
         rpc_list, batch_size = get_chain_config(db_connector, chain_name)
         rpc_urls = [rpc['url'] for rpc in rpc_list]
-
-        print(f"TIA_CONFIG={rpc_list}")
 
         adapter_params = {
             'rpc': 'local_node',
@@ -46,19 +50,22 @@ def adapter_rpc():
 
         # Initialize AdapterCelestia
         adapter = AdapterCelestia(adapter_params, db_connector)
-
-        # Test run method parameters
-        load_params = {
-            'block_start': 'auto',
+        
+        table_name = adapter_params['chain'] + "_tx"
+        end_block = db_connector.get_max_block(table_name)
+        start_block = 0
+        
+        # Call the backfill_missing_blocks method
+        backfill_params = {
             'batch_size': batch_size,
         }
 
         try:
-            adapter.extract_raw(load_params)
-        except MaxWaitTimeExceededException as e:
-            print(f"Extraction stopped due to maximum wait time being exceeded: {e}")
+            adapter.backfill_missing_blocks(start_block, end_block, backfill_params['batch_size'])
+            print("Backfilling completed successfully.")
+        except Exception as e:
+            print(f"Backfilling stopped due to an exception: {e}")
             raise e
 
-    run_celestia()
-
-adapter_rpc()
+    run_backfill_tia()
+backfill_tia()

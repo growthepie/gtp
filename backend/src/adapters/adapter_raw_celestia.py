@@ -5,7 +5,7 @@ from queue import Queue
 from threading import Thread
 import time
 import pandas as pd
-
+from src.adapters.rpc_funcs.funcs_backfill import check_and_record_missing_block_ranges
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 from src.adapters.rpc_funcs.utils import connect_to_s3, save_data_for_range, handle_retry_exception
 
@@ -286,6 +286,23 @@ class AdapterCelestia(AbstractAdapterRaw):
                 print(f"Error processing blocks {current_start} to {current_end}: {e}")
                 base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time, self.rpc_list[0])
 
+    def process_missing_blocks(self, missing_block_ranges, batch_size):
+        # Convert list of ranges into a queue of block ranges for batch processing
+        block_range_queue = Queue()
+        for start, end in missing_block_ranges:
+            for batch_start in range(start, end + 1, batch_size):
+                batch_end = min(batch_start + batch_size - 1, end)
+                block_range_queue.put((batch_start, batch_end))
+        print(f"Enqueued {block_range_queue.qsize()} block ranges for processing.")
+
+        # Process the enqueued block ranges using multiple threads
+        self.manage_threads(block_range_queue)
+        print("Finished processing all missing block batches.")
+        
+    def backfill_missing_blocks(self, start_block, end_block, batch_size):
+        missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)
+        self.process_missing_blocks(missing_block_ranges, batch_size)
+        
 def decode_base64(element):
     if isinstance(element, dict):
         new_element = {}
