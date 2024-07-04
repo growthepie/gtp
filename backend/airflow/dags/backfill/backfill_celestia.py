@@ -38,7 +38,7 @@ def backfill_tia():
         db_connector = DbConnector()
 
         chain_name = 'celestia'
-        days_back = 7
+        days_back = 14
 
         rpc_list, batch_size = get_chain_config(db_connector, chain_name)
         rpc_urls = [rpc['url'] for rpc in rpc_list]
