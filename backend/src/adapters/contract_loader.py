@@ -21,11 +21,27 @@ class ContractLoader(AbstractAdapterRaw):
     def extract_raw(self):
         try:
             contract_creations = self.fetch_contract_creations()
-            # Convert the list of dictionaries to a DataFrame
+            if not contract_creations:  # Check if contract_creations is empty
+                print(f"No contract creations found for chain {self.chain} and last {self.days} days.")
+                return
+            
             df = pd.DataFrame(contract_creations)
-            df['deployment_tx'] = df['deployment_tx'].str.replace('0x', '\\x', regex=False)
-            df = df.melt(id_vars=['address', 'origin_key', 'source', 'added_on'], var_name='tag_id', value_name='value')
-                
+
+            value_columns = ['deployment_tx', 'deployer_address']
+            df['address'] = df['address'].apply(lambda x: ('\\x' + x[2:].upper()) if (pd.notnull(x) and x.startswith('0x')) else x)
+            for col in value_columns:
+                if col in df.columns:
+                    df[col] = df[col].apply(lambda x: '0x' + x.upper())
+                else:
+                    print(f"Column {col} not found in dataframe.")
+
+            # Melting the DataFrame to a long format
+            if set(['address', 'origin_key', 'source', 'added_on']).issubset(df.columns):
+                df = df.melt(id_vars=['address', 'origin_key', 'source', 'added_on'], var_name='tag_id', value_name='value')
+            else:
+                missing_cols = set(['address', 'origin_key', 'source', 'added_on']) - set(df.columns)
+                print(f"Missing columns: {', '.join(missing_cols)} in dataframe.")
+
         except Exception as e:
             raise e
         
@@ -79,20 +95,25 @@ class ContractLoader(AbstractAdapterRaw):
         except Exception as e:
             print(f"Error executing query: {str(e)}")
             return []
-
+        
         # Fetch existing tx_hashes from oli table
-        oli_query = select([oli_table.c.value]).where(oli_table.c.tag_id == 'tx_hash')
+        oli_query = select([oli_table.c.value]).where(oli_table.c.tag_id == 'deployment_tx')
         
         try:
             with self.db_connector.engine.connect() as connection:
-                existing_tx_hashes = {row.tx_hash for row in connection.execute(oli_query).fetchall()}
+                result = connection.execute(oli_query)
+                existing_tx_hashes = {row['value'] for row in result.fetchall() if row['value'].startswith('0x')}
         except Exception as e:
             print(f"Error fetching existing tx_hashes: {str(e)}")
             return []
 
         # Filter out transactions that are already in oli table
-        filtered_transactions = [tx for tx in transactions if tx.tx_hash not in existing_tx_hashes]
+        filtered_transactions = [ tx for tx in transactions if f'0x{tx.tx_hash.hex().upper()}' not in existing_tx_hashes]
 
+        # Check if there are no filtered transactions
+        if len(filtered_transactions) == 0:
+            return []
+        
         contract_creations = []
         for rpc_url in self.rpc_urls:
             w3 = Web3(Web3.HTTPProvider(rpc_url))

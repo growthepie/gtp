@@ -38,6 +38,7 @@ def backfill_tia():
         db_connector = DbConnector()
 
         chain_name = 'celestia'
+        days_back = 7
 
         rpc_list, batch_size = get_chain_config(db_connector, chain_name)
         rpc_urls = [rpc['url'] for rpc in rpc_list]
@@ -53,7 +54,10 @@ def backfill_tia():
         
         table_name = adapter_params['chain'] + "_tx"
         end_block = db_connector.get_max_block(table_name)
-        start_block = 0
+        
+        # Calculate the date seven days ago
+        date = datetime.now() - timedelta(days=days_back)
+        start_block = db_connector.get_block_by_date(table_name, date)
         
         # Call the backfill_missing_blocks method
         backfill_params = {
