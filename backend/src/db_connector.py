@@ -350,6 +350,11 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df['source'].to_list()
         
+        def extract_table(self, table_name:str):
+                exec_string = f'select * from {table_name}'
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         ## Unique sender and addresses
         def aggregate_unique_addresses(self, chain:str, days:int, days_end:int=None):
 
