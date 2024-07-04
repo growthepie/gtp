@@ -6,7 +6,6 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 import os
-import pandas as pd
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
