@@ -1,3 +1,4 @@
+from datetime import datetime
 from pangres import upsert
 from sqlalchemy import text
 import sqlalchemy
@@ -1457,3 +1458,31 @@ class DbConnector:
                         print(f"Error retrieving a synced rpc for {origin_key}.")
                         print(e)
                         return None
+                
+        def get_block_by_date(self, table_name:str, date:datetime):
+                # Check if the table has a 'block_timestamp' column
+                insp = sqlalchemy.inspect(self.engine)
+                columns = [col['name'] for col in insp.get_columns(table_name)]
+                
+                if 'block_timestamp' not in columns:
+                        raise ValueError(f"Table {table_name} does not have a 'block_timestamp' column.")
+                
+                # Format the date to ensure it's in the correct format for SQL
+                date_str = date.strftime('%Y-%m-%d')
+                
+                # Execute the query to get the block number for the given date
+                exec_string = f"""
+                SELECT MIN(block_number) as block_number 
+                FROM {table_name} 
+                WHERE date_trunc('day', block_timestamp) = '{date_str}';
+                """
+                
+                with self.engine.connect() as connection:
+                        result = connection.execute(exec_string)
+                        for row in result:
+                                block_number = row['block_number']
+                                
+                if block_number is None:
+                        raise ValueError(f"No block found for the date {date_str} in table {table_name}.")
+                
+                return block_number
