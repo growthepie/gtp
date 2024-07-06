@@ -405,14 +405,14 @@ adapter_mapping = [
         ,description="Public Goods Network is a fully EVM compatible optimistic rollup built on the OP Stack."
         ,da_layer = "Celestia"
 
-        ,in_api = True
+        ,in_api = False
         ,in_fees_api = False
-        ,in_economics_api = True
-        ,in_labels_api = True
+        ,in_economics_api = False
+        ,in_labels_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
-        ,aggregate_blockspace = True
-        ,aggregate_addresses = True
+        ,aggregate_blockspace = False
+        ,aggregate_addresses = False
 
         ,bucket = "Offchain Data Availability"
         ,symbol = "-"
