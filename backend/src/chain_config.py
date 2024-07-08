@@ -880,7 +880,7 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = False
         ,deployment="DEV"
-        ,exclude_metrics = ['blockspace', 'rent_paid', 'profit']
+        ,exclude_metrics = []
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
 
