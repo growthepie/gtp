@@ -37,7 +37,7 @@ class AdapterStarknetProof(AbstractAdapter):
 
     def extract_data(self, days):
         origin_key = 'starknet'
-        metric_key = 'proof_costs_eth'
+        metric_key = 'l1_settlement_custom_eth'
 
         dfMain = pd.DataFrame()
 

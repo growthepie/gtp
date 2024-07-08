@@ -1193,7 +1193,7 @@ sql_q= {
                 date as day,
                 SUM(value) as value
         FROM public.fact_kpis
-        WHERE origin_key = 'starknet' and metric_key in ('calldata_da_eth', 'proof_costs_eth', 'blobs_eth')
+        WHERE origin_key = 'starknet' and metric_key in ('l1_data_availability_eth', 'l1_settlement_custom_eth', 'ethereum_blobs_eth')
                 AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
                 AND "date" > '2024-02-25'
         GROUP BY 1

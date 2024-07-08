@@ -53,7 +53,7 @@ class AdapterSQL(AbstractAdapter):
             df = self.db_connector.get_values_in_eth(metric_keys, days, origin_keys)
 
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth', 'calldata_da_eth', 'calldata_verification_eth', 'blobs_eth', 'total_blobs_eth']
+            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'ethereum_blobs_eth', 'total_blobs_eth']
             ## only keep metrics that are in raw_metrics and metric_keys
             if metric_keys is not None:
                 metric_keys = [x for x in metric_keys if x in raw_metrics]

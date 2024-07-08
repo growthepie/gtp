@@ -14,7 +14,7 @@ dune_queries = [
     # ,QueryBase(name="aa_last30d", query_id=3359100, params=[]) ## Ethereum active addresses last 30d
     ,QueryBase(name="stables_mcap", query_id=2608415, params=[QueryParameter.text_type(name="Days", value="7")])
     # ,QueryBase(name="stables_mcap", query_id=3808795, params=[QueryParameter.text_type(name="Days", value="7")]) ## zksync_era, imx, polgyon_zkevm stables_mcap (daily)
-    ,QueryBase(name="rent_paid", query_id=2986216, params=[QueryParameter.text_type(name="Days", value="7")]) ## Rent paid to mainnet for all L2s
+    ,QueryBase(name="rent_paid", query_id=3871869, params=[QueryParameter.text_type(name="Days", value="7")]) ## Rent paid to mainnet for all L2s
     ,QueryBase(name="total_blob_size", query_id=3857093, params=[QueryParameter.text_type(name="Days", value="7")]) ## Total size of blobs on Ethereum
 
     ## Others
