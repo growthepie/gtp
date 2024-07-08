@@ -602,7 +602,7 @@ adapter_mapping = [
         ,deployment="PROD"
         ,exclude_metrics = ['blockspace', 'throughput']
         ,aggregate_blockspace = False
-        ,aggregate_addresses = False
+        ,aggregate_addresses = True
 
         ,bucket = "ZK-Rollups"
         ,symbol = "STRK"
