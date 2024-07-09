@@ -1600,14 +1600,14 @@ class JSONCreation():
 
     def create_labels_json(self, type='full'):
         if type == 'full':
-            limit = 50000
+            limit = 250000
         elif type == 'quick':
             limit = 100
         else:
             raise ValueError('type must be either "full" or "quick"')
         
         order_by = 'txcount'
-        df = self.db_connector.get_labels_page(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
+        df = self.db_connector.get_labels_lite_db(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
@@ -1666,7 +1666,7 @@ class JSONCreation():
 
     def create_labels_parquet(self, type='full'):
         if type == 'full':
-            limit = 1000000
+            limit = 250000
         elif type == 'quick':
             limit = 100
         else:
@@ -1680,7 +1680,6 @@ class JSONCreation():
         df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
         df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
         df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-
 
         upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/{type}', df, self.cf_distribution_id)
         print(f'DONE -- labels {type}.parquet export')
