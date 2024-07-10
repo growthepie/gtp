@@ -65,20 +65,12 @@ class JSONCreation():
                 'agg': True,
                 'agg_tooltip': False,
             },
-            # 'mgas/s': {
-            #     'currency': False,
-            #     'prefix': None,
-            #     'suffix': 'Mgas/s',
-            #     'decimals': 2,
-            #     'decimals_tooltip': 2,
-            #     'agg': False, 
-            #     'agg_tooltip': False,
-            # }
         }
 
         self.metrics = {
             'tvl': {
                 'name': 'Total Value Locked',
+                'fundamental': True,
                 'metric_keys': ['tvl', 'tvl_eth'],
                 'units': {
                     'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}, 
@@ -92,6 +84,7 @@ class JSONCreation():
             }
             ,'txcount': {
                 'name': 'Transaction Count',
+                'fundamental': True,
                 'metric_keys': ['txcount'],
                 'units': {
                     'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
@@ -104,6 +97,7 @@ class JSONCreation():
             }
             ,'daa': {
                 'name': 'Active Addresses',
+                'fundamental': True,
                 'metric_keys': ['daa'],
                 'units': {
                     'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
@@ -116,6 +110,7 @@ class JSONCreation():
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin Market Cap',
+                'fundamental': True,
                 'metric_keys': ['stables_mcap', 'stables_mcap_eth'],
                 'units': {
                     'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}, 
@@ -129,6 +124,7 @@ class JSONCreation():
             }
             ,'fees': {
                 'name': 'Fees Paid by Users',
+                'fundamental': True,
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
                 'units': {
                     'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
@@ -142,6 +138,7 @@ class JSONCreation():
             }
             ,'rent_paid': {
                 'name': 'Rent Paid to L1',
+                'fundamental': True,
                 'metric_keys': ['rent_paid_usd', 'rent_paid_eth'],
                 'units': {
                     'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
@@ -155,6 +152,7 @@ class JSONCreation():
             }
             ,'profit': {
                 'name': 'Onchain Profit',
+                'fundamental': True,
                 'metric_keys': ['profit_usd', 'profit_eth'],
                 'units': {
                     'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
@@ -168,6 +166,7 @@ class JSONCreation():
             }
             ,'txcosts': {
                 'name': 'Transaction Costs',
+                'fundamental': True,
                 'metric_keys': ['txcosts_median_usd', 'txcosts_median_eth'],
                 'units': {
                     'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
@@ -181,6 +180,7 @@ class JSONCreation():
             }
             ,'fdv': {
                 'name': 'Fully Diluted Valuation',
+                'fundamental': True,
                 'metric_keys': ['fdv_usd', 'fdv_eth'],
                 'units': {
                     'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': True}, 
@@ -194,6 +194,7 @@ class JSONCreation():
             }
             ,'market_cap': {
                 'name': 'Market Cap',
+                'fundamental': True,
                 'metric_keys': ['market_cap_usd', 'market_cap_eth'],
                 'units': {
                     'usd': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': True}, 
@@ -207,6 +208,7 @@ class JSONCreation():
             }
             ,'throughput': {
                 'name': 'Throughput',
+                'fundamental': True,
                 'metric_keys': ['gas_per_second'],
                 'units': {
                     'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'Mgas/s'},
@@ -216,6 +218,36 @@ class JSONCreation():
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'ranking_bubble': True
+            }
+
+            ## Non fundamental metrics
+            ,'total_blob_size': {
+                'name': 'Total Blob Size',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['total_blob_size_mb'],
+                'units': {
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'MB'},
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
+
+            ,'total_blob_fees': {
+                'name': 'Total Blob Fees',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['total_blobs_usd', 'total_blobs_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
             }
         }
 
@@ -398,7 +430,7 @@ class JSONCreation():
 
     # this method returns a list of lists with the unix timestamp and all associated values for a certain metric_id and chain_id
     def generate_daily_list(self, df, metric_id, origin_key):
-        ##print(f'called generate int for {metric_id} and {chain_id}')
+        ##print(f'called generate int for {metric_id} and {origin_key}')
         mks = self.metrics[metric_id]['metric_keys']
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key", "date"]]
         
@@ -803,7 +835,7 @@ class JSONCreation():
 
     def get_all_data(self):
         ## Load all data from database
-        chain_user_list = self.chains_list_in_api + ['multiple']
+        chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
         metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 'cca_last7d_exclusive']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
@@ -1271,6 +1303,9 @@ class JSONCreation():
             metrics_dict = {}
             ranking_dict = {}
             for metric in self.metrics:
+                if self.metrics[metric]['fundamental'] == False:
+                    continue
+
                 if metric in chain.exclude_metrics:
                     print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded')
                     continue
@@ -1342,6 +1377,9 @@ class JSONCreation():
 
         ## loop over all metrics and generate a metric details json for all metrics and with all possible chainn
         for metric in metrics_filtered:
+            if self.metrics[metric]['fundamental'] == False:
+                continue
+            
             chains_dict = {}    
             for chain in adapter_mapping:
                 origin_key = chain.origin_key
@@ -1499,33 +1537,40 @@ class JSONCreation():
         val = df['value'].sum()
         return val
 
-    def create_economics_json(self, df):
-        # filter df for all_l2s (all chains except chains that aren't included in the API)
-        chain_keys = [x.origin_key for x in adapter_mapping if x.in_economics_api == True and x.deployment == "PROD"]
-        df = df.loc[(df.origin_key.isin(chain_keys))]
+    def gen_da_metric_dict(self, df, metric, origin_key):
+        mk_list = self.generate_daily_list(df, metric, origin_key)
+        mk_list_int = mk_list[0]
+        mk_list_columns = mk_list[1]
 
+        metric_dict = {}
+        metric_dict['metric_name'] = self.metrics[metric]['name']
+        metric_dict['daily'] = {
+            'types' : mk_list_columns,
+            'data' : mk_list_int
+        }
+
+        return metric_dict
+
+    def create_economics_json(self, df):
         economics_dict = {
             "data": {
                 "da_charts" : {
                     "ethereum": {
-                        "blob_size": self.generate_all_l2s_metric_dict(df, 'txcount', rolling_avg=True), ##TODO: change to da blobs
-                        "blob_fees": self.generate_all_l2s_metric_dict(df, 'tvl', rolling_avg=True), ##TODO: change to da_fees
+                        "total_blob_size": self.gen_da_metric_dict(df, 'total_blob_size', 'ethereum'),
+                        "total_blob_fees": self.gen_da_metric_dict(df, 'total_blob_fees', 'ethereum'),
                     },
                     "celestia": {
-                        "blob_size": self.generate_all_l2s_metric_dict(df, 'daa', rolling_avg=True), ##TODO: change to da blobs
-                        "blob_fees": self.generate_all_l2s_metric_dict(df, 'stables_mcap', rolling_avg=True), ##TODO: change to da_fees
+                        "total_blob_size": self.gen_da_metric_dict(df, 'total_blob_size', 'celestia'),
+                        "total_blob_fees": self.gen_da_metric_dict(df, 'total_blob_fees', 'celestia'),
                     },
                 },
                 "chain_breakdown": {}
             }
         }
 
-        # overwrites - TODO: can be removed once real da data is available
-        economics_dict['data']['da_charts']['ethereum']['blob_size']['metric_name'] = 'Ethereum Blob Size'
-        economics_dict['data']['da_charts']['celestia']['blob_size']['metric_name'] = 'Celestia Blob Size'
-        economics_dict['data']['da_charts']['ethereum']['blob_fees']['metric_name'] = 'Ethereum Fees'
-        economics_dict['data']['da_charts']['celestia']['blob_fees']['metric_name'] = 'Celestia Fees'
-
+        # filter df for all_l2s (all chains except chains that aren't included in the API)
+        chain_keys = [x.origin_key for x in adapter_mapping if x.in_economics_api == True and x.deployment == "PROD"]
+        df = df.loc[(df.origin_key.isin(chain_keys))]
         timeframes = [1,7,30,90,180,'max']
         
         # iterate over each chain and generate table and chart data
@@ -1537,7 +1582,7 @@ class JSONCreation():
                 timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
                 days = timeframe if timeframe != 'max' else 2000
 
-                revenue = self.aggregate_metric(df, origin_key, 'rent_paid_eth', days)
+                revenue = self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)
                 profit = self.aggregate_metric(df, origin_key, 'profit_eth', days)
                 profit_margin = profit / revenue if revenue != 0 else 0.0
 
@@ -1549,8 +1594,8 @@ class JSONCreation():
                     "costs": {
                         "types": ["usd", "eth"],
                         "total": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days)], ## TODO: change to real costs (rent to L1 + DA costs)
-                        "proof_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * (randint/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * (randint/100)], ## TODO: change to real proof costs
-                        "da_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * ((100-randint)/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * ((100-randint)/100)], ## TODO: change to real da costs
+                        "l1_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * (randint/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * (randint/100)], ## TODO: change to real proof costs
+                        "blobs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * ((100-randint)/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * ((100-randint)/100)], ## TODO: change to real da costs
                     },
                     "profit": {
                         "types": ["usd", "eth"],
