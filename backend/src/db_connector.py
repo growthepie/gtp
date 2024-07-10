@@ -1295,7 +1295,10 @@ class DbConnector:
                                 name,
                                 owner_project,
                                 usage_category,
-                                is_factory_contract
+                                is_factory_contract,
+                                deployment_tx,
+                                deployer_address,
+                                deployment_date
                         FROM public.vw_oli_labels
                         LEFT JOIN sys_chains USING (origin_key)
                         WHERE owner_project IS NOT NULL
