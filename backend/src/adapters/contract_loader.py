@@ -19,6 +19,32 @@ class ContractLoader(AbstractAdapterRaw):
         else:
             self.rpc_urls = adapter_params['rpc_urls']
 
+
+    def prep_contract_creations(self, contract_creations):
+        df = pd.DataFrame(contract_creations)
+        print(f"...extracted {len(df)} NEW contract creations.")
+
+        value_columns = ['deployment_tx', 'deployer_address']
+        df['address'] = df['address'].apply(lambda x: ('\\x' + x[2:].upper()) if (pd.notnull(x) and x.startswith('0x')) else x)
+        for col in value_columns:
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: '0x' + x.upper())
+            else:
+                print(f"Column {col} not found in dataframe.")
+
+        # Melting the DataFrame to a long format
+        if set(['address', 'origin_key', 'source', 'added_on']).issubset(df.columns):
+            df = df.melt(id_vars=['address', 'origin_key', 'source', 'added_on'], var_name='tag_id', value_name='value')
+        else:
+            missing_cols = set(['address', 'origin_key', 'source', 'added_on']) - set(df.columns)
+            print(f"Missing columns: {', '.join(missing_cols)} in dataframe.")
+
+        primary_keys = ['address', 'origin_key', 'tag_id']
+        df.drop_duplicates(subset=primary_keys, inplace=True)
+        df.set_index(primary_keys, inplace=True)
+
+        return df
+
     def extract_raw(self):
         try:
             print(f"...start extracting contract creations TX for {self.chain} and last {self.days} days from our database.")
@@ -27,42 +53,17 @@ class ContractLoader(AbstractAdapterRaw):
                 print(f"No contract creations found for chain {self.chain} and last {self.days} days.")
                 return
             
-            df = pd.DataFrame(contract_creations)
-            print(f"...extracted {len(df)} NEW contract creations.")
-
-            value_columns = ['deployment_tx', 'deployer_address']
-            df['address'] = df['address'].apply(lambda x: ('\\x' + x[2:].upper()) if (pd.notnull(x) and x.startswith('0x')) else x)
-            for col in value_columns:
-                if col in df.columns:
-                    df[col] = df[col].apply(lambda x: '0x' + x.upper())
-                else:
-                    print(f"Column {col} not found in dataframe.")
-
-            # Melting the DataFrame to a long format
-            if set(['address', 'origin_key', 'source', 'added_on']).issubset(df.columns):
-                df = df.melt(id_vars=['address', 'origin_key', 'source', 'added_on'], var_name='tag_id', value_name='value')
-            else:
-                missing_cols = set(['address', 'origin_key', 'source', 'added_on']) - set(df.columns)
-                print(f"Missing columns: {', '.join(missing_cols)} in dataframe.")
+            print(f"...extracted {len(contract_creations)} NEW contract creations.")            
 
         except Exception as e:
             raise e
         
-        if df is None or df.empty:
-            print(f"No contract creations found for chain {self.chain} and last {self.days} days.")
-        else:
-            primary_keys = ['address', 'origin_key', 'tag_id']
-            df.drop_duplicates(subset=primary_keys, inplace=True)
-            df.set_index(primary_keys, inplace=True)
-            
-        # Upsert data into the database
-        try:
-            self.db_connector.upsert_table(self.oli_table, df, if_exists='update')
-            print(f"Successfully inserted data for {self.chain}")
-        except Exception as e:
-            raise e
+        df = self.prep_contract_creations(contract_creations)
+        self.db_connector.upsert_table(self.oli_table, df, if_exists='update')
+        print(f"Successfully inserted data for {self.chain}")
+
            
-    def fetch_contract_creations(self):
+    def fetch_contract_creations(self, allow_partial_insert=True):
         try:
             metadata = MetaData(bind=self.db_connector.engine)
             table = Table(self.table_name, metadata, autoload_with=self.db_connector.engine)
@@ -141,6 +142,12 @@ class ContractLoader(AbstractAdapterRaw):
                         })
                     if index % 100 == 0:
                         print(f"...processing transaction {index} out of {len(filtered_transactions)} for {self.chain}.")
+                    if index % 1000 == 0  and allow_partial_insert:
+                        df = self.prep_contract_creations(contract_creations)
+                        self.db_connector.upsert_table(self.oli_table, df, if_exists='update')
+                        print(f"...partially inserted data for {self.chain}")
+                        contract_creations = []
+
                 return contract_creations
             else:
                 print(f"Failed to connect using RPC URL: {rpc_url}")
