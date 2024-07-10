@@ -44,6 +44,39 @@ sql_q= {
                         chain_info
                 GROUP BY 1,2 
         """
+
+        ### Celestia
+        ,'celestia_total_blob_size_mb': """
+        select 
+                date_trunc('day', block_timestamp) as day, 
+                sum(blob_sizes)/(1024*1024) as value
+        from (
+                SELECT 
+                        block_timestamp, 
+                        jsonb_array_elements(blob_sizes::jsonb)::numeric as blob_sizes
+                FROM celestia_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ) a
+        group by 1
+        """
+
+        ,'celestia_total_blobs_eth': """
+        with tia_price as (
+                SELECT "timestamp", value as price_eth
+                FROM public.fact_kpis_granular
+                where origin_key = 'celestia' and metric_key = 'price_eth' and granularity = 'hourly'
+                        and timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        )
+
+        select 
+                date_trunc('day', block_timestamp) as day, 
+                sum(fee * price_eth)/1e6 as value
+        FROM celestia_tx tx
+        left join tia_price p on date_trunc('hour', tx.block_timestamp) = p.timestamp
+        where blob_sizes is not null 
+                and block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        group by 1
+        """
         
         ### Ethereum
         ,'ethereum_txcount_raw': """
@@ -1704,6 +1737,10 @@ sql_queries = [
         # ,SQLQuery(metric_key = "user_base_daily", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
         SQLQuery(metric_key = "user_base_weekly", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7*4, "aggregation": "week"})
         # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7*4*12, "aggregation": "month"})
+        
+        ## Celestia
+        ,SQLQuery(metric_key = "total_blob_size_mb", origin_key = "celestia", sql=sql_q["celestia_total_blob_size_mb"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "total_blobs_eth", origin_key = "celestia", sql=sql_q["celestia_total_blobs_eth"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## Ethereum
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
