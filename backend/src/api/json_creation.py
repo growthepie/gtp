@@ -1667,6 +1667,26 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', sparkline_dict, self.cf_distribution_id)
         print(f'DONE -- sparkline export')
 
+    def create_projects_json(self):        
+        df = self.db_connector.get_active_projects()
+        df = df.rename(columns={'name': 'owner_project'})
+        df = df.replace({np.nan: None})        
+
+        projects_dict = {
+            'data': {
+                'types': df.columns.to_list(),
+                'data': df.values.tolist()
+            }
+        }
+
+        projects_dict = fix_dict_nan(projects_dict, f'projects')
+
+        if self.s3_bucket == None:
+            self.save_to_json(projects_dict, f'prpjects')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', projects_dict, self.cf_distribution_id)
+        print(f'DONE -- projects export')
+
     def create_labels_parquet(self, type='full'):
         if type == 'full':
             limit = 250000
@@ -1690,7 +1710,6 @@ class JSONCreation():
     def create_projects_parquet(self):        
         df = self.db_connector.get_active_projects()
 
-        df = df.drop(columns=['id'])
         df = df.rename(columns={'name': 'owner_project'})
 
         upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', df, self.cf_distribution_id)

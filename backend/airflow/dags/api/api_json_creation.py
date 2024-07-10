@@ -66,6 +66,7 @@ def etl():
         json_creator.create_labels_json('full')
         json_creator.create_labels_json('quick')
         json_creator.create_labels_sparkline_json()
+        json_creator.create_projects_json()
 
         json_creator.create_labels_parquet('full')
         json_creator.create_labels_parquet('quick')

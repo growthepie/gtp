@@ -1250,7 +1250,9 @@ class DbConnector:
                                 "name", 
                                 display_name, 
                                 description, 
-                                main_github 
+                                main_github,
+                                twitter,
+                                website 
                         FROM public.oli_oss_directory 
                         WHERE active = true
                         """
