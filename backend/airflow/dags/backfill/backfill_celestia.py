@@ -27,7 +27,7 @@ from src.adapters.rpc_funcs.utils import get_chain_config
 )
 
 def backfill_tia():
-    @task(execution_timeout=timedelta(minutes=60))
+    @task(execution_timeout=timedelta(minutes=30))
     def run_backfill_tia():
         adapter_params = {
             'chain': 'celestia',
