@@ -122,7 +122,6 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
-        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
@@ -370,7 +369,6 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
-        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -408,7 +406,6 @@ adapter_mapping = [
         ,in_api = False
         ,in_fees_api = False
         ,in_economics_api = False
-        ,in_labels_api = False
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = False
@@ -482,7 +479,6 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
-        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -518,7 +514,6 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
-        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['profit']
         ,aggregate_blockspace = True
@@ -805,7 +800,6 @@ adapter_mapping = [
         ,in_api = True
         ,in_fees_api = True
         ,in_economics_api = True
-        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
@@ -879,6 +873,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
