@@ -21,6 +21,7 @@ class AdapterMapping(BaseModel):
     exclude_metrics: list[str] ## list of metrics to exclude from the API output. Either metric name or "blockspace"
     aggregate_blockspace: bool ## True when the chain should be included in the blockspace aggregation
     aggregate_addresses: bool ## True when the chain should be included in the address aggregation (to fact_active_addresses)
+    load_contract_metadata: bool = False ## True when the chain should be included in the contract metadata loader
 
     bucket: str ## for Menu (and potentially filters): Layer 1, OP Chains, Other Optimistic Rollups, ZK-Rollups, Offchain Data Availability 
     technology: str ## -, zk, optimistic
@@ -878,6 +879,7 @@ adapter_mapping = [
         ,exclude_metrics = []
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
+        ,load_contract_metadata = True
 
         ,bucket = "Other Optimistic Rollups"
         ,symbol = "-"

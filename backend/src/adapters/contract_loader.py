@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 from sqlalchemy import MetaData, Table, select, and_
 from web3 import Web3
@@ -12,6 +12,7 @@ class ContractLoader(AbstractAdapterRaw):
         self.table_name = f'{self.chain}_tx'
         self.days = adapter_params['days']
         self.oli_table = 'oli_tag_mapping'
+        self.oli_view = 'vw_oli_labels'
         # Ensure rpc_urls is a list
         if isinstance(adapter_params['rpc_urls'], str):
             self.rpc_urls = [url.strip() for url in adapter_params['rpc_urls'].split(',')]
@@ -20,12 +21,14 @@ class ContractLoader(AbstractAdapterRaw):
 
     def extract_raw(self):
         try:
+            print(f"...start extracting contract creations TX for {self.chain} and last {self.days} days from our database.")
             contract_creations = self.fetch_contract_creations()
             if not contract_creations:  # Check if contract_creations is empty
                 print(f"No contract creations found for chain {self.chain} and last {self.days} days.")
                 return
             
             df = pd.DataFrame(contract_creations)
+            print(f"...extracted {len(df)} NEW contract creations.")
 
             value_columns = ['deployment_tx', 'deployer_address']
             df['address'] = df['address'].apply(lambda x: ('\\x' + x[2:].upper()) if (pd.notnull(x) and x.startswith('0x')) else x)
@@ -48,19 +51,14 @@ class ContractLoader(AbstractAdapterRaw):
         if df is None or df.empty:
             print(f"No contract creations found for chain {self.chain} and last {self.days} days.")
         else:
-            # Specify the primary keys
             primary_keys = ['address', 'origin_key', 'tag_id']
-            
-            # Drop duplicates based on the primary keys
             df.drop_duplicates(subset=primary_keys, inplace=True)
-            
-            # Set the primary keys as the index
             df.set_index(primary_keys, inplace=True)
             
         # Upsert data into the database
         try:
             self.db_connector.upsert_table(self.oli_table, df, if_exists='update')
-            print("Successfully inserted data")
+            print(f"Successfully inserted data for {self.chain}")
         except Exception as e:
             raise e
            
@@ -68,12 +66,12 @@ class ContractLoader(AbstractAdapterRaw):
         try:
             metadata = MetaData(bind=self.db_connector.engine)
             table = Table(self.table_name, metadata, autoload_with=self.db_connector.engine)
-            oli_table = Table(self.oli_table, metadata, autoload_with=self.db_connector.engine)
+            oli_view = Table(self.oli_view, metadata, autoload_with=self.db_connector.engine)
         except Exception as e:
             print(f"Error reflecting table {self.table_name}: {str(e)}")
             raise
 
-        end_date = datetime.utcnow()
+        end_date = datetime.now(timezone.utc)
         start_date = end_date - timedelta(days=self.days)
 
         # Fetch transactions within the date range
@@ -96,16 +94,25 @@ class ContractLoader(AbstractAdapterRaw):
             print(f"Error executing query: {str(e)}")
             return []
         
+        print(f"...found {len(transactions)} contract creation transactions within the date range.")
+        
         # Fetch existing tx_hashes from oli table
-        oli_query = select([oli_table.c.value]).where(oli_table.c.tag_id == 'deployment_tx')
+        oli_query = select([
+            oli_view.c.deployment_tx
+        ]).where(and_(
+            oli_view.c.deployment_date >= start_date, 
+            oli_view.c.origin_key == self.chain
+        ))
         
         try:
             with self.db_connector.engine.connect() as connection:
                 result = connection.execute(oli_query)
-                existing_tx_hashes = {row['value'] for row in result.fetchall() if row['value'].startswith('0x')}
+                existing_tx_hashes = {row['deployment_tx'] for row in result.fetchall() if row['deployment_tx'].startswith('0x')}
         except Exception as e:
             print(f"Error fetching existing tx_hashes: {str(e)}")
             return []
+        
+        print(f"...already {len(existing_tx_hashes)} contract creations existing in our oli table.")
 
         # Filter out transactions that are already in oli table
         filtered_transactions = [ tx for tx in transactions if f'0x{tx.tx_hash.hex().upper()}' not in existing_tx_hashes]
@@ -118,7 +125,7 @@ class ContractLoader(AbstractAdapterRaw):
         for rpc_url in self.rpc_urls:
             w3 = Web3(Web3.HTTPProvider(rpc_url))
             if w3.is_connected():
-                for tx in filtered_transactions:
+                for index, tx in enumerate(filtered_transactions):
                     tx_hash = tx.tx_hash.hex() if isinstance(tx.tx_hash, bytes) else tx.tx_hash
                     receipt = w3.eth.get_transaction_receipt(tx_hash)
                     if receipt.contractAddress:
@@ -126,12 +133,14 @@ class ContractLoader(AbstractAdapterRaw):
                             'deployment_tx': tx_hash,
                             'address': receipt.contractAddress,
                             'source': 'metadata_extraction_script',
-                            'added_on': datetime.utcnow(),
+                            'added_on': datetime.now(timezone.utc),
                             'origin_key': self.chain,
                             'is_contract': True,
                             'deployment_date': tx.block_timestamp,
                             'deployer_address': tx.from_address.hex() if isinstance(tx.from_address, bytes) else tx.from_address,
                         })
+                    if index % 100 == 0:
+                        print(f"...processing transaction {index} out of {len(filtered_transactions)} for {self.chain}.")
                 return contract_creations
             else:
                 print(f"Failed to connect using RPC URL: {rpc_url}")
