@@ -1615,6 +1615,9 @@ class JSONCreation():
         df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
         df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
 
+        df['deployment_date'] = df['deployment_date'].apply(lambda x: str(x))
+        df['deployment_date'] = df['deployment_date'].replace('NaT', None)
+
         df = df.replace({np.nan: None})        
 
         labels_dict = {

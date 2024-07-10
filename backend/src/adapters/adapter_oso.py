@@ -41,7 +41,6 @@ class AdapterOSO(AbstractAdapter):
         ## Load the data from BigQuery
         query = """
                 SELECT 
-                project_id,
                 project_name,
                 display_name,
                 project_namespace,
@@ -51,7 +50,7 @@ class AdapterOSO(AbstractAdapter):
         """
 
         df = self.bq.execute_bigquery(query)
-        df = df.rename(columns={'project_id': 'id', 'project_name': 'name', 'project_namespace': 'namespace', 'project_source': 'source'})
+        df = df.rename(columns={'project_name': 'name', 'project_namespace': 'namespace', 'project_source': 'source'})
         return df
 
     def load_oss_github_slugs(self):

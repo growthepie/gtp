@@ -1247,7 +1247,6 @@ class DbConnector:
         def get_active_projects(self):
                 exec_string = """
                         SELECT 
-                                id, 
                                 "name", 
                                 display_name, 
                                 description, 
