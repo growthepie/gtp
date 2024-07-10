@@ -32,11 +32,11 @@ def load_metadata():
     
     for adapter in [adapter for adapter in adapter_mapping if adapter.load_contract_metadata == True]:
         chain = adapter.origin_key
-        
+
         @task(task_id=f'contract_metadata_{chain}')
         def run_contract_loader(chain_name):
             db_connector = DbConnector()
-            days = 2
+            days = 5
             
             rpc_list = db_connector.get_special_use_rpc(chain_name)
             if rpc_list:  # Check if rpc_list is not empty
