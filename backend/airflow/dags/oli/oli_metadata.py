@@ -30,7 +30,7 @@ from src.chain_config import adapter_mapping
 
 def load_metadata():
     @task()
-    def run_contract_loader(chain_name):
+    def run_contract_loader():
         db_connector = DbConnector()
         days = 5
 
