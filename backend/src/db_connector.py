@@ -163,37 +163,34 @@ class DbConnector:
                         return 0
                 else:
                         return val
-                
-        def get_profit_in_eth(self, days, exclude_chains, origin_keys = None):               
+        
+        def get_economics_in_eth(self, days, exclude_chains, origin_keys = None):               
                 if origin_keys is None or len(origin_keys) == 0:
                         ok_string = ''
                 else:
                         ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
 
                 exec_string = f'''
-                        with tmp as (
-                                SELECT 
-                                        date,
-                                        origin_key,
-                                        SUM(CASE WHEN metric_key = 'rent_paid_eth' THEN value END) AS rent_paid_eth,
-                                        SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) AS fees_paid_eth
-                                FROM fact_kpis tkd
-                                WHERE metric_key = 'rent_paid_eth' or metric_key = 'fees_paid_eth'
-                                        AND origin_key not in ('{"','".join(exclude_chains)}')
-                                        {ok_string}
-                                        AND date >= date_trunc('day',now()) - interval '{days} days'
-                                        AND date < date_trunc('day', now())
-                                GROUP BY 1,2
-                        )
-
-                        SELECT
-                                date, 
+                        SELECT 
+                                date,
                                 origin_key,
-                                'profit_eth' as metric_key,
-                                fees_paid_eth - rent_paid_eth as value 
-                        FROM tmp
-                        WHERE rent_paid_eth > 0 and fees_paid_eth > 0
-                        ORDER BY 1 desc
+                                SUM(CASE WHEN metric_key = 'celestia_blobs_eth' THEN value END) AS celestia_blobs_eth,
+                                SUM(CASE WHEN metric_key = 'ethereum_blobs_eth' THEN value END) AS ethereum_blobs_eth,
+                                SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth') THEN value END) AS costs_blobs_eth,
+
+                                SUM(CASE WHEN metric_key = 'l1_data_availability_eth' THEN value END) AS l1_data_availability_eth,
+                                SUM(CASE WHEN metric_key = 'l1_settlement_eth' THEN value END) AS l1_settlement_eth,
+                                SUM(CASE WHEN metric_key in ('l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_l1_eth,
+
+                                SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_total_eth,
+                                SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS profit_eth
+                        FROM fact_kpis tkd
+                        WHERE metric_key in ('celestia_blobs_eth', 'ethereum_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'fees_paid_eth')
+                                AND origin_key not in ('{"','".join(exclude_chains)}')
+                                {ok_string}
+                                AND date >= date_trunc('day',now()) - interval '{days} days'
+                                AND date < date_trunc('day', now())
+                        GROUP BY 1,2
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
@@ -292,11 +289,13 @@ class DbConnector:
                                         WHEN 'l1_data_availability_eth' THEN 'l1_data_availability_usd'
                                         WHEN 'l1_settlement_eth' THEN 'l1_settlement_usd'
                                         WHEN 'ethereum_blobs_eth' THEN 'ethereum_blobs_usd'
+                                        WHEN 'celestia_blobs_eth' THEN 'celestia_blobs_usd'
+                                        WHEN 'costs_blobs_eth' THEN 'costs_blobs_usd'
+                                        WHEN 'costs_l1_eth' THEN 'costs_l1_usd'
+                                        WHEN 'costs_total_eth' THEN 'costs_total_usd'
                                         WHEN 'total_blobs_eth' THEN 'total_blobs_usd'
                                         WHEN 'fees_paid_eth' THEN 'fees_paid_usd'
                                         WHEN 'profit_eth' THEN 'profit_usd'
-                                        WHEN 'tvl_eth' THEN 'tvl'
-                                        WHEN 'stables_mcap_eth' THEN 'stables_mcap' 
                                         WHEN 'txcosts_median_eth' THEN 'txcosts_median_usd'
                                         ELSE 'error'
                                 END AS metric_key, 

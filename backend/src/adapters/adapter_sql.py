@@ -53,7 +53,7 @@ class AdapterSQL(AbstractAdapter):
             df = self.db_connector.get_values_in_eth(metric_keys, days, origin_keys)
 
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
-            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'ethereum_blobs_eth', 'total_blobs_eth']
+            raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'ethereum_blobs_eth', 'celestia_blobs_eth', 'costs_blobs_eth', 'costs_l1_eth', 'costs_total_eth', 'total_blobs_eth']
             ## only keep metrics that are in raw_metrics and metric_keys
             if metric_keys is not None:
                 metric_keys = [x for x in metric_keys if x in raw_metrics]
@@ -61,10 +61,15 @@ class AdapterSQL(AbstractAdapter):
                 metric_keys = raw_metrics
             df = self.db_connector.get_values_in_usd(metric_keys, days, origin_keys)
 
-        elif load_type == 'profit':
-            ## chains to exclude from profit calculation: Offchain DA like IMX and Mantle
-            exclude_chains = ['imx', 'mantle']
-            df = self.db_connector.get_profit_in_eth(days, exclude_chains, origin_keys)
+        elif load_type == 'economics':
+            ## chains to exclude from profit calculation: Offchain DA like IMX and Mantle  
+            exclude_chains = ['imx', 'mantle']                      
+            df = self.db_connector.get_economics_in_eth(days, exclude_chains, origin_keys)
+
+            ## unpivot df
+            df = df.melt(id_vars=['date', 'origin_key'], var_name='metric_key', value_name='value')
+            ## remove all rows where value is na
+            df = df.dropna(subset=['value'])
 
         elif load_type == 'fdv':
             df = self.db_connector.get_fdv_in_usd(days, origin_keys)

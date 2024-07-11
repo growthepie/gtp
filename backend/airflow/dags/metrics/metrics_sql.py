@@ -69,11 +69,11 @@ def etl():
         # ad.load(df)
 
     @task()
-    def run_profit(run_metrics:str):
+    def run_economics(run_metrics:str):
         adapter_params = {
         }
         load_params = {
-            'load_type' : 'profit', ## calculate profit based on rent and fees
+            'load_type' : 'economics', ## calculate profit based on rent and fees
             'days' : 5000, ## days as int our 'auto
             'origin_keys' : None, ## origin_keys as list or None
             'metric_keys' : None, ## metric_keys as list or None
@@ -88,7 +88,7 @@ def etl():
         ad.load(df)
 
     @task()
-    def run_fdv(run_profit:str):
+    def run_fdv(run_economics:str):
         adapter_params = {
         }
         load_params = {
@@ -163,7 +163,7 @@ def etl():
         # extract
         ad.extract(load_params)
 
-    run_eth_to_usd(run_usd_to_eth(run_fdv(run_profit(run_metrics_dependent()))))    
+    run_eth_to_usd(run_usd_to_eth(run_fdv(run_economics(run_metrics_dependent()))))    
     run_blockspace()
     run_metrics_independent()
 etl()

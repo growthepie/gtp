@@ -1535,7 +1535,25 @@ sql_q= {
                         AND block_timestamp < date_trunc('day', now())
         ) a
         group by 1
+        """
 
+        , 'manta_celestia_blobs_eth': """
+        with tia_price as (
+                SELECT "timestamp", value as price_eth
+                FROM public.fact_kpis_granular
+                where origin_key = 'celestia' and metric_key = 'price_eth' and granularity = 'hourly'
+                        and timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        )
+        SELECT 
+                date_trunc('day', block_timestamp) as day, 
+                sum(fee * price_eth)/1e6 as value
+        FROM celestia_tx tx
+        left join tia_price p on date_trunc('hour', tx.block_timestamp) = p.timestamp
+        where "action" = 'celestia.blob.v1.MsgPayForBlobs'
+                and sender in (SELECT json_array_elements_text(da_mapping->'celestia') FROM sys_chains where origin_key = 'manta')
+                and block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
+                AND block_timestamp < date_trunc('day', now())
+        group by 1
         """
 
         ### Mode
@@ -1964,6 +1982,7 @@ sql_queries = [
         ,SQLQuery(metric_key = "cca", origin_key = "manta", sql=get_cross_chain_activity('manta'), currency_dependent = False, query_parameters={})
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "manta", sql=sql_q["manta_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "celestia_blob_size_bytes", origin_key = "manta", sql=sql_q["manta_celestia_blob_size_bytes"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "celestia_blobs_eth", origin_key = "manta", sql=sql_q["manta_celestia_blobs_eth"], currency_dependent = True, query_parameters={"Days": 7})
 
         ## Mode
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "mode", sql=sql_q["mode_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
