@@ -1612,6 +1612,7 @@ class JSONCreation():
                 }
 
             ## add timeseries data for each chain
+            ## TODO: rent_paid doesn't reflect full costs, only rent to L1
             economics_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
             for metric in ['fees', 'rent_paid', 'profit']:
                 mk_list = self.generate_daily_list(df, metric, origin_key)

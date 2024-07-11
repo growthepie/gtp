@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import pandas as pd
-from sqlalchemy import MetaData, Table, select, and_
+from sqlalchemy import MetaData, Table, select, and_, or_
 from web3 import Web3
 from src.adapters.abstract_adapters import AbstractAdapterRaw
 from src.db_connector import DbConnector
@@ -51,9 +51,7 @@ class ContractLoader(AbstractAdapterRaw):
             contract_creations = self.fetch_contract_creations()
             if not contract_creations:  # Check if contract_creations is empty
                 print(f"No contract creations found for chain {self.chain} and last {self.days} days.")
-                return
-            
-            print(f"...extracted {len(contract_creations)} NEW contract creations.")            
+                return         
 
         except Exception as e:
             raise e
@@ -83,8 +81,10 @@ class ContractLoader(AbstractAdapterRaw):
             table.c.from_address
         ]).where(and_(
             table.c.block_timestamp >= start_date,
-            table.c.block_timestamp <= end_date,
-            table.c.to_address == None
+            or_(
+                table.c.to_address == None, 
+                table.c.to_address == bytes.fromhex('0000000000000000000000000000000000008006')
+            )
         ))
 
         try:
@@ -142,11 +142,15 @@ class ContractLoader(AbstractAdapterRaw):
                         })
                     if index % 100 == 0:
                         print(f"...processing transaction {index} out of {len(filtered_transactions)} for {self.chain}.")
-                    if index % 1000 == 0  and allow_partial_insert:
-                        df = self.prep_contract_creations(contract_creations)
-                        self.db_connector.upsert_table(self.oli_table, df, if_exists='update')
-                        print(f"...partially inserted data for {self.chain}")
-                        contract_creations = []
+                    if index % 1000 == 0  and index > 1 and allow_partial_insert:
+                        if len(contract_creations) > 0:
+                            df = self.prep_contract_creations(contract_creations)
+                            self.db_connector.upsert_table(self.oli_table, df, if_exists='update')
+                            print(f"...partially inserted data for {self.chain}")
+                            contract_creations = []
+                        else:
+                            print(f"...seems like all tx_hashes are NON contract creations -- investigate!")
+                            print(f'...last tx_hash: {tx_hash}')
 
                 return contract_creations
             else:

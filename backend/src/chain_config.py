@@ -449,6 +449,7 @@ adapter_mapping = [
         ,exclude_metrics = ['fdv', 'market_cap', 'rent_paid', 'profit']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
+        ,load_contract_metadata = True
 
         ,bucket = "ZK-Rollups"
         ,symbol = "-"
@@ -874,7 +875,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
-        #,in_labels_api = True
+        ,in_labels_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
