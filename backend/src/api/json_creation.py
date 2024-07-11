@@ -4,7 +4,7 @@ import datetime
 import pandas as pd
 import numpy as np
 import random
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
 from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
@@ -1559,7 +1559,11 @@ class JSONCreation():
         return val
 
     def gen_da_metric_dict(self, df, metric, origin_key):
-        mk_list = self.generate_daily_list(df, metric, origin_key)
+        ##start_date is today 180 days ago
+        start_date = datetime.now() - timedelta(days=130)
+        start_date = start_date.replace(tzinfo=timezone.utc)  
+
+        mk_list = self.generate_daily_list(df, metric, origin_key, start_date)
         mk_list_int = mk_list[0]
         mk_list_columns = mk_list[1]
 
