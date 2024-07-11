@@ -249,6 +249,21 @@ class JSONCreation():
                 'max_date_fill' : False,
                 'ranking_bubble': False
             }
+
+            ,'costs': {
+                'name': 'Costs',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['costs_total_usd', 'costs_total_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
         }
 
         self.fees_types = {
@@ -429,10 +444,14 @@ class JSONCreation():
 
 
     # this method returns a list of lists with the unix timestamp and all associated values for a certain metric_id and chain_id
-    def generate_daily_list(self, df, metric_id, origin_key):
+    def generate_daily_list(self, df, metric_id, origin_key, start_date = None):
         ##print(f'called generate int for {metric_id} and {origin_key}')
         mks = self.metrics[metric_id]['metric_keys']
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key", "date"]]
+
+        ## if start_date is not None, filter df_tmp date to only values after start date
+        if start_date is not None:
+            df_tmp = df_tmp.loc[(df_tmp.date >= start_date), ["unix", "value", "metric_key", "date"]]
         
         max_date = df_tmp['date'].max()
         max_date = pd.to_datetime(max_date).replace(tzinfo=None)
@@ -1613,16 +1632,23 @@ class JSONCreation():
                 }
 
             ## add timeseries data for each chain
-            ## TODO: rent_paid doesn't reflect full costs, only rent to L1
             economics_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
-            for metric in ['fees', 'rent_paid', 'profit']:
-                mk_list = self.generate_daily_list(df, metric, origin_key)
+
+            econ_metrics = ['fees', 'costs', 'profit']
+            ## determine the min date for all metric_keys of econ_metrics in df
+            min_date_fees = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['fees']['metric_keys']))]['date'].min()
+            min_date_costs = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['costs']['metric_keys']))]['date'].min()
+            min_date_profit = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['profit']['metric_keys']))]['date'].min()
+            start_date = max(min_date_fees, min_date_costs, min_date_profit)
+
+            for metric in econ_metrics:
+                mk_list = self.generate_daily_list(df, metric, origin_key, start_date)
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]
 
                 metric_to_key = {
                     'fees': 'revenue',
-                    'rent_paid': 'costs',
+                    'costs': 'costs',
                     'profit': 'profit'
                 }
 

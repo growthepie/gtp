@@ -143,7 +143,7 @@ class ContractLoader(AbstractAdapterRaw):
                             })
                     except Exception as e:
                         print(f"Error fetching receipt for tx_hash {tx_hash}: {str(e)}")
-                        time.sleep(1)
+                        time.sleep(2)
                         continue
                     
                     if index % 100 == 0:
