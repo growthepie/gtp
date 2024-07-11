@@ -21,7 +21,7 @@ from src.chain_config import adapter_mapping
         'retry_delay': timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook,
     },
-    dag_id='contract_loader_dag',
+    dag_id='oli_metadata',
     description='Loads contract data using the ContractLoader',
     tags=['contracts', 'daily'],
     start_date=datetime(2023, 6, 5),
