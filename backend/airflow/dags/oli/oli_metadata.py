@@ -29,16 +29,16 @@ from src.chain_config import adapter_mapping
 )
 
 def load_metadata():
-    
-    for adapter in [adapter for adapter in adapter_mapping if adapter.load_contract_metadata == True]:
-        chain = adapter.origin_key
+    @task()
+    def run_contract_loader(chain_name):
+        db_connector = DbConnector()
+        days = 5
 
-        @task(task_id=f'contract_metadata_{chain}')
-        def run_contract_loader(chain_name):
-            db_connector = DbConnector()
-            days = 5
-            
-            rpc_list = db_connector.get_special_use_rpc(chain_name)
+        for adapter in [adapter for adapter in adapter_mapping if adapter.load_contract_metadata == True]:
+            chain = adapter.origin_key
+            print(f"--- Loading contract metadata for chain {chain} ---")
+        
+            rpc_list = db_connector.get_special_use_rpc(chain)
             if rpc_list:  # Check if rpc_list is not empty
                 rpc_urls = rpc_list  # Directly use rpc_list if it's already a list of URLs
                 print(rpc_urls)
@@ -48,7 +48,7 @@ def load_metadata():
 
             adapter_params = {
                 'days': days,
-                'chain': chain_name,
+                'chain': chain,
                 'rpc_urls': rpc_urls,
             }
 
@@ -59,6 +59,6 @@ def load_metadata():
             except Exception as e:
                 print(e)
 
-        run_contract_loader(chain)
+    run_contract_loader()
 
 load_metadata()
