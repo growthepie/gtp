@@ -171,6 +171,7 @@ adapter_mapping = [
         ,exclude_metrics = []
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
+        ,load_contract_metadata = True
 
         ,bucket = "OP Chains"
         ,symbol = "OP"
@@ -217,6 +218,7 @@ adapter_mapping = [
         ,exclude_metrics = []
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
+        ,load_contract_metadata = True
 
         ,bucket = "Other Optimistic Rollups"
         ,symbol = "ARB"
