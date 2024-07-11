@@ -224,9 +224,9 @@ class JSONCreation():
             ,'total_blob_size': {
                 'name': 'Total Blob Size',
                 'fundamental': False, ## not a fundamental metric
-                'metric_keys': ['total_blob_size_mb'],
+                'metric_keys': ['total_blob_size_bytes'],
                 'units': {
-                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'agg': False, 'suffix': 'MB'},
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False, 'agg': False, 'suffix': 'Bytes'},
                 },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',

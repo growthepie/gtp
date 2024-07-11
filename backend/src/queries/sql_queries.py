@@ -46,10 +46,10 @@ sql_q= {
         """
 
         ### Celestia
-        ,'celestia_total_blob_size_mb': """
+        ,'celestia_total_blob_size_bytes': """
         select 
                 date_trunc('day', block_timestamp) as day, 
-                sum(blob_sizes)/(1024*1024) as value
+                sum(blob_sizes) as value
         from (
                 SELECT 
                         block_timestamp, 
@@ -1739,7 +1739,7 @@ sql_queries = [
         # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7*4*12, "aggregation": "month"})
         
         ## Celestia
-        ,SQLQuery(metric_key = "total_blob_size_mb", origin_key = "celestia", sql=sql_q["celestia_total_blob_size_mb"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "total_blob_size_bytes", origin_key = "celestia", sql=sql_q["celestia_total_blob_size_bytes"], currency_dependent = False, query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "total_blobs_eth", origin_key = "celestia", sql=sql_q["celestia_total_blobs_eth"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## Ethereum

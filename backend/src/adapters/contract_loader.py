@@ -3,7 +3,7 @@ import pandas as pd
 from sqlalchemy import MetaData, Table, select, and_, or_
 from web3 import Web3
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from src.db_connector import DbConnector
+import time
 
 class ContractLoader(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -128,18 +128,24 @@ class ContractLoader(AbstractAdapterRaw):
             if w3.is_connected():
                 for index, tx in enumerate(filtered_transactions):
                     tx_hash = tx.tx_hash.hex() if isinstance(tx.tx_hash, bytes) else tx.tx_hash
-                    receipt = w3.eth.get_transaction_receipt(tx_hash)
-                    if receipt.contractAddress:
-                        contract_creations.append({
-                            'deployment_tx': tx_hash,
-                            'address': receipt.contractAddress,
-                            'source': 'metadata_extraction_script',
-                            'added_on': datetime.now(timezone.utc),
-                            'origin_key': self.chain,
-                            'is_contract': True,
-                            'deployment_date': tx.block_timestamp,
-                            'deployer_address': tx.from_address.hex() if isinstance(tx.from_address, bytes) else tx.from_address,
-                        })
+                    try:
+                        receipt = w3.eth.get_transaction_receipt(tx_hash)
+                        if receipt.contractAddress:
+                            contract_creations.append({
+                                'deployment_tx': tx_hash,
+                                'address': receipt.contractAddress,
+                                'source': 'metadata_extraction_script',
+                                'added_on': datetime.now(timezone.utc),
+                                'origin_key': self.chain,
+                                'is_contract': True,
+                                'deployment_date': tx.block_timestamp,
+                                'deployer_address': tx.from_address.hex() if isinstance(tx.from_address, bytes) else tx.from_address,
+                            })
+                    except Exception as e:
+                        print(f"Error fetching receipt for tx_hash {tx_hash}: {str(e)}")
+                        time.sleep(1)
+                        continue
+                    
                     if index % 100 == 0:
                         print(f"...processing transaction {index} out of {len(filtered_transactions)} for {self.chain}.")
                     if index % 1000 == 0  and index > 1 and allow_partial_insert:
