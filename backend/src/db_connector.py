@@ -174,6 +174,8 @@ class DbConnector:
                         SELECT 
                                 date,
                                 origin_key,
+                                SUM(CASE WHEN metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes') THEN value END) AS blob_size_bytes,
+
                                 SUM(CASE WHEN metric_key = 'celestia_blobs_eth' THEN value END) AS celestia_blobs_eth,
                                 SUM(CASE WHEN metric_key = 'ethereum_blobs_eth' THEN value END) AS ethereum_blobs_eth,
                                 SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth') THEN value END) AS costs_blobs_eth,
@@ -185,7 +187,7 @@ class DbConnector:
                                 SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_total_eth,
                                 SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS profit_eth
                         FROM fact_kpis tkd
-                        WHERE metric_key in ('celestia_blobs_eth', 'ethereum_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'fees_paid_eth')
+                        WHERE metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes', 'celestia_blobs_eth', 'ethereum_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'fees_paid_eth')
                                 AND origin_key not in ('{"','".join(exclude_chains)}')
                                 {ok_string}
                                 AND date >= date_trunc('day',now()) - interval '{days} days'

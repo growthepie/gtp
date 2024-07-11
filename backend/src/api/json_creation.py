@@ -836,7 +836,9 @@ class JSONCreation():
     def get_all_data(self):
         ## Load all data from database
         chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
-        metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 'cca_last7d_exclusive']
+        metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
+                                                'cca_last7d_exclusive', 'costs_total_eth', 'costs_total_usd', 'costs_l1_eth', 'costs_l1_usd', 
+                                                'costs_blobs_eth', 'costs_blobs_usd', 'blob_size_bytes']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"
@@ -1575,7 +1577,6 @@ class JSONCreation():
         
         # iterate over each chain and generate table and chart data
         for origin_key in chain_keys:
-            randint = random.randint(80, 100)
             economics_dict['data']['chain_breakdown'][origin_key] = {}
             # get data for each timeframe (for table aggregates)
             for timeframe in timeframes:
@@ -1593,9 +1594,9 @@ class JSONCreation():
                     },		
                     "costs": {
                         "types": ["usd", "eth"],
-                        "total": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days)], ## TODO: change to real costs (rent to L1 + DA costs)
-                        "l1_costs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * (randint/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * (randint/100)], ## TODO: change to real proof costs
-                        "blobs": [self.aggregate_metric(df, origin_key, 'rent_paid_usd', days) * ((100-randint)/100), self.aggregate_metric(df, origin_key, 'rent_paid_eth', days) * ((100-randint)/100)], ## TODO: change to real da costs
+                        "total": [self.aggregate_metric(df, origin_key, 'costs_total_usd', days), self.aggregate_metric(df, origin_key, 'costs_total_eth', days)],
+                        "l1_costs": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], 
+                        "blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)],
                     },
                     "profit": {
                         "types": ["usd", "eth"],
@@ -1607,7 +1608,7 @@ class JSONCreation():
                     },
                     "size": {
                         "types": ["bytes"],
-                        "total": [random.randint(10000, 100000) * days] ## TODO: change to real size
+                        "total": [self.aggregate_metric(df, origin_key, 'blob_size_bytes', days)]
                     }
                 }
 
