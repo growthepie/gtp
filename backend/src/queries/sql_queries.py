@@ -1825,18 +1825,18 @@ sql_queries = [
         ,SQLQuery(metric_key = "cca", origin_key = "zora", sql=get_cross_chain_activity('zora'), currency_dependent = False, query_parameters={})
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "zora", sql=sql_q["zora_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
 
-        ## PGN
-        ,SQLQuery(metric_key = "txcount_raw", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
-        ,SQLQuery(metric_key = "txcount", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount"], currency_dependent = False, query_parameters={"Days": 7})
-        ,SQLQuery(metric_key = "daa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
-        #,SQLQuery(metric_key = "waa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
-        ,SQLQuery(metric_key = "maa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
-        ,SQLQuery(metric_key = "aa_last7d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
-        ,SQLQuery(metric_key = "aa_last30d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
-        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_eth"], query_parameters={"Days": 7})
-        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_eth"], query_parameters={"Days": 7})
-        ,SQLQuery(metric_key = "cca", origin_key = "gitcoin_pgn", sql=get_cross_chain_activity('gitcoin_pgn'), currency_dependent = False, query_parameters={})
-        ,SQLQuery(metric_key = "gas_per_second", origin_key = "gitcoin_pgn", sql=sql_q["pgn_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        # ## PGN
+        # ,SQLQuery(metric_key = "txcount_raw", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        # ,SQLQuery(metric_key = "txcount", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+        # ,SQLQuery(metric_key = "daa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+        # #,SQLQuery(metric_key = "waa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+        # ,SQLQuery(metric_key = "maa", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+        # ,SQLQuery(metric_key = "aa_last7d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
+        # ,SQLQuery(metric_key = "aa_last30d", origin_key = "gitcoin_pgn", sql=sql_q["pgn_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
+        # ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_fees_paid_eth"], query_parameters={"Days": 7})
+        # ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gitcoin_pgn", sql=sql_q["pgn_txcosts_median_eth"], query_parameters={"Days": 7})
+        # ,SQLQuery(metric_key = "cca", origin_key = "gitcoin_pgn", sql=get_cross_chain_activity('gitcoin_pgn'), currency_dependent = False, query_parameters={})
+        # ,SQLQuery(metric_key = "gas_per_second", origin_key = "gitcoin_pgn", sql=sql_q["pgn_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
     
         ## Linea
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "linea", sql=sql_q["linea_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
