@@ -399,42 +399,42 @@ adapter_mapping = [
         ,backfiller_on=True  
     )
 
-    ,AdapterMapping(
-        origin_key="gitcoin_pgn"
-        ,name="Public Goods Network"
-        ,name_short = "PGN"
-        ,description="Public Goods Network is a fully EVM compatible optimistic rollup built on the OP Stack."
-        ,da_layer = "Celestia"
+    # ,AdapterMapping(
+    #     origin_key="gitcoin_pgn"
+    #     ,name="Public Goods Network"
+    #     ,name_short = "PGN"
+    #     ,description="Public Goods Network is a fully EVM compatible optimistic rollup built on the OP Stack."
+    #     ,da_layer = "Celestia"
 
-        ,in_api = False
-        ,in_fees_api = False
-        ,in_economics_api = False
-        ,deployment="PROD"
-        ,exclude_metrics = ['fdv', 'market_cap']
-        ,aggregate_blockspace = False
-        ,aggregate_addresses = False
+    #     ,in_api = False
+    #     ,in_fees_api = False
+    #     ,in_economics_api = False
+    #     ,deployment="PROD"
+    #     ,exclude_metrics = ['fdv', 'market_cap']
+    #     ,aggregate_blockspace = False
+    #     ,aggregate_addresses = False
 
-        ,bucket = "Offchain Data Availability"
-        ,symbol = "-"
-        ,technology = "Optimium"
-        ,purpose = 'General Purpose (EVM)'
-        ,stack = {'label' : 'OP Stack' , 'url': 'https://docs.optimism.io/stack/getting-started'}
-        ,launch_date='2023-07-26'
-        ,raas = 'Conduit'
+    #     ,bucket = "Offchain Data Availability"
+    #     ,symbol = "-"
+    #     ,technology = "Optimium"
+    #     ,purpose = 'General Purpose (EVM)'
+    #     ,stack = {'label' : 'OP Stack' , 'url': 'https://docs.optimism.io/stack/getting-started'}
+    #     ,launch_date='2023-07-26'
+    #     ,raas = 'Conduit'
 
-        ,website='https://publicgoods.network/'
-        ,block_explorer='https://explorer.publicgoods.network/'
-        ,block_explorers={'Blockscout': 'https://explorer.publicgoods.network/'}
-        ,twitter="https://twitter.com/pgn_eth"
+    #     ,website='https://publicgoods.network/'
+    #     ,block_explorer='https://explorer.publicgoods.network/'
+    #     ,block_explorers={'Blockscout': 'https://explorer.publicgoods.network/'}
+    #     ,twitter="https://twitter.com/pgn_eth"
 
-        #,coingecko_naming="-"
-        ,l2beat_tvl_naming='publicgoodsnetwork'
+    #     #,coingecko_naming="-"
+    #     ,l2beat_tvl_naming='publicgoodsnetwork'
 
-        ,block_explorer_txcount='https://explorer.publicgoods.network/api/v2/stats/charts/transactions'
-        ,block_explorer_type='blockscout'
+    #     ,block_explorer_txcount='https://explorer.publicgoods.network/api/v2/stats/charts/transactions'
+    #     ,block_explorer_type='blockscout'
 
-        ,backfiller_on=True  
-    )
+    #     ,backfiller_on=True  
+    # )
 
     ,AdapterMapping(
         origin_key="linea"
