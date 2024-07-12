@@ -340,6 +340,7 @@ adapter_mapping = [
         ,exclude_metrics = ['fdv', 'market_cap']
         ,aggregate_blockspace = True
         ,aggregate_addresses = True
+        ,load_contract_metadata = True
 
         ,bucket = "OP Chains"
         ,symbol = "-"
