@@ -130,6 +130,7 @@ class ContractLoader(AbstractAdapterRaw):
                     tx_hash = tx.tx_hash.hex() if isinstance(tx.tx_hash, bytes) else tx.tx_hash
                     try:
                         receipt = w3.eth.get_transaction_receipt(tx_hash)
+                        time.sleep(0.05)
                         if receipt.contractAddress:
                             contract_creations.append({
                                 'deployment_tx': tx_hash,
