@@ -767,6 +767,7 @@ adapter_mapping = [
         ,exclude_metrics = ['blockspace']
         ,aggregate_blockspace = False
         ,aggregate_addresses = True
+        ,load_contract_metadata = True
 
         ,bucket = "Other Optimistic Rollups"
         ,symbol = "-"
