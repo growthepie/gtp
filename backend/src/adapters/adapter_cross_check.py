@@ -99,7 +99,7 @@ class AdapterCrossCheck(AbstractAdapter):
                     raise ValueError('Block Explorer Type not supported')
             except Exception as e:
                 print(f"TxCount Cross Check: Error loading comparison txcount data for {project.origin_key}: {e}")
-                send_discord_message(f"Error loading txcount data for {project.origin_key}: {e}", self.webhook_url)
+                send_discord_message(f"Error loading TxCount Cross Check data for {project.origin_key}: {e}", self.webhook_url)
                 continue
         
         today = datetime.today().strftime('%Y-%m-%d')
