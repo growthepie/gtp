@@ -351,9 +351,21 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df['source'].to_list()
         
+        ## extraction script for backup DAG
         def extract_table(self, table_name:str):
                 exec_string = f'select * from {table_name}'
-                df = pd.read_sql(exec_string, self.engine.connect())
+                #df = pd.read_sql(exec_string, self.engine.connect())
+                
+                chunksize = 1000000  # Number of rows per chunk
+                chunks = []
+
+                for chunk in pd.read_sql(exec_string, self.engine.connect(), chunksize=chunksize):  
+                        chunks.append(chunk)
+                        print(f"... chunk: {len(chunks)} - loaded {chunk.shape[0]} rows.")  
+
+                # Concatenate all chunks into a single DataFrame
+                df = pd.concat(chunks, ignore_index=True)
+
                 return df
         
         ## Unique sender and addresses
