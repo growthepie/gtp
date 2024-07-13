@@ -12,7 +12,7 @@ class ContractLoader(AbstractAdapterRaw):
         self.table_name = f'{self.chain}_tx'
         self.days = adapter_params['days']
         self.oli_table = 'oli_tag_mapping'
-        self.oli_view = 'vw_oli_labels'
+        self.oli_view = 'vw_oli_labels_materialized'
         # Ensure rpc_urls is a list
         if isinstance(adapter_params['rpc_urls'], str):
             self.rpc_urls = [url.strip() for url in adapter_params['rpc_urls'].split(',')]
