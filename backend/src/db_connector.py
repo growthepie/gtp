@@ -45,6 +45,12 @@ class DbConnector:
                         return df.shape[0]
                 
 # ------------------------- additional db functions -------------------------
+        def refresh_materialized_view(self, view_name:str):
+                exec_string = f"REFRESH MATERIALIZED VIEW {view_name};"
+                with self.engine.connect() as connection:
+                        connection.execute(exec_string)
+                print(f"Materialized view {view_name} refreshed.")
+        
         def get_last_price_eth(self, origin_key:str, granularity:str='daily'):
                 if granularity == 'daily':
                         table_name = 'fact_kpis'
@@ -778,7 +784,7 @@ class DbConnector:
                                 sum(txcount) as txcount,
                                 sum(daa) as daa
                         FROM public.blockspace_fact_contract_level cl
-                        inner join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                        inner join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and cl.origin_key = '{chain}'
@@ -857,8 +863,7 @@ class DbConnector:
                                 'Unlabeled' as sub_category_name,
                                 'unlabeled' as main_category_key,
                                 'Unlabeled' as main_category_name,
-                        """
-                
+                        """       
 
                 exec_string = f'''
                         with top_contracts as (
@@ -873,7 +878,7 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                                 left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id) 
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where 
@@ -892,10 +897,8 @@ class DbConnector:
                                         SELECT
                                                 ROW_NUMBER() OVER (PARTITION BY main_category_key, origin_key ORDER BY gas_fees_eth desc) AS r,
                                                 t.*
-                                        FROM
-                                                top_contracts t) x
-                                WHERE
-                                        x.r <= 20
+                                        FROM top_contracts t) x
+                                WHERE x.r <= 20
                                 )
                                 
                         select * from (select * from top_contracts order by gas_fees_eth desc limit {contract_limit}) a
@@ -939,7 +942,7 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key
+                                left join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key
                                 left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id)
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where
@@ -1041,7 +1044,7 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join vw_oli_labels bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                                 left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id) 
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where 
@@ -1190,7 +1193,7 @@ class DbConnector:
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num_gas,
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(daa) DESC) AS row_num_daa
                                 FROM public.blockspace_fact_contract_level cl 
-                                LEFT JOIN vw_oli_labels bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
+                                LEFT JOIN vw_oli_labels_materialized bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
                                 WHERE bl.usage_category IS NULL 
                                         AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         AND NOT EXISTS (
@@ -1296,7 +1299,7 @@ class DbConnector:
                                 deployment_tx,
                                 deployer_address,
                                 deployment_date
-                        FROM public.vw_oli_labels
+                        FROM public.vw_oli_labels_materialized
                         LEFT JOIN sys_chains USING (origin_key)
                         WHERE owner_project IS NOT NULL
                         """
@@ -1351,7 +1354,7 @@ class DbConnector:
                                 (cl.daa - prev.daa) / prev.daa as daa_change
                         FROM current_period cl
                         left join prev_period prev using (address, origin_key)
-                        left join vw_oli_labels lab using (address, origin_key)
+                        left join vw_oli_labels_materialized lab using (address, origin_key)
                         left join oli_oss_directory oss on oss.name = lab.owner_project
                         where origin_key IN ('{"','".join(origin_keys)}')
                                 and (lab.owner_project is null OR oss.active = true)

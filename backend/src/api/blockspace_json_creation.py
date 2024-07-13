@@ -182,8 +182,7 @@ class BlockspaceJSONCreation():
         #for chain_key in adapter_mapping:
         for chain in adapter_all2_mapping:
             origin_key = chain.origin_key
-            # if origin_key == 'ethereum':
-            #     continue
+
             if chain.in_api == False:
                 print(f'-- SKIPPED -- Chain blockspace overview export for {origin_key}. API is set to False')
                 continue
