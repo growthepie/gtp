@@ -6,6 +6,7 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 import os
+import gc
 import pandas as pd
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
@@ -50,6 +51,11 @@ def backup():
                 s3_path = f"s3://{bucket_name}/{file_key}"
                 chunk.to_parquet(s3_path, index=False)
                 print(f'...backed up {len(chunk)} rows to {file_key}')
+
+                # Explicitly delete the chunk and force garbage collection
+                del chunk
+                gc.collect()
+
             print(f'...finished backing up {table_name}')
 
     run_backup_tables()
