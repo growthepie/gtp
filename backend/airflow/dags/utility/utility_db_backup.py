@@ -42,7 +42,7 @@ def backup():
 
             for chunk in pd.read_sql(exec_string, db_connector.engine.connect(), chunksize=chunksize):  
                 chunks += 1
-                print(f"... chunk: {len(chunks)} - loaded {chunk.shape[0]} rows.")  
+                print(f"... chunk: {chunks} - loaded {chunk.shape[0]} rows.")  
             
                 filename = f"{table_name}_{chunks}_{time_str}.parquet"
                 file_key = f"backup_db/{table_name}/{filename}"
