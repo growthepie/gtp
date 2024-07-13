@@ -273,6 +273,7 @@ class BlockspaceJSONCreation():
 
                     ## only add contracts to all field in dicts
                     if origin_key == 'all_l2s':
+                        print(f"..adding contracts for {timeframe_key} and {main_category_key}")
                         top_contracts_gas = self.db_connector.get_contracts_overview(main_category_key, timeframe, chain_keys)
                         # convert address to checksummed string 
                         top_contracts_gas = db_addresses_to_checksummed_addresses(top_contracts_gas, ['address'])
@@ -589,6 +590,7 @@ class BlockspaceJSONCreation():
         main_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'main_category', chain_keys)
 
         for timeframe in timeframes:
+            print(f"...processing timeframe {timeframe} days")
             sub_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'sub_category', chain_keys)
             main_cat_agg_df = self.get_comparison_aggregate_data_day(timeframe, 'main_category', chain_keys)
             
