@@ -114,7 +114,9 @@ class AdapterCrossCheck(AbstractAdapter):
         print_load(self.name, upserted, tbl_name)     
 
     def cross_check(self):
-        exec_string = """
+        origin_keys = [x.origin_key for x in self.projects]
+
+        exec_string = f"""
             with temp as (
             SELECT 
                 origin_key,
@@ -124,6 +126,7 @@ class AdapterCrossCheck(AbstractAdapter):
             WHERE metric_key in ('txcount_raw', 'txcount_explorer')
             and date < date_trunc('day', NOW()) 
             and date >= date_trunc('day',now()) - interval '7 days' 
+            and origin_key in ('"""+ "', '".join(origin_keys) + """')
             group by 1
         )
 
