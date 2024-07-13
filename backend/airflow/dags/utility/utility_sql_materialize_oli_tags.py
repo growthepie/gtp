@@ -18,7 +18,7 @@ from src.adapters.adapter_sql import AdapterSQL
         'retry_delay' : timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='utility_sql_materialize',
+    dag_id='utility_sql_materialize_oli_tags',
     description='Aggregate materialized views on database',
     tags=['utility', 'daily'],
     start_date=datetime(2023,4,24),
