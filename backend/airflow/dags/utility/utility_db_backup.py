@@ -12,6 +12,12 @@ from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 
+##monitoring
+import psutil
+import tracemalloc
+# Start memory monitoring
+tracemalloc.start()
+
 @dag(
     default_args={
         'owner' : 'mseidl',
@@ -26,6 +32,14 @@ from src.db_connector import DbConnector
     start_date=datetime(2023,7,4),
     schedule='30 04 * * *'
 )        
+
+def print_memory_usage():
+    print(f'Memory usage: {psutil.Process(os.getpid()).memory_info().rss / 1024 ** 2} MB')
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+    print("[ Top 10 ]")
+    for stat in top_stats[:10]:
+        print(stat)
 
 def backup():
     @task()
@@ -55,6 +69,9 @@ def backup():
                 # Explicitly delete the chunk and force garbage collection
                 del chunk
                 gc.collect()
+
+                # Print memory usage
+                print_memory_usage()
 
             print(f'...finished backing up {table_name}')
 
