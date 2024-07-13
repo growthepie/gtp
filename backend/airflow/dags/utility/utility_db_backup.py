@@ -6,6 +6,7 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 import os
+import pandas as pd
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
@@ -23,7 +24,7 @@ from src.db_connector import DbConnector
     tags=['utility', 'daily'],
     start_date=datetime(2023,7,4),
     schedule='30 04 * * *'
-)
+)        
 
 def backup():
     @task()
@@ -35,13 +36,21 @@ def backup():
 
         for table_name in tables:
             print(f'...loading {table_name}')
-            df = db_connector.extract_table(table_name)
-            filename = f"{table_name}_{time_str}.parquet"
-            file_key = f"backup_db/{table_name}/{filename}"
+            chunksize = 500000  # Number of rows per chunk
+            chunks = 0
+            exec_string = f'select * from {table_name}'
 
-            s3_path = f"s3://{bucket_name}/{file_key}"
-            df.to_parquet(s3_path, index=False)
-            print(f'...backed up {len(df)} rows to {file_key}')
+            for chunk in pd.read_sql(exec_string, db_connector.engine.connect(), chunksize=chunksize):  
+                chunks += 1
+                print(f"... chunk: {len(chunks)} - loaded {chunk.shape[0]} rows.")  
+            
+                filename = f"{table_name}_{chunks}_{time_str}.parquet"
+                file_key = f"backup_db/{table_name}/{filename}"
+
+                s3_path = f"s3://{bucket_name}/{file_key}"
+                chunk.to_parquet(s3_path, index=False)
+                print(f'...backed up {len(chunk)} rows to {file_key}')
+            print(f'...finished backing up {table_name}')
 
     run_backup_tables()
 backup()
