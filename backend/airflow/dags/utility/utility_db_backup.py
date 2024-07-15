@@ -38,7 +38,7 @@ def backup():
 
         for table_name in tables:
             print(f'...loading {table_name}')
-            chunksize = 250000  # Number of rows per chunk
+            chunksize = 100000  # Number of rows per chunk
             chunks = 0
             exec_string = f'select * from {table_name}'
 
