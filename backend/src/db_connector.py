@@ -17,6 +17,7 @@ class DbConnector:
         def __init__(self, db_user=db_user, db_passwd=db_passwd, db_host=db_host, db_name=db_name):
             print(f"Connecting to {db_user}@{db_host}")
             self.url = f"postgresql+psycopg2://{db_user}:{db_passwd}@{db_host}/{db_name}"
+            self.uri = f"postgresql://{db_user}:{db_passwd}@{db_host}/{db_name}"
             self.engine = sqlalchemy.create_engine(
                 self.url,
                 connect_args={

@@ -6,10 +6,10 @@ import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 import os
-import gc
-import pandas as pd
+import polars as pl
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
+from src.misc.helper_functions import upload_polars_df_to_s3
 from src.db_connector import DbConnector
 
 @dag(
@@ -38,24 +38,16 @@ def backup():
 
         for table_name in tables:
             print(f'...loading {table_name}')
-            chunksize = 100000  # Number of rows per chunk
-            chunks = 0
             exec_string = f'select * from {table_name}'
 
-            for chunk in pd.read_sql(exec_string, db_connector.engine.connect(), chunksize=chunksize):  
-                chunks += 1
-                print(f"... chunk: {chunks} - loaded {chunk.shape[0]} rows.")  
-            
-                filename = f"{table_name}_{chunks}_{time_str}.parquet"
-                file_key = f"backup_db/{table_name}/{filename}"
+            df = pl.read_database_uri(query=exec_string, uri=db_connector.uri)
 
-                s3_path = f"s3://{bucket_name}/{file_key}"
-                chunk.to_parquet(s3_path, index=False)
-                print(f'...backed up {len(chunk)} rows to {file_key}')
+            print(f"...loaded {df.shape[0]} rows.")
 
-                # Explicitly delete the chunk and force garbage collection
-                del chunk
-                gc.collect()
+            filename = f"{table_name}_{time_str}.parquet"
+            file_key = f"backup_db/{table_name}/{filename}"
+
+            upload_polars_df_to_s3(df, filename, bucket_name, file_key)            
 
             print(f'...finished backing up {table_name}')
 

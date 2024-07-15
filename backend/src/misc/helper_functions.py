@@ -417,6 +417,16 @@ def upload_parquet_to_cf_s3(bucket, path_name, df, cf_distribution_id):
     print(f'..uploaded to {path_name}')
     empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.parquet')
 
+def upload_polars_df_to_s3(df, file_name, bucket, key):
+    df.write_parquet(file_name)
+
+    s3 = boto3.client('s3')
+    try:
+        s3.upload_file(file_name, bucket, key)
+        os.remove(file_name)
+    except FileNotFoundError:
+        print(f'The file {file_name} was not found')
+
 ## This function uploads a dataframe to S3 longterm bucket as parquet file
 def dataframe_to_s3(path_name, df):
     s3_url = f"s3://{os.getenv('S3_LONG_TERM_BUCKET')}/{path_name}.parquet"
