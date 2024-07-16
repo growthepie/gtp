@@ -82,6 +82,8 @@ def etl():
                 if row['origin_key'] == m.origin_key:
                     df.at[i, 'Blockexplorer'] = m.block_explorer + '/address/' + row['address']
                     break
+
+        df = df[df['Blockexplorer'].notnull()]
         # write to airtable
         at.push_to_airtable(table, df)
 
