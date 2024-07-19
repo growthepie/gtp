@@ -24,7 +24,7 @@ api = Api(AIRTABLE_API_KEY)
         'owner' : 'lorenz',
         'retries' : 2,
         'email_on_failure': False,
-        'retry_delay' : timedelta(minutes=15),
+        'retry_delay' : timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
     },
     dag_id='utility_airtable',
