@@ -1267,6 +1267,7 @@ class DbConnector:
                                 description as "Description", 
                                 main_github as "Github" 
                         FROM public.oli_oss_directory;
+                        WHERE active = True
                         """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
