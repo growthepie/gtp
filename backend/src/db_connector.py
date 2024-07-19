@@ -1281,6 +1281,24 @@ class DbConnector:
                 self.engine.execute(exec_string)
                 print(f"{len(names)} projects deactivated in oli_oss_directory: {names}")
 
+        def get_tags_inactive_projects(self):
+                exec_string = """
+                        with active_projects as (
+                                select * 
+                                from oli_oss_directory ood 
+                                where active = true 
+                        )
+
+                        select otm.*, ip.display_name
+                        from oli_tag_mapping otm 
+                        left join active_projects ip on ip.name = otm.value
+                        where tag_id = 'owner_project'
+                        and ip.name is null
+                        order by value asc
+                        """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
         ## This function is used to generate the API endpoints for the OLI labels
         def get_oli_labels(self, chain_id='origin_key'):
                 if chain_id == 'origin_key':

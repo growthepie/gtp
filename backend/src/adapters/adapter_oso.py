@@ -120,7 +120,7 @@ class AdapterOSO(AbstractAdapter):
         ## deactivate projects in our db that don't appear anymore in the oss endpoints
         self.deactivate_dropped_projects(df_oss, df_active_projects)
 
-        ## identify new projects and just print them here
+        ## identify new projects send a notification in Discord
         df_new_projects = df_oss[~df_oss['name'].isin(df_active_projects['name'])]
         new_projects = df_new_projects['name'].to_list()
         print(f"...{len(new_projects)} projects newly added since the last sync: {new_projects}")
@@ -131,4 +131,14 @@ class AdapterOSO(AbstractAdapter):
         df_oss.set_index('name', inplace=True)
 
         return df_oss
+    
+    def check_inactive_projects(self):
+        print("Checking for inactive projects with contracts assigned")
+        df = self.db_connector.get_tags_inactive_projects()
+        if df.shape[0] > 0:
+            print(f"Projects that currently inactive but have contracts assigned (need to be updated in oli_tag_mapping): {df['name'].to_list()}")
+            send_discord_message(f"<@874921624720257037> Projects that currently inactive but have contracts assigned (need to be updated in oli_tag_mapping): {df['name'].to_list()}", self.webhook_url)
+        else:
+            print("No inactive projects with contracts assigned")
+
 
