@@ -2,12 +2,13 @@ import os
 import simplejson as json
 import datetime
 import pandas as pd
+import polars as pl
 import numpy as np
 import random
 from datetime import timedelta, datetime, timezone
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
-from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+from src.misc.helper_functions import upload_polars_df_to_s3, upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 
 import warnings
@@ -1805,6 +1806,18 @@ class JSONCreation():
 
         upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', df, self.cf_distribution_id)
         print(f'DONE -- sparkline.parquet export')
+
+    def create_export_labels_parquet(self, subset = 'top50k'):
+        if subset == 'top50k':
+            limit = 50000
+        else:
+            raise ValueError('subset must be either "top50k"')
+        
+        df = self.db_connector.get_labels_export_df(limit=limit, origin_keys=self.chains_list_in_api_labels)
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/export_labels_{subset}', df, self.cf_distribution_id)
+        print(f'DONE -- labels export_labels_{subset}.parquet export')
 
     #######################################################################
     ### API ENDPOINTS
