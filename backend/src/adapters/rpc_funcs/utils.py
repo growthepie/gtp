@@ -417,6 +417,11 @@ def prep_dataframe_arbitrum(df):
     # status column: 1 if status is success, 0 if failed else -1
     filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
 
+    # handle 'to_address' column for missing values (to avoid 4E6F6E65 bytea)
+    if 'to_address' in filtered_df.columns:
+        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
+        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
+
     # Handle bytea data type
     for col in ['tx_hash', 'to_address', 'from_address']:
         if col in filtered_df.columns:
