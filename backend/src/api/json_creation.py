@@ -8,7 +8,7 @@ import random
 from datetime import timedelta, datetime, timezone
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
-from src.misc.helper_functions import upload_polars_df_to_s3, upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 
 import warnings
@@ -1794,10 +1794,39 @@ class JSONCreation():
         print(f'DONE -- labels projects.parquet export')
 
     def create_labels_sparkline_parquet(self):
-        df = self.db_connector.get_labels_page_sparkline(limit = 1000000, origin_keys=self.chains_list_in_api_labels)
+        df = self.db_connector.get_labels_page_sparkline(limit = 20000, origin_keys=self.chains_list_in_api_labels)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+
+        ## Fill in missing dates for each address, origin_key combination
+        # Find min and max dates for each address, origin_key combination
+        min_dates = df.groupby(['address', 'origin_key'])['date'].min().reset_index()
+        max_dates = df.groupby(['address', 'origin_key'])['date'].max().reset_index()
+        # Merge min and max dates
+        date_ranges = pd.merge(min_dates, max_dates, on=['address', 'origin_key'])
+        date_ranges.columns = ['address', 'origin_key', 'min_date', 'max_date']
+        # Create a DataFrame for all combinations of address, origin_key, and date
+        all_combinations = []
+        for _, row in date_ranges.iterrows():
+            address = row['address']
+            origin_key = row['origin_key']
+            all_dates = pd.date_range(start=row['min_date'], end=row['max_date'])
+            all_combinations.append(pd.DataFrame({
+                'date': all_dates,
+                'address': address,
+                'origin_key': origin_key
+            }))
+        # Concatenate all combinations into a single DataFrame
+        all_combinations_df = pd.concat(all_combinations, ignore_index=True)
+        # Merge with the original dataframe
+        merged_df = pd.merge(all_combinations_df, df, on=['date', 'address', 'origin_key'], how='left')
+        # Fill NaN values with 0
+        merged_df['txcount'].fillna(0, inplace=True)
+        merged_df['gas_fees_usd'].fillna(0, inplace=True)
+        merged_df['daa'].fillna(0, inplace=True)
+
+        df = merged_df.copy()
         df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
 
         df['txcount'] = df['txcount'].astype(int)
