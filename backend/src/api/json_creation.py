@@ -1794,7 +1794,7 @@ class JSONCreation():
         print(f'DONE -- labels projects.parquet export')
 
     def create_labels_sparkline_parquet(self):
-        df = self.db_connector.get_labels_page_sparkline(limit = 20000, origin_keys=self.chains_list_in_api_labels)
+        df = self.db_connector.get_labels_page_sparkline(limit = 1000000, origin_keys=self.chains_list_in_api_labels)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
