@@ -48,7 +48,10 @@ class ContractLoader(AbstractAdapterRaw):
     def extract_raw(self):
         try:
             print(f"...start extracting contract creations TX for {self.chain} and last {self.days} days from our database.")
-            contract_creations = self.fetch_contract_creations()
+            tx = self.load_contract_creations_txs(self.days)
+            filtered_tx = self.filter_against_existing(tx, self.days)
+            contract_creations = self.fetch_contract_creations(filtered_tx)
+
             if not contract_creations:  # Check if contract_creations is empty
                 print(f"No contract creations found for chain {self.chain} and last {self.days} days.")
                 return         
@@ -61,17 +64,12 @@ class ContractLoader(AbstractAdapterRaw):
         print(f"Successfully inserted data for {self.chain}")
 
            
-    def fetch_contract_creations(self, allow_partial_insert=True):
-        try:
-            metadata = MetaData(bind=self.db_connector.engine)
-            table = Table(self.table_name, metadata, autoload_with=self.db_connector.engine)
-            oli_view = Table(self.oli_view, metadata, autoload_with=self.db_connector.engine)
-        except Exception as e:
-            print(f"Error reflecting table {self.table_name}: {str(e)}")
-            raise
+    def load_contract_creations_txs(self, days):
+        metadata = MetaData(bind=self.db_connector.engine)
+        table = Table(self.table_name, metadata, autoload_with=self.db_connector.engine)
 
         end_date = datetime.now(timezone.utc)
-        start_date = end_date - timedelta(days=self.days)
+        start_date = end_date - timedelta(days=days)
 
         # Fetch transactions within the date range
         query = select([
@@ -96,7 +94,15 @@ class ContractLoader(AbstractAdapterRaw):
             return []
         
         print(f"...found {len(transactions)} contract creation transactions within the date range.")
-        
+        return transactions
+    
+    def filter_against_existing(self, transactions, days):
+        metadata = MetaData(bind=self.db_connector.engine)
+        oli_view = Table(self.oli_view, metadata, autoload_with=self.db_connector.engine)
+
+        end_date = datetime.now(timezone.utc)
+        start_date = end_date - timedelta(days=days)
+
         # Fetch existing tx_hashes from oli table
         oli_query = select([
             oli_view.c.deployment_tx
@@ -118,10 +124,9 @@ class ContractLoader(AbstractAdapterRaw):
         # Filter out transactions that are already in oli table
         filtered_transactions = [ tx for tx in transactions if f'0x{tx.tx_hash.hex().upper()}' not in existing_tx_hashes]
 
-        # Check if there are no filtered transactions
-        if len(filtered_transactions) == 0:
-            return []
+        return filtered_transactions
         
+    def fetch_contract_creations(self, filtered_transactions, allow_partial_insert=True):
         contract_creations = []
         for rpc_url in self.rpc_urls:
             w3 = Web3(Web3.HTTPProvider(rpc_url))
