@@ -1289,7 +1289,7 @@ class DbConnector:
                                 where active = true 
                         )
 
-                        select otm.*, ip.name, ip.display_name
+                        select otm.*
                         from oli_tag_mapping otm 
                         left join active_projects ip on ip.name = otm.value
                         where tag_id = 'owner_project'
