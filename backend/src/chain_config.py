@@ -123,6 +123,7 @@ adapter_mapping = [
 
         ,in_api = True
         ,in_fees_api = True
+        ,in_economics_api = True
         ,deployment="PROD"
         ,exclude_metrics = []
         ,aggregate_blockspace = True
