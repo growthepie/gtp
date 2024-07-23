@@ -2,6 +2,7 @@ import requests
 import time
 import json
 import copy
+import hashlib
 
 def fetch_graph_ql(url: str, query: str, variables: dict):
     response = requests.post(
@@ -55,6 +56,15 @@ class Octant():
 
         print(f"epoch start and end times retrieved: {epochStartEndTimes}")
         return epochStartEndTimes
+    
+    def create_checksum(self, data: dict):
+        serialized_data = json.dumps(data, sort_keys=True)
+        encoded_data = serialized_data.encode('utf-8')
+        md5_hash = hashlib.md5()
+        md5_hash.update(encoded_data)
+        checksum = md5_hash.hexdigest()
+        return checksum
+
 
     def run_epoch_data_retrieval(self, epoch):
         print(f"fetching data for epoch: {epoch['epoch']}")
@@ -65,38 +75,27 @@ class Octant():
         # get the epoch stats
         epoch_stats = fetch_rest(self.rest_url + f"/epochs/info/{epoch['epoch']}")
 
-        epoch_projects_metadata = fetch_rest(
-            self.rest_url + f"/projects/epoch/{epoch['epoch']}")
+        epoch_projects_metadata = fetch_rest(self.rest_url + f"/projects/epoch/{epoch['epoch']}")
         print("epoch_projects_metadata", epoch_projects_metadata)
 
         # get the project addresses and the projects cid
         project_addresses = epoch_projects_metadata["projectsAddresses"]
         projects_cid = epoch_projects_metadata["projectsCid"]
 
-        epoch_budgets = fetch_rest(
-            self.rest_url + f"/rewards/budgets/epoch/{epoch['epoch']}")
-        epoch_budgets = epoch_budgets["budgets"] if "budgets" in epoch_budgets else [
-        ]
+        epoch_budgets = fetch_rest(self.rest_url + f"/rewards/budgets/epoch/{epoch['epoch']}")
+        epoch_budgets = epoch_budgets["budgets"] if "budgets" in epoch_budgets else []
 
-        epoch_estimated_rewards = fetch_rest(
-            self.rest_url + f"/rewards/projects/estimated")
-        epoch_estimated_rewards = epoch_estimated_rewards["rewards"] if "rewards" in epoch_estimated_rewards else [
-        ]
+        epoch_estimated_rewards = fetch_rest(self.rest_url + f"/rewards/projects/estimated")
+        epoch_estimated_rewards = epoch_estimated_rewards["rewards"] if "rewards" in epoch_estimated_rewards else []
 
-        epoch_finalized_rewards = fetch_rest(
-            self.rest_url + f"/rewards/projects/epoch/{epoch['epoch']}")
-        epoch_finalized_rewards = epoch_finalized_rewards["rewards"] if "rewards" in epoch_finalized_rewards else [
-        ]
+        epoch_finalized_rewards = fetch_rest(self.rest_url + f"/rewards/projects/epoch/{epoch['epoch']}")
+        epoch_finalized_rewards = epoch_finalized_rewards["rewards"] if "rewards" in epoch_finalized_rewards else []
 
-        epoch_rewards_threshold = fetch_rest(
-            self.rest_url + f"/rewards/threshold/{epoch['epoch']}")
-        epoch_rewards_threshold = int(
-            epoch_rewards_threshold["threshold"]) if "threshold" in epoch_rewards_threshold and epoch_rewards_threshold["threshold"] else None
+        epoch_rewards_threshold = fetch_rest(self.rest_url + f"/rewards/threshold/{epoch['epoch']}")
+        epoch_rewards_threshold = int(epoch_rewards_threshold["threshold"]) if "threshold" in epoch_rewards_threshold and epoch_rewards_threshold["threshold"] else None
 
-        epoch_allocations = fetch_rest(
-            self.rest_url + f"/allocations/epoch/{epoch['epoch']}")
-        epoch_allocations = epoch_allocations["allocations"] if "allocations" in epoch_allocations else [
-        ]
+        epoch_allocations = fetch_rest(self.rest_url + f"/allocations/epoch/{epoch['epoch']}")
+        epoch_allocations = epoch_allocations["allocations"] if "allocations" in epoch_allocations else []
 
         # get this epoch's start and end time info
         epoch_start_end = epoch
@@ -274,7 +273,7 @@ class Octant():
             "highestProjectAllocation": highest_allocation,
             "projects": projects_data,
         }
-    
+        
         return epoch_data
 
     def get_epochs_data(self, epochStartEndTimes: list):
@@ -284,4 +283,8 @@ class Octant():
             epoch_data = self.run_epoch_data_retrieval(epoch)
             epochs_data.append(epoch_data)
 
-        return json.dumps(epochs_data, indent=2)
+        epochs_data = json.dumps(epochs_data)
+        checksum = self.create_checksum(epochs_data)
+        
+        print(f'Finished loading data, checksum: {checksum}')
+        return epochs_data, checksum
