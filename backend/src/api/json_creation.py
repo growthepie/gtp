@@ -1693,6 +1693,11 @@ class JSONCreation():
         df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
         df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
 
+        ## if txcount change > 99 then set to 99
+        df['txcount_change'] = df['txcount_change'].apply(lambda x: 99.99 if x > 99.99 else x)
+        df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: 99.99 if x > 99.99 else x)
+        df['daa_change'] = df['daa_change'].apply(lambda x: 99.99 if x > 99.99 else x)
+
         df['deployment_date'] = df['deployment_date'].apply(lambda x: str(x))
         df['deployment_date'] = df['deployment_date'].replace('NaT', None)
 
