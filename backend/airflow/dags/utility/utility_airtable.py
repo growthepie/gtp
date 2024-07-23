@@ -54,6 +54,10 @@ def etl():
 
             # add to oli_tag_mapping table
             df = df[df['usage_category'] != 'inscriptions']
+
+            ## remove duplicates address, origin_key
+            df.drop_duplicates(subset=['address', 'origin_key'], inplace=True)
+
             ## keep columns address, origin_key, labelling type and unpivot the other columns
             df = df.melt(id_vars=['address', 'origin_key', 'source'], var_name='tag_id', value_name='value')
             ## filter out rows with empty values
