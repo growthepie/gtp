@@ -62,7 +62,7 @@ class Glo:
 
     def resolve_ens_mapping_sheet(self, df):
         ## Resolve ENS addresses
-        url = 'https://eth.llamarpc.com'
+        url = self.db_connector.get_special_use_rpc('ethereum')
         w3 = Web3(HTTPProvider(url))
         w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         w3.is_connected()
