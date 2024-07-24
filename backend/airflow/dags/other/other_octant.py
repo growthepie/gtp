@@ -13,7 +13,7 @@ from src.misc.octant import Octant
 @dag(
     default_args={
         'owner' : 'mseidl',
-        'retries' : 5,
+        'retries' : 10,
         'email_on_failure': False,
         'retry_delay' : timedelta(minutes=2),
         'on_failure_callback': alert_via_webhook
