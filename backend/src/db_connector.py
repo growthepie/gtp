@@ -1400,6 +1400,7 @@ class DbConnector:
                         SELECT 
                                 cl.address, 
                                 cl.origin_key, 
+                                syc.caip2 as chain_id,
                                 lab."name",
                                 lab.owner_project,
                                 lab.usage_category,
@@ -1409,11 +1410,12 @@ class DbConnector:
                                 {aggregation}
                         FROM public.blockspace_fact_contract_level cl
                         left join vw_oli_labels_materialized lab using (address, origin_key)
-                        where "date"  >= current_date - interval '180 days'
-                                and "date" < current_date
-                                and ("name" is not null OR owner_project is not null OR deployment_tx is not null OR deployer_address is not null OR deployment_date is not null)
-                                and origin_key IN ('{"','".join(origin_keys)}')
-                        group by 1,2,3,4,5,6,7,8
+                        left join sys_chains syc on cl.origin_key = syc.origin_key
+                        where cl."date"  >= current_date - interval '180 days'
+                                and cl."date" < current_date
+                                and (lab."name" is not null OR lab.owner_project is not null OR lab.deployment_tx is not null OR lab.deployer_address is not null OR lab.deployment_date is not null)
+                                and cl.origin_key IN ('{"','".join(origin_keys)}')
+                        group by 1,2,3,4,5,6,7,8,9
                         order by sum(txcount) desc
                         limit {limit}
                 """
