@@ -1188,6 +1188,7 @@ class DbConnector:
                                 SELECT 
                                         cl.address, 
                                         cl.origin_key, 
+                                        bl.deployment_date,
                                         SUM(gas_fees_eth) AS gas_eth, 
                                         SUM(txcount) AS txcount, 
                                         SUM(daa) AS daa,                                         
@@ -1207,6 +1208,7 @@ class DbConnector:
                         SELECT 
                                 address, 
                                 origin_key, 
+                                deployment_date,
                                 gas_eth, 
                                 txcount, 
                                 daa                                
@@ -1385,7 +1387,15 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
-        def get_labels_export_df(self, limit=50000, origin_keys=None):
+        def get_labels_export_df(self, limit=50000, origin_keys=None, incl_aggregation=True):
+                if incl_aggregation:
+                        aggregation = """
+                                ,sum(txcount) as txcount_180d 
+                                ,sum(gas_fees_usd) as gas_fees_usd_180d
+                        """
+                else:
+                        aggregation = ""
+
                 exec_string = f"""
                         SELECT 
                                 cl.address, 
@@ -1395,16 +1405,16 @@ class DbConnector:
                                 lab.usage_category,
                                 lab.deployment_tx,
                                 lab.deployer_address,
-                                lab.deployment_date,
-                                sum(txcount) as txcount_180d, 
-                                sum(gas_fees_usd) as gas_fees_usd_180d
+                                lab.deployment_date
+                                {aggregation}
                         FROM public.blockspace_fact_contract_level cl
                         left join vw_oli_labels_materialized lab using (address, origin_key)
                         where "date"  >= current_date - interval '180 days'
                                 and "date" < current_date
                                 and ("name" is not null OR owner_project is not null OR deployment_tx is not null OR deployer_address is not null OR deployment_date is not null)
+                                and origin_key IN ('{"','".join(origin_keys)}')
                         group by 1,2,3,4,5,6,7,8
-                        order by txcount_180d desc
+                        order by sum(txcount) desc
                         limit {limit}
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
