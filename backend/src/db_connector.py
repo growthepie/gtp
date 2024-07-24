@@ -1188,7 +1188,7 @@ class DbConnector:
                                 SELECT 
                                         cl.address, 
                                         cl.origin_key, 
-                                        bl.deployment_date,
+                                        max(bl.deployment_date) as deployment_date,
                                         SUM(gas_fees_eth) AS gas_eth, 
                                         SUM(txcount) AS txcount, 
                                         SUM(daa) AS daa,                                         
