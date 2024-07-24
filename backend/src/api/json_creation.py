@@ -1770,6 +1770,31 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', projects_dict, self.cf_distribution_id)
         print(f'DONE -- projects export')
 
+    def create_export_labels_json(self, limit, origin_key=None):
+        if origin_key == None:
+            origin_keys = self.chains_list_in_api_labels
+        else:
+            origin_keys = [origin_key]
+
+        df = self.db_connector.get_labels_export_df(limit=limit, origin_keys=origin_keys, incl_aggregation=False)
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+        df = df.where(pd.notnull(df), None)
+        df['deployment_date'] = df['deployment_date'].astype(str)        
+        df['deployment_date'] = df['deployment_date'].replace('NaT', None)
+
+        labels_dict = df.to_dict(orient='records')  
+
+        if self.s3_bucket == None:
+            self.save_to_json(labels_dict, f'export_labels')
+        else:
+            if origin_key == None:
+                full_name = f'{self.api_version}/labels/export_labels'
+            else:
+                full_name = f'{self.api_version}/labels/export_labels_{origin_key}'
+
+            upload_json_to_cf_s3(self.s3_bucket, full_name, labels_dict, self.cf_distribution_id)
+        print(f'DONE -- labels {full_name} export')
+
     def create_labels_parquet(self, type='full'):
         if type == 'full':
             limit = 250000
