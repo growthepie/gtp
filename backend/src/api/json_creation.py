@@ -1764,7 +1764,7 @@ class JSONCreation():
         df['gas_fees_usd'] = df['gas_fees_usd'].round(2)
 
         sparkline_dict = {
-                'data': {'types': ['unix', 'txcount', 'gas_fees', 'active_addresses'],}
+                'data': {'types': ['unix', 'txcount', 'gas_fees_usd', 'daa'],}
         }
 
         for address, origin_key in df[['address', 'origin_key']].drop_duplicates().values:
