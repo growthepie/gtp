@@ -68,10 +68,10 @@ def etl():
         json_creator.create_labels_sparkline_json()
         json_creator.create_projects_json()
 
-        json_creator.create_labels_parquet('full')
-        json_creator.create_labels_parquet('quick')
-        json_creator.create_labels_sparkline_parquet()
-        json_creator.create_projects_parquet()
+        # json_creator.create_labels_parquet('full')
+        # json_creator.create_labels_parquet('quick')
+        # json_creator.create_labels_sparkline_parquet()
+        # json_creator.create_projects_parquet()
 
         json_creator.create_export_labels_parquet('top50k')
 

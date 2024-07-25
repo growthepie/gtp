@@ -1826,76 +1826,76 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, full_name, labels_dict, self.cf_distribution_id)
         print(f'DONE -- labels {full_name} export')
 
-    def create_labels_parquet(self, type='full'):
-        if type == 'full':
-            limit = 250000
-        elif type == 'quick':
-            limit = 100
-        else:
-            raise ValueError('type must be either "full" or "quick"')
+    # def create_labels_parquet(self, type='full'):
+    #     if type == 'full':
+    #         limit = 250000
+    #     elif type == 'quick':
+    #         limit = 100
+    #     else:
+    #         raise ValueError('type must be either "full" or "quick"')
         
-        order_by = 'txcount'
-        df = self.db_connector.get_labels_lite_db(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
-        df = db_addresses_to_checksummed_addresses(df, ['address'])
+    #     order_by = 'txcount'
+    #     df = self.db_connector.get_labels_lite_db(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
+    #     df = db_addresses_to_checksummed_addresses(df, ['address'])
 
-        df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-        df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-        df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-        df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+    #     df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+    #     df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+    #     df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
+    #     df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
 
-        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/{type}', df, self.cf_distribution_id)
-        print(f'DONE -- labels {type}.parquet export')
+    #     upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/{type}', df, self.cf_distribution_id)
+    #     print(f'DONE -- labels {type}.parquet export')
 
-    def create_projects_parquet(self):        
-        df = self.db_connector.get_active_projects()
+    # def create_projects_parquet(self):        
+    #     df = self.db_connector.get_active_projects()
 
-        df = df.rename(columns={'name': 'owner_project'})
+    #     df = df.rename(columns={'name': 'owner_project'})
 
-        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', df, self.cf_distribution_id)
-        print(f'DONE -- labels projects.parquet export')
+    #     upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', df, self.cf_distribution_id)
+    #     print(f'DONE -- labels projects.parquet export')
 
-    def create_labels_sparkline_parquet(self):
-        df = self.db_connector.get_labels_page_sparkline(limit = 1000000, origin_keys=self.chains_list_in_api_labels)
-        df = db_addresses_to_checksummed_addresses(df, ['address'])
+    # def create_labels_sparkline_parquet(self):
+    #     df = self.db_connector.get_labels_page_sparkline(limit = 1000000, origin_keys=self.chains_list_in_api_labels)
+    #     df = db_addresses_to_checksummed_addresses(df, ['address'])
 
-        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+    #     df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
 
-        ## Fill in missing dates for each address, origin_key combination
-        # Find min and max dates for each address, origin_key combination
-        min_dates = df.groupby(['address', 'origin_key'])['date'].min().reset_index()
-        max_dates = df.groupby(['address', 'origin_key'])['date'].max().reset_index()
-        # Merge min and max dates
-        date_ranges = pd.merge(min_dates, max_dates, on=['address', 'origin_key'])
-        date_ranges.columns = ['address', 'origin_key', 'min_date', 'max_date']
-        # Create a DataFrame for all combinations of address, origin_key, and date
-        all_combinations = []
-        for _, row in date_ranges.iterrows():
-            address = row['address']
-            origin_key = row['origin_key']
-            all_dates = pd.date_range(start=row['min_date'], end=row['max_date'])
-            all_combinations.append(pd.DataFrame({
-                'date': all_dates,
-                'address': address,
-                'origin_key': origin_key
-            }))
-        # Concatenate all combinations into a single DataFrame
-        all_combinations_df = pd.concat(all_combinations, ignore_index=True)
-        # Merge with the original dataframe
-        merged_df = pd.merge(all_combinations_df, df, on=['date', 'address', 'origin_key'], how='left')
-        # Fill NaN values with 0
-        merged_df['txcount'].fillna(0, inplace=True)
-        merged_df['gas_fees_usd'].fillna(0, inplace=True)
-        merged_df['daa'].fillna(0, inplace=True)
+    #     ## Fill in missing dates for each address, origin_key combination
+    #     # Find min and max dates for each address, origin_key combination
+    #     min_dates = df.groupby(['address', 'origin_key'])['date'].min().reset_index()
+    #     max_dates = df.groupby(['address', 'origin_key'])['date'].max().reset_index()
+    #     # Merge min and max dates
+    #     date_ranges = pd.merge(min_dates, max_dates, on=['address', 'origin_key'])
+    #     date_ranges.columns = ['address', 'origin_key', 'min_date', 'max_date']
+    #     # Create a DataFrame for all combinations of address, origin_key, and date
+    #     all_combinations = []
+    #     for _, row in date_ranges.iterrows():
+    #         address = row['address']
+    #         origin_key = row['origin_key']
+    #         all_dates = pd.date_range(start=row['min_date'], end=row['max_date'])
+    #         all_combinations.append(pd.DataFrame({
+    #             'date': all_dates,
+    #             'address': address,
+    #             'origin_key': origin_key
+    #         }))
+    #     # Concatenate all combinations into a single DataFrame
+    #     all_combinations_df = pd.concat(all_combinations, ignore_index=True)
+    #     # Merge with the original dataframe
+    #     merged_df = pd.merge(all_combinations_df, df, on=['date', 'address', 'origin_key'], how='left')
+    #     # Fill NaN values with 0
+    #     merged_df['txcount'].fillna(0, inplace=True)
+    #     merged_df['gas_fees_usd'].fillna(0, inplace=True)
+    #     merged_df['daa'].fillna(0, inplace=True)
 
-        df = merged_df.copy()
-        df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+    #     df = merged_df.copy()
+    #     df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
 
-        df['txcount'] = df['txcount'].astype(int)
-        df['daa'] = df['daa'].astype(int)
-        df['gas_fees_usd'] = df['gas_fees_usd'].round(2)                 
+    #     df['txcount'] = df['txcount'].astype(int)
+    #     df['daa'] = df['daa'].astype(int)
+    #     df['gas_fees_usd'] = df['gas_fees_usd'].round(2)                 
 
-        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', df, self.cf_distribution_id)
-        print(f'DONE -- sparkline.parquet export')
+    #     upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', df, self.cf_distribution_id)
+    #     print(f'DONE -- sparkline.parquet export')
 
     def create_export_labels_parquet(self, subset = 'top50k'):
         if subset == 'top50k':

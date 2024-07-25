@@ -3,6 +3,7 @@
 **/__pycache__
 *.pyc
 my_env/
+myenv312/
 local_env/
 venv/
 
