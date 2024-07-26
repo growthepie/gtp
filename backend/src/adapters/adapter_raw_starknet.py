@@ -310,7 +310,8 @@ class AdapterStarknet(AbstractAdapterRaw):
         }
         response = requests.post(rpc_url, headers=headers, json=payload)
         if response.status_code != 200:
-            raise Exception(f"Request failed with status code {response.status_code}: {response.text}")
+            print(f"Request failed with status code {response.status_code}: {response.text}")
+            raise Exception()
         return response.json()
 
     def process_missing_blocks_in_batches(self, missing_block_ranges, batch_size, threads):
