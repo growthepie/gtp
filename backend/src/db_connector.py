@@ -1361,6 +1361,7 @@ class DbConnector:
                         SELECT 
                                 cl.address, 
                                 cl.origin_key, 
+                                syc.caip2 as chain_id,
                                 lab."name",
                                 lab.owner_project,
                                 oss.display_name as owner_project_clear,
@@ -1378,7 +1379,8 @@ class DbConnector:
                         left join prev_period prev using (address, origin_key)
                         left join vw_oli_labels_materialized lab using (address, origin_key)
                         left join oli_oss_directory oss on oss.name = lab.owner_project
-                        where origin_key IN ('{"','".join(origin_keys)}')
+                        left join sys_chains syc on cl.origin_key = syc.origin_key
+                        where cl.origin_key IN ('{"','".join(origin_keys)}')
                                 and (lab.owner_project is null OR oss.active = true)
                         order by {order_by} desc
                         limit {limit}
