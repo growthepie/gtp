@@ -191,7 +191,10 @@ def db_addresses_to_checksummed_addresses(df, address_cols):
 
 def string_addresses_to_checksummed_addresses(df, address_cols):
     for col in address_cols:
-        df[col] = df[col].apply(lambda x: eth_utils.to_checksum_address(str(x)))
+        ##df[col] = df[col].apply(lambda x: eth_utils.to_checksum_address(str(x)))
+        ## this is a workaround for the above line, as it throws an error when the address is not a string
+        df[col] = df[col].apply(lambda x: eth_utils.to_checksum_address(str(x)) if x and isinstance(x, str) else x)
+
     return df
 
 ## Some simple Adapter print functions

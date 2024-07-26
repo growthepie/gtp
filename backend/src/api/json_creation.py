@@ -8,7 +8,7 @@ import random
 from datetime import timedelta, datetime, timezone
 
 from src.chain_config import adapter_mapping, adapter_multi_mapping
-from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
+from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 
 import warnings
@@ -1687,7 +1687,9 @@ class JSONCreation():
         order_by = 'txcount'
         df = self.db_connector.get_labels_lite_db(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
-
+        df = string_addresses_to_checksummed_addresses(df, ['deployer_address'])
+        df['deployment_tx'] = df['deployment_tx'].str.lower()
+        
         df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
         df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
         df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
@@ -1808,6 +1810,9 @@ class JSONCreation():
 
         df = self.db_connector.get_labels_export_df(limit=limit, origin_keys=origin_keys, incl_aggregation=False)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
+        df = string_addresses_to_checksummed_addresses(df, ['deployer_address'])
+        df['deployment_tx'] = df['deployment_tx'].str.lower()
+        
         df = df.where(pd.notnull(df), None)
         df['deployment_date'] = df['deployment_date'].astype(str)        
         df['deployment_date'] = df['deployment_date'].replace('NaT', None)
