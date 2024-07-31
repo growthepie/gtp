@@ -45,7 +45,7 @@ class MainConfig(BaseModel):
 
     ## RPC CONFIG
     backfiller_on: Optional[bool] = Field(alias="backfiller.backfiller_on")
-    backfiller_batch_size: Optional[int] = Field(alias="backfiller.batch_size")
+    backfiller_batch_size: Optional[int] = Field(20, alias="backfiller.batch_size")
 
     ## CROSS CHECK
     cross_check_url: Optional[HttpUrl] = Field(alias="cross_check.url")
