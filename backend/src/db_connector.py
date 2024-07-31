@@ -45,7 +45,7 @@ class DbConnector:
                                 upsert(con=self.engine, df=df, table_name=table_name, if_row_exists='update', create_table=False)
                         return df.shape[0]
                 
-# ------------------------- additional db functions -------------------------
+# ------------------------- additional db functions --------------------------------
         def refresh_materialized_view(self, view_name:str):
                 exec_string = f"REFRESH MATERIALIZED VIEW {view_name};"
                 with self.engine.connect() as connection:
@@ -93,6 +93,23 @@ class DbConnector:
                         print(f"Error retrieving the latest price in USD for {origin_key}.")
                         print(e)
                         return None
+                
+        def get_chain_config(self, incl_circ_supply=False):
+                exec_string = "SELECT * FROM sys_chains"
+
+                df = pd.read_sql(exec_string, self.engine.connect())
+
+                ## break up all columns with dictionaries into separate columns but keep the original column name as a prefix
+                for column in ['api', 'aliases', 'metadata', 'socials', 'runs', 'backfiller', 'cross_check', 'circulating_supply']:
+                        df = pd.concat([df.drop([column], axis=1), df[column].apply(pd.Series).add_prefix(column + '.')], axis=1)
+
+                if incl_circ_supply == False:
+                        ## drop all columns that start with 'circulating_supply.'
+                        df = df[df.columns.drop(list(df.filter(regex='circulating_supply.')))]
+
+                df = df.where(pd.notnull(df), None)
+                chain_config = df.to_dict(orient='records')
+                return chain_config
                 
         def get_stage(self, origin_key:str):
                 try:
