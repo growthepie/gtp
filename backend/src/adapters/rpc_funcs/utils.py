@@ -12,7 +12,7 @@ import time
 import ast
 from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config 
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -1034,11 +1034,12 @@ def get_chain_config(db_connector, chain_name):
         
         config_list.append(config)
 
-    # Retrieve batch_size from adapter_mapping
+    # Retrieve batch_size
     batch_size = 10
-    for mapping in adapter_mapping:
-        if mapping.origin_key == chain_name:
-            batch_size = mapping.batch_size
+    main_conf = get_main_config(db_connector)
+    for chain in main_conf:
+        if chain.origin_key == chain_name:
+            batch_size = chain.backfiller_batch_size
             break
 
     return config_list, batch_size
