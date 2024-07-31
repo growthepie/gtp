@@ -1039,7 +1039,8 @@ def get_chain_config(db_connector, chain_name):
     main_conf = get_main_config(db_connector)
     for chain in main_conf:
         if chain.origin_key == chain_name:
-            batch_size = chain.backfiller_batch_size
+            if chain.backfiller_batch_size > 0:
+                batch_size = chain.backfiller_batch_size
             break
 
     return config_list, batch_size
