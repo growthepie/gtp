@@ -1,5 +1,5 @@
 from pydantic import BaseModel, HttpUrl, Field
-from typing import Optional, List, Dict   
+from typing import Optional, List, Dict, Any
 
 class MainConfig(BaseModel):
     origin_key: str
@@ -50,6 +50,14 @@ class MainConfig(BaseModel):
     ## CROSS CHECK
     cross_check_url: Optional[HttpUrl] = Field(alias="cross_check.url")
     cross_check_type: Optional[str] = Field(alias="cross_check.type")
+
+    ## CIRCULATING SUPPLY
+    cs_token_address: Optional[str] = Field(alias="circulating_supply.token_address")
+    cs_token_abi: Optional[Any] = Field(alias="circulating_supply.token_abi")
+    cs_deployment_date: Optional[str] = Field(alias="circulating_supply.token_deployment_date")
+    cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply.token_deployment_origin_key")
+    cs_supply_function: Optional[str] = Field(alias="circulating_supply.token_supply_function")
+
 
 def get_main_config(db_connector):
     main_conf_dict = db_connector.get_main_config_dict()

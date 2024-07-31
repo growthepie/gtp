@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from web3 import Web3
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_missing_days_kpis, upsert_to_kpis, get_df_kpis_with_dates
 from src.misc.helper_functions import print_init, print_load, print_extract
 
@@ -16,6 +16,7 @@ class AdapterTotalSupply(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Total supply", adapter_params, db_connector)
+        self.main_conf = get_main_config(db_connector)
         self.api_key = adapter_params['etherscan_api']
         print_init(self.name, self.adapter_params)
 
@@ -28,7 +29,7 @@ class AdapterTotalSupply(AbstractAdapter):
         origin_keys = load_params['origin_keys']
         days = load_params['days']
 
-        projects = [x for x in adapter_mapping if x.token_address is not None] ## NEED to add these fields
+        projects = [chain for chain in self.main_conf if chain.cs_token_address is not None] ## NEED to add these fields
         
         ## Prepare projects to load (can be a subset of all projects)
         check_projects_to_load(projects, origin_keys)

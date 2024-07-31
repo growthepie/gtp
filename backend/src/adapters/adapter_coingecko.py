@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis, get_missing_days_kpis
 from src.misc.helper_functions import print_init, print_load, print_extract
 
@@ -18,7 +18,8 @@ class AdapterCoingecko(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Coingecko", adapter_params, db_connector)
         self.base_url = 'https://api.coingecko.com/api/v3/coins/'
-        self.projects = [x for x in adapter_mapping if x.coingecko_naming is not None] ## CELESTIA solution?
+        main_conf = get_main_config(db_connector)
+        self.projects = [chain for chain in main_conf if chain.aliases_coingecko is not None]
         print_init(self.name, self.adapter_params)
 
     """

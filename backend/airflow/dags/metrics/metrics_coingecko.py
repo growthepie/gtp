@@ -33,7 +33,7 @@ def etl():
         load_params = {
             'load_type' : 'project',
             'metric_keys' : ['price', 'volume', 'market_cap'],
-            'origin_keys' : None, # could also be a list, see all options in adapter_mapping.py
+            'origin_keys' : None, # could also be a list
             'days' : 'auto', # auto, max, or a number (as string)
             'vs_currencies' : ['usd', 'eth']
         }

@@ -94,7 +94,7 @@ class DbConnector:
                         print(e)
                         return None
                 
-        def get_main_config_dict(self, incl_circ_supply=False):
+        def get_main_config_dict(self):
                 exec_string = "SELECT * FROM sys_chains"
 
                 df = pd.read_sql(exec_string, self.engine.connect())
@@ -102,10 +102,6 @@ class DbConnector:
                 ## break up all columns with dictionaries into separate columns but keep the original column name as a prefix
                 for column in ['api', 'aliases', 'metadata', 'socials', 'runs', 'backfiller', 'cross_check', 'circulating_supply']:
                         df = pd.concat([df.drop([column], axis=1), df[column].apply(pd.Series).add_prefix(column + '.')], axis=1)
-
-                if incl_circ_supply == False:
-                        ## drop all columns that start with 'circulating_supply.'
-                        df = df[df.columns.drop(list(df.filter(regex='circulating_supply.')))]
 
                 df = df.where(pd.notnull(df), None)
                 main_config = df.to_dict(orient='records')
