@@ -114,7 +114,7 @@ class AdapterCoingecko(AbstractAdapter):
         for token in projects_to_load:
             if load_type == 'project':
                 origin_key = token.origin_key
-                naming = token.coingecko_naming
+                naming = token.aliases_coingecko
             elif load_type == 'direct':
                 origin_key = naming = token
             else:
