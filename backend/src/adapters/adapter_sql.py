@@ -3,7 +3,7 @@ import os
 import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 from src.queries.sql_queries import sql_queries
 from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis, get_missing_days_blockspace, send_discord_message
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
@@ -18,6 +18,7 @@ class AdapterSQL(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("SQL Aggregation", adapter_params, db_connector)
         self.discord_webhook = os.getenv('DISCORD_ALERTS')
+        self.main_conf = get_main_config(self.db_connector)
         print_init(self.name, self.adapter_params)
 
     """
@@ -188,7 +189,7 @@ class AdapterSQL(AbstractAdapter):
     
     def run_blockspace_queries(self, origin_keys, days):
         if origin_keys is None:
-            origin_keys = [chain.origin_key for chain in adapter_mapping if chain.aggregate_blockspace == True]
+            origin_keys = [chain.origin_key for chain in self.main_conf if chain.runs_aggregate_blockspace == True]
             print(f"...no specific origin_key found, aggregating blockspace for all chains: {origin_keys}...")
 
         for chain in origin_keys:
@@ -262,7 +263,7 @@ class AdapterSQL(AbstractAdapter):
 
     def run_active_addresses_agg(self, origin_keys, days, days_end=None):
         if origin_keys is None:
-            origin_keys = [chain.origin_key for chain in adapter_mapping if chain.aggregate_addresses == True]
+            origin_keys = [chain.origin_key for chain in self.main_conf if chain.runs_aggregate_addresses == True]
             print(f"...no specific origin_key found, aggregating active addresses for all chains: {origin_keys}...")
 
         for origin_key in origin_keys:
@@ -281,7 +282,7 @@ class AdapterSQL(AbstractAdapter):
 
     def run_fees_queries(self, origin_keys, days, granularities, metric_keys=None):
         if origin_keys is None:
-            origin_keys = [chain.origin_key for chain in adapter_mapping if chain.in_fees_api == True]
+            origin_keys = [chain.origin_key for chain in self.main_conf if chain.api_in_fees == True]
             print(f"...no specific origin_key found, aggregating fees for all chains: {origin_keys}...")
         
         ## currently excluding the 10th and 90th percentile for regular runs

@@ -18,7 +18,7 @@ class AdapterCoingecko(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Coingecko", adapter_params, db_connector)
         self.base_url = 'https://api.coingecko.com/api/v3/coins/'
-        self.projects = [x for x in adapter_mapping if x.coingecko_naming is not None]
+        self.projects = [x for x in adapter_mapping if x.coingecko_naming is not None] ## CELESTIA solution?
         print_init(self.name, self.adapter_params)
 
     """

@@ -4,7 +4,7 @@ from datetime import datetime
 from lxml import html
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis
 from src.misc.helper_functions import print_init, print_load, print_extract
 
@@ -24,11 +24,13 @@ class AdapterL2Beat(AbstractAdapter):
         origin_keys:list - the projects that this metric should be loaded for. If None, all available projects will be loaded
     """
     def extract(self, load_params:dict):
+        main_conf = get_main_config(self.db_connector)
+
         ## Set variables
         origin_keys = load_params['origin_keys']
         self.load_type = load_params['load_type']
 
-        projects = [x for x in adapter_mapping if x.l2beat_tvl_naming is not None]
+        projects = [chain for chain in main_conf if chain.aliases_l2beat is not None]
         
         ## Prepare projects to load (can be a subset of all projects)
         check_projects_to_load(projects, origin_keys)

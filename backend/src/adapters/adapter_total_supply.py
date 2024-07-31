@@ -28,7 +28,7 @@ class AdapterTotalSupply(AbstractAdapter):
         origin_keys = load_params['origin_keys']
         days = load_params['days']
 
-        projects = [x for x in adapter_mapping if x.token_address is not None]
+        projects = [x for x in adapter_mapping if x.token_address is not None] ## NEED to add these fields
         
         ## Prepare projects to load (can be a subset of all projects)
         check_projects_to_load(projects, origin_keys)

@@ -5,7 +5,7 @@ import io
 from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 from src.misc.helper_functions import return_projects_to_load, upsert_to_kpis, check_projects_to_load, api_get_call
 from src.misc.helper_functions import print_init, print_load, send_discord_message
 
@@ -19,7 +19,8 @@ class AdapterCrossCheck(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Cross-Check", adapter_params, db_connector)
-        self.projects = [x for x in adapter_mapping if x.block_explorer_txcount is not None]
+        main_conf = get_main_config(db_connector)
+        self.projects = [chain for chain in main_conf if chain.cross_check_url is not None]
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         }
