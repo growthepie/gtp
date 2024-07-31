@@ -10,7 +10,7 @@ from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 from src.adapters.contract_loader import ContractLoader
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 
 # Define the DAG and task using decorators
 @dag(
@@ -32,9 +32,10 @@ def load_metadata():
     @task()
     def run_contract_loader():
         db_connector = DbConnector()
+        main_conf = get_main_config(db_connector)
         days = 5
 
-        for adapter in [adapter for adapter in adapter_mapping if adapter.load_contract_metadata == True]:
+        for adapter in [chain for chain in main_conf if chain.runs_contract_metadata == True]:
             chain = adapter.origin_key
             print(f"--- Loading contract metadata for chain {chain} ---")
         

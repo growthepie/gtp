@@ -10,18 +10,21 @@ from src.db_connector import DbConnector
 from src.adapters.rpc_funcs.utils import Web3CC, get_chain_config
 from src.misc.airflow_utils import alert_via_webhook
 from src.adapters.rpc_funcs.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 
 ## DAG Configuration Variables
 # batch_size: Number of blocks to process in a single task run
 # config: Environment variable containing the RPC node configuration
 # backfiller_on: Whether the chain is backfiller_on and should be backfilled
 
+db_connector = DbConnector()
+main_conf = get_main_config(db_connector)
+
 chain_settings = {
-    adapter.origin_key: {
-        'batch_size': adapter.batch_size
+    chain.origin_key: {
+        'batch_size': chain.backfiller_batch_size
     }
-    for adapter in adapter_mapping if adapter.backfiller_on == True
+    for chain in main_conf if chain.backfiller_on == True
 }
 
 @dag(

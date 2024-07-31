@@ -12,12 +12,13 @@ from src.misc.airflow_utils import alert_via_webhook
 import os
 from src.adapters.adapter_sql import AdapterSQL
 from src.api.json_creation import JSONCreation
+from src.main_config import get_main_config
 
 # initialize adapter
 adapter_params = {}
 db_connector = DbConnector()
 ad = AdapterSQL(adapter_params, db_connector)
-chain_conf = db_connector.get_chain_config()
+main_conf = get_main_config(db_connector)
 
 def create_aggregate_metrics_task(origin_key):
     @task(task_id=f'agg_fees_metrics_{origin_key}')
@@ -57,8 +58,8 @@ def fees_json_gen_dag():
                 json_creator.create_fees_linechart_json(df)
 
         aggregate_metrics_tasks = [
-            create_aggregate_metrics_task(x['origin_key'])()
-            for x in chain_conf if x['api.in_api_fees'] and x['api.api_deployment_flag'] == 'PROD'
+            create_aggregate_metrics_task(chain.origin_key)()
+            for chain in main_conf if chain.api_in_fees and chain.api_deployment_flag == 'PROD'
         ]
    
         run_create_fees_json().set_upstream(aggregate_metrics_tasks)

@@ -94,7 +94,7 @@ class DbConnector:
                         print(e)
                         return None
                 
-        def get_chain_config(self, incl_circ_supply=False):
+        def get_main_config_dict(self, incl_circ_supply=False):
                 exec_string = "SELECT * FROM sys_chains"
 
                 df = pd.read_sql(exec_string, self.engine.connect())
@@ -108,8 +108,8 @@ class DbConnector:
                         df = df[df.columns.drop(list(df.filter(regex='circulating_supply.')))]
 
                 df = df.where(pd.notnull(df), None)
-                chain_config = df.to_dict(orient='records')
-                return chain_config
+                main_config = df.to_dict(orient='records')
+                return main_config
                 
         def get_stage(self, origin_key:str):
                 try:
