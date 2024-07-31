@@ -43,9 +43,9 @@ class MainConfig(BaseModel):
     runs_aggregate_addresses: Optional[bool] = Field(alias="runs.aggregate_addresses ")
     runs_contract_metadata: Optional[bool] = Field(alias="runs.contract_metadata")
 
-    ## BACKFILLER
+    ## RPC CONFIG
     backfiller_on: Optional[bool] = Field(alias="backfiller.backfiller_on")
-    backfiller_batch_size: Optional[float] = Field(alias="backfiller.batch_size")
+    backfiller_batch_size: Optional[int] = Field(alias="backfiller.batch_size")
 
     ## CROSS CHECK
     cross_check_url: Optional[HttpUrl] = Field(alias="cross_check.url")
