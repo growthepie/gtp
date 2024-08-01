@@ -8,7 +8,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
-from src.chain_config import adapter_mapping
+from src.main_config import get_main_config
 import src.misc.airtable_functions as at
 from eth_utils import to_checksum_address
 
@@ -73,6 +73,7 @@ def etl():
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
+        main_config = get_main_config(db_connector)
 
         at.clear_all_airtable(table)
         
@@ -83,11 +84,11 @@ def etl():
 
         df['address'] = df['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
         # add block explorer urls
-        block_explorer_mapping = [x for x in adapter_mapping if x.block_explorer is not None]
+        block_explorer_mapping = [chain for chain in main_config if chain.block_explorers is not None]
         for i, row in df.iterrows():
             for m in block_explorer_mapping:
                 if row['origin_key'] == m.origin_key:
-                    df.at[i, 'Blockexplorer'] = m.block_explorer + '/address/' + row['address']
+                    df.at[i, 'Blockexplorer'] = next(iter(m.values())) + '/address/' + row['address']
                     break
 
         df = df[df['Blockexplorer'].notnull()]
