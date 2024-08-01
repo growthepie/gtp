@@ -88,7 +88,7 @@ def etl():
         for i, row in df.iterrows():
             for m in block_explorer_mapping:
                 if row['origin_key'] == m.origin_key:
-                    df.at[i, 'Blockexplorer'] = next(iter(m.values())) + '/address/' + row['address']
+                    df.at[i, 'Blockexplorer'] = next(iter(m.block_explorers.values())) + '/address/' + row['address']
                     break
 
         df = df[df['Blockexplorer'].notnull()]
