@@ -64,7 +64,7 @@ class AdapterL2Beat(AbstractAdapter):
         for chain in projects_to_load:
             origin_key = chain.origin_key
 
-            naming = chain.l2beat_tvl_naming
+            naming = chain.aliases_l2beat
             url = f"{self.base_url}tvl/{naming}.json"           
 
             response_json = api_get_call(url, sleeper=10, retries=20)
@@ -98,7 +98,7 @@ class AdapterL2Beat(AbstractAdapter):
         for chain in projects_to_load:
             origin_key = chain.origin_key
             print(f'...loading stage info for {origin_key}')
-            url = f"https://l2beat.com/scaling/projects/{chain.l2beat_tvl_naming}"
+            url = f"https://l2beat.com/scaling/projects/{chain.aliases_l2beat}"
             response = api_get_call(url, as_json=False)
             tree = html.fromstring(response)
             #element = tree.xpath('/html/body/div[4]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
