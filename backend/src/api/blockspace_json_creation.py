@@ -2,7 +2,7 @@ import os
 import simplejson as json
 import pandas as pd
 
-from src.chain_config import adapter_mapping, adapter_all2_mapping
+from src.main_config import get_main_config, get_all_l2_config
 from src.misc.helper_functions import upload_json_to_cf_s3, db_addresses_to_checksummed_addresses, fix_dict_nan
 
 class BlockspaceJSONCreation():
@@ -13,6 +13,8 @@ class BlockspaceJSONCreation():
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
+        self.main_conf = get_main_config(self.db_connector)
+        self.all_l2_config = get_all_l2_config(self.db_connector)
     
     def get_blockspace_overview_daily_data(self, chain_keys):
         where_origin_key = f"AND bs_scl.origin_key = '{chain_keys[0]}'" if len(chain_keys) == 1 else "AND bs_scl.origin_key IN ('" + "','".join(chain_keys) + "')"
@@ -176,18 +178,18 @@ class BlockspaceJSONCreation():
 
         main_category_keys = category_mapping['main_category_id'].unique().tolist()
 
-        ## put all origin_keys from adapter_mapping in a list where in_api is True
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
+        ## put all origin_keys in a list where in_api is True
+        chain_keys = [chain.origin_key for chain in self.main_conf if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
 
-        #for chain_key in adapter_mapping:
-        for chain in adapter_all2_mapping:
+        #for chain_key in config:
+        for chain in self.all_l2_config:
             origin_key = chain.origin_key
 
-            if chain.in_api == False:
+            if chain.api_in_main == False:
                 print(f'-- SKIPPED -- Chain blockspace overview export for {origin_key}. API is set to False')
                 continue
 
-            if 'blockspace' in chain.exclude_metrics:
+            if 'blockspace' in chain.api_exclude_metrics:
                 print(f'-- SKIPPED -- Chain blockspace overview export for {origin_key}. Blockspace is in exclude_metrics')
                 continue
 
@@ -305,14 +307,14 @@ class BlockspaceJSONCreation():
 
         main_category_keys = category_mapping['main_category_id'].unique().tolist()
 
-        #for chain_key in adapter_mapping:
-        for chain in adapter_mapping:
+        #for chain_key in config:
+        for chain in self.main_conf:
             origin_key = chain.origin_key
-            if chain.in_api == False:
+            if chain.api_in_main == False:
                 print(f'-- SKIPPED -- Single chain blockspace export for {origin_key}. API is set to False')
                 continue
 
-            if 'blockspace' in chain.exclude_metrics:
+            if 'blockspace' in chain.api_exclude_metrics:
                 print(f'-- SKIPPED -- Single chain blockspace export for {origin_key}. Blockspace is in exclude_metrics')
                 continue
 
@@ -582,9 +584,9 @@ class BlockspaceJSONCreation():
         # get data for each timeframe
         timeframes = [7, 30, 180, "max"]
 
-        ## put all origin_keys from adapter_mapping in a list where in_api is True
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
-
+        ## put all origin_keys from main_conf in a list where in_api is True
+        chain_keys = [chain.origin_key for chain in self.main_conf if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
+        
         # daily data for max timeframe
         sub_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'sub_category', chain_keys)
         main_cat_daily_df = self.get_comparison_daily_data(timeframes[-1], 'main_category', chain_keys)

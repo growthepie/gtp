@@ -101,10 +101,10 @@ class DbConnector:
 
                 ## break up all columns with dictionaries into separate columns but keep the original column name as a prefix
                 for column in ['api', 'aliases', 'metadata', 'socials', 'runs', 'backfiller', 'cross_check', 'circulating_supply']:
-                        df = pd.concat([df.drop([column], axis=1), df[column].apply(pd.Series).add_prefix(column + '.')], axis=1)
+                        df = pd.concat([df.drop([column], axis=1), df[column].apply(pd.Series).add_prefix(column + '_')], axis=1)
 
                 df = df.where(pd.notnull(df), None)
-                df['backfiller.batch_size'] = df['backfiller.batch_size'].fillna(0). astype(int)
+                df['backfiller_batch_size'] = df['backfiller_batch_size'].fillna(0). astype(int)
 
                 main_config = df.to_dict(orient='records')
                 return main_config
