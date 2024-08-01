@@ -62,7 +62,7 @@ class AdapterTotalSupply(AbstractAdapter):
 
                 print(f"...loading {coin.origin_key} for {days} days.")
 
-                max_days = (datetime.now() - datetime.strptime(coin.token_deployment_date, '%Y-%m-%d')).days
+                max_days = (datetime.now() - datetime.strptime(coin.cs_deployment_date , '%Y-%m-%d')).days
                 if days > max_days:
                     days = max_days
 
@@ -70,7 +70,7 @@ class AdapterTotalSupply(AbstractAdapter):
                 df = get_df_kpis_with_dates(days)
                 df['origin_key'] = coin.origin_key
                 df['metric_key'] = 'total_supply'
-                if coin.token_deployment_origin_key == 'ethereum':
+                if coin.cs_deployment_origin_key == 'ethereum':
                     for index, row in df.iterrows():
                         t = int((row['date'] + timedelta(hours=23, minutes=59, seconds=59)).timestamp())
                         df.loc[index, 'block_number'] = api_get_call(f"https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp={t}&closest=before&apikey={self.api_key}")['result']
@@ -88,8 +88,8 @@ class AdapterTotalSupply(AbstractAdapter):
 
                 # load in the contract
                 w3 = Web3(Web3.HTTPProvider(rpc))
-                contract = w3.eth.contract(address=coin.token_address, abi=coin.token_abi)
-                print(f'...connected to {coin.token_deployment_origin_key} at {rpc}')
+                contract = w3.eth.contract(address=coin.cs_token_address, abi=coin.cs_token_abi)
+                print(f'...connected to {coin.cs_deployment_origin_key} at {rpc}')
                 time.sleep(1)
 
                 # get the total supply for each block
