@@ -44,11 +44,11 @@ class AdapterCrossCheck(AbstractAdapter):
         metric_key = 'txcount_explorer'
 
         for project in projects_to_load:
-            print(f"... loading {project.origin_key} txcount data from explorer ({project.block_explorer_type})...")
+            print(f"... loading {project.origin_key} txcount data from explorer ({project.cross_check_type})...")
             
             try:
-                if project.block_explorer_type == 'etherscan':
-                    response = api_get_call(project.block_explorer_txcount, header = self.headers, as_json=False, proxy=self.proxy)
+                if project.cross_check_type == 'etherscan':
+                    response = api_get_call(project.cross_check_url, header = self.headers, as_json=False, proxy=self.proxy)
                     
                     data = io.StringIO(response)
                     df = pd.read_csv(data)
@@ -61,8 +61,8 @@ class AdapterCrossCheck(AbstractAdapter):
 
                     dfMain = pd.concat([dfMain, df], ignore_index=True)
 
-                elif project.block_explorer_type == 'blockscout':
-                    response = api_get_call(project.block_explorer_txcount, header = self.headers, proxy=self.proxy)
+                elif project.cross_check_type == 'blockscout':
+                    response = api_get_call(project.cross_check_url, header = self.headers, proxy=self.proxy)
                     df = pd.DataFrame(response['chart_data'])
 
                     df['date'] = pd.to_datetime(df['date'])
@@ -73,8 +73,8 @@ class AdapterCrossCheck(AbstractAdapter):
 
                     dfMain = pd.concat([dfMain, df], ignore_index=True)        
 
-                elif project.block_explorer_type == 'l2beat':
-                    response_json = api_get_call(project.block_explorer_txcount, sleeper=10, retries=20)
+                elif project.cross_check_type == 'l2beat':
+                    response_json = api_get_call(project.cross_check_url, sleeper=10, retries=20)
                     df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
 
                     if project.origin_key == 'ethereum':
@@ -92,11 +92,11 @@ class AdapterCrossCheck(AbstractAdapter):
 
                     dfMain = pd.concat([dfMain, df], ignore_index=True)  
 
-                elif project.block_explorer_type == 'NA':
+                elif project.cross_check_type == 'NA':
                     print(f"no block explorer defined for {project.origin_key} - moving on...")
                 
                 else:
-                    print(f'not implemented {project.block_explorer_type}')
+                    print(f'not implemented {project.cross_check_type}')
                     raise ValueError('Block Explorer Type not supported')
             except Exception as e:
                 print(f"TxCount Cross Check: Error loading comparison txcount data for {project.origin_key}: {e}")
