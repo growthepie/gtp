@@ -57,6 +57,8 @@ class Glo:
         df = df[df['address'] != '']
         df = df.drop(columns=['wallet'])
         df = df.drop_duplicates(subset=['org', 'address'])
+        df = df.dropna(subset=['address'])
+        df['address'] = df['address'].str.strip() ## remove leading or trailing spaces
         print(f"..cleaned up {len(df)} rows")
         return df
 
