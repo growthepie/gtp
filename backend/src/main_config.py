@@ -68,3 +68,8 @@ def get_all_l2_config(db_connector):
     main_config = get_main_config(db_connector)
     all_l2_config = main_config + [MainConfig(origin_key='all_l2s', name='All L2s', name_short='-', bucket='-', api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
     return all_l2_config
+
+def get_multi_config(db_connector):
+    all_l2_config = get_all_l2_config(db_connector)
+    multi_config = all_l2_config + [MainConfig(origin_key='multiple', name='Multiple L2s', name_short='-', bucket='-', api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
+    return multi_config

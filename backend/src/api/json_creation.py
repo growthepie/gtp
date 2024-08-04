@@ -7,7 +7,7 @@ import numpy as np
 import random
 from datetime import timedelta, datetime, timezone
 
-from src.chain_config import adapter_mapping, adapter_multi_mapping
+from src.main_config import get_main_config, get_multi_config
 from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 
@@ -33,6 +33,8 @@ class JSONCreation():
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
+        self.main_config = get_main_config(self.db_connector)
+        self.multi_config = get_multi_config(self.db_connector)
 
         ## Decimals: only relevant if value isn't aggregated
         ## When aggregated (starting >1k), we always show 2 decimals
@@ -366,15 +368,15 @@ class JSONCreation():
         self.metrics_string = "'" + "','".join(self.metrics_list) + "'"
 
         #append all keys of chains dict to a list
-        self.chains_list = [x.origin_key for x in adapter_mapping]
+        self.chains_list = [x.origin_key for x in self.main_config]
         #concat all values of chains_list to a string and add apostrophes around each value
         self.chains_string = "'" + "','".join(self.chains_list) + "'"
         #only chains that are in the api output
-        self.chains_list_in_api = [x.origin_key for x in adapter_mapping if x.in_api == True]
+        self.chains_list_in_api = [chain.origin_key for chain in self.main_config if chain.api_in_main == True]
         #only chains that are in the api output and deployment is "PROD"
-        self.chains_list_in_api_prod = [x.origin_key for x in adapter_mapping if x.in_api == True and x.deployment == "PROD"]
+        self.chains_list_in_api_prod = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and chain.api_deployment_flag=='PROD']
         #only chains that are in the api output and deployment is "PROD" and in_labels_api is True
-        self.chains_list_in_api_labels = [x.origin_key for x in adapter_mapping if x.in_api == True and x.in_labels_api == True]
+        self.chains_list_in_api_labels = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and chain.api_in_labels == True]
 
         ## all feest metrics keys
         self.fees_list = [item for sublist in [self.fees_types[metric]['metric_keys'] for metric in self.fees_types] for item in sublist]
@@ -954,7 +956,7 @@ class JSONCreation():
         return int(df_tmp['value'].values[0])
     
     def get_cross_chain_activity(self, df, chain):
-        if chain.aggregate_addresses == False or chain.origin_key == 'starknet':
+        if chain.runs_aggregate_addresses == False or chain.origin_key == 'starknet':
             print(f'...cross_chain_activity for {chain.origin_key} is not calculated because aggregate_addresses is set to False.')
             return 0
         else:
@@ -980,12 +982,12 @@ class JSONCreation():
     def get_landing_table_dict(self, df):
         chains_dict = {}
         all_users = self.get_aa_last7d(df, 'all')
-        for chain in adapter_mapping:
-            if chain.in_api == True and chain.origin_key != 'ethereum':
+        for chain in self.main_config:
+            if chain.api_in_main == True and chain.origin_key != 'ethereum':
                 chains_dict[chain.origin_key] = {
                     "chain_name": chain.name,
-                    "technology": chain.technology,
-                    "purpose": chain.purpose,
+                    "technology": chain.metadata_technology,
+                    "purpose": chain.metadata_purpose,
                     "users": self.get_aa_last7d(df, chain.origin_key),
                     "user_share": round(self.get_aa_last7d(df, chain.origin_key)/all_users,4),
                     "cross_chain_activity": self.get_cross_chain_activity(df, chain)
@@ -1032,8 +1034,8 @@ class JSONCreation():
             user_share = round(self.chain_users(df, aggregation, chain.origin_key) / total_l2_users, 4)
         dict = {
                     "chain_name": chain.name,
-                    "technology": chain.technology,
-                    "purpose": chain.purpose,
+                    "technology": chain.metadata_technology,
+                    "purpose": chain.metadata_purpose,
                     "user_share": user_share,
                     "data": {
                         "types": [
@@ -1050,7 +1052,7 @@ class JSONCreation():
         # filter df to date >= 2021-09-01
         df = df.loc[df.date >= '2021-09-01']
 
-        for chain in adapter_multi_mapping:
+        for chain in self.multi_config:
             chains_dict[chain.origin_key] = self.generate_userbase_dict(df, chain, aggregation)
         return chains_dict
     
@@ -1060,8 +1062,7 @@ class JSONCreation():
         mks = metric['metric_keys']
 
         # filter df for all_l2s (all chains except Ethereum and chains that aren't included in the API)
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True]
-        df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(chain_keys))]
+        df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api))]
 
         # filter df _tmp by date so that date is greather than 2 years ago
         df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')]  
@@ -1132,8 +1133,8 @@ class JSONCreation():
         return top_5
     
     def gen_l2beat_link(self, chain):
-        if chain.l2beat_tvl_naming:
-            return f'https://l2beat.com/scaling/projects/{chain.l2beat_tvl_naming}'
+        if chain.aliases_l2beat:
+            return f'https://l2beat.com/scaling/projects/{chain.aliases_l2beat}'
         else:
             return 'https://l2beat.com'
 
@@ -1181,9 +1182,9 @@ class JSONCreation():
 
         ## create dict with all chain info
         chain_dict = {}
-        for chain in adapter_mapping:
+        for chain in self.main_config:
             origin_key = chain.origin_key
-            if chain.in_api == False:
+            if chain.api_in_main == False:
                 print(f'..skipped: Master json export for {origin_key}. API is set to False')
                 continue
 
@@ -1191,26 +1192,26 @@ class JSONCreation():
                 'name': chain.name,
                 'caip2': self.db_connector.get_chain_info(origin_key, 'caip2'),
                 'evm_chain_id': self.db_connector.get_chain_info(origin_key, 'evm_chain_id'),
-                'deployment': chain.deployment,
+                'deployment': chain.api_deployment_flag,
                 'name_short': chain.name_short,
-                'description': chain.description,
-                'da_layer': chain.da_layer,
-                'symbol': chain.symbol,
+                'description': chain.metadata_description,
+                'da_layer': chain.metadata_da_layer,
+                'symbol': chain.metadata_symbol,
                 'bucket': chain.bucket,
-                'technology': chain.technology,
-                'purpose': chain.purpose,
-                'launch_date': chain.launch_date,
-                'enable_contracts': chain.in_labels_api,
+                'technology': chain.metadata_technology,
+                'purpose': chain.metadata_purpose,
+                'launch_date': chain.metadata_launch_date,
+                'enable_contracts': chain.api_in_labels,
                 'l2beat_stage': self.gen_l2beat_stage(chain),
                 'l2beat_link': self.gen_l2beat_link(chain),
-                'raas': chain.raas,
-                'stack': chain.stack,
-                'website': chain.website,
-                'twitter': chain.twitter,
-                'block_explorer': chain.block_explorer,
+                'raas': chain.metadata_raas,
+                'stack': chain.metadata_stack,
+                'website': chain.socials_website,
+                'twitter': chain.socials_twitter,
+                'block_explorer': next(iter(chain.block_explorers.values())),
                 'block_explorers': chain.block_explorers,
-                'rhino_listed': bool(getattr(chain, 'rhino_naming', None)),
-                'rhino_naming': getattr(chain, 'rhino_naming', None)
+                'rhino_listed': bool(getattr(chain, 'aliases_rhino', None)),
+                'rhino_naming': getattr(chain, 'aliases_rhino', None)
             }
         
         ## create dict for fees without metric_keys field
@@ -1276,8 +1277,8 @@ class JSONCreation():
         for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
             landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
 
-         ## put all origin_keys from adapter_mapping in a list where in_api is True
-        chain_keys = [chain.origin_key for chain in adapter_mapping if chain.in_api == True and 'blockspace' not in chain.exclude_metrics]
+         ## put all origin_keys from main_config in a list where in_api is True
+        chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
 
         for days in [1,7,30,90,180,365]:
             contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
@@ -1310,15 +1311,15 @@ class JSONCreation():
 
     def create_chain_details_jsons(self, df, origin_keys:list=None):
         if origin_keys != None:
-            ## create adapter_mapping_filtered that only contains chains that are in the origin_keys list
-            adapter_mapping_filtered = [chain for chain in adapter_mapping if chain.origin_key in origin_keys]
+            ## create main_conf_filtered that only contains chains that are in the origin_keys list
+            main_config_filtered = [chain for chain in self.main_config if chain.origin_key in origin_keys]
         else:
-            adapter_mapping_filtered = adapter_mapping
+            main_config_filtered = self.main_config
 
         ## loop over all chains and generate a chain details json for all chains and with all possible metrics
-        for chain in adapter_mapping_filtered:
+        for chain in main_config_filtered:
             origin_key = chain.origin_key
-            if chain.in_api == False:
+            if chain.api_in_main == False:
                 print(f'..skipped: Chain details export for {origin_key}. API is set to False')
                 continue
 
@@ -1328,7 +1329,7 @@ class JSONCreation():
                 if self.metrics[metric]['fundamental'] == False:
                     continue
 
-                if metric in chain.exclude_metrics:
+                if metric in chain.api_exclude_metrics:
                     print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded')
                     continue
                 
@@ -1350,7 +1351,7 @@ class JSONCreation():
                     ranking_dict[metric] = self.get_ranking(df, metric, origin_key)
             
             ## Hottest Contract
-            if chain.aggregate_blockspace and 'blockspace' not in chain.exclude_metrics:
+            if chain.runs_aggregate_blockspace and 'blockspace' not in chain.api_exclude_metrics:
                 hottest_contract = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=1, origin_keys=[origin_key], limit=1)
                 hottest_contract = hottest_contract.replace({np.nan: None})
                 hottest_contract = db_addresses_to_checksummed_addresses(hottest_contract, ['address'])
@@ -1403,13 +1404,13 @@ class JSONCreation():
                 continue
             
             chains_dict = {}    
-            for chain in adapter_mapping:
+            for chain in self.main_config:
                 origin_key = chain.origin_key
-                if chain.in_api == False:
+                if chain.api_in_main == False:
                     print(f'..skipped: Metric details export for {origin_key}. API is set to False')
                     continue
 
-                if metric in chain.exclude_metrics:
+                if metric in chain.api_exclude_metrics:
                     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                     continue
 
@@ -1478,9 +1479,9 @@ class JSONCreation():
         max_ts_all = df['unix'].max()
 
         ## loop over all chains and generate a fees json for all chains
-        for chain in adapter_mapping:
+        for chain in self.main_config:
             origin_key = chain.origin_key
-            if chain.in_fees_api == False:
+            if chain.api_in_fees == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
             
@@ -1513,9 +1514,9 @@ class JSONCreation():
         } 
 
         ## loop over all chains and generate a fees json for all chains
-        for chain in adapter_mapping:
+        for chain in self.main_config:
             origin_key = chain.origin_key
-            if chain.in_fees_api == False:
+            if chain.api_in_fees == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
             if origin_key == 'ethereum':
@@ -1595,7 +1596,7 @@ class JSONCreation():
         }
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
-        chain_keys = [x.origin_key for x in adapter_mapping if x.in_economics_api == True and x.deployment == "PROD"]
+        chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
         df = df.loc[(df.origin_key.isin(chain_keys))]
         timeframes = [1,7,30,90,180,'max']
         
@@ -1831,77 +1832,6 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, full_name, labels_dict, self.cf_distribution_id)
         print(f'DONE -- labels {full_name} export')
 
-    # def create_labels_parquet(self, type='full'):
-    #     if type == 'full':
-    #         limit = 250000
-    #     elif type == 'quick':
-    #         limit = 100
-    #     else:
-    #         raise ValueError('type must be either "full" or "quick"')
-        
-    #     order_by = 'txcount'
-    #     df = self.db_connector.get_labels_lite_db(limit=limit, order_by=order_by, origin_keys=self.chains_list_in_api_labels)
-    #     df = db_addresses_to_checksummed_addresses(df, ['address'])
-
-    #     df['gas_fees_usd'] = df['gas_fees_usd'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-    #     df['txcount_change'] = df['txcount_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-    #     df['gas_fees_usd_change'] = df['gas_fees_usd_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-    #     df['daa_change'] = df['daa_change'].apply(lambda x: round(x, 4) if pd.notnull(x) else x)
-
-    #     upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/{type}', df, self.cf_distribution_id)
-    #     print(f'DONE -- labels {type}.parquet export')
-
-    # def create_projects_parquet(self):        
-    #     df = self.db_connector.get_active_projects()
-
-    #     df = df.rename(columns={'name': 'owner_project'})
-
-    #     upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', df, self.cf_distribution_id)
-    #     print(f'DONE -- labels projects.parquet export')
-
-    # def create_labels_sparkline_parquet(self):
-    #     df = self.db_connector.get_labels_page_sparkline(limit = 1000000, origin_keys=self.chains_list_in_api_labels)
-    #     df = db_addresses_to_checksummed_addresses(df, ['address'])
-
-    #     df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
-
-    #     ## Fill in missing dates for each address, origin_key combination
-    #     # Find min and max dates for each address, origin_key combination
-    #     min_dates = df.groupby(['address', 'origin_key'])['date'].min().reset_index()
-    #     max_dates = df.groupby(['address', 'origin_key'])['date'].max().reset_index()
-    #     # Merge min and max dates
-    #     date_ranges = pd.merge(min_dates, max_dates, on=['address', 'origin_key'])
-    #     date_ranges.columns = ['address', 'origin_key', 'min_date', 'max_date']
-    #     # Create a DataFrame for all combinations of address, origin_key, and date
-    #     all_combinations = []
-    #     for _, row in date_ranges.iterrows():
-    #         address = row['address']
-    #         origin_key = row['origin_key']
-    #         all_dates = pd.date_range(start=row['min_date'], end=row['max_date'])
-    #         all_combinations.append(pd.DataFrame({
-    #             'date': all_dates,
-    #             'address': address,
-    #             'origin_key': origin_key
-    #         }))
-    #     # Concatenate all combinations into a single DataFrame
-    #     all_combinations_df = pd.concat(all_combinations, ignore_index=True)
-    #     # Merge with the original dataframe
-    #     merged_df = pd.merge(all_combinations_df, df, on=['date', 'address', 'origin_key'], how='left')
-    #     # Fill NaN values with 0
-    #     merged_df['txcount'].fillna(0, inplace=True)
-    #     merged_df['gas_fees_usd'].fillna(0, inplace=True)
-    #     merged_df['daa'].fillna(0, inplace=True)
-
-    #     df = merged_df.copy()
-    #     df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
-
-    #     df['txcount'] = df['txcount'].astype(int)
-    #     df['daa'] = df['daa'].astype(int)
-    #     df['gas_fees_usd'] = df['gas_fees_usd'].round(2)                 
-
-    #     upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/sparkline', df, self.cf_distribution_id)
-    #     print(f'DONE -- sparkline.parquet export')
-
     def create_export_labels_parquet(self, subset = 'top50k'):
         if subset == 'top50k':
             limit = 50000
@@ -1934,15 +1864,15 @@ class JSONCreation():
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         
-        ## filter based on settings in adapter_mapping
-        for adapter in adapter_mapping:
+        ## filter based on settings in main_config
+        for adapter in self.main_config:
             ## filter out origin_keys from df if in_api=false
-            if adapter.in_api == False:
+            if adapter.api_in_main == False:
                 #print(f"Filtering out origin_keys for adapter {adapter.name}")
                 df = df[df.origin_key != adapter.origin_key]
-            elif len(adapter.exclude_metrics) > 0:
+            elif len(adapter.api_exclude_metrics) > 0:
                 origin_key = adapter.origin_key
-                for metric in adapter.exclude_metrics:
+                for metric in adapter.api_exclude_metrics:
                     if metric != 'blockspace':
                         #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
                         metric_keys = self.metrics[metric]['metric_keys']
@@ -1967,15 +1897,15 @@ class JSONCreation():
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
         
-        ## filter based on settings in adapter_mapping
-        for adapter in adapter_mapping:
+        ## filter based on settings in main_config
+        for adapter in self.main_config:
             ## filter out origin_keys from df if in_api=false
-            if adapter.in_api == False:
+            if adapter.api_in_main == False:
                 #print(f"Filtering out origin_keys for adapter {adapter.name}")
                 df = df[df.origin_key != adapter.origin_key]
-            elif len(adapter.exclude_metrics) > 0:
+            elif len(adapter.api_exclude_metrics) > 0:
                 origin_key = adapter.origin_key
-                for metric in adapter.exclude_metrics:
+                for metric in adapter.api_exclude_metrics:
                     if metric != 'blockspace':
                         #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
                         metric_keys = self.metrics[metric]['metric_keys']
