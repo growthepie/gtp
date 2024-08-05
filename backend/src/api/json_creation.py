@@ -1182,7 +1182,7 @@ class JSONCreation():
 
         ## create dict with all chain info
         chain_dict = {}
-        for chain in self.main_config:
+        for chain in self.multi_config:
             origin_key = chain.origin_key
             if chain.api_in_main == False:
                 print(f'..skipped: Master json export for {origin_key}. API is set to False')
@@ -1190,6 +1190,7 @@ class JSONCreation():
 
             chain_dict[origin_key] = {
                 'name': chain.name,
+                'chain_type': chain.chain_type,
                 'caip2': self.db_connector.get_chain_info(origin_key, 'caip2'),
                 'evm_chain_id': self.db_connector.get_chain_info(origin_key, 'evm_chain_id'),
                 'deployment': chain.api_deployment_flag,
@@ -1198,6 +1199,8 @@ class JSONCreation():
                 'da_layer': chain.metadata_da_layer,
                 'symbol': chain.metadata_symbol,
                 'bucket': chain.bucket,
+                'ecosystem': chain.ecosystem,
+                'colors': chain.colors,
                 'technology': chain.metadata_technology,
                 'purpose': chain.metadata_purpose,
                 'launch_date': chain.metadata_launch_date,
@@ -1208,7 +1211,7 @@ class JSONCreation():
                 'stack': chain.metadata_stack,
                 'website': chain.socials_website,
                 'twitter': chain.socials_twitter,
-                'block_explorer': next(iter(chain.block_explorers.values())),
+                'block_explorer': next(iter(chain.block_explorers.values())) if chain.block_explorers else None,
                 'block_explorers': chain.block_explorers,
                 'rhino_listed': bool(getattr(chain, 'aliases_rhino', None)),
                 'rhino_naming': getattr(chain, 'aliases_rhino', None)

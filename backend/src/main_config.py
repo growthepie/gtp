@@ -3,6 +3,7 @@ from typing import Optional, List, Dict, Any
 
 class MainConfig(BaseModel):
     origin_key: str
+    chain_type: str
     l2beat_stage: Optional[str]
     caip2: Optional[str]
     evm_chain_id: Optional[float]
@@ -10,6 +11,8 @@ class MainConfig(BaseModel):
     name_short: str
     bucket: str
     block_explorers: Optional[dict]
+    colors: dict
+    ecosystem: list = Field(alias="ecosystem_old")    
 
     ## API
     api_in_main: bool = Field(alias="api_in_api_main", default=False)
@@ -66,10 +69,10 @@ def get_main_config(db_connector):
 
 def get_all_l2_config(db_connector):
     main_config = get_main_config(db_connector)
-    all_l2_config = main_config + [MainConfig(origin_key='all_l2s', name='All L2s', name_short='-', bucket='-', api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
+    all_l2_config = main_config + [MainConfig(origin_key='all_l2s', chain_type = '-', name='All L2s', name_short='-', bucket='-', colors={"light":["#FFDF27","#FE5468"],"dark":["#FFDF27","#FE5468"],"darkTextOnBackground": False}, ecosystem_old=["op-stack", "op-super", "all-chains"], api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
     return all_l2_config
 
 def get_multi_config(db_connector):
     all_l2_config = get_all_l2_config(db_connector)
-    multi_config = all_l2_config + [MainConfig(origin_key='multiple', name='Multiple L2s', name_short='-', bucket='-', api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
+    multi_config = all_l2_config + [MainConfig(origin_key='multiple', chain_type = 'all-L2s', name='Multiple L2s', name_short='-', colors = {"light":["#cdd8d3","#cdd8d3"],"dark":["#cdd8d3","#cdd8d3"],"darkTextOnBackground": False} , bucket='-', ecosystem_old=[], api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
     return multi_config
