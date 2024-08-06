@@ -1734,6 +1734,95 @@ sql_q= {
         GROUP BY 1
         """
 
+        ### Redstone
+        ,'redstone_txcount_raw': """
+        SELECT date_trunc('day', gpt.block_timestamp) AS day,
+                count(*) AS value
+        FROM redstone_tx gpt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        AND gas_price > 0
+        GROUP BY 1
+        """
+
+        ,'redstone_fees_paid_eth': """
+        with redstone_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.redstone_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                redstone.day,
+                redstone.total_tx_fee AS value
+        FROM redstone_tx_filtered redstone
+        """
+
+        ,'redstone_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.redstone_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'redstone_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
+        WHERE
+                origin_key = 'redstone' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+         ,'redstone_aa_last_xxd': """
+        with tmp as (
+                SELECT 
+                        date as day, 
+                        #hll_union_agg(hll_addresses) OVER seven_days as value
+                FROM fact_active_addresses_hll
+                where origin_key = 'redstone' 
+                        AND date > current_date - interval '{{Days}} days' - INTERVAL '{{Timerange}} days' AND date < current_date
+                WINDOW seven_days AS (ORDER BY date asc ROWS {{Timerange}} - 1 PRECEDING)
+        )
+
+        select 
+                day,
+                value::int as value
+        from tmp
+        where day >= current_date - interval '{{Days}} days'
+        """
+
+        ,'redstone_txcosts_median_eth': """
+        WITH 
+        redstone_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.redstone_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                redstone.day,
+                redstone.median_tx_fee as value
+        FROM redstone_median redstone
+        """
+
+        ,'redstone_gas_per_second': """
+        SELECT  date_trunc('day', block_timestamp) AS day,
+                sum(gas_used) / (24*60*60) AS value
+        FROM    redstone_tx
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
+        GROUP BY 1
+        """
+
 }
 
 
@@ -2009,4 +2098,19 @@ sql_queries = [
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "taiko", sql=sql_q["taiko_txcosts_median_eth"], query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "cca", origin_key = "taiko", sql=get_cross_chain_activity('taiko'), currency_dependent = False, query_parameters={})
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "taiko", sql=sql_q["taiko_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+
+        ## Redstone
+        ,SQLQuery(metric_key = "txcount_raw", origin_key = "redstone", sql=sql_q["redstone_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        ,SQLQuery(metric_key = "txcount", origin_key = "redstone", sql=sql_q["redstone_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "daa", origin_key = "redstone", sql=sql_q["redstone_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+        #,SQLQuery(metric_key = "waa", origin_key = "redstone", sql=sql_q["redstone_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+        ,SQLQuery(metric_key = "maa", origin_key = "redstone", sql=sql_q["redstone_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+        ,SQLQuery(metric_key = "aa_last7d", origin_key = "redstone", sql=sql_q["redstone_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
+        ,SQLQuery(metric_key = "aa_last30d", origin_key = "redstone", sql=sql_q["redstone_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "redstone", sql=sql_q["redstone_fees_paid_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "redstone", sql=sql_q["redstone_txcosts_median_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "cca", origin_key = "redstone", sql=get_cross_chain_activity('redstone'), currency_dependent = False, query_parameters={})
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "redstone", sql=sql_q["redstone_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+
+
 ]
