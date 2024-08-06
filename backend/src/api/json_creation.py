@@ -1201,6 +1201,7 @@ class JSONCreation():
                 'bucket': chain.bucket,
                 'ecosystem': chain.ecosystem,
                 'colors': chain.colors,
+                'logo': chain.logo,
                 'technology': chain.metadata_technology,
                 'purpose': chain.metadata_purpose,
                 'launch_date': chain.metadata_launch_date,

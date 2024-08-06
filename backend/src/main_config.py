@@ -12,6 +12,7 @@ class MainConfig(BaseModel):
     bucket: str
     block_explorers: Optional[dict]
     colors: dict
+    logo: Optional[dict]
     ecosystem: list = Field(alias="ecosystem_old")    
 
     ## API
@@ -61,11 +62,9 @@ class MainConfig(BaseModel):
     cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key")
     cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function")
 
-
 def get_main_config(db_connector):
     main_conf_dict = db_connector.get_main_config_dict()
     return [MainConfig(**data) for data in main_conf_dict]
-
 
 def get_all_l2_config(db_connector):
     main_config = get_main_config(db_connector)
