@@ -1,12 +1,12 @@
 import pandas as pd
-import json
-import os
+from github import Github # pip install PyGithub
+import zipfile
+import io
+import yaml
+import requests
 
-from src.adapters.clients.bigquery import BigQuery
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import api_post_call, send_discord_message, print_init, print_load, print_extract
-
-#TODO: add website, twitter, github org once available
 
 class AdapterOSO(AbstractAdapter):
     """
@@ -15,8 +15,7 @@ class AdapterOSO(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("OSO", adapter_params, db_connector)
-        google_creds = adapter_params['google_creds']
-        self.bq = BigQuery(google_creds)
+        self.g = Github(adapter_params['github_token'])
         self.webhook_url = adapter_params['webhook']
         print_init(self.name, self.adapter_params)
 
@@ -37,62 +36,46 @@ class AdapterOSO(AbstractAdapter):
 
     ## ----------------- Helper functions --------------------
 
+    ## This method loads the projects from oss-directory github
+    ## It returns a df with columns: ['name', 'display_name', 'description', 'github', 'websites', 'npm', 'social', 'active', 'source']
     def load_oss_projects(self):
-        ## Load the data from BigQuery
-        query = """
-                SELECT 
-                project_name,
-                display_name,
-                project_namespace,
-                project_source,
-                description
-            FROM `growthepie.oso_production.projects_v1`
-        """
+        
+        # Get the repository
+        repo_url = "https://github.com/opensource-observer/oss-directory/tree/main/data/projects"
+        _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
+        path = '/'.join(path)
+        repo = self.g.get_repo(f"{owner}/{repo_name}")
 
-        df = self.bq.execute_bigquery(query)
-        df = df.rename(columns={'project_name': 'name', 'project_namespace': 'namespace', 'project_source': 'source'})
-        return df
+        # Download oss-directory as ZIP file
+        zip_url = f"https://github.com/{owner}/{repo_name}/archive/{branch}.zip"
+        response = requests.get(zip_url)
+        zip_content = io.BytesIO(response.content)
 
-    def load_oss_github_slugs(self):
-        ## Load the data from BigQuery
-        query = """
-                WITH org_repos AS (
-                    SELECT 
-                        project_name,
-                        artifact_namespace AS github_org,
-                        COUNT(*) AS count_repos,
-                        ROW_NUMBER() OVER (PARTITION BY project_name ORDER BY COUNT(*) DESC) AS row_num
-                    FROM `growthepie.oso_production.artifacts_by_project_v1`
-                    WHERE artifact_source = 'GITHUB'
-                    GROUP BY project_name, artifact_namespace
-                )
-                SELECT 
-                    project_name,
-                    github_org as github_slug
-                FROM org_repos
-                WHERE row_num = 1;
-        """
+        # Convert ZIP to df of projects
+        df = pd.DataFrame()
+        with zipfile.ZipFile(zip_content) as zip_ref:
+            for file_name in zip_ref.namelist():
+                if file_name.endswith('.yaml') and file_name.startswith(f"{repo_name}-{branch}/{path}"):
+                    with zip_ref.open(file_name) as file:
+                        content = file.read().decode('utf-8')
+                        content = yaml.safe_load(content)
+                        df_temp = pd.json_normalize(content)
+                        if 'social' in content:
+                            df_temp['social'] = [content['social']]
+                        df = pd.concat([df, df_temp], ignore_index=True)
 
-        df = self.bq.execute_bigquery(query)
-        ## rename column project_slug to name and github_slug to main_github
-        df = df.rename(columns={'project_name': 'name', 'github_slug': 'main_github'})
-        return df
+        # prepare df_projects for inserting into our db table 'oli_oss_directory'
+        df = df[['name', 'display_name', 'description', 'github', 'websites', 'npm', 'social']]
+        df['active'] = True # project is marked active because it is in the OSS directory
+        df['source'] = 'OSS_DIRECTORY'
 
-    ## This method loads the projects and github slugs data and joins them on project_id
-    ## It returns a dataframe with the following columns: ['project_id', 'project_name', 'project_slug', 'user_namespace', 'github_org']
-    def get_oss_projects(self):
-        df_projects = self.load_oss_projects()
-        # df_github_slugs = self.load_oss_github_slugs()
-
-
-        ## TODO: reverse this change once the github slugs are available
-        # ## join the two dataframes on project_id
-        # df = pd.merge(df_projects, df_github_slugs, on='name', how='left')
-        # df['active'] = True
-
-        # return df
-        df_projects['active'] = True
-        return df_projects	
+        # to be removed columns!!!
+        df['main_github'] = df['github'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first github url
+        df['main_github'] = df['main_github'].apply(lambda x: x.split('/')[-1] if isinstance(x, str) else None) # remove the url and keep only the name of the github repo
+        df['website'] = df['websites'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first website url
+        df['twitter'] = df['social'].apply(lambda x: x['twitter'][0]['url'] if not pd.isna(x) and 'twitter' in x and isinstance(x['twitter'], list) else None) # get the first X url
+         
+        return df	
 
     ## Projects that are in our db (df_active_projects) but not in the export from OSS (df_oss) are dropped projects
     ## These projects will get deactivated in our DB and we send a notifcation in our Discord about it
@@ -111,13 +94,13 @@ class AdapterOSO(AbstractAdapter):
         else:
             raise Exception("The number of projects in the OSS export is too low. Something went wrong.")
         
-    ## Combine all above functions to get the final df and deactivate dropped projects
+    ## Combine the above functions to get the final df and deactivate dropped projects
     def extract_oss(self):
-        ## get latest oss projects from their endpoints and get our active projects in our db
-        df_oss = self.get_oss_projects()
+        ## get latest oss projects from oss-directory Github repo and our active projects in our db
+        df_oss = self.load_oss_projects()
         df_active_projects = self.db_connector.get_active_projects()
 
-        ## deactivate projects in our db that don't appear anymore in the oss endpoints
+        ## deactivate projects in our db that don't appear anymore in the oss-directory 
         self.deactivate_dropped_projects(df_oss, df_active_projects)
 
         ## identify new projects send a notification in Discord
@@ -127,14 +110,12 @@ class AdapterOSO(AbstractAdapter):
         if len(new_projects) > 0:
             send_discord_message(f"<@874921624720257037> OSS projects newly ADDED: {new_projects}", self.webhook_url)
 
-        # drop the namespace column
-        df_oss.drop(columns=['namespace'], inplace=True)
-
         ## set index
         df_oss.set_index('name', inplace=True)
 
         return df_oss
     
+    # not used as of now, current work in progress
     def check_inactive_projects(self):
         print("Checking for inactive projects with contracts assigned")
         df = self.db_connector.get_tags_inactive_projects()
