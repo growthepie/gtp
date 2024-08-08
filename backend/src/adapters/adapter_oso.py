@@ -5,7 +5,6 @@ import io
 import yaml
 import requests
 
-from src.adapters.clients.bigquery import BigQuery
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import api_post_call, send_discord_message, print_init, print_load, print_extract
 
@@ -66,17 +65,17 @@ class AdapterOSO(AbstractAdapter):
                         df = pd.concat([df, df_temp], ignore_index=True)
 
         # prepare df_projects for inserting into our db table 'oli_oss_directory'
-        df_projects = df[['name', 'display_name', 'description', 'github', 'websites', 'npm', 'social']]
-        df_projects['active'] = True # project is marked active because it is in the OSS directory
-        df_projects['source'] = 'OSS_DIRECTORY'
+        df = df[['name', 'display_name', 'description', 'github', 'websites', 'npm', 'social']]
+        df['active'] = True # project is marked active because it is in the OSS directory
+        df['source'] = 'OSS_DIRECTORY'
 
         # to be removed columns!!!
-        df_projects['main_github'] = df['github'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first github url
-        df_projects['main_github'] = df_projects['main_github'].apply(lambda x: x.split('/')[-1] if isinstance(x, str) else None) # remove the url and keep only the name of the github repo
-        df_projects['main_website'] = df['websites'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first website url
-        df_projects['main_twitter'] = df['social.twitter'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first X url
-
-        return df_projects	
+        df['main_github'] = df['github'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first github url
+        df['main_github'] = df['main_github'].apply(lambda x: x.split('/')[-1] if isinstance(x, str) else None) # remove the url and keep only the name of the github repo
+        df['website'] = df['websites'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first website url
+        df['twitter'] = df['social'].apply(lambda x: x['twitter'][0]['url'] if not pd.isna(x) and 'twitter' in x and isinstance(x['twitter'], list) else None) # get the first X url
+         
+        return df	
 
     ## Projects that are in our db (df_active_projects) but not in the export from OSS (df_oss) are dropped projects
     ## These projects will get deactivated in our DB and we send a notifcation in our Discord about it
