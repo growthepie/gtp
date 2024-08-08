@@ -298,17 +298,22 @@ class BlockspaceJSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/blockspace/overview', overview_dict, self.cf_distribution_id)
         print(f'-- DONE -- Blockspace export for overview')
     
-    def create_blockspace_single_chain_json(self):
+    def create_blockspace_single_chain_json(self, origin_keys:list=None):
         # define the timeframes in days for the overview data
         overview_timeframes = [1, 7, 30, 180, "max"]
-
         # get main_category_keys in the blockspace_df
         category_mapping = self.get_category_mapping()
 
         main_category_keys = category_mapping['main_category_id'].unique().tolist()
+        
+        if origin_keys != None:
+            ## create main_conf_filtered that only contains chains that are in the origin_keys list
+            main_config_filtered = [chain for chain in self.main_conf if chain.origin_key in origin_keys]
+        else:
+            main_config_filtered = self.main_conf
 
         #for chain_key in config:
-        for chain in self.main_conf:
+        for chain in main_config_filtered:
             origin_key = chain.origin_key
             if chain.api_in_main == False:
                 print(f'-- SKIPPED -- Single chain blockspace export for {origin_key}. API is set to False')
