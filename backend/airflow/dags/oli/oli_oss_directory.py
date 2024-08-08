@@ -30,7 +30,7 @@ def etl():
     @task()
     def run_oss():
         adapter_params = {
-            'google_creds' : os.getenv("GOOGLE_CREDENTIALS"),
+            'github_token' : os.getenv("GITHUB_TOKEN"), # add GITHUB_TOKEN to .env
             'webhook' : os.getenv('DISCORD_CONTRACTS')
         }
         load_params = {
