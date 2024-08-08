@@ -10,9 +10,11 @@
 
 The [`gtp`](https://github.com/growthepie/gtp) repository serves as the backbone for the growthepie dashboard, providing robust L2 data pipelines and data curation.
 
+The backend operates on Python version **3.10.12**.
+
 ### Features
 
-- Data pipelines from our RPC nodes, Dune, coingecko, L2Beat to our PostgreSQL database
+- Data pipelines from our L2 nodes, Dune, coingecko, DefiLlama, L2Beat, etc. to our PostgreSQL database
 - Data cleaning and curation
 - Scheduling using Airflow
 

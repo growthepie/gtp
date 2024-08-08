@@ -6,6 +6,7 @@ my_env/
 myenv312/
 local_env/
 venv/
+.venv/
 
 *.ipynb
 *.html
