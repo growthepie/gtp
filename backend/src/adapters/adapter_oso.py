@@ -127,6 +127,9 @@ class AdapterOSO(AbstractAdapter):
         if len(new_projects) > 0:
             send_discord_message(f"<@874921624720257037> OSS projects newly ADDED: {new_projects}", self.webhook_url)
 
+        # drop the namespace column
+        df_oss.drop(columns=['namespace'], inplace=True)
+
         ## set index
         df_oss.set_index('name', inplace=True)
 
