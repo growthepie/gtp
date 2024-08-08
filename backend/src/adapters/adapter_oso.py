@@ -69,12 +69,6 @@ class AdapterOSO(AbstractAdapter):
         df['active'] = True # project is marked active because it is in the OSS directory
         df['source'] = 'OSS_DIRECTORY'
 
-        # to be removed columns!!!
-        df['main_github'] = df['github'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first github url
-        df['main_github'] = df['main_github'].apply(lambda x: x.split('/')[-1] if isinstance(x, str) else None) # remove the url and keep only the name of the github repo
-        df['website'] = df['websites'].apply(lambda x: x[0]['url'] if isinstance(x, list) else None) # get the first website url
-        df['twitter'] = df['social'].apply(lambda x: x['twitter'][0]['url'] if not pd.isna(x) and 'twitter' in x and isinstance(x['twitter'], list) else None) # get the first X url
-         
         return df	
 
     ## Projects that are in our db (df_active_projects) but not in the export from OSS (df_oss) are dropped projects
