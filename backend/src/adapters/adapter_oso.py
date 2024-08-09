@@ -6,7 +6,7 @@ import yaml
 import requests
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.misc.helper_functions import api_post_call, send_discord_message, print_init, print_load, print_extract
+from src.misc.helper_functions import send_discord_message, print_init, print_load, print_extract
 
 class AdapterOSO(AbstractAdapter):
     """
