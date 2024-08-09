@@ -1262,14 +1262,15 @@ class DbConnector:
 
         ### OLI functions
         def get_active_projects(self):
+                # if multiple githubs, websites or socials, it will always take the first one in the list!
                 exec_string = """
                         SELECT 
                                 "name", 
                                 display_name, 
                                 description, 
-                                main_github,
-                                twitter,
-                                website 
+                                replace((github->0->>'url'), 'https://github.com/', '') AS main_github,
+                                (social->'twitter'->0->>'url') AS twitter, -- remove 'https://twitter.com/' once front end is capable!
+                                (websites->0->>'url') AS website
                         FROM public.oli_oss_directory 
                         WHERE active = true
                         """
@@ -1279,10 +1280,10 @@ class DbConnector:
         def get_projects_for_airtable(self):
                 exec_string = """
                         SELECT 
-                                "name" as "Name", 
-                                display_name as "Display Name", 
-                                description as "Description", 
-                                main_github as "Github" 
+                                "name" AS "Name", 
+                                display_name AS "Display Name", 
+                                description AS "Description", 
+                                replace((github->0->>'url'), 'https://github.com/', '') AS "Github" 
                         FROM public.oli_oss_directory
                         WHERE active = True;
                         """
