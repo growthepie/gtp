@@ -428,6 +428,10 @@ class JSONCreation():
         #df_tmp = df_tmp.loc[(df_tmp.date == df_tmp.date.max()), ["origin_key", "value", "metric_key", "date"]]
         df_tmp = df_tmp.loc[df_tmp.groupby("origin_key")["date"].idxmax()]
 
+        ## filter out chains that have this metric excluded
+        chains_list_metric = [chain.origin_key for chain in self.main_config if metric_id not in chain.api_exclude_metrics]
+        df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(chains_list_metric))]
+
         ## asign rank based on order (descending order if metric_key is not 'txcosts')
         if metric_id != 'txcosts':
             df_tmp['rank'] = df_tmp['value'].rank(ascending=False, method='first')
