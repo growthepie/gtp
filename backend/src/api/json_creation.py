@@ -1188,8 +1188,15 @@ class JSONCreation():
                 print(f'..skipped: Master json export for {origin_key}. API is set to False')
                 continue
 
+            url_key = chain.origin_key.replace('_', '-')
+            if chain.origin_key == 'imx':
+                url_key = 'immutable-x'
+            if chain.origin_key == 'rhino':
+                url_key = 'rhino-fi'
+
             chain_dict[origin_key] = {
                 'name': chain.name,
+                'url_key': url_key,
                 'chain_type': chain.chain_type,
                 'caip2': self.db_connector.get_chain_info(origin_key, 'caip2'),
                 'evm_chain_id': self.db_connector.get_chain_info(origin_key, 'evm_chain_id'),
