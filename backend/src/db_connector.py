@@ -1269,7 +1269,7 @@ class DbConnector:
                                 display_name, 
                                 description, 
                                 replace((github->0->>'url'), 'https://github.com/', '') AS main_github,
-                                (social->'twitter'->0->>'url') AS twitter, -- remove 'https://twitter.com/' once front end is capable!
+                                replace(replace((social->'twitter'->0->>'url'), 'https://twitter.com/', ''),'https://x.com/', '') AS twitter,
                                 (websites->0->>'url') AS website
                         FROM public.oli_oss_directory 
                         WHERE active = true
