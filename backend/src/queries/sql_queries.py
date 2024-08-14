@@ -77,6 +77,18 @@ sql_q= {
                 and block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         group by 1
         """
+
+        ,'celestia_unique_blob_producers': """
+        SELECT 
+                date_trunc('day', block_timestamp) as day,
+                COUNT(DISTINCT signer) AS value
+                FROM public.celestia_tx
+                WHERE 
+                        signer IS NOT null
+                        and signer != 'nan'
+                        and block_timestamp BETWEEN date_trunc('day', now()) - interval '2 days' AND date_trunc('day', now())
+                group by 1;
+        """
         
         ### Ethereum
         ,'ethereum_txcount_raw': """
@@ -1863,6 +1875,7 @@ sql_queries = [
         ## Celestia
         ,SQLQuery(metric_key = "total_blob_size_bytes", origin_key = "celestia", sql=sql_q["celestia_total_blob_size_bytes"], currency_dependent = False, query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "total_blobs_eth", origin_key = "celestia", sql=sql_q["celestia_total_blobs_eth"], currency_dependent = True, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "unique_blob_producers", origin_key = "celestia", sql=sql_q["celestia_unique_blob_producers"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## Ethereum
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
