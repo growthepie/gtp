@@ -82,12 +82,12 @@ sql_q= {
         SELECT 
                 date_trunc('day', block_timestamp) as day,
                 COUNT(DISTINCT signer) AS value
-                FROM public.celestia_tx
-                WHERE 
-                        signer IS NOT null
-                        and signer != 'nan'
-                        and block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-                group by 1;
+        FROM public.celestia_tx
+        WHERE 
+                signer IS NOT null
+                and signer != 'nan'
+                and block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        group by 1;
         """
         
         ### Ethereum
