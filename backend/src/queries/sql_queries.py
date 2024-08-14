@@ -86,7 +86,7 @@ sql_q= {
                 WHERE 
                         signer IS NOT null
                         and signer != 'nan'
-                        and block_timestamp BETWEEN date_trunc('day', now()) - interval '2 days' AND date_trunc('day', now())
+                        and block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
                 group by 1;
         """
         
