@@ -87,6 +87,7 @@ sql_q= {
                 signer IS NOT null
                 and signer != 'nan'
                 and block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                and "action" = 'celestia.blob.v1.MsgPayForBlobs'
         group by 1;
         """
         
