@@ -378,6 +378,8 @@ class JSONCreation():
         #only chains that are in the api output and deployment is "PROD" and in_labels_api is True
         self.chains_list_in_api_labels = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and chain.api_in_labels == True]
 
+        self.chains_list_in_api_economics = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True]
+
         ## all feest metrics keys
         self.fees_list = [item for sublist in [self.fees_types[metric]['metric_keys'] for metric in self.fees_types] for item in sublist]
 
@@ -1061,12 +1063,15 @@ class JSONCreation():
         return chains_dict
     
     ## This method generates a dict containing aggregate daily values for all_l2s (all chains except Ethereum) for a specific metric_id
-    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False):
+    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False):
         metric = self.metrics[metric_id]
         mks = metric['metric_keys']
 
         # filter df for all_l2s (all chains except Ethereum and chains that aren't included in the API)
-        df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api))]
+        if economics_api == True:
+            df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api_economics))]
+        else:
+            df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api))]
 
         # filter df _tmp by date so that date is greather than 2 years ago
         df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')]  
@@ -1606,9 +1611,17 @@ class JSONCreation():
                         "total_blob_fees": self.gen_da_metric_dict(df, 'total_blob_fees', 'celestia'),
                     },
                 },
+                "all_l2s" : {
+                    "chain_id": "all_l2s",
+                    "chain_name": "All L2s",
+                    "metrics": {}
+                },
                 "chain_breakdown": {}
             }
         }
+
+        for metric_id in ['profit', 'fees', 'rent_paid']: ## TODO: add 'total costs' instead of 'rent_paid'
+            economics_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True, economics_api=True)
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
