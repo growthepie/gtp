@@ -550,7 +550,9 @@ class DbConnector:
                                         sum({tx_fee_usd_string}) as gas_fees_usd,
                                         count(*) as txcount,
                                         count(distinct from_address) as daa,
-                                        '{chain}' as origin_key
+                                        '{chain}' as origin_key,
+                                        sum(status)*1.0/count(*) as success_rate,
+                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
                                 from {chain}_tx tx 
                                 LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
                                 {additional_join}
