@@ -8,7 +8,6 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
-from src.adapters.adapter_sql import AdapterSQL
 
 @dag(
     default_args={
