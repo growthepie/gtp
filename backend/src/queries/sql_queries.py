@@ -1537,35 +1537,61 @@ sql_q= {
         """
 
         , 'manta_celestia_blob_size_bytes': """
-        select 
-                date_trunc('day', block_timestamp) as day, 
-                sum(blob_sizes) as value
-        from (
-                SELECT tx_hash, block_timestamp, jsonb_array_elements(blob_sizes::jsonb)::numeric as blob_sizes , jsonb_array_elements(namespaces::jsonb)::text AS namespaces 
-                FROM celestia_tx
-                where sender in (SELECT json_array_elements_text(da_mapping->'celestia') FROM sys_chains where origin_key = 'manta')
-                        and block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
-                        AND block_timestamp < date_trunc('day', now())
+        SELECT 
+                date_trunc('day', block_timestamp) AS day, 
+                sum(blob_sizes) AS value
+        FROM (
+        SELECT 
+                tx_hash, 
+                block_timestamp, 
+                jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_sizes,
+                trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
+        FROM celestia_tx
+        WHERE 
+                block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
+                AND block_timestamp < date_trunc('day', now())
+                AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
         ) a
-        group by 1
+        JOIN (
+                SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
+                FROM sys_chains
+                WHERE origin_key = 'manta'
+        ) b
+        ON a.namespace = b.namespace
+        GROUP BY 1;
         """
 
         , 'manta_celestia_blobs_eth': """
-        with tia_price as (
-                SELECT "timestamp", value as price_eth
+        WITH tia_price AS (
+                SELECT "timestamp", value AS price_eth
                 FROM public.fact_kpis_granular
-                where origin_key = 'celestia' and metric_key = 'price_eth' and granularity = 'hourly'
-                        and timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                WHERE 
+                        origin_key = 'celestia' AND metric_key = 'price_eth' AND granularity = 'hourly'
+                        AND timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         )
         SELECT 
-                date_trunc('day', block_timestamp) as day, 
-                sum(fee * price_eth)/1e6 as value
-        FROM celestia_tx tx
-        left join tia_price p on date_trunc('hour', tx.block_timestamp) = p.timestamp
-        where "action" = 'celestia.blob.v1.MsgPayForBlobs'
-                and sender in (SELECT json_array_elements_text(da_mapping->'celestia') FROM sys_chains where origin_key = 'manta')
-                and block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
-                AND block_timestamp < date_trunc('day', now())
+                date_trunc('day', block_timestamp) AS day, 
+                sum(fee * price_eth)/1e6 AS value
+        FROM (
+                SELECT 
+                        tx_hash,
+                        block_timestamp,
+                        fee,
+                        price_eth,
+                        trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
+                FROM celestia_tx tx
+                LEFT JOIN tia_price p ON date_trunc('hour', tx.block_timestamp) = p.timestamp
+                WHERE 
+                        block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
+                        AND block_timestamp < date_trunc('day', now())
+                        AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
+        ) a
+        JOIN (
+                SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
+                FROM sys_chains
+                WHERE origin_key = 'manta'
+        ) b
+        ON a.namespace = b.namespace
         group by 1
         """
 

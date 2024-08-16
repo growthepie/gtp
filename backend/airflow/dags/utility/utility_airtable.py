@@ -69,7 +69,26 @@ def etl():
             print(f"Uploaded {len(df)} labels to the database")
 
     @task()
-    def write_airtable_contracts(read_airtable_contracts:str):
+    def run_refresh_materialized_view(read_airtable_contracts:str):
+        # refresh the materialized view for OLI tags, so not the same contracts are shown in the airtable
+        db_connector = DbConnector()
+        db_connector.refresh_materialized_view('vw_oli_labels_materialized')
+
+    @task()
+    def oss_projects(run_refresh_materialized_view:str):
+        # db connection and airtable connection
+        db_connector = DbConnector()
+        table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
+
+        # delete every row in airtable
+        at.clear_all_airtable(table)
+        # get active projects from db
+        df = db_connector.get_projects_for_airtable()
+        # write to airtable
+        at.push_to_airtable(table, df)
+
+    @task()
+    def write_airtable_contracts(oss_projects:str):
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
@@ -95,19 +114,7 @@ def etl():
         # write to airtable
         at.push_to_airtable(table, df)
 
-    @task()
-    def oss_projects(write_airtable_contracts:str):
-        # db connection and airtable connection
-        db_connector = DbConnector()
-        table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
-
-        # delete every row in airtable
-        at.clear_all_airtable(table)
-        # get active projects from db
-        df = db_connector.get_projects_for_airtable()
-        # write to airtable
-        at.push_to_airtable(table, df)
-
-    oss_projects(write_airtable_contracts(read_airtable_contracts()))
+    # order the tasks
+    write_airtable_contracts(oss_projects(run_refresh_materialized_view(read_airtable_contracts())))
 
 etl()
