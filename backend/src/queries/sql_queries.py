@@ -319,6 +319,33 @@ sql_q= {
         GROUP BY 1
         """
 
+        ,'optimism_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.optimism_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+        
+        ,'optimism_fees_paid_eth': """
+        SELECT
+                date_trunc('day', "block_timestamp") AS day,
+                SUM(tx_fee) AS value
+        FROM public.optimism_tx
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'optimism_txcosts_median_eth': """
+        SELECT
+                date_trunc('day', "block_timestamp") AS day,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS value
+        FROM public.optimism_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+	"""
+
         ,'optimism_aa_xxx': """
         SELECT 
                 date_trunc('{{aggregation}}', date) AS day,
@@ -364,6 +391,33 @@ sql_q= {
                 count(*) AS value
         FROM    base_tx bt
         WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'base_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.base_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'base_fees_paid_eth': """
+        SELECT
+                date_trunc('day', "block_timestamp") AS day,
+                SUM(tx_fee) AS value
+        FROM public.base_tx
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'base_txcosts_median_eth': """
+        SELECT
+                date_trunc('day', "block_timestamp") AS day,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS value
+        FROM public.base_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
         GROUP BY 1
         """
 
@@ -1606,18 +1660,12 @@ sql_q= {
         """
 
         ,'mode_fees_paid_eth': """
-        with mode_tx_filtered AS (
-                SELECT
-                        date_trunc('day', "block_timestamp") AS day,
-                        SUM(tx_fee) AS total_tx_fee
-                FROM public.mode_tx
-                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-                GROUP BY 1
-        )
         SELECT
-                mode.day,
-                mode.total_tx_fee AS value
-        FROM mode_tx_filtered mode
+                date_trunc('day', "block_timestamp") AS day,
+                SUM(tx_fee) AS value
+        FROM public.mode_tx
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
         """
 
         ,'mode_txcount': """
@@ -2020,21 +2068,29 @@ sql_queries = [
 
         ## OP Mainnet
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "optimism", sql=sql_q["optimism_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        ,SQLQuery(metric_key = "txcount", origin_key = "optimism", sql=sql_q["optimism_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "daa", origin_key = "optimism", sql=sql_q["optimism_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
         #,SQLQuery(metric_key = "waa", origin_key = "optimism", sql=sql_q["optimism_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
         ,SQLQuery(metric_key = "maa", origin_key = "optimism", sql=sql_q["optimism_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "optimism", sql=sql_q["optimism_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "optimism", sql=sql_q["optimism_fees_paid_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "optimism", sql=sql_q["optimism_txcosts_median_eth"], query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "cca", origin_key = "optimism", sql=get_cross_chain_activity('optimism'), currency_dependent = False, query_parameters={})
-        #,SQLQuery(metric_key = "gas_per_second", origin_key = "optimism", sql=sql_q["optimism_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "optimism", sql=sql_q["optimism_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## Base
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "base", sql=sql_q["base_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        ,SQLQuery(metric_key = "txcount", origin_key = "base", sql=sql_q["base_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "daa", origin_key = "base", sql=sql_q["base_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
         #,SQLQuery(metric_key = "waa", origin_key = "base", sql=sql_q["base_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
         ,SQLQuery(metric_key = "maa", origin_key = "base", sql=sql_q["base_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "base", sql=sql_q["base_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "base", sql=sql_q["base_fees_paid_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "base", sql=sql_q["base_txcosts_median_eth"], query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "cca", origin_key = "base", sql=get_cross_chain_activity('base'), currency_dependent = False, query_parameters={})
-        #,SQLQuery(metric_key = "gas_per_second", origin_key = "base", sql=sql_q["base_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "base", sql=sql_q["base_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## zkSync Era
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "zksync_era", sql=sql_q["zksync_era_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
