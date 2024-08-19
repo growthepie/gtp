@@ -1626,7 +1626,7 @@ class JSONCreation():
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
         df = df.loc[(df.origin_key.isin(chain_keys))]
-        timeframes = [1,7,30,90,180,'max']
+        timeframes = [1,7,30,90,180,365,'max']
         
         # iterate over each chain and generate table and chart data
         for origin_key in chain_keys:
