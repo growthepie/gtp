@@ -1239,7 +1239,7 @@ class DbConnector:
                                 rc.txcount, 
                                 rc.avg_daa,
                                 rc.avg_success,
-                                rc.avg_contract_txcost_eth / mc.avg_chain_txcost_median_eth - 1 AS realtive_complexity
+                                rc.avg_contract_txcost_eth / mc.avg_chain_txcost_median_eth - 1 AS rel_complexity
                         FROM ranked_contracts rc
                         LEFT JOIN chain_txcost mc ON rc.origin_key = mc.origin_key
                         WHERE row_num_gas <= {int(number_of_contracts/2)} OR row_num_daa <= {int(number_of_contracts/2)}
