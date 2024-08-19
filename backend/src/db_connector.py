@@ -1197,6 +1197,7 @@ class DbConnector:
 
         ## This function is used for our Airtable setup - it returns the top unlabelled contracts by gas fees
         def get_unlabelled_contracts(self, number_of_contracts, days):
+                number_of_contracts = int(number_of_contracts)
                 exec_string = f'''
                         WITH ranked_contracts AS (
                                 SELECT 
@@ -1239,10 +1240,10 @@ class DbConnector:
                                 rc.txcount, 
                                 rc.avg_daa,
                                 rc.avg_success,
-                                rc.avg_contract_txcost_eth / mc.avg_chain_txcost_median_eth - 1 AS rel_complexity
+                                rc.avg_contract_txcost_eth / mc.avg_chain_txcost_median_eth - 1 AS rel_cost
                         FROM ranked_contracts rc
                         LEFT JOIN chain_txcost mc ON rc.origin_key = mc.origin_key
-                        WHERE row_num_gas <= {int(number_of_contracts/2)} OR row_num_daa <= {int(number_of_contracts/2)}
+                        WHERE row_num_gas <= {str(int(number_of_contracts/2))} OR row_num_daa <= {str(int(number_of_contracts/2))}
                         ORDER BY origin_key, row_num_gas, row_num_daa
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
