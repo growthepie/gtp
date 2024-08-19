@@ -449,13 +449,12 @@ class DbConnector:
                                 ON CONFLICT (origin_key, date, address)
                                 DO UPDATE SET txcount = EXCLUDED.txcount;
                         '''
-                try:
-                        with self.engine.connect() as connection:
-                                with connection.begin():
-                                        connection.execute(text(exec_string))
-                        print(f"Unique addresses for {chain} and {days} days aggregated and loaded into fact_active_addresses.")
-                except Exception as e:
-                        print(f"An error occurred: {e}")
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"Unique addresses for {chain} and {days} days aggregated and loaded into fact_active_addresses.")
+
                 
         
         ## This method aggregates on top of fact_active_addresses and stores memory efficient hll hashes in fact_active_addresses_hll
@@ -491,13 +490,12 @@ class DbConnector:
                                 ON CONFLICT (origin_key, date)
                                 DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
                         '''
-                try:
-                        with self.engine.connect() as connection:
-                                with connection.begin():
-                                        connection.execute(text(exec_string))
-                        print(f"HLL hashes for {chain} and {days} days loaded into fact_active_addresses_hll.")
-                except Exception as e:
-                        print(f"An error occurred: {e}")                
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"HLL hashes for {chain} and {days} days loaded into fact_active_addresses_hll.")
+               
 
         def get_total_supply_blocks(self, origin_key, days):
                 exec_string = f'''
@@ -542,7 +540,7 @@ class DbConnector:
 
                         {additional_cte}
                         
-                        INSERT INTO blockspace_fact_contract_level (address, date, gas_fees_eth, gas_fees_usd, txcount, daa, origin_key)
+                        INSERT INTO blockspace_fact_contract_level (address, date, gas_fees_eth, gas_fees_usd, txcount, daa, origin_key, success_rate, median_tx_fee)
                                 select
                                         to_address as address,
                                         date_trunc('day', block_timestamp) as date,
@@ -577,13 +575,12 @@ class DbConnector:
                 '''
                 # df = pd.read_sql(exec_string, self.engine.connect())
                 # return df
-                try:
-                        with self.engine.connect() as connection:
-                                with connection.begin():
-                                        connection.execute(text(exec_string))
-                        print(f"...data inserted successfully for {chain} and {days}.")
-                except Exception as e:
-                        print(f"An error occurred: {e}")
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"...data inserted successfully for {chain} and {days}.")
+
         
         # This function is used to get the native_transfer daily aggregate per chain. The data will be loaded into fact_sub_category_level table        
         def get_blockspace_native_transfers(self, chain, days):
