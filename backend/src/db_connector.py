@@ -571,8 +571,8 @@ class DbConnector:
                                 txcount = EXCLUDED.txcount,
                                 daa = EXCLUDED.daa,
                                 gas_fees_eth = EXCLUDED.gas_fees_eth,
-                                gas_fees_usd = EXCLUDED.gas_fees_usd;
-                                success_rate = EXCLUDED.success_rate;
+                                gas_fees_usd = EXCLUDED.gas_fees_usd,
+                                success_rate = EXCLUDED.success_rate,
                                 median_tx_fee = EXCLUDED.median_tx_fee;
                 '''
                 # df = pd.read_sql(exec_string, self.engine.connect())
