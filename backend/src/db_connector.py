@@ -1202,10 +1202,12 @@ class DbConnector:
                                 SELECT 
                                         cl.address, 
                                         cl.origin_key, 
-                                        max(bl.deployment_date) as deployment_date,
-                                        SUM(gas_fees_eth) AS gas_eth, 
-                                        SUM(txcount) AS txcount, 
-                                        SUM(daa) AS daa,                                         
+                                        max(bl.deployment_date) AS deployment_date,
+                                        SUM(cl.gas_fees_eth) AS gas_eth, 
+                                        SUM(cl.txcount) AS txcount, 
+                                        ROUND(AVG(cl.daa)) AS avg_daa,   
+                                        AVG(cl.success_rate) AS avg_success,
+                                        SUM(cl.gas_fees_eth)/SUM(cl.txcount) AS avg_contract_txcost_eth,
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num_gas,
                                         ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(daa) DESC) AS row_num_daa
                                 FROM public.blockspace_fact_contract_level cl 
@@ -1218,18 +1220,30 @@ class DbConnector:
                                                 WHERE ia.address = cl.address
                                         )
                                 GROUP BY 1,2
-                        )  
+                        ),
+                        chain_txcost AS(
+                                SELECT
+                                origin_key,
+                                AVG(value) AS avg_chain_txcost_median_eth
+                                FROM public.fact_kpis
+                                WHERE
+                                metric_key = 'txcosts_median_eth'
+                                AND "date" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                GROUP BY origin_key
+                        )
                         SELECT 
-                                address, 
-                                origin_key, 
-                                deployment_date,
-                                gas_eth, 
-                                txcount, 
-                                daa                                
-                        FROM ranked_contracts 
-                        WHERE row_num_gas <= {number_of_contracts} OR row_num_daa <= {number_of_contracts}
+                                rc.address, 
+                                rc.origin_key, 
+                                rc.deployment_date,
+                                rc.gas_eth, 
+                                rc.txcount, 
+                                rc.avg_daa,
+                                rc.avg_success,
+                                rc.avg_contract_txcost_eth / mc.avg_chain_txcost_median_eth - 1 AS rel_complexity
+                        FROM ranked_contracts rc
+                        LEFT JOIN chain_txcost mc ON rc.origin_key = mc.origin_key
+                        WHERE row_num_gas <= {int(number_of_contracts/2)} OR row_num_daa <= {int(number_of_contracts/2)}
                         ORDER BY origin_key, row_num_gas, row_num_daa
-    
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
