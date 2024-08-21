@@ -495,6 +495,39 @@ class DbConnector:
                         with connection.begin():
                                 connection.execute(text(exec_string))
                 print(f"HLL hashes for {chain} and {days} days loaded into fact_active_addresses_hll.")
+
+        ## This method aggregates address for the fact_unique_addresses table and determines when an address was first seen
+        def aggregate_addresses_first_seen_global(self, days:int):   
+                
+                exec_string = f'''
+                        INSERT INTO fact_unique_addresses (address, first_seen_global)
+                                WITH not_added_yet AS (
+                                        SELECT DISTINCT faa.address
+                                        FROM fact_active_addresses faa
+                                        WHERE faa."date" < current_date 
+                                        AND faa."date" >= current_date - INTERVAL '{days}' day 
+                                        AND NOT EXISTS (
+                                                SELECT 1
+                                                FROM fact_unique_addresses fua
+                                                WHERE fua.address = faa.address
+                                        )
+                                )
+                                
+                                SELECT 
+                                        nay.address,
+                                        MIN(faa."date") AS first_seen_global
+                                FROM fact_active_addresses faa
+                                INNER JOIN not_added_yet nay ON faa.address = nay.address
+                                GROUP BY nay.address
+                        ON CONFLICT (address)
+                        DO UPDATE SET first_seen_global = EXCLUDED.first_seen_global
+                                WHERE fact_unique_addresses.first_seen_global > EXCLUDED.first_seen_global;
+                '''
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"Unique addresses with first seen for {days} days loaded into fact_unique_addresses.")
                
 
         def get_total_supply_blocks(self, origin_key, days):

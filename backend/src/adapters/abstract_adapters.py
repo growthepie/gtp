@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+from src.db_connector import DbConnector
 
 class AbstractAdapter(ABC):
 
     @abstractmethod
-    def __init__(self, name, adapter_params:dict, db_connector):
+    def __init__(self, name, adapter_params:dict, db_connector:DbConnector):
         self.adapter_params = adapter_params
         self.name = name
         self.db_connector = db_connector
