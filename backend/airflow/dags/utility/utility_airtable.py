@@ -97,7 +97,7 @@ def etl():
         at.clear_all_airtable(table)
         
         # get top unlabelled contracts
-        df = db_connector.get_unlabelled_contracts('20', '21')
+        df = db_connector.get_unlabelled_contracts('30', '365') # top 30 contracts per chain from last year
         ## deployment_date column as string
         df['deployment_date'] = df['deployment_date'].astype(str)
 

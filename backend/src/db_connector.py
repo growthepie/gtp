@@ -1239,6 +1239,7 @@ class DbConnector:
                                         cl.address, 
                                         cl.origin_key, 
                                         max(bl.deployment_date) AS deployment_date,
+                                        max(bl.internal_description) AS internal_description,
                                         SUM(cl.gas_fees_eth) AS gas_eth, 
                                         SUM(cl.txcount) AS txcount, 
                                         ROUND(AVG(cl.daa)) AS avg_daa,   
