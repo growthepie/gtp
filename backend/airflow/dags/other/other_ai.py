@@ -1,3 +1,4 @@
+import os
 import sys
 import getpass
 sys_user = getpass.getuser()
@@ -7,7 +8,6 @@ from datetime import datetime, timedelta
 from src.adapters.rpc_funcs.gtp_ai import GTPAI
 import pandas as pd
 from airflow.decorators import dag, task
-from airflow.utils.dates import days_ago
 from src.misc.airflow_utils import alert_via_webhook
 from pendulum import timezone
 
@@ -32,9 +32,13 @@ CET = timezone("Europe/Paris")
 def gtp_ai():
     @task(execution_timeout=timedelta(minutes=45))
     def run_ai():
-        url = "https://api.growthepie.xyz/v1/fundamentals_full.json"
-        local_filename = "fundamentals_full.json"
-        webhook_url = "https://discord.com/api/webhooks/1275869087570071624/fe8UY57WLzES2at-9oXgvZrOW2l0C-Q1ZkMdlYJ2B1vaJZqSfI4OjcZJoiR4_Fk-LHXX"
+        # Load from environment variables
+        url = os.getenv("GTP_URL")
+        local_filename = os.getenv("GTP_AI_LOCAL_FILENAME")
+        webhook_url = os.getenv("GTP_AI_WEBHOOK_URL")
+
+        if not url or not local_filename or not webhook_url:
+            raise ValueError("Environment variables for URL, local filename, or webhook URL are not set.")
 
         analytics = GTPAI()
         
