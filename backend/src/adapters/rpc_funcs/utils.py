@@ -950,7 +950,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_eth(df)
             elif chain == 'taiko':
                 df_prep = prep_dataframe_taiko(df)
-            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'lyra', 'karak', 'ancient8']:
+            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'lyra', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']:
                 df_prep = prep_dataframe_opchain(df)
             else:
                 df_prep = prep_dataframe(df)
