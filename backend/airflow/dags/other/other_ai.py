@@ -4,6 +4,9 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from datetime import datetime, timedelta
 from src.adapters.rpc_funcs.gtp_ai import GTPAI
 import pandas as pd
