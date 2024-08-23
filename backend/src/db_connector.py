@@ -1272,6 +1272,7 @@ class DbConnector:
                                 rc.address, 
                                 rc.origin_key, 
                                 rc.deployment_date,
+                                rc.internal_description,
                                 rc.gas_eth, 
                                 rc.txcount, 
                                 rc.avg_daa,

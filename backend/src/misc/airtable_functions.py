@@ -54,7 +54,7 @@ def read_all_labeled_contracts_airtable(table):
     df = read_airtable(table)
 
     # check if anything was labelled
-    required_columns = ['contract_name', 'owner_project', 'usage_category']
+    required_columns = ['contract_name', 'owner_project', 'usage_category', 'internal_description']
     if not any(col in df.columns for col in required_columns):
         print('no new labelled contracts found in airtable.')
         return
