@@ -1176,12 +1176,22 @@ class JSONCreation():
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
 
         ## create dict with main_category_key as key and main_category_name as value, same for sub_categories
-        main_category_dict = {}
+        ##main_category_dict = {}
         sub_category_dict = {}
         for index, row in df.iterrows():
-            main_category_dict[row['main_category_id']] = row['main_category_name']
+            ##main_category_dict[row['main_category_id']] = row['main_category_name']
             sub_category_dict[row['category_id']] = row['category_name']
 
+        main_category_dict = {
+            'defi': 'DeFi',
+            'cefi': 'CeFi',            
+            'nft': 'NFT',
+            'social': 'Social',
+            'utility': 'Utility',
+            'token_transfers': 'Token Transfers',
+            'cross_chain': 'Cross-Chain',
+            'unlabeled': 'Unlabeled'
+        }
 
         ## create main_category <> sub_category mapping dict
         df_mapping = df.groupby(['main_category_id']).agg({'category_id': lambda x: list(x)}).reset_index()
@@ -1233,6 +1243,9 @@ class JSONCreation():
                 'rhino_listed': bool(getattr(chain, 'aliases_rhino', None)),
                 'rhino_naming': getattr(chain, 'aliases_rhino', None)
             }
+
+        ## sort chain_dict by key (origin_key) alphabetically asc
+        chain_dict = dict(sorted(chain_dict.items()))
         
         ## create dict for fees without metric_keys field
         fees_types_api = {key: {sub_key: value for sub_key, value in sub_dict.items() if sub_key != 'metric_keys'} 
