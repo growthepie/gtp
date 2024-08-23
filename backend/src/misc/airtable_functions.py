@@ -73,7 +73,7 @@ def read_all_labeled_contracts_airtable(table):
     if 'labelling_type' not in df.columns:
         df['labelling_type'] = ''
     if 'internal_description' not in df.columns:
-        df['internal_description'] = ''
+        df['internal_description'] = None
 
     # drop not needded columns and clean df
     df = df[['address', 'origin_key', 'contract_name', 'owner_project_lookup', 'usage_category_lookup', 'labelling_type', 'internal_description']]
