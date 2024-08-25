@@ -630,7 +630,10 @@ def prep_dataframe_eth(df):
         if col in filtered_df.columns:
             filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
         else:
-            print(f"Column {col} not found in dataframe.")             
+            print(f"Column {col} not found in dataframe.")      
+
+    ## shorten input_data column to first 4 bytes (only method that is called)
+    filtered_df['input_data'] = filtered_df['input_data'].apply(lambda x: x[:10] if x else None)       
 
     # gas_price column in eth
     filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
@@ -875,6 +878,7 @@ def fetch_data_for_range(w3, block_start, block_end):
         # Loop through each block in the range
         for block_num in range(block_start, block_end + 1):
             block = w3.eth.get_block(block_num, full_transactions=True)
+            #print(f"...fetching data for block {block_num}. RPC: {w3.get_rpc_url()}")
             
             # Fetch transaction details for the block using the new function
             transaction_details = fetch_block_transaction_details(w3, block)
