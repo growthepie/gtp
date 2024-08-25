@@ -822,6 +822,27 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+
+        def get_blockspace_total_imx(self, days):
+                exec_string = f'''
+                        SELECT 
+                                "date", 
+                                'total_usage' as category_id,
+                                'imx' as origin_key,
+                                sum(gas_fees_eth) as gas_fees_eth,
+                                sum(gas_fees_usd) as gas_fees_usd, 
+                                sum(txcount) as txcount,
+                                sum(daa) as daa
+                        FROM public.blockspace_fact_category_level
+                        where origin_key = 'imx'
+                                and category_id not in ('total_usage')
+                                and "date" < DATE_TRUNC('day', NOW())
+                                and "date" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                        group by 1
+                        '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         # This function is used to aggregate the blockspace data from contract_level, map it to categories, and then it will be loaded into the sub_category level table. The data will be loaded into fact_sub_category_level table
         def get_blockspace_sub_categories(self, chain, days):
                 exec_string = f'''
