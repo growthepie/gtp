@@ -147,6 +147,31 @@ class BlockspaceJSONCreation():
         df.fillna(0, inplace=True)
 
         return df
+    
+    def get_blockspace_totals_timeframe(self, chain_keys, days):
+        date_where = f"AND bs_scl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')" if days != 'max' else ""
+        select_origin_key = f"bs_scl.origin_key as chain_key" if len(chain_keys) == 1 else "'all_l2s' as chain_key"
+        where_origin_key = f"AND bs_scl.origin_key = '{chain_keys[0]}'" if len(chain_keys) == 1 else "AND bs_scl.origin_key IN ('" + "','".join(chain_keys) + "')"
+    
+        exec = f"""
+            SELECT
+                {select_origin_key},
+                SUM(bs_scl.gas_fees_eth) AS gas_fees_eth,
+                SUM(bs_scl.gas_fees_usd) AS gas_fees_usd,
+                SUM(bs_scl.txcount) AS txcount
+            FROM public.blockspace_fact_category_level bs_scl
+            WHERE bs_scl."date" < DATE_TRUNC('day', NOW())
+                {date_where}
+                and bs_scl.category_id = 'total_usage'
+                {where_origin_key}
+            GROUP BY 1
+        """
+        df = pd.read_sql(exec, self.db_connector.engine.connect())
+
+        # fill NaN values with 0
+        df.fillna(0, inplace=True)
+
+        return df
 
     def get_category_mapping(self):
         exec_string = "SELECT * FROM vw_oli_category_mapping"
@@ -207,10 +232,10 @@ class BlockspaceJSONCreation():
             for timeframe in overview_timeframes:
                 if origin_key == 'all_l2s':
                     chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview(chain_keys, timeframe)
-                    chain_timeframe_totals_dfs[timeframe] = 1 ##TODO
+                    chain_timeframe_totals_dfs[timeframe] = self.get_blockspace_totals_timeframe(chain_keys, timeframe)
                 else:
                     chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key], timeframe)
-                    chain_timeframe_totals_dfs[timeframe] = 1 ##TODO
+                    chain_timeframe_totals_dfs[timeframe] = self.get_blockspace_totals_timeframe([origin_key], timeframe)
 
             chain_name = chain.name
 
@@ -284,7 +309,6 @@ class BlockspaceJSONCreation():
                     if averages.any().any():
                         chain_dict["overview"][timeframe_key][main_category_key]['data'] = averages.values.tolist()[0]
                     
-
                     ## only add contracts to all field in dicts
                     if origin_key == 'all_l2s':
                         print(f"..adding contracts for {timeframe_key} and {main_category_key}")
@@ -302,9 +326,11 @@ class BlockspaceJSONCreation():
             ## add totals per chain
             for timeframe in overview_timeframes:
                 timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
-                ## TODO: add logic
 
+                if timeframe_key not in chain_dict["totals"]:
+                    chain_dict["totals"][timeframe_key] = {}
 
+                chain_dict["totals"][timeframe_key]['data'] = chain_timeframe_totals_dfs[timeframe][['gas_fees_eth', 'gas_fees_usd', 'txcount']].values.tolist()[0]
 
             overview_dict['data']['chains'][origin_key] = chain_dict
 
