@@ -204,6 +204,13 @@ class AdapterSQL(AbstractAdapter):
 
                 print(f"...upserting imx data . Total rows: {df.shape[0]}...")
                 self.db_connector.upsert_table('blockspace_fact_category_level', df)
+
+                ## determin total usage
+                print(f"...aggregating total usage for imx and last {days} days...")
+                df = self.db_connector.get_blockspace_total_imx(days)
+                df.set_index(['date', 'category_id' ,'origin_key'], inplace=True)
+                print(f"...upserting total usage usage for imx. Total rows: {df.shape[0]}...")
+                self.db_connector.upsert_table('blockspace_fact_category_level', df)
             
             else:
                 ## aggregate contract data
