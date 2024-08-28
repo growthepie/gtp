@@ -375,8 +375,10 @@ class BlockspaceJSONCreation():
             chain_df = self.get_blockspace_overview_daily_data([origin_key])
 
             chain_timeframe_overview_dfs = {}
+            chain_timeframe_totals_dfs = {}
             for timeframe in overview_timeframes:
-                    chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key], timeframe)
+                chain_timeframe_overview_dfs[timeframe] = self.get_blockspace_overview_timeframe_overview([origin_key], timeframe)
+                chain_timeframe_totals_dfs[timeframe] = self.get_blockspace_totals_timeframe([origin_key], timeframe)
 
             chain_name = chain.name
 
@@ -403,6 +405,14 @@ class BlockspaceJSONCreation():
                         "gas_fees_share_eth",
                         "gas_fees_share_usd",
                         "txcount_share"
+                    ],
+                    # data for timeframes will be added in the for loop below
+                },
+                "totals": {
+                    "types": [
+                        "gas_fees_eth_absolute",
+                        "gas_fees_usd_absolute",
+                        "txcount_absolute"
                     ],
                     # data for timeframes will be added in the for loop below
                 }
@@ -454,6 +464,15 @@ class BlockspaceJSONCreation():
                         ].values.tolist(),
                         "types": ["address", "project_name", "name", "main_category_key", "sub_category_key", "chain", "gas_fees_absolute_eth", "gas_fees_absolute_usd", "txcount_absolute"]
                     }
+                
+            ## add totals per chain
+            for timeframe in overview_timeframes:
+                timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
+
+                if timeframe_key not in chain_dict["totals"]:
+                    chain_dict["totals"][timeframe_key] = {}
+
+                chain_dict["totals"][timeframe_key]['data'] = chain_timeframe_totals_dfs[timeframe][['gas_fees_eth', 'gas_fees_usd', 'txcount']].values.tolist()[0]
 
             chain_dict = fix_dict_nan(chain_dict, f'chains/blockspace/{origin_key}')
 
