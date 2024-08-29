@@ -62,20 +62,29 @@ class GTPAI:
                 {"type": "Up %", "milestone": "1 year Up 500%+", "importance_score": 2, "threshold": 500},
                 {"type": "Up %", "milestone": "1 year Up 1000%+", "importance_score": 1, "threshold": 1000},
             ],
+                "gas_per_second": [
+                {"type": "ATH", "milestone": "Metric ATH", "importance_score": 10},
+                {"type": "ATH", "milestone": "Chain ATH", "importance_score": 9},
+                {"type": "Multiples", "milestone": "Multiple of 1Mgas", "importance_score": 6, "threshold": 1_000_000},
+                {"type": "Multiples", "milestone": "Multiple of 0.5Mgas", "importance_score": 4, "threshold": 500_000},
+                {"type": "Multiples", "milestone": "Multiple of 0.1Mgas", "importance_score": 1, "threshold": 100_000},
+                {"type": "Up %", "milestone": "24h Up 10%+", "importance_score": 2, "threshold": 10},
+                {"type": "Up %", "milestone": "24h Up 25%+", "importance_score": 1, "threshold": 25},
+                {"type": "Up %", "milestone": "7 days Up 50%+", "importance_score": 2, "threshold": 50},
+                {"type": "Up %", "milestone": "7 days Up 100%+", "importance_score": 1, "threshold": 100},
+                {"type": "Up %", "milestone": "30 days Up 50%+", "importance_score": 2, "threshold": 50},
+                {"type": "Up %", "milestone": "30 days Up 100%+", "importance_score": 1, "threshold": 100},
+                {"type": "Up %", "milestone": "1 year Up 100%+", "importance_score": 2, "threshold": 100},
+                {"type": "Up %", "milestone": "1 year Up 500%+", "importance_score": 1, "threshold": 500},
+            ],
         }
+
 
         self.cross_chain_milestones = [
             {"type": "ATH", "milestone": "Metric ATH", "importance_score": 10},
         ]
 
     def fetch_json_data(self, url, local_filename):
-        #if os.path.exists(local_filename):
-        #    last_modified_time = datetime.fromtimestamp(os.path.getmtime(local_filename))
-        #    current_time = datetime.now()
-            
-        #    if current_time - last_modified_time < timedelta(hours=24):
-        #        print(f"{local_filename} was downloaded less than 24 hours ago. No need to download again.")
-        #        return
 
         response = requests.get(url)
         data = response.json()
@@ -127,6 +136,36 @@ class GTPAI:
                     records.append({'origin': origin, 'metric': metric, 'date': date, 'value': value})
         return pd.DataFrame(records)
 
+    def rank_origins_by_tvl(self, df):
+        tvl_df = df[df['metric'] == 'tvl']
+
+        latest_tvl_df = tvl_df.loc[tvl_df.groupby('origin')['date'].idxmax()]
+
+        latest_tvl_df['rank'] = latest_tvl_df['value'].rank(method='min', ascending=False)
+
+        if 'rank' in df.columns:
+            df.drop(columns='rank', inplace=True)
+
+        df = df.merge(latest_tvl_df[['origin', 'rank']], on='origin', how='left')
+
+        if 'ethereum' in df['origin'].values:
+            # Set Ethereum's rank to 1.0
+            df.loc[df['origin'] == 'ethereum', 'rank'] = 1.0
+
+            # Increment the rank of all other chains that had a rank <= 1.0 to avoid duplicates
+            df.loc[(df['origin'] != 'ethereum') & (df['rank'] >= 1.0), 'rank'] += 1
+
+            # Re-rank everything after Ethereum to ensure consecutive ranking
+            other_chains = df[df['origin'] != 'ethereum']
+            other_chains = other_chains.sort_values(by='rank')
+            other_chains['rank'] = other_chains['rank'].rank(method='dense', ascending=True) + 1  # Start from rank 2
+            df.update(other_chains)
+
+        # Remove rows where metric is 'tvl'
+        df = df[df['metric'] != 'tvl']
+
+        return df
+    
     def detect_chain_milestones(self, data, metric_milestones):
         data['date'] = pd.to_datetime(data['date']).dt.date
         data = data.sort_values(by=['metric', 'date'])
@@ -146,12 +185,12 @@ class GTPAI:
             milestones = metric_milestones.get(metric, [])
             
             for index, row in metric_data.iterrows():
-                origin = row['origin']
                 formatted_date = row['date'].strftime('%d.%m.%Y')
                 
                 if row['value'] == row['ath']:
                     results.append({
-                        "origin": origin,
+                        "origin": row['origin'],
+                        "rank": row['rank'],
                         "date": formatted_date, 
                         "metric": row['metric'], 
                         "milestone": "Chain ATH", 
@@ -160,30 +199,33 @@ class GTPAI:
                     })
                 
                 for milestone in milestones:
-                    if milestone['type'] == 'Multiples' and 'threshold' in milestone and row['value'] >= milestone['threshold'] and row['value'] % milestone['threshold'] == 0:
+                    if milestone['type'] == 'Multiples' and row['value'] >= milestone['threshold']:
                         results.append({
-                            "origin": origin,
+                            "origin": row['origin'],
+                            "rank": row['rank'],
                             "date": formatted_date, 
                             "metric": row['metric'], 
                             "milestone": milestone['milestone'], 
-                            "importance_score": milestone['importance_score'], 
-                            "exact_increase": None
+                            "importance_score": milestone['importance_score'],
+                            "exact_value": f"{row['value']:.2f}"
                         })
-                
+                    
                 pct_fields = {'1d_pct_change': '24h Up', '7d_pct_change': '7 days Up', '30d_pct_change': '30 days Up', '365d_pct_change': '1 year Up'}
                 for key, label in pct_fields.items():
                     for milestone in milestones:
                         if milestone['type'] == 'Up %' and row[key] >= milestone['threshold']:
                             results.append({
-                                "origin": origin,
+                                "origin": row['origin'],
+                                "rank": row['rank'],
                                 "date": formatted_date, 
                                 "metric": row['metric'], 
                                 "milestone": f"{label} {milestone['threshold']}%+", 
                                 "importance_score": milestone['importance_score'], 
-                                "exact_increase": f"{row[key]:.2f}%"
+                                "exact_value": f"{row[key]:.2f}%"
                             })
         
-        results.sort(key=lambda x: (-pd.to_datetime(x['date'], format='%d.%m.%Y').timestamp(), -x['importance_score']))
+        # Sort results by date (latest first), then by chain rank, and within each date by importance score (highest first)
+        results.sort(key=lambda x: (-pd.to_datetime(x['date'], format='%d.%m.%Y').timestamp(), x['rank'], -x['importance_score']))
         
         return results
 
@@ -216,29 +258,50 @@ class GTPAI:
 
         return cross_chain_results
 
+    def get_latest_milestones(self, chain_milestones, n=1, day_interval=1):
+        for milestone in chain_milestones:
+            milestone['date'] = pd.to_datetime(milestone['date'], format='%d.%m.%Y')
+        
+        # Keep only the milestones within the specified day interval
+        recent_milestones = [
+            milestone for milestone in chain_milestones
+            if (pd.Timestamp.now() - milestone['date']).days <= day_interval
+        ]
+        
+        # Group by origin and metric, and keep the one with the highest importance score
+        grouped_milestones = {}
+        for milestone in recent_milestones:
+            key = (milestone['origin'], milestone['metric'])
+            if key not in grouped_milestones or milestone['importance_score'] > grouped_milestones[key]['importance_score']:
+                grouped_milestones[key] = milestone
+        
+        grouped_milestones_list = list(grouped_milestones.values())
+        
+        grouped_milestones_list.sort(key=lambda x: (-x['date'].timestamp(), x['rank'], -x['importance_score']))
 
-    def send_discord_embed_message(self, webhook_url, title, description, color=0x00ff00, footer=None, timestamp=True, author=None):
-        embed = {
-            "title": title,
-            "description": description,
-            "color": color
-        }
+        # Pick n latest milestones per origin
+        final_milestones = []
+        origins_seen = {}
         
-        if timestamp:
-            embed["timestamp"] = datetime.utcnow().isoformat()
+        for milestone in grouped_milestones_list:
+            origin = milestone['origin']
+            if origin not in origins_seen:
+                origins_seen[origin] = 0
+            if origins_seen[origin] < n:
+                milestone['date'] = milestone['date'].strftime('%d.%m.%Y')
+                final_milestones.append(milestone)
+                origins_seen[origin] += 1
         
-        if footer:
-            embed["footer"] = {
-                "text": footer
-            }
-        
-        if author:
-            embed["author"] = {
-                "name": author
-            }
-        
+        return final_milestones
+
+    def setup_toolkit_for_chain(self, chain_data):
+        spec = JsonSpec(dict_=dict(chain_data), max_value_length=4000)
+        toolkit = JsonToolkit(spec=spec)
+        return toolkit
+    
+    def send_discord_embed_message(self, webhook_url, embeds):
         data = {
-            "embeds": [embed]
+            "embeds": embeds
         }
         
         response = requests.post(webhook_url, json=data)
@@ -246,55 +309,105 @@ class GTPAI:
             print("Embedded message sent successfully!")
         else:
             print(f"Failed to send embedded message. Status code: {response.status_code}, Response: {response.text}")
-            
+    
+    def craft_and_send_discord_embeds(self, webhook_url, responses, title, footer, color=0x7289da, author="GTP-AI"):
+        embed_messages = []
+
+        for idx, (key, value) in enumerate(responses.items()):
+            if 'output' in value:
+                description = value['output']
+
+                embed = {
+                    "description": description,
+                    "color": color,
+                }
+
+                # Add title only to the first embed
+                if idx == 0:
+                    embed["author"] = {"name": author}
+                    embed["title"] = title
+                
+                # Add footer only to the last embed
+                if idx == len(responses) - 1:
+                    embed["footer"] = {"text": footer}
+
+                embed_messages.append(embed)
+
+        # Send all embeds in a single Discord message
+        self.send_discord_embed_message(webhook_url, embed_messages)
+        
     def analyze_layer2_milestones(self, combined_data):
-        spec = JsonSpec(dict_=dict(combined_data), max_value_length=4000)
-        toolkit = JsonToolkit(spec=spec)
-        try:
-            agent = create_json_agent(
-                llm=ChatOpenAI(temperature=0.7, model="gpt-4-turbo", openai_api_key=self.OPENAI_API_KEY),
-                toolkit=toolkit,
-                max_iterations=2000,
-                verbose=True,
-                handle_parsing_errors=True
-            )
-            
-            query = (
-                "You are a Layer 2 blockchain analyst. Analyze the latest significant milestones achieved across different metrics, "
-                "including single-chain and cross-chain milestones for different metrics. "
-                "Craft engaging and concise messages that reflect the importance of each milestone, tailored for Discord embeds. "
-                "For single-chain milestones, highlight the chain's growth, metric-specific achievements, and broader implications. "
-                "For cross-chain milestones, emphasize the broader impact and comparisons across chains. "
-                "Include relevant market insights to provide a comprehensive analysis. Structure the response as follows:"
-                "\n\n🔥 **Single-Chain Milestones:**"
-                "\n> 📅 On {date}, **{origin}** achieved a new milestone for **{metric}**:\n> 🚀 **{milestone}** with a growth of **{exact_increase}**. This marks a significant achievement in {impact_statement}."
-                "\n\n🌐 **Cross-Chain Milestones:**"
-                "\n> 🌍 On {date}, **{origin}** set a new record for **{metric}** with **{global_ath}** across all chains. This represents a key moment in {contextual_impact}."
-                "\n\n📊 **Market Insights:**"
-                "\n> 💡 **{market_context}** These achievements suggest {prediction_or_insight}, leading to {future_outlook} in the Layer 2 ecosystem."
-            )
+        responses = {}
 
-            
-            response = agent.invoke(query)
-            return response
+        single_chain_milestones = combined_data.get("single_chain_milestones", {})
+        if single_chain_milestones:
+            for chain, chain_data in single_chain_milestones.items():
+                chain_ndata = {
+                    "single_chain_milestones": {
+                        chain: chain_data
+                    }
+                }
+                try:
+                    agent = create_json_agent(
+                        llm=ChatOpenAI(temperature=0.7, model="gpt-4-turbo", openai_api_key=self.OPENAI_API_KEY),
+                        toolkit=self.setup_toolkit_for_chain(chain_ndata),
+                        max_iterations=2000,
+                        verbose=True,
+                        handle_parsing_errors=True
+                    )
 
-        except Exception as e:
-            return f"An error occurred: {e}"
+                    query = (
+                        "You are a Layer 2 blockchain analyst. Summarize the latest key milestones achieved for chain metrics. "
+                        "Focus on all the metrics and milestones, and create concise messages tailored for Discord embeds. "
+                        "Highlight the chain's growth and the significance of each milestone."
+                        "\n\n🔥 **{origin} Milestone (Importance: {importance_score}/10, Rank: {rank}):**"
+                        "\n> 📅 On {date}, **{origin}** reached a milestone in **{metric}**:\n> 🚀 **{milestone}** with an increase of **{exact_value}**."
+                    )
 
-    def clean_response(self, response_str):
-        start_marker = "🔥 **Single-Chain Milestones:**"
-        
-        start_index = response_str.find(start_marker)
-        
-        if start_index == -1:
-            return "Error: Single-chain milestones section not found in response."
+                    response = agent.invoke(query)
+                    responses[f"single_chain_{chain}"] = response
 
-        relevant_content = response_str[start_index:]
-        
-        end_marker = "These crafted messages should effectively communicate"
-        end_index = relevant_content.find(end_marker)
-        
-        if end_index != -1:
-            relevant_content = relevant_content[:end_index].strip()
+                except Exception as e:
+                    responses[f"single_chain_{chain}"] = f"An error occurred: {e}"
 
-        return relevant_content
+        cross_chain_milestones = combined_data.get("cross_chain_milestones", {})
+        if cross_chain_milestones:
+            for chain, chain_data in cross_chain_milestones.items():
+                chain_ndata = {
+                    "cross_chain_milestones": {
+                        chain: chain_data
+                    }
+                }
+                try:
+                    agent = create_json_agent(
+                        llm=ChatOpenAI(temperature=0.7, model="gpt-4-turbo", openai_api_key=self.OPENAI_API_KEY),
+                        toolkit=self.setup_toolkit_for_chain(chain_ndata),
+                        max_iterations=2000,
+                        verbose=True,
+                        handle_parsing_errors=True
+                    )
+
+                    query = (
+                        "You are a Layer 2 blockchain analyst. Summarize the latest key milestones achieved for chain metrics. "
+                        "Focus on all the metrics and milestones, and create concise messages tailored for Discord embeds. "
+                        "Highlight the chain's growth and the significance of each milestone."
+                        "\n\n🔥 **{origin} Milestone (Importance: {importance_score}/10):**"
+                        "\n> 📅 On {date}, **{origin}** reached a milestone in **{metric}**:\n> 🚀 **{milestone}** with a growth of **{exact_increase}**. This achievement reflects {impact_statement}."
+                    )
+
+                    response = agent.invoke(query)
+                    responses[f"cross_chain_{chain}"] = response
+
+                except Exception as e:
+                    responses[f"cross_chain_{chain}"] = f"An error occurred: {e}"
+
+        return responses
+
+def convert_timestamps(data):
+    if isinstance(data, dict):
+        return {key: convert_timestamps(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [convert_timestamps(element) for element in data]
+    elif isinstance(data, pd.Timestamp):
+        return data.strftime('%d.%m.%Y')
+    return data
