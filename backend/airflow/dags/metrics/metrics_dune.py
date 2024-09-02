@@ -95,7 +95,7 @@ def etl():
         ad = AdapterDune(adapter_params, db_connector)
         df = ad.extract(load_params)
         for i, row in df.iterrows():
-            send_discord_message(f"<@790276642660548619> rent-paid-v3 method depreciated: {row.origin_key}, from_address: {row.from_address}, to_address: {row.to_address}, method: {row.method}", os.getenv('DISCORD_CONTRACTS'))
+            send_discord_message(f"<@790276642660548619> rent-paid-v3 method depreciated: {row.origin_key}, from_address: {row.from_address}, to_address: {row.to_address}, method: {row.method}", os.getenv('DISCORD_ALERTS'))
 
     run_aggregates()
     run_inscriptions()
