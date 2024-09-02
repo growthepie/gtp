@@ -204,7 +204,7 @@ class GTPAI:
                         "metric": row['metric'], 
                         "milestone": "Chain ATH", 
                         "importance_score": 9, 
-                        "new_ath": row['ath'],
+                        "new_ath": f"{row['ath']:,.2f}",
                         "total_importance": total_importance
                     })
                 
@@ -218,7 +218,7 @@ class GTPAI:
                             "metric": row['metric'], 
                             "milestone": milestone['milestone'], 
                             "importance_score": milestone['importance_score'],
-                            "exact_value": f"{row['value']:.2f}",
+                            "exact_value": f"{row['value']:,.2f}",
                             "total_importance": total_importance
                         })
                     
@@ -234,7 +234,7 @@ class GTPAI:
                                 "metric": row['metric'], 
                                 "milestone": f"{label} {milestone['threshold']}%+", 
                                 "importance_score": milestone['importance_score'], 
-                                "exact_value": f"{row[key]:.2f}%",
+                                "exact_value": f"{row[key]:,.2f}%",
                                 "total_importance": total_importance
                             })
         
