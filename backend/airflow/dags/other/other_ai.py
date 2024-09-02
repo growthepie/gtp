@@ -62,7 +62,7 @@ def gtp_ai():
         # Detect and analyze milestones
         chain_milestones = analytics.detect_chain_milestones(df, analytics.metric_milestones)
         latest_milestones = analytics.get_latest_milestones(chain_milestones, n=3, day_interval=1)
-        latest_milestones = sorted(latest_milestones, key=lambda x: (x['date'], x['rank'], -x['importance_score']))[:10]
+        latest_milestones = sorted(latest_milestones, key=lambda x: (x['date'], -x['total_importance']))[:10]
 
         cross_chain_milestones = analytics.analyze_cross_chain_milestones(df, analytics.cross_chain_milestones)
         cross_chain_milestones = [milestone for milestone in cross_chain_milestones if pd.to_datetime(milestone['date'], format='%d.%m.%Y') >= pd.Timestamp.now() - pd.Timedelta(days=3)]
@@ -107,14 +107,15 @@ def gtp_ai():
         
         # Convert any remaining Timestamps to strings
         combined_data = convert_timestamps(combined_data)
-        # Analyze Layer 2 milestones using a JSON agent
-        response = analytics.analyze_layer2_milestones(combined_data)
+
+        # Analyze Layer 2 milestones
+        responses = analytics.generate_milestone_responses(combined_data)
 
         # Send the response as a Discord embed message
         title = "Layer 2 Blockchain Milestone Update"
         footer = f"Analysis as of {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Data compiled from latest metrics"
 
-        analytics.craft_and_send_discord_embeds(webhook_url, response, title, footer)
+        analytics.craft_and_send_discord_embeds(webhook_url, responses, title, footer)
 
 
     run_ai()

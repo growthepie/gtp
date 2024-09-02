@@ -3,10 +3,6 @@ import json
 import requests
 import pandas as pd
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
-from langchain.agents import create_json_agent
-from langchain.agents.agent_toolkits import JsonToolkit
-from langchain_community.tools.json.tool import JsonSpec
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -14,6 +10,7 @@ class GTPAI:
     def __init__(self):
         load_dotenv()
         self.OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+        self.CHAIN_WEIGHT = 0.5
         if not self.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY environment variable is not set.")
         
@@ -141,27 +138,38 @@ class GTPAI:
 
         latest_tvl_df = tvl_df.loc[tvl_df.groupby('origin')['date'].idxmax()]
 
-        latest_tvl_df['rank'] = latest_tvl_df['value'].rank(method='min', ascending=False)
+        latest_tvl_df = latest_tvl_df.sort_values(by='value', ascending=False).reset_index(drop=True)
+
+        latest_tvl_df['rank'] = latest_tvl_df.index + 1  # Assign ranks from 1 to n
+
+        latest_tvl_df = latest_tvl_df.sort_values(by=['rank', 'value'], ascending=[False, False]).reset_index(drop=True)
+        latest_tvl_df['rank'] = range(1, len(latest_tvl_df) + 1)
+
+        # Scale the ranks to use the full range from 1 to 10
+        latest_tvl_df['rank'] = (latest_tvl_df['rank'] / latest_tvl_df['rank'].max()) * 9 + 1
+        latest_tvl_df['rank'] = latest_tvl_df['rank'].round().astype(int)
+
+        if 'ethereum' not in latest_tvl_df['origin'].values:
+            ethereum_row = pd.DataFrame({
+                'origin': ['ethereum'],
+                'rank': [10]
+            })
+            latest_tvl_df = pd.concat([latest_tvl_df, ethereum_row], ignore_index=True)
+        else:
+            latest_tvl_df.loc[latest_tvl_df['origin'] == 'ethereum', 'rank'] = 10
+
+        unique_ranks = latest_tvl_df['rank'].unique()
+        if len(unique_ranks) < 10:
+            missing_ranks = set(range(1, 11)) - set(unique_ranks)
+            for rank in sorted(missing_ranks):
+                closest_lower_rank = latest_tvl_df['rank'][latest_tvl_df['rank'] < rank].max()
+                latest_tvl_df.loc[latest_tvl_df['rank'] == closest_lower_rank, 'rank'] = rank
 
         if 'rank' in df.columns:
             df.drop(columns='rank', inplace=True)
 
         df = df.merge(latest_tvl_df[['origin', 'rank']], on='origin', how='left')
 
-        if 'ethereum' in df['origin'].values:
-            # Set Ethereum's rank to 1.0
-            df.loc[df['origin'] == 'ethereum', 'rank'] = 1.0
-
-            # Increment the rank of all other chains that had a rank <= 1.0 to avoid duplicates
-            df.loc[(df['origin'] != 'ethereum') & (df['rank'] >= 1.0), 'rank'] += 1
-
-            # Re-rank everything after Ethereum to ensure consecutive ranking
-            other_chains = df[df['origin'] != 'ethereum']
-            other_chains = other_chains.sort_values(by='rank')
-            other_chains['rank'] = other_chains['rank'].rank(method='dense', ascending=True) + 1  # Start from rank 2
-            df.update(other_chains)
-
-        # Remove rows where metric is 'tvl'
         df = df[df['metric'] != 'tvl']
 
         return df
@@ -188,6 +196,7 @@ class GTPAI:
                 formatted_date = row['date'].strftime('%d.%m.%Y')
                 
                 if row['value'] == row['ath']:
+                    total_importance = 9 + (row['rank'] * self.CHAIN_WEIGHT)
                     results.append({
                         "origin": row['origin'],
                         "rank": row['rank'],
@@ -195,11 +204,13 @@ class GTPAI:
                         "metric": row['metric'], 
                         "milestone": "Chain ATH", 
                         "importance_score": 9, 
-                        "new_ath": row['ath']
+                        "new_ath": f"{row['ath']:,.2f}",
+                        "total_importance": total_importance
                     })
                 
                 for milestone in milestones:
                     if milestone['type'] == 'Multiples' and row['value'] >= milestone['threshold']:
+                        total_importance = milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)
                         results.append({
                             "origin": row['origin'],
                             "rank": row['rank'],
@@ -207,13 +218,15 @@ class GTPAI:
                             "metric": row['metric'], 
                             "milestone": milestone['milestone'], 
                             "importance_score": milestone['importance_score'],
-                            "exact_value": f"{row['value']:.2f}"
+                            "exact_value": f"{row['value']:,.2f}",
+                            "total_importance": total_importance
                         })
                     
                 pct_fields = {'1d_pct_change': '24h Up', '7d_pct_change': '7 days Up', '30d_pct_change': '30 days Up', '365d_pct_change': '1 year Up'}
                 for key, label in pct_fields.items():
                     for milestone in milestones:
                         if milestone['type'] == 'Up %' and row[key] >= milestone['threshold']:
+                            total_importance = milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)
                             results.append({
                                 "origin": row['origin'],
                                 "rank": row['rank'],
@@ -221,11 +234,12 @@ class GTPAI:
                                 "metric": row['metric'], 
                                 "milestone": f"{label} {milestone['threshold']}%+", 
                                 "importance_score": milestone['importance_score'], 
-                                "exact_value": f"{row[key]:.2f}%"
+                                "exact_value": f"{row[key]:,.2f}%",
+                                "total_importance": total_importance
                             })
         
         # Sort results by date (latest first), then by chain rank, and within each date by importance score (highest first)
-        results.sort(key=lambda x: (-pd.to_datetime(x['date'], format='%d.%m.%Y').timestamp(), x['rank'], -x['importance_score']))
+            results.sort(key=lambda x: (pd.to_datetime(x['date'], format='%d.%m.%Y'), -x['total_importance']))
         
         return results
 
@@ -293,11 +307,6 @@ class GTPAI:
                 origins_seen[origin] += 1
         
         return final_milestones
-
-    def setup_toolkit_for_chain(self, chain_data):
-        spec = JsonSpec(dict_=dict(chain_data), max_value_length=4000)
-        toolkit = JsonToolkit(spec=spec)
-        return toolkit
     
     def send_discord_embed_message(self, webhook_url, embeds):
         data = {
@@ -309,7 +318,7 @@ class GTPAI:
             print("Embedded message sent successfully!")
         else:
             print(f"Failed to send embedded message. Status code: {response.status_code}, Response: {response.text}")
-    
+            
     def craft_and_send_discord_embeds(self, webhook_url, responses, title, footer, color=0x7289da, author="GTP-AI"):
         embed_messages = []
 
@@ -322,12 +331,10 @@ class GTPAI:
                     "color": color,
                 }
 
-                # Add title only to the first embed
                 if idx == 0:
                     embed["author"] = {"name": author}
                     embed["title"] = title
                 
-                # Add footer only to the last embed
                 if idx == len(responses) - 1:
                     embed["footer"] = {"text": footer}
 
@@ -336,73 +343,57 @@ class GTPAI:
         # Send all embeds in a single Discord message
         self.send_discord_embed_message(webhook_url, embed_messages)
         
-    def analyze_layer2_milestones(self, combined_data):
+    def generate_milestone_responses(self, combined_data):
+        template = (
+            "\n\n🔥 **{origin} Milestone (Importance: {importance_score}/10, Rank: {rank}):**"
+            "\n> 📅 On {date}, **{origin}** reached a milestone in **{metric}**:\n> 🚀 **{milestone}** "
+            "with an increase of **{exact_value}**.\n> 💡 **Total Importance:** {total_importance}"
+        )
+
         responses = {}
 
+        # Process single-chain milestones
         single_chain_milestones = combined_data.get("single_chain_milestones", {})
         if single_chain_milestones:
             for chain, chain_data in single_chain_milestones.items():
-                chain_ndata = {
-                    "single_chain_milestones": {
-                        chain: chain_data
-                    }
-                }
-                try:
-                    agent = create_json_agent(
-                        llm=ChatOpenAI(temperature=0.7, model="gpt-4-turbo", openai_api_key=self.OPENAI_API_KEY),
-                        toolkit=self.setup_toolkit_for_chain(chain_ndata),
-                        max_iterations=2000,
-                        verbose=True,
-                        handle_parsing_errors=True
-                    )
+                response = ""
+                for date, metrics in chain_data.items():
+                    for metric_name, milestones in metrics.items():
+                        for milestone in milestones:
+                            response += template.format(
+                                origin=milestone["origin"].upper(),
+                                importance_score=milestone["importance_score"],
+                                rank=milestone["rank"],
+                                date=milestone["date"],
+                                metric=milestone["metric"],
+                                milestone=milestone["milestone"],
+                                exact_value=milestone.get("exact_value", "N/A"),
+                                total_importance=milestone["total_importance"]
+                            )
+                responses[f"single_chain_{chain}"] = {"output": response}
 
-                    query = (
-                        "You are a Layer 2 blockchain analyst. Summarize the latest key milestones achieved for chain metrics. "
-                        "Focus on all the metrics and milestones, and create concise messages tailored for Discord embeds. "
-                        "Highlight the chain's growth and the significance of each milestone."
-                        "\n\n🔥 **{origin} Milestone (Importance: {importance_score}/10, Rank: {rank}):**"
-                        "\n> 📅 On {date}, **{origin}** reached a milestone in **{metric}**:\n> 🚀 **{milestone}** with an increase of **{exact_value}**."
-                    )
-
-                    response = agent.invoke(query)
-                    responses[f"single_chain_{chain}"] = response
-
-                except Exception as e:
-                    responses[f"single_chain_{chain}"] = f"An error occurred: {e}"
-
+        # Process cross-chain milestones
         cross_chain_milestones = combined_data.get("cross_chain_milestones", {})
         if cross_chain_milestones:
             for chain, chain_data in cross_chain_milestones.items():
-                chain_ndata = {
-                    "cross_chain_milestones": {
-                        chain: chain_data
-                    }
-                }
-                try:
-                    agent = create_json_agent(
-                        llm=ChatOpenAI(temperature=0.7, model="gpt-4-turbo", openai_api_key=self.OPENAI_API_KEY),
-                        toolkit=self.setup_toolkit_for_chain(chain_ndata),
-                        max_iterations=2000,
-                        verbose=True,
-                        handle_parsing_errors=True
-                    )
-
-                    query = (
-                        "You are a Layer 2 blockchain analyst. Summarize the latest key milestones achieved for chain metrics. "
-                        "Focus on all the metrics and milestones, and create concise messages tailored for Discord embeds. "
-                        "Highlight the chain's growth and the significance of each milestone."
-                        "\n\n🔥 **{origin} Milestone (Importance: {importance_score}/10):**"
-                        "\n> 📅 On {date}, **{origin}** reached a milestone in **{metric}**:\n> 🚀 **{milestone}** with a growth of **{exact_increase}**. This achievement reflects {impact_statement}."
-                    )
-
-                    response = agent.invoke(query)
-                    responses[f"cross_chain_{chain}"] = response
-
-                except Exception as e:
-                    responses[f"cross_chain_{chain}"] = f"An error occurred: {e}"
+                response = ""
+                for date, metrics in chain_data.items():
+                    for metric_name, milestones in metrics.items():
+                        for milestone in milestones:
+                            response += template.format(
+                                origin=milestone["origin"].upper(),
+                                importance_score=milestone["importance_score"],
+                                rank=milestone["rank"],
+                                date=milestone["date"],
+                                metric=milestone["metric"],
+                                milestone=milestone["milestone"],
+                                exact_value=milestone.get("exact_value", "N/A"),
+                                total_importance=milestone["total_importance"]
+                            )
+                responses[f"cross_chain_{chain}"] = {"output": response}
 
         return responses
-
+    
 def convert_timestamps(data):
     if isinstance(data, dict):
         return {key: convert_timestamps(value) for key, value in data.items()}
