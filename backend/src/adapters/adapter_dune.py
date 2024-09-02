@@ -58,6 +58,11 @@ class AdapterDune(AbstractAdapter):
             df = self.extract_glo_holders(self.queries_to_load)
             print_extract(self.name, load_params, df.shape)
             return df
+        elif self.load_type == 'checks-rent-paid-v3':
+            self.queries_to_load = [x for x in dune_queries if x.name == 'checks-rent-paid-v3']
+            df = self.extract_checks_rent_paid_v3(self.queries_to_load)
+            print_extract(self.name, load_params, df.shape)
+            return df
         else:
             raise NotImplementedError(f"load_type {self.load_type} not implemented")
 
@@ -151,4 +156,10 @@ class AdapterDune(AbstractAdapter):
         
         print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
         df.set_index(['address', 'date'], inplace=True)
+        return df
+    
+    def extract_checks_rent_paid_v3(self, query):
+        print(f"...start loading {query[0].name} with query_id: {query[0].query_id}")
+        df = self.client.refresh_into_dataframe(query[0])
+        print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
         return df
