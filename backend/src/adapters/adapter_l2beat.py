@@ -94,7 +94,7 @@ class AdapterL2Beat(AbstractAdapter):
                 time.sleep(1)
             else:
                 print(f'Error loading TVL data for {origin_key}')
-                send_discord_message(f'Error loading TVL data for {origin_key}', self.webhook)            
+                send_discord_message(f'L2Beat: Error loading TVL data for {origin_key}. Other chains are not impacted.', self.webhook)            
 
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain
@@ -120,6 +120,6 @@ class AdapterL2Beat(AbstractAdapter):
                 time.sleep(0.5)
             else:
                 print(f'Error loading stage data for {origin_key}')
-                send_discord_message(f'Error loading stage data for {origin_key}', self.webhook)
+                send_discord_message(f'L2Beat: Error loading stage data for {origin_key}. Other chains are not impacted.', self.webhook)
         df = pd.DataFrame(stages)
         return df

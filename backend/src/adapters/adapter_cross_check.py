@@ -75,22 +75,26 @@ class AdapterCrossCheck(AbstractAdapter):
 
                 elif project.cross_check_type == 'l2beat':
                     response_json = api_get_call(project.cross_check_url, sleeper=10, retries=20)
-                    df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
+                    if response_json:
+                        df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
 
-                    if project.origin_key == 'ethereum':
-                        df = df.iloc[:,[0,2]]
-                        df.rename(columns={2:'value'}, inplace=True)
-                    else:
-                        ## only keep the columns 0 (date) and 1 (transactions)
-                        df = df.iloc[:,[0,1]]                     
-                        df.rename(columns={1:'value'}, inplace=True)
+                        if project.origin_key == 'ethereum':
+                            df = df.iloc[:,[0,2]]
+                            df.rename(columns={2:'value'}, inplace=True)
+                        else:
+                            ## only keep the columns 0 (date) and 1 (transactions)
+                            df = df.iloc[:,[0,1]]                     
+                            df.rename(columns={1:'value'}, inplace=True)
 
-                    df['date'] = pd.to_datetime(df[0],unit='s').dt.date
-                    df.drop([0], axis=1, inplace=True)
-                    df['metric_key'] = metric_key
-                    df['origin_key'] = project.origin_key
+                        df['date'] = pd.to_datetime(df[0],unit='s').dt.date
+                        df.drop([0], axis=1, inplace=True)
+                        df['metric_key'] = metric_key
+                        df['origin_key'] = project.origin_key
 
-                    dfMain = pd.concat([dfMain, df], ignore_index=True)  
+                        dfMain = pd.concat([dfMain, df], ignore_index=True)  
+                    else: 
+                        print(f"Error in extracting cross-chain txcount data for {project.origin_key} - moving on...")
+                        send_discord_message(f"Error in extracting cross-chain txcount data for {project.origin_key}", self.webhook_url)
 
                 elif project.cross_check_type == 'NA':
                     print(f"no block explorer defined for {project.origin_key} - moving on...")
