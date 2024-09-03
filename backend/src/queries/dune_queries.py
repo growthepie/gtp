@@ -20,4 +20,7 @@ dune_queries = [
     ## Others
     ,QueryBase(name="inscriptions", query_id=3346613, params=[QueryParameter.text_type(name="Days", value="1000")]) ## Load inscription addresses and store in inscription_addresses table
     ,QueryBase(name="glo_holders", query_id=3732844) ## top 20 glo holders
+
+    ## Checks
+    ,QueryBase(name="checks-rent-paid-v3", query_id=4037780, params=[]) ## checks if rent paid v3 functions changed and sends alert if so
 ]

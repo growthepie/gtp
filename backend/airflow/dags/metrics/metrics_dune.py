@@ -10,6 +10,7 @@ from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
 from src.adapters.adapter_dune import AdapterDune
+from src.misc.helper_functions import send_discord_message
 
 @dag(
     default_args={
@@ -81,8 +82,23 @@ def etl():
         df = ad.extract(load_params)
         # load
         ad.load(df)
-    
+
+    @task()
+    def checks_rent_paid_v3_for_heartbeat():
+        adapter_params = {
+            'api_key' : os.getenv("DUNE_API")
+        }
+        load_params = {
+            'load_type' : 'checks-rent-paid-v3'
+        }
+        db_connector = DbConnector()
+        ad = AdapterDune(adapter_params, db_connector)
+        df = ad.extract(load_params)
+        for i, row in df.iterrows():
+            send_discord_message(f"<@790276642660548619> rent-paid-v3 method depreciated: {row.origin_key}, from_address: {row.from_address}, to_address: {row.to_address}, method: {row.method}", os.getenv('DISCORD_ALERTS'))
+
     run_aggregates()
     run_inscriptions()
     run_glo_holders()
+    checks_rent_paid_v3_for_heartbeat()
 etl()
