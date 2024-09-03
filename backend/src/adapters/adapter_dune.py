@@ -39,9 +39,9 @@ class AdapterDune(AbstractAdapter):
         if self.load_type == 'metrics':
             ## Prepare queries to load
             if query_names is not None:
-                self.queries_to_load = [x for x in dune_queries if x.name in query_names and x.name != 'inscriptions' and x.name != 'glo_holders']
+                self.queries_to_load = [x for x in dune_queries if x.name in query_names and x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'checks-rent-paid-v3']
             else:
-                self.queries_to_load = [x for x in dune_queries if x.name != 'inscriptions' and x.name != 'glo_holders']
+                self.queries_to_load = [x for x in dune_queries if x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'checks-rent-paid-v3']
 
             ## Load data
             df = self.extract_data(self.queries_to_load, days)     
