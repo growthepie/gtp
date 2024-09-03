@@ -2,11 +2,12 @@ import time
 import pandas as pd
 from datetime import datetime
 from lxml import html
+import os
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
 from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis
-from src.misc.helper_functions import print_init, print_load, print_extract
+from src.misc.helper_functions import print_init, print_load, print_extract, send_discord_message
 
 
 class AdapterL2Beat(AbstractAdapter):
@@ -17,6 +18,7 @@ class AdapterL2Beat(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("L2Beat", adapter_params, db_connector)
         self.base_url = 'https://l2beat.com/api/'
+        self.webhook = os.getenv('DISCORD_ALERTS')
         print_init(self.name, self.adapter_params)
 
     """
@@ -67,28 +69,32 @@ class AdapterL2Beat(AbstractAdapter):
             naming = chain.aliases_l2beat
             url = f"{self.base_url}tvl/{naming}.json"           
 
-            response_json = api_get_call(url, sleeper=10, retries=20)
-            df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
+            response_json = api_get_call(url, sleeper=10, retries=3)
+            if response_json:
+                df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
 
-            ## only keep the columns 0 (date) and 1 (total tvl)
-            df = df.iloc[:,[0,1]]
+                ## only keep the columns 0 (date) and 1 (total tvl)
+                df = df.iloc[:,[0,1]]
 
-            df['date'] = pd.to_datetime(df[0],unit='s')
-            df['date'] = df['date'].dt.date
-            df.drop(df[df[1] == 0].index, inplace=True)
-            df.drop([0], axis=1, inplace=True)
-            df.rename(columns={1:'value'}, inplace=True)
-            df['metric_key'] = 'tvl'
-            df['origin_key'] = origin_key
-            # max_date = df['date'].max()
-            # df.drop(df[df.date == max_date].index, inplace=True)
-            today = datetime.today().strftime('%Y-%m-%d')
-            df.drop(df[df.date == today].index, inplace=True, errors='ignore')
-            df.value.fillna(0, inplace=True)
-            dfMain = pd.concat([dfMain,df])
+                df['date'] = pd.to_datetime(df[0],unit='s')
+                df['date'] = df['date'].dt.date
+                df.drop(df[df[1] == 0].index, inplace=True)
+                df.drop([0], axis=1, inplace=True)
+                df.rename(columns={1:'value'}, inplace=True)
+                df['metric_key'] = 'tvl'
+                df['origin_key'] = origin_key
+                # max_date = df['date'].max()
+                # df.drop(df[df.date == max_date].index, inplace=True)
+                today = datetime.today().strftime('%Y-%m-%d')
+                df.drop(df[df.date == today].index, inplace=True, errors='ignore')
+                df.value.fillna(0, inplace=True)
+                dfMain = pd.concat([dfMain,df])
 
-            print(f"...{self.name} - loaded TVL for {origin_key}. Shape: {df.shape}")
-            time.sleep(1)
+                print(f"...{self.name} - loaded TVL for {origin_key}. Shape: {df.shape}")
+                time.sleep(1)
+            else:
+                print(f'Error loading TVL data for {origin_key}')
+                send_discord_message(f'Error loading TVL data for {origin_key}', self.webhook)            
 
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain
@@ -100,17 +106,20 @@ class AdapterL2Beat(AbstractAdapter):
             print(f'...loading stage info for {origin_key}')
             url = f"https://l2beat.com/scaling/projects/{chain.aliases_l2beat}"
             response = api_get_call(url, as_json=False)
-            tree = html.fromstring(response)
-            #element = tree.xpath('/html/body/div[4]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
-            element = tree.xpath('/html/body/div[1]/div[4]/div/main/div[2]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
-            if len(element) == 0:
-                stage = 'NA'
+            if response:
+                tree = html.fromstring(response)
+                #element = tree.xpath('/html/body/div[4]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
+                element = tree.xpath('/html/body/div[1]/div[4]/div/main/div[2]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
+                if len(element) == 0:
+                    stage = 'NA'
+                else:
+                    stage = element[0].xpath('string()')
+                
+                stages.append({'origin_key': origin_key, 'l2beat_stage': stage})
+                print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
+                time.sleep(0.5)
             else:
-                stage = element[0].xpath('string()')
-
-            
-            stages.append({'origin_key': origin_key, 'l2beat_stage': stage})
-            print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
-            time.sleep(0.5)
+                print(f'Error loading stage data for {origin_key}')
+                send_discord_message(f'Error loading stage data for {origin_key}', self.webhook)
         df = pd.DataFrame(stages)
         return df
