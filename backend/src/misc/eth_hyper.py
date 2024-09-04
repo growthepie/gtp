@@ -194,14 +194,14 @@ async def process_blocks_in_batches(start_block, end_block, engine, table_name):
         
 
 async def main():
-    db_name, db_user, db_password, db_host, db_port = load_environment()
+    db_name, db_user, db_password, db_host = load_environment()
 
-    engine = create_db_engine(db_user, db_password, db_host, db_port, db_name)
+    engine = create_db_engine(db_user, db_password, db_host, db_name)
 
     table_name = 'ethereum_tx'
 
     #start_block = 11846709 #original start
-    start_block = 12099928 #updated Nader 4th of September
+    start_block = 12116438 #updated Nader 4th of September
     end_block = 18908594
 
     # Process blocks in batches and insert into database
