@@ -19,16 +19,14 @@ def load_environment():
     db_user = os.getenv("DB_USERNAME")
     db_password = os.getenv("DB_PASSWORD")
     db_host = os.getenv("DB_HOST")
-    db_port = os.getenv("DB_PORT")
-   
-    print(db_name, db_user, db_host, db_port)
-    return db_name, db_user, db_password, db_host, db_port
 
-def create_db_engine(db_user, db_password, db_host, db_port, db_name):
+    return db_name, db_user, db_password, db_host
+
+def create_db_engine(db_user, db_password, db_host, db_name):
     print("Creating database engine...")
     try:
         # create connection to Postgres
-        engine = create_engine(f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
+        engine = create_engine(f'postgresql://{db_user}:{db_password}@{db_host}/{db_name}')
         engine.connect()  # test connection
         return engine
     except exc.SQLAlchemyError as e:
