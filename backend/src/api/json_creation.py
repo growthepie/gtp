@@ -1962,6 +1962,41 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals_full', fundamentals_dict, self.cf_distribution_id)
 
+    def create_metrics_export_json(self, df):
+        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
+        ## filter based on settings in main_config
+        for adapter in self.main_config:
+            ## filter out origin_keys from df if in_api=false
+            if adapter.api_in_main == False:
+                #print(f"Filtering out origin_keys for adapter {adapter.name}")
+                df = df[df.origin_key != adapter.origin_key]
+            elif len(adapter.api_exclude_metrics) > 0:
+                origin_key = adapter.origin_key
+                for metric in adapter.api_exclude_metrics:
+                    if metric != 'blockspace':
+                        #print(f"Filtering out metric_keys {metric} for adapter {adapter.name}")
+                        metric_keys = self.metrics[metric]['metric_keys']
+                        df = df[~((df.origin_key == origin_key) & (df.metric_key.isin(metric_keys)))]
+        
+        for metric in self.metrics:
+            if self.metrics[metric]['fundamental'] == False:
+                continue
+            #print(f'...exporting metric {metric}')
+            mks = self.metrics[metric]['metric_keys']
+            df_metric = df[df['metric_key'].isin(mks)].copy()
+
+            ## put dataframe into a json string
+            metric_dict = df_metric.to_dict(orient='records')
+            metric_dict = fix_dict_nan(metric_dict, f'metric_dict_{metric}')
+
+            if self.s3_bucket == None:
+                self.save_to_json(metric_dict, f'metric_{metric}')
+            else:
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/export/{metric}', metric_dict, self.cf_distribution_id)
+
     ## TODO: DEPRECATE
     def create_contracts_json(self):
         exec_string = f"""
