@@ -204,7 +204,7 @@ class GTPAI:
                         "metric": row['metric'], 
                         "milestone": "Chain ATH", 
                         "importance_score": 9, 
-                        "new_ath": f"{row['ath']:,.2f}",
+                        "exact_value": f"{row['ath']:,.2f}",
                         "total_importance": total_importance
                     })
                 
@@ -317,8 +317,22 @@ class GTPAI:
         if response.status_code == 204:
             print("Embedded message sent successfully!")
         else:
-            print(f"Failed to send embedded message. Status code: {response.status_code}, Response: {response.text}")
+            error_embed = {
+                "title": "Error: Failed to Send Embedded Message",
+                "description": f"Status code: {response.status_code}\nResponse: {response.text}",
+                "color": 0xFF0000,  # Red color for error
+            }
             
+            error_data = {
+                "embeds": [error_embed]
+            }
+            
+            error_response = requests.post(webhook_url, json=error_data)
+            if error_response.status_code == 204:
+                print("Error embed sent successfully!")
+            else:
+                print(f"Failed to send error embed. Status code: {error_response.status_code}, Response: {error_response.text}")
+
     def craft_and_send_discord_embeds(self, webhook_url, responses, title, footer, color=0x7289da, author="GTP-AI"):
         embed_messages = []
 
