@@ -28,7 +28,7 @@ CET = timezone("Europe/Paris")
     description='Generate AI Insights',
     tags=['ai', 'milestones', 'metrics'],
     start_date=CET.convert(datetime(2023, 9, 1, 8, 0)),
-    schedule_interval='30 6 * * *',
+    schedule_interval='30 8 * * *', ## CET TIMEZONE here instead of UTC
     catchup=False  # Ensures only future runs are scheduled, not backfilled
 )
 
