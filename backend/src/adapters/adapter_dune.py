@@ -83,8 +83,9 @@ class AdapterDune(AbstractAdapter):
 
     ## ----------------- Helper functions --------------------
     def prepare_df(self, df):
-        ## unpivot df
-        df = df.melt(id_vars=['day', 'origin_key'], var_name='metric_key', value_name='value')
+        ## unpivot df only if not already in the correct format
+        if 'metric_key' not in df.columns and 'value' not in df.columns:
+            df = df.melt(id_vars=['day', 'origin_key'], var_name='metric_key', value_name='value')
 
         df['date'] = df['day'].apply(pd.to_datetime)
         df['date'] = df['date'].dt.date
@@ -112,7 +113,7 @@ class AdapterDune(AbstractAdapter):
             if query.name == 'aa_last30d':
                 query.params = []
             else:
-                query.params = [QueryParameter.text_type(name="Days", value=str(day_val))]
+                query.params = [QueryParameter.text_type(name="days", value=str(day_val))]
 
             print(f"...start loading {query.name} with query_id: {query.query_id} and params: {query.params}")
             df = self.client.refresh_into_dataframe(query)
@@ -131,7 +132,7 @@ class AdapterDune(AbstractAdapter):
         else:
             day_val = days
         
-        query[0].params = [QueryParameter.text_type(name="Days", value=str(day_val))]
+        query[0].params = [QueryParameter.text_type(name="days", value=str(day_val))]
 
         print(f"...start loading {query[0].name} with query_id: {query[0].query_id} and params: {query[0].params}")
         df = self.client.refresh_into_dataframe(query[0])
