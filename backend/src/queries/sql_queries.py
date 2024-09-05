@@ -97,7 +97,7 @@ sql_q= {
                 COUNT(*) as value
         FROM public.celestia_tx
         WHERE 
-                block_timestamp BETWEEN date_trunc('day', now()) - interval '7 days' AND date_trunc('day', now())
+                block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
                 and blob_sizes IS NOT NULL
         group by 1
         """
