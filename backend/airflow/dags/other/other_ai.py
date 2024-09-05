@@ -24,7 +24,7 @@ CET = timezone("Europe/Paris")
         'retry_delay': timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook,
     },
-    dag_id='gtp_ai',
+    dag_id='other_ai',
     description='Generate AI Insights',
     tags=['ai', 'milestones', 'metrics'],
     start_date=CET.convert(datetime(2023, 9, 1, 8, 0)),
