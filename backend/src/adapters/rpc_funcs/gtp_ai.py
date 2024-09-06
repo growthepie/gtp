@@ -179,22 +179,28 @@ class GTPAI:
         data = data.sort_values(by=['metric', 'date'])
         
         results = []
+        significance_multiplier = 1.5  # Multiplier for combined milestones (Multiple + ATH)
         
         for metric in data['metric'].unique():
             metric_data = data[data['metric'] == metric].copy()
             
+            # Calculate percentage changes for 1 day, 7 days, 30 days, and 365 days
             metric_data.loc[:, '1d_pct_change'] = metric_data.groupby('origin')['value'].pct_change(periods=1) * 100
             metric_data.loc[:, '7d_pct_change'] = metric_data.groupby('origin')['value'].pct_change(periods=7) * 100
             metric_data.loc[:, '30d_pct_change'] = metric_data.groupby('origin')['value'].pct_change(periods=30) * 100
             metric_data.loc[:, '365d_pct_change'] = metric_data.groupby('origin')['value'].pct_change(periods=365) * 100
             
-            metric_data.loc[:, 'ath'] = metric_data.groupby('origin')['value'].expanding().max().reset_index(level=0, drop=True)
+            # Calculate all-time high and 1-year high for each origin within the metric
+            metric_data['ath'] = metric_data.groupby('origin')['value'].expanding().max().reset_index(level=0, drop=True)
+            metric_data['1y_high'] = metric_data.groupby('origin').apply(
+                lambda x: x['value'].rolling(window=365, min_periods=1).max()).reset_index(level=0, drop=True)
             
             milestones = metric_milestones.get(metric, [])
             
             for index, row in metric_data.iterrows():
                 formatted_date = row['date'].strftime('%d.%m.%Y')
                 
+                # Check for ATH
                 if row['value'] == row['ath']:
                     total_importance = 9 + (row['rank'] * self.CHAIN_WEIGHT)
                     results.append({
@@ -207,21 +213,52 @@ class GTPAI:
                         "exact_value": f"{row['ath']:,.2f}",
                         "total_importance": total_importance
                     })
-                
-                for milestone in milestones:
-                    if milestone['type'] == 'Multiples' and row['value'] >= milestone['threshold']:
-                        total_importance = milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)
-                        results.append({
-                            "origin": row['origin'],
-                            "rank": row['rank'],
-                            "date": formatted_date, 
-                            "metric": row['metric'], 
-                            "milestone": milestone['milestone'], 
-                            "importance_score": milestone['importance_score'],
-                            "exact_value": f"{row['value']:,.2f}",
-                            "total_importance": total_importance
-                        })
                     
+                    # Check if the ATH also meets any multiple thresholds
+                    for milestone in milestones:
+                        if milestone['type'] == 'Multiples' and row['value'] >= milestone['threshold']:
+                            combined_importance = (milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)) * significance_multiplier
+                            results.append({
+                                "origin": row['origin'],
+                                "rank": row['rank'],
+                                "date": formatted_date, 
+                                "metric": row['metric'], 
+                                "milestone": f"Chain ATH and {milestone['milestone']}", 
+                                "importance_score": milestone['importance_score'],
+                                "exact_value": f"{row['value']:,.2f}",
+                                "total_importance": combined_importance
+                            })
+                
+                # Check for 1-year high
+                if row['value'] == row['1y_high']:
+                    total_importance = 8 + (row['rank'] * self.CHAIN_WEIGHT)
+                    results.append({
+                        "origin": row['origin'],
+                        "rank": row['rank'],
+                        "date": formatted_date, 
+                        "metric": row['metric'], 
+                        "milestone": "1-Year High", 
+                        "importance_score": 8, 
+                        "exact_value": f"{row['1y_high']:,.2f}",
+                        "total_importance": total_importance
+                    })
+                    
+                    # Check if the 1-year high also meets any multiple thresholds
+                    for milestone in milestones:
+                        if milestone['type'] == 'Multiples' and row['value'] >= milestone['threshold']:
+                            combined_importance = (milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)) * significance_multiplier
+                            results.append({
+                                "origin": row['origin'],
+                                "rank": row['rank'],
+                                "date": formatted_date, 
+                                "metric": row['metric'], 
+                                "milestone": f"1-Year High and {milestone['milestone']}", 
+                                "importance_score": milestone['importance_score'],
+                                "exact_value": f"{row['value']:,.2f}",
+                                "total_importance": combined_importance
+                            })
+                    
+                # Percentage increases
                 pct_fields = {'1d_pct_change': '24h Up', '7d_pct_change': '7 days Up', '30d_pct_change': '30 days Up', '365d_pct_change': '1 year Up'}
                 for key, label in pct_fields.items():
                     for milestone in milestones:
@@ -282,6 +319,10 @@ class GTPAI:
             if (pd.Timestamp.now() - milestone['date']).days <= day_interval
         ]
         
+        if not recent_milestones:
+            print(f"No milestones found within the last {day_interval} day(s).")
+            return []
+        
         # Group by origin and metric, and keep the one with the highest importance score
         grouped_milestones = {}
         for milestone in recent_milestones:
@@ -332,27 +373,36 @@ class GTPAI:
                 print("Error embed sent successfully!")
             else:
                 print(f"Failed to send error embed. Status code: {error_response.status_code}, Response: {error_response.text}")
-
+            
     def craft_and_send_discord_embeds(self, webhook_url, responses, title, footer, color=0x7289da, author="GTP-AI"):
         embed_messages = []
 
-        for idx, (key, value) in enumerate(responses.items()):
-            if 'output' in value:
-                description = value['output']
+        if not responses:
+            # Send an embed indicating no milestones were found
+            embed_messages.append({
+                "title": "No Latest Milestones",
+                "description": "No milestones detected in the specified time range.",
+                "color": 0xFF0000,
+                "footer": {"text": footer}
+            })
+        else:
+            for idx, (key, value) in enumerate(responses.items()):
+                if 'output' in value:
+                    description = value['output']
 
-                embed = {
-                    "description": description,
-                    "color": color,
-                }
+                    embed = {
+                        "description": description,
+                        "color": color,
+                    }
 
-                if idx == 0:
-                    embed["author"] = {"name": author}
-                    embed["title"] = title
-                
-                if idx == len(responses) - 1:
-                    embed["footer"] = {"text": footer}
+                    if idx == 0:
+                        embed["author"] = {"name": author}
+                        embed["title"] = title
+                    
+                    if idx == len(responses) - 1:
+                        embed["footer"] = {"text": footer}
 
-                embed_messages.append(embed)
+                    embed_messages.append(embed)
 
         # Send all embeds in a single Discord message
         self.send_discord_embed_message(webhook_url, embed_messages)
