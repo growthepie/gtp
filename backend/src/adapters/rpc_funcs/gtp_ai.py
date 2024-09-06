@@ -10,7 +10,7 @@ class GTPAI:
     def __init__(self):
         load_dotenv()
         self.OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-        self.CHAIN_WEIGHT = 0.5
+        self.CHAIN_WEIGHT = 0.3
         if not self.OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY environment variable is not set.")
         
@@ -409,9 +409,9 @@ class GTPAI:
         
     def generate_milestone_responses(self, combined_data):
         template = (
-            "\n\n🔥 **{origin} Milestone (Importance: {importance_score}/10, Rank: {rank}):**"
-            "\n> 📅 On {date}, **{origin}** reached a milestone in **{metric}**:\n> 🚀 **{milestone}** "
-            "with an increase of **{exact_value}**.\n> 💡 **Total Importance:** {total_importance}"
+            "\n\n🔥 **{origin}** - **{metric}**:\n> **{milestone}**"
+            "\n> with an increase of {exact_value}."
+            "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
         )
 
         responses = {}
