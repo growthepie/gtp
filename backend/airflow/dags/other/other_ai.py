@@ -78,8 +78,9 @@ def gtp_ai():
 
         print("Getting latest milestones...")
         latest_milestones = analytics.get_latest_milestones(chain_milestones, n=3, day_interval=1)
+        print(f"Selected top {len(latest_milestones)} latest milestones.")
         latest_milestones = sorted(latest_milestones, key=lambda x: (x['date'], -x['total_importance']))[:10]
-        print(f"Selected top {len(latest_milestones)} latest milestones. First latest milestone preview:\n", latest_milestones[0] if latest_milestones else "No latest milestones selected")
+        print(f"First latest milestone preview:\n", latest_milestones[0] if latest_milestones else "No latest milestones selected")
 
         print("Analyzing cross-chain milestones...")
         cross_chain_milestones = analytics.analyze_cross_chain_milestones(df, analytics.cross_chain_milestones)
