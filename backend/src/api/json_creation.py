@@ -2,9 +2,7 @@ import os
 import simplejson as json
 import datetime
 import pandas as pd
-import polars as pl
 import numpy as np
-import random
 from datetime import timedelta, datetime, timezone
 
 from src.main_config import get_main_config, get_multi_config
@@ -253,10 +251,41 @@ class JSONCreation():
                 'ranking_bubble': False
             }
 
+            ## TODO: remove this metric
             ,'costs': {
                 'name': 'Costs',
                 'fundamental': False, ## not a fundamental metric
                 'metric_keys': ['costs_total_usd', 'costs_total_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
+
+            ,'settlement': {
+                'name': 'Settlement',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['l1_settlement_usd', 'l1_settlement_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
+
+            ,'da': {
+                'name': 'Data Availability',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['costs_da_usd', 'costs_da_eth'],
                 'units': {
                     'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
                     'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
@@ -865,8 +894,9 @@ class JSONCreation():
         ## Load all data from database
         chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
         metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
-                                                'cca_last7d_exclusive', 'costs_total_eth', 'costs_total_usd', 'costs_l1_eth', 'costs_l1_usd', 
-                                                'costs_blobs_eth', 'costs_blobs_usd', 'blob_size_bytes']
+                                                'cca_last7d_exclusive', 'costs_total_eth', 'costs_total_usd', 
+                                                'costs_l1_eth', 'costs_l1_usd', 'costs_blobs_eth', 'costs_blobs_usd', ## TODO: remove this row
+                                                'l1_settlement_eth', 'l1_settlement_usd', 'costs_da_eth', 'costs_da_usd', 'blob_size_bytes']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"
@@ -1633,8 +1663,13 @@ class JSONCreation():
             }
         }
 
-        for metric_id in ['profit', 'fees', 'rent_paid']: ## TODO: add 'total costs' instead of 'rent_paid'
+        for metric_id in ['profit', 'fees', 'rent_paid']: ## TODO: remove 'rent_paid'
             economics_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True, economics_api=True)
+
+        economics_dict['data']['all_l2s']['metrics']['costs'] = {
+            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=True, economics_api=True),
+            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=True, economics_api=True)
+        }
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
@@ -1661,8 +1696,10 @@ class JSONCreation():
                     "costs": {
                         "types": ["usd", "eth"],
                         "total": [self.aggregate_metric(df, origin_key, 'costs_total_usd', days), self.aggregate_metric(df, origin_key, 'costs_total_eth', days)],
-                        "l1_costs": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], 
-                        "blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)],
+                        "l1_costs": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], ## TODO: remove
+                        "blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)], ##TODO: remove
+                        "settlement": [self.aggregate_metric(df, origin_key, 'l1_settlement_usd', days), self.aggregate_metric(df, origin_key, 'l1_settlement_eth', days)], 
+                        "da": [self.aggregate_metric(df, origin_key, 'costs_da_usd', days), self.aggregate_metric(df, origin_key, 'costs_da_eth', days)],
                     },
                     "profit": {
                         "types": ["usd", "eth"],
