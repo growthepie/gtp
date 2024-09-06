@@ -409,7 +409,7 @@ class GTPAI:
         
     def generate_milestone_responses(self, combined_data):
         template = (
-            "\n\n🔥 **{origin}** - **{metric}**:\n> **{milestone}**"
+            "\n\n🔥 **{origin}** - **{metric}**: **{milestone}**"
             "\n> with an increase of {exact_value}."
             "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
         )
