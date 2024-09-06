@@ -17,7 +17,7 @@ class AdapterSQL(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("SQL Aggregation", adapter_params, db_connector)
         self.discord_webhook = os.getenv('DISCORD_ALERTS')
-        self.main_conf = get_main_config(self.db_connector)
+        self.main_config = get_main_config(self.db_connector)
         print_init(self.name, self.adapter_params)
 
     """
@@ -62,12 +62,29 @@ class AdapterSQL(AbstractAdapter):
             df = self.db_connector.get_values_in_usd(metric_keys, days, origin_keys)
 
         elif load_type == 'economics':
-            ## chains to exclude from profit calculation: Offchain DA like IMX and Mantle  
-            exclude_chains = ['imx', 'mantle']                      
-            df = self.db_connector.get_economics_in_eth(days, exclude_chains, origin_keys)
+            ##exclude_chains = ['imx', 'mantle'] ## chains that should be excluded from profit calc
+            exclude_chains = [chain.origin_key for chain in self.main_config if 'profit' in chain.api_exclude_metrics]
+            print(f'...excluding chains from profit calculation: {exclude_chains}')
 
+            ## FULL ECONOMICS - economics cals incl profit          
+            df = self.db_connector.get_economics_in_eth(days, exclude_chains, origin_keys)
             ## unpivot df
             df = df.melt(id_vars=['date', 'origin_key'], var_name='metric_key', value_name='value')
+            print(f"...loaded full economics data for origin_keys: {origin_keys} excluding {exclude_chains}. Shape: {df.shape}")
+
+            ## ECONOMICS WITHOUT PROFIT - economics calc without profit
+            if origin_keys is not None:
+                ok_without_profit = [ok for ok in origin_keys if ok in exclude_chains]
+            else:
+                ok_without_profit = exclude_chains
+
+            df2 = self.db_connector.get_economics_in_eth(days, None, ok_without_profit, incl_profit=False)
+            ## unpivot df
+            df2 = df2.melt(id_vars=['date', 'origin_key'], var_name='metric_key', value_name='value')
+            print(f"...loaded economics data without profit for {ok_without_profit}. Shape: {df2.shape}")
+
+            df = pd.concat([df, df2], ignore_index=True)
+
             ## remove all rows where value is na
             df = df.dropna(subset=['value'])
 
@@ -188,7 +205,7 @@ class AdapterSQL(AbstractAdapter):
     
     def run_blockspace_queries(self, origin_keys, days):
         if origin_keys is None:
-            origin_keys = [chain.origin_key for chain in self.main_conf if chain.runs_aggregate_blockspace == True]
+            origin_keys = [chain.origin_key for chain in self.main_config if chain.runs_aggregate_blockspace == True]
             print(f"...no specific origin_key found, aggregating blockspace for all chains: {origin_keys}...")
 
         for chain in origin_keys:
@@ -269,7 +286,7 @@ class AdapterSQL(AbstractAdapter):
 
     def run_active_addresses_agg(self, origin_keys, days, days_end=None):
         if origin_keys is None:
-            origin_keys = [chain.origin_key for chain in self.main_conf if chain.runs_aggregate_addresses == True]
+            origin_keys = [chain.origin_key for chain in self.main_config if chain.runs_aggregate_addresses == True]
             print(f"...no specific origin_key found, aggregating active addresses for all chains: {origin_keys}...")
 
         for origin_key in origin_keys:
@@ -291,7 +308,7 @@ class AdapterSQL(AbstractAdapter):
 
     def run_fees_queries(self, origin_keys, days, granularities, metric_keys=None):
         if origin_keys is None:
-            origin_keys = [chain.origin_key for chain in self.main_conf if chain.api_in_fees == True]
+            origin_keys = [chain.origin_key for chain in self.main_config if chain.api_in_fees == True]
             print(f"...no specific origin_key found, aggregating fees for all chains: {origin_keys}...")
         
         ## currently excluding the 10th and 90th percentile for regular runs
