@@ -196,30 +196,39 @@ class DbConnector:
         - rent_paid_eth: total amount of fees that is paid to Ethereum (blobs and l1 data availability and l1 settlement)
         - costs_total_eth: total costs in ETH (sum of all costs of a chain)
         - profit_eth: profit in ETH (fees paid - costs_total_eth)
-        
         """
-        def get_economics_in_eth(self, days, exclude_chains, origin_keys = None):               
+        def get_economics_in_eth(self, days, exclude_chains, origin_keys = None, incl_profit = True):               
+                if exclude_chains is None or len(exclude_chains) == 0:
+                        exclude_string = ''
+                else:
+                        exclude_string = "AND tkd.origin_key not in ('" + "', '".join(exclude_chains) + "')"
+                
                 if origin_keys is None or len(origin_keys) == 0:
                         ok_string = ''
                 else:
                         ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+                
+                if incl_profit:
+                        profit_string = ",SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS profit_eth"
+                else:
+                        profit_string = ''
 
                 exec_string = f'''
                         SELECT 
-                                date,
-                                origin_key,
-                                SUM(CASE WHEN metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes') THEN value END) AS blob_size_bytes,
+                                date
+                                ,origin_key
+                                ,SUM(CASE WHEN metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes') THEN value END) AS blob_size_bytes
 
-                                SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth') THEN value END) AS costs_blobs_eth,
-                                SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth') THEN value END) AS costs_da_eth,
-                                SUM(CASE WHEN metric_key in ('l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_l1_eth,
-                                SUM(CASE WHEN metric_key in ('l1_data_availability_eth', 'l1_settlement_eth', 'ethereum_blobs_eth') THEN value END) AS rent_paid_eth,
+                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth') THEN value END) AS costs_blobs_eth
+                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth') THEN value END) AS costs_da_eth
+                                ,SUM(CASE WHEN metric_key in ('l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_l1_eth
+                                ,SUM(CASE WHEN metric_key in ('l1_data_availability_eth', 'l1_settlement_eth', 'ethereum_blobs_eth') THEN value END) AS rent_paid_eth
 
-                                SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_total_eth,
-                                SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS profit_eth
+                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_total_eth
+                                {profit_string}
                         FROM fact_kpis tkd
                         WHERE metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes', 'celestia_blobs_eth', 'ethereum_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'fees_paid_eth')
-                                AND origin_key not in ('{"','".join(exclude_chains)}')
+                                {exclude_string}
                                 {ok_string}
                                 AND date >= date_trunc('day',now()) - interval '{days} days'
                                 AND date < date_trunc('day', now())
