@@ -25,7 +25,7 @@ api = Api(AIRTABLE_API_KEY)
         'retries' : 2,
         'email_on_failure': False,
         'retry_delay' : timedelta(minutes=5),
-        'on_failure_callback': alert_via_webhook(user='lorenz')
+        'on_failure_callback': lambda context: alert_via_webhook(context, user='lorenz')
     },
     dag_id='utility_airtable',
     description='Update Airtable for contracts labelling',
