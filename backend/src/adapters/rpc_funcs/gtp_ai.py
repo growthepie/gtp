@@ -202,7 +202,7 @@ class GTPAI:
                 
                 # Check for ATH
                 if row['value'] == row['ath']:
-                    total_importance = 9 + (row['rank'] * self.CHAIN_WEIGHT)
+                    total_importance = round(9 + (row['rank'] * self.CHAIN_WEIGHT), 2)
                     results.append({
                         "origin": row['origin'],
                         "rank": row['rank'],
@@ -217,7 +217,7 @@ class GTPAI:
                     # Check if the ATH also meets any multiple thresholds
                     for milestone in milestones:
                         if milestone['type'] == 'Multiples' and row['value'] >= milestone['threshold']:
-                            combined_importance = (milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)) * significance_multiplier
+                            combined_importance = round((milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)) * significance_multiplier, 2)
                             results.append({
                                 "origin": row['origin'],
                                 "rank": row['rank'],
@@ -231,7 +231,7 @@ class GTPAI:
                 
                 # Check for 1-year high
                 if row['value'] == row['1y_high']:
-                    total_importance = 8 + (row['rank'] * self.CHAIN_WEIGHT)
+                    total_importance = round(8 + (row['rank'] * self.CHAIN_WEIGHT), 2)
                     results.append({
                         "origin": row['origin'],
                         "rank": row['rank'],
@@ -246,7 +246,7 @@ class GTPAI:
                     # Check if the 1-year high also meets any multiple thresholds
                     for milestone in milestones:
                         if milestone['type'] == 'Multiples' and row['value'] >= milestone['threshold']:
-                            combined_importance = (milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)) * significance_multiplier
+                            combined_importance = round((milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)) * significance_multiplier, 2)
                             results.append({
                                 "origin": row['origin'],
                                 "rank": row['rank'],
@@ -263,7 +263,7 @@ class GTPAI:
                 for key, label in pct_fields.items():
                     for milestone in milestones:
                         if milestone['type'] == 'Up %' and row[key] >= milestone['threshold']:
-                            total_importance = milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT)
+                            total_importance = round(milestone['importance_score'] + (row['rank'] * self.CHAIN_WEIGHT), 2)
                             results.append({
                                 "origin": row['origin'],
                                 "rank": row['rank'],
@@ -275,8 +275,8 @@ class GTPAI:
                                 "total_importance": total_importance
                             })
         
-        # Sort results by date (latest first), then by chain rank, and within each date by importance score (highest first)
-            results.sort(key=lambda x: (pd.to_datetime(x['date'], format='%d.%m.%Y'), -x['total_importance']))
+            # Sort results by date (latest first), then by chain rank, and within each date by importance score (highest first)
+            results.sort(key=lambda x: (-pd.to_datetime(x['date'], format='%d.%m.%Y').timestamp(), -x['total_importance']))
         
         return results
 
@@ -309,7 +309,7 @@ class GTPAI:
 
         return cross_chain_results
 
-    def get_latest_milestones(self, chain_milestones, n=1, day_interval=1):
+    def get_latest_milestones(self, chain_milestones, n=1, day_interval=1, min_total_importance=5):
         for milestone in chain_milestones:
             milestone['date'] = pd.to_datetime(milestone['date'], format='%d.%m.%Y')
         
@@ -326,6 +326,9 @@ class GTPAI:
         # Group by origin and metric, and keep the one with the highest importance score
         grouped_milestones = {}
         for milestone in recent_milestones:
+            if milestone['total_importance'] < min_total_importance:
+                continue
+            
             key = (milestone['origin'], milestone['metric'])
             if key not in grouped_milestones or milestone['importance_score'] > grouped_milestones[key]['importance_score']:
                 grouped_milestones[key] = milestone
@@ -408,7 +411,15 @@ class GTPAI:
         self.send_discord_embed_message(webhook_url, embed_messages)
         
     def generate_milestone_responses(self, combined_data):
-        template = (
+        # Base template without the fire symbol
+        base_template = (
+            "\n\n**{origin}** - **{metric}**: **{milestone}**"
+            "\n> with an increase of {exact_value}."
+            "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
+        )
+        
+        # Template with the fire symbol for high importance
+        fire_template = (
             "\n\n🔥 **{origin}** - **{metric}**: **{milestone}**"
             "\n> with an increase of {exact_value}."
             "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
@@ -424,6 +435,9 @@ class GTPAI:
                 for date, metrics in chain_data.items():
                     for metric_name, milestones in metrics.items():
                         for milestone in milestones:
+                            # Use the fire template if total importance >= 10, otherwise use the base template
+                            template = fire_template if milestone["total_importance"] >= 10 else base_template
+                            
                             response += template.format(
                                 origin=milestone["origin"].upper(),
                                 importance_score=milestone["importance_score"],
@@ -444,6 +458,9 @@ class GTPAI:
                 for date, metrics in chain_data.items():
                     for metric_name, milestones in metrics.items():
                         for milestone in milestones:
+                            # Use the fire template if total importance >= 10, otherwise use the base template
+                            template = fire_template if milestone["total_importance"] >= 10 else base_template
+                            
                             response += template.format(
                                 origin=milestone["origin"].upper(),
                                 importance_score=milestone["importance_score"],
