@@ -1,6 +1,6 @@
 from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional, List, Dict, Any
-from db_connector import DbConnector
+from src.db_connector import DbConnector
 
 class MainConfig(BaseModel):
     origin_key: str
