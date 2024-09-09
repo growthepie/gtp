@@ -54,7 +54,7 @@ def read_all_labeled_contracts_airtable(table):
     df = read_airtable(table)
 
     # check if anything was labelled
-    required_columns = ['contract_name', 'owner_project', 'usage_category', 'internal_description']
+    required_columns = ['contract_name', 'owner_project_lookup', 'usage_category_lookup', 'internal_description']
     if not any(col in df.columns for col in required_columns):
         print('no new labelled contracts found in airtable.')
         return
@@ -79,10 +79,12 @@ def read_all_labeled_contracts_airtable(table):
     df = df[['address', 'origin_key', 'contract_name', 'owner_project_lookup', 'usage_category_lookup', 'labelling_type', 'internal_description']]
     df.rename(columns={'owner_project_lookup': 'owner_project', 'usage_category_lookup': 'usage_category', 'contract_name': 'name' , 'labelling_type' : 'source'}, inplace=True)
 
-    ## owner_project and usage_category are lists with 1 element, so we extract the element at index 0
+    # owner_project and usage_category are lists with 1 element, so we extract the element at index 0
     df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])
     df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: x[0])
 
+    # source is a dict with a name key, so we extract the first word
+    df['source'] = df['source'].replace('', float('nan')) # replace empty strings with nan
     df['source'] = df[df['source'].notnull()]['source'].apply(lambda x: x['name'].split()[0])
 
     # convert address to bytes
