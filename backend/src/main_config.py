@@ -1,5 +1,6 @@
 from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional, List, Dict, Any
+from src.db_connector import DbConnector
 
 class MainConfig(BaseModel):
     origin_key: str
@@ -62,16 +63,16 @@ class MainConfig(BaseModel):
     cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key")
     cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function")
 
-def get_main_config(db_connector):
+def get_main_config(db_connector:DbConnector):
     main_conf_dict = db_connector.get_main_config_dict()
     return [MainConfig(**data) for data in main_conf_dict]
 
-def get_all_l2_config(db_connector):
+def get_all_l2_config(db_connector:DbConnector):
     main_config = get_main_config(db_connector)
     all_l2_config = main_config + [MainConfig(origin_key='all_l2s', chain_type = '-', name='All L2s', name_short='-', bucket='-', colors={"light":["#FFDF27","#FE5468"],"dark":["#FFDF27","#FE5468"],"darkTextOnBackground": False}, ecosystem_old=["op-stack", "op-super", "all-chains"], api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
     return all_l2_config
 
-def get_multi_config(db_connector):
+def get_multi_config(db_connector:DbConnector):
     all_l2_config = get_all_l2_config(db_connector)
     multi_config = all_l2_config + [MainConfig(origin_key='multiple', chain_type = 'all-L2s', name='Multiple L2s', name_short='-', colors = {"light":["#cdd8d3","#cdd8d3"],"dark":["#cdd8d3","#cdd8d3"],"darkTextOnBackground": False} , bucket='-', ecosystem_old=[], api_in_api_main=True, api_api_deployment_flag='PROD', api_api_exclude_metrics=[])] ## for multi-chain metrics
     return multi_config
