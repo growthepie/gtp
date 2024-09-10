@@ -1280,6 +1280,10 @@ class DbConnector:
                                         cl.origin_key, 
                                         max(bl.deployment_date) AS deployment_date,
                                         max(bl.internal_description) AS internal_description,
+                                        max(bl."name") AS name,
+                                        bool_and(bl.is_proxy) AS is_proxy,
+                                        max(bl.source_code_verified) AS source_code_verified,
+                                        max(bl.owner_project) AS owner_project,
                                         SUM(cl.gas_fees_eth) AS gas_eth, 
                                         SUM(cl.txcount) AS txcount, 
                                         ROUND(AVG(cl.daa)) AS avg_daa,   
@@ -1300,12 +1304,12 @@ class DbConnector:
                         ),
                         chain_txcost AS(
                                 SELECT
-                                origin_key,
-                                AVG(value) AS avg_chain_txcost_median_eth
+                                        origin_key,
+                                        AVG(value) AS avg_chain_txcost_median_eth
                                 FROM public.fact_kpis
                                 WHERE
-                                metric_key = 'txcosts_median_eth'
-                                AND "date" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                        metric_key = 'txcosts_median_eth'
+                                        AND "date" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 GROUP BY origin_key
                         )
                         SELECT 
@@ -1313,6 +1317,10 @@ class DbConnector:
                                 rc.origin_key, 
                                 rc.deployment_date,
                                 rc.internal_description,
+                                rc.name AS contract_name,
+                                rc.is_proxy,
+                                rc.source_code_verified,
+                                rc.owner_project,
                                 rc.gas_eth, 
                                 rc.txcount, 
                                 rc.avg_daa,
@@ -1322,6 +1330,45 @@ class DbConnector:
                         LEFT JOIN chain_txcost mc ON rc.origin_key = mc.origin_key
                         WHERE row_num_gas <= {str(int(number_of_contracts/2))} OR row_num_daa <= {str(int(number_of_contracts/2))}
                         ORDER BY origin_key, row_num_gas, row_num_daa
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
+        # function that returns all contracts from inactive projects that need reassigning
+        def get_inactive_contracts(self):
+                exec_string = f'''
+                        WITH inactive_names AS (
+                                SELECT 
+                                        "name",
+                                        active,
+                                        "source"
+                                FROM public.oli_oss_directory
+                                WHERE active = FALSE
+                                ),
+
+                                inactive_contracts AS(
+                                        select
+                                                value as owner_project,
+                                        tm.address, 
+                                        tm.origin_key
+                                        FROM public.oli_tag_mapping tm
+                                        JOIN inactive_names ia ON tm.value = ia."name"
+                                        WHERE tm.tag_id = 'owner_project'
+                                )
+
+                                SELECT 
+                                        ic.address, 
+                                        ic.origin_key, 
+                                        --max(ic.owner_project) AS owner_project,
+                                        max(bl.deployment_date) AS deployment_date,
+                                        max(bl.internal_description) AS internal_description,
+                                        max(bl.usage_category) AS usage_category, 
+                                        max(bl."name") AS contract_name,
+                                        bool_and(bl.is_proxy) AS is_proxy,
+                                        max(bl.source_code_verified) AS source_code_verified
+                                FROM inactive_contracts ic
+                                LEFT JOIN vw_oli_labels_materialized bl ON ic.address = bl.address AND ic.origin_key = bl.origin_key
+                                GROUP BY 1,2
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
