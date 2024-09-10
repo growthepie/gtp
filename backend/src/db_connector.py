@@ -42,7 +42,7 @@ class DbConnector:
                                         print("Batch " + str(batch_end))
                                         batch_start = batch_end
                         else:
-                                upsert(con=self.engine, df=df, table_name=table_name, if_row_exists='update', create_table=False)
+                                upsert(con=self.engine, df=df, table_name=table_name, if_row_exists=if_exists, create_table=False)
                         return df.shape[0]
                 
 # ------------------------- additional db functions --------------------------------
