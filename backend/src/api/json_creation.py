@@ -251,7 +251,6 @@ class JSONCreation():
                 'ranking_bubble': False
             }
 
-            ## TODO: remove this metric
             ,'costs': {
                 'name': 'Costs',
                 'fundamental': False, ## not a fundamental metric
@@ -895,7 +894,6 @@ class JSONCreation():
         chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
         metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
                                                 'cca_last7d_exclusive', 'costs_total_eth', 'costs_total_usd', 
-                                                'costs_l1_eth', 'costs_l1_usd', 'costs_blobs_eth', 'costs_blobs_usd', ## TODO: remove this row
                                                 'l1_settlement_eth', 'l1_settlement_usd', 'costs_da_eth', 'costs_da_usd', 'blob_size_bytes']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
@@ -1644,16 +1642,6 @@ class JSONCreation():
     def create_economics_json(self, df):
         economics_dict = {
             "data": {
-                "da_charts" : {
-                    "ethereum": {
-                        "total_blob_size": self.gen_da_metric_dict(df, 'total_blob_size', 'ethereum'),
-                        "total_blob_fees": self.gen_da_metric_dict(df, 'total_blob_fees', 'ethereum'),
-                    },
-                    "celestia": {
-                        "total_blob_size": self.gen_da_metric_dict(df, 'total_blob_size', 'celestia'),
-                        "total_blob_fees": self.gen_da_metric_dict(df, 'total_blob_fees', 'celestia'),
-                    },
-                },
                 "all_l2s" : {
                     "chain_id": "all_l2s",
                     "chain_name": "All L2s",
@@ -1663,13 +1651,14 @@ class JSONCreation():
             }
         }
 
-        for metric_id in ['profit', 'fees', 'rent_paid']: ## TODO: remove 'rent_paid'
-            economics_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True, economics_api=True)
+        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True)
 
         economics_dict['data']['all_l2s']['metrics']['costs'] = {
-            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=True, economics_api=True),
-            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=True, economics_api=True)
+            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=False, economics_api=True),
+            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=False, economics_api=True)
         }
+
+        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True)
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
@@ -1696,8 +1685,6 @@ class JSONCreation():
                     "costs": {
                         "types": ["usd", "eth"],
                         "total": [self.aggregate_metric(df, origin_key, 'costs_total_usd', days), self.aggregate_metric(df, origin_key, 'costs_total_eth', days)],
-                        "l1_costs": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], ## TODO: remove
-                        "blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)], ##TODO: remove
                         "settlement": [self.aggregate_metric(df, origin_key, 'l1_settlement_usd', days), self.aggregate_metric(df, origin_key, 'l1_settlement_eth', days)], 
                         "da": [self.aggregate_metric(df, origin_key, 'costs_da_usd', days), self.aggregate_metric(df, origin_key, 'costs_da_eth', days)],
                     },
