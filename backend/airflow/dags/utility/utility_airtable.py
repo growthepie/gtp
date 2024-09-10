@@ -14,6 +14,8 @@ from eth_utils import to_checksum_address
 
 #initialize Airtable instance
 import os
+import pandas as pd
+import numpy as np
 from pyairtable import Api
 AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
 AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
@@ -39,7 +41,7 @@ def etl():
     def read_airtable_contracts():
         # read current airtable
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
-        df = at.read_all_labeled_contracts_airtable(table)
+        df = at.read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table)
         if df is None:
             print("Nothing to upload")
         else:
@@ -96,12 +98,21 @@ def etl():
 
         at.clear_all_airtable(table)
         
-        # get top unlabelled contracts
-        df = db_connector.get_unlabelled_contracts('30', '365') # top 30 contracts per chain from last year
-        ## deployment_date column as string
-        df['deployment_date'] = df['deployment_date'].astype(str)
+        # get top unlabelled contracts, short and long term and also inactive contracts
+        df1 = db_connector.get_unlabelled_contracts('24', '365') # top 30 contracts per chain from last year
+        df2 = db_connector.get_unlabelled_contracts('6', '7') # top 5 contracts per chain from last week
+        df3 = db_connector.get_inactive_contracts() # inactive contracts
+        df3['internal_description'] = 'inactive, please remap!'
+        
+        # merge the all dataframes
+        df = pd.concat([df1, df2, df3])
 
+        # remove duplicates
+        df = df.drop_duplicates(subset=['address', 'origin_key'])
+
+        # checksum the addresses
         df['address'] = df['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
+
         # add block explorer urls
         block_explorer_mapping = [chain for chain in main_config if chain.block_explorers is not None]
         for i, row in df.iterrows():
@@ -109,8 +120,20 @@ def etl():
                 if row['origin_key'] == m.origin_key:
                     df.at[i, 'Blockexplorer'] = next(iter(m.block_explorers.values())) + '/address/' + row['address']
                     break
-
         df = df[df['Blockexplorer'].notnull()]
+
+        # exchange the category with the id & make it a list
+        cat = api.table(AIRTABLE_BASE_ID, 'Usage Categories')
+        df_cat = at.read_airtable(cat)
+        df = df.replace({'usage_category': df_cat.set_index('Category')['id']})
+        df['usage_category'] = df['usage_category'].apply(lambda x: [x])
+
+        # exchange the project with the id & make it a list
+        proj = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
+        df_proj = at.read_airtable(proj)
+        df = df.replace({'owner_project': df_proj.set_index('Name')['id']})
+        df['owner_project'] = df['owner_project'].apply(lambda x: [x])
+
         # write to airtable
         at.push_to_airtable(table, df)
 
