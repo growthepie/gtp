@@ -99,10 +99,11 @@ def etl():
         at.clear_all_airtable(table)
         
         # get top unlabelled contracts, short and long term and also inactive contracts
-        df1 = db_connector.get_unlabelled_contracts('24', '365') # top 30 contracts per chain from last year
-        df2 = db_connector.get_unlabelled_contracts('6', '7') # top 5 contracts per chain from last week
+        df1 = db_connector.get_unlabelled_contracts('16', '365') # top 16 contracts per chain from last year
+        df2 = db_connector.get_unlabelled_contracts('16', '7') # top 16 contracts per chain from last week
         df3 = db_connector.get_inactive_contracts() # inactive contracts
-        df3['internal_description'] = 'inactive, please remap!'
+        df3['internal_description'] = 'project ' + df3['old_owner_project'] + ' needs to be remapped'
+        df3 = df3.drop(columns=['old_owner_project'])
         
         # merge the all dataframes
         df = pd.concat([df1, df2, df3])
