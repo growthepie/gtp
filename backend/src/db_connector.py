@@ -1270,12 +1270,12 @@ class DbConnector:
                 return df
         
 
-        ## This function is used for our Airtable setup - it returns the top unlabelled contracts by gas fees
+        ## This function is used for our Airtable setup - it returns the top unlabelled contracts (usage_category IS NULL) by gas fees
         def get_unlabelled_contracts(self, number_of_contracts, days):
                 number_of_contracts = int(number_of_contracts)
                 exec_string = f'''
                         WITH ranked_contracts AS (
-                                SELECT 
+                                SELECT
                                         cl.address, 
                                         cl.origin_key, 
                                         max(bl.deployment_date) AS deployment_date,
@@ -1359,7 +1359,7 @@ class DbConnector:
                                 SELECT 
                                         ic.address, 
                                         ic.origin_key, 
-                                        --max(ic.owner_project) AS owner_project,
+                                        max(ic.owner_project) AS old_owner_project,
                                         max(bl.deployment_date) AS deployment_date,
                                         max(bl.internal_description) AS internal_description,
                                         max(bl.usage_category) AS usage_category, 
