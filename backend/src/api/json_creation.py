@@ -124,7 +124,7 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'fees': {
-                'name': 'Fees Paid by Users',
+                'name': 'Revenue',
                 'fundamental': True,
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
                 'units': {
@@ -152,7 +152,7 @@ class JSONCreation():
                 'ranking_bubble': False
             }
             ,'profit': {
-                'name': 'Onchain Profit',
+                'name': 'Profit',
                 'fundamental': True,
                 'metric_keys': ['profit_usd', 'profit_eth'],
                 'units': {
@@ -1096,7 +1096,7 @@ class JSONCreation():
         return chains_dict
     
     ## This method generates a dict containing aggregate daily values for all_l2s (all chains except Ethereum) for a specific metric_id
-    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False):
+    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False, days=730):
         metric = self.metrics[metric_id]
         mks = metric['metric_keys']
 
@@ -1107,7 +1107,7 @@ class JSONCreation():
             df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api))]
 
         # filter df _tmp by date so that date is greather than 2 years ago
-        df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')]  
+        df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')]  
         
         # group by unix and metric_key and sum up the values or calculate the mean (depending on the metric)
         if metric['all_l2s_aggregate'] == 'sum':
@@ -1656,14 +1656,14 @@ class JSONCreation():
             }
         }
 
-        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True)
+        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=548)
 
         economics_dict['data']['all_l2s']['metrics']['costs'] = {
-            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=False, economics_api=True),
-            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=False, economics_api=True)
+            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=False, economics_api=True, days=548),
+            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=False, economics_api=True, days=548)
         }
 
-        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True)
+        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=548)
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
@@ -1723,7 +1723,7 @@ class JSONCreation():
             ## add timeseries data for each chain
             economics_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
             economics_dict['data']['chain_breakdown'][origin_key]['monthly'] = {}
-            
+
             for metric in econ_metrics:
                 key = metric_to_key.get(metric)
 
