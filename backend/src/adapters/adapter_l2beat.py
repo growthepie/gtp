@@ -62,16 +62,18 @@ class AdapterL2Beat(AbstractAdapter):
     ## ----------------- Helper functions --------------------
 
     def extract_tvl(self, projects_to_load):
+        url = f"https://api.l2beat.com/api/tvl" 
+        response_json = api_get_call(url, sleeper=10, retries=3)
+        projects_json = response_json['projects']
+
         dfMain = get_df_kpis()
         for chain in projects_to_load:
             origin_key = chain.origin_key
-
             naming = chain.aliases_l2beat
-            url = f"{self.base_url}tvl/{naming}.json"           
-
-            response_json = api_get_call(url, sleeper=10, retries=3)
-            if response_json:
-                df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
+            
+            if naming in projects_json:
+                chain_json = projects_json[naming]['charts']['daily']    
+                df = pd.json_normalize(chain_json, record_path=['data'], sep='_')
 
                 ## only keep the columns 0 (date) and 1 (total tvl)
                 df = df.iloc[:,[0,1]]
@@ -83,17 +85,14 @@ class AdapterL2Beat(AbstractAdapter):
                 df.rename(columns={1:'value'}, inplace=True)
                 df['metric_key'] = 'tvl'
                 df['origin_key'] = origin_key
-                # max_date = df['date'].max()
-                # df.drop(df[df.date == max_date].index, inplace=True)
                 today = datetime.today().strftime('%Y-%m-%d')
                 df.drop(df[df.date == today].index, inplace=True, errors='ignore')
                 df.value.fillna(0, inplace=True)
                 dfMain = pd.concat([dfMain,df])
 
                 print(f"...{self.name} - loaded TVL for {origin_key}. Shape: {df.shape}")
-                time.sleep(1)
             else:
-                print(f'Error loading TVL data for {origin_key}')
+                print(f'Error loading TVL data for {origin_key} with l2beat key: {naming}.')
                 send_discord_message(f'L2Beat: Error loading TVL data for {origin_key}. Other chains are not impacted.', self.webhook)            
 
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
