@@ -191,7 +191,7 @@ class DbConnector:
         The get_economics_in_eth function is used to get the economics data on chain level in ETH. The following metrics are calculated:
         - blob_size_bytes: total blob size in bytes (currently sum of celestia and ethereum blob size)
         - costs_blobs_eth: costs for storing blobs in ETH (sum of celestia and ethereum blobs)
-        - costs_da_eth: costs for data availability in ETH (sum of celestia and ethereum blobs and l1 data availability)
+        - costs_da_eth: costs for data availability in ETH (sum of celestia and ethereum blobs and l1 data availability). Warning: not clear split in l1_data_availability_eth and l1_settlement_eth
         - costs_l1_eth: costs for ethereuem excl blobs (sum of l1 data availability and l1 settlement)
         - rent_paid_eth: total amount of fees that is paid to Ethereum (blobs and l1 data availability and l1 settlement)
         - costs_total_eth: total costs in ETH (sum of all costs of a chain)
