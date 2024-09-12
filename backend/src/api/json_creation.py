@@ -124,7 +124,7 @@ class JSONCreation():
                 'ranking_bubble': True
             }
             ,'fees': {
-                'name': 'Fees Paid by Users',
+                'name': 'Revenue',
                 'fundamental': True,
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
                 'units': {
@@ -152,7 +152,7 @@ class JSONCreation():
                 'ranking_bubble': False
             }
             ,'profit': {
-                'name': 'Onchain Profit',
+                'name': 'Profit',
                 'fundamental': True,
                 'metric_keys': ['profit_usd', 'profit_eth'],
                 'units': {
@@ -266,6 +266,7 @@ class JSONCreation():
                 'ranking_bubble': False
             }
 
+            ## TODO: remove this metric
             ,'settlement': {
                 'name': 'Settlement',
                 'fundamental': False, ## not a fundamental metric
@@ -281,10 +282,41 @@ class JSONCreation():
                 'ranking_bubble': False
             }
 
+            ## TODO: remove this metric
             ,'da': {
                 'name': 'Data Availability',
                 'fundamental': False, ## not a fundamental metric
                 'metric_keys': ['costs_da_usd', 'costs_da_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
+
+            ,'costs_l1': {
+                'name': 'L1 Costs',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['costs_l1_usd', 'costs_l1_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
+
+            ,'costs_blobs': {
+                'name': 'Blobs',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['costs_blobs_usd', 'costs_blobs_eth'],
                 'units': {
                     'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
                     'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
@@ -532,18 +564,23 @@ class JSONCreation():
         return mk_list_int, df_tmp.columns.to_list()
     
     # this method returns a list of lists with the unix timestamp (first day of month) and all associated values for a certain metric_id and chain_id
-    def generate_monthly_list(self, df, metric_id, origin_key):
+    def generate_monthly_list(self, df, metric_id, origin_key, start_date = None):
         ##print(f'called generate int for {metric_id} and {chain_id}')
         mks = self.metrics[metric_id]['metric_keys'].copy()
         if 'daa' in mks:
             mks[mks.index('daa')] = 'maa'
 
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "unix", "value", "metric_key"]]
+
+        ## if start_date is not None, filter df_tmp date to only values after start date
+        if start_date is not None:
+            df_tmp = df_tmp.loc[(df_tmp.date >= start_date), ["unix", "value", "metric_key", "date"]]
+
         ## create monthly averages on value and min on unix column
         df_tmp['date'] = df_tmp['date'].dt.tz_convert(None) ## get rid of timezone in order to avoid warnings
 
         ## replace earliest date with first day of month (in unix) in unix column
-        df_tmp['unix'] = (df_tmp['date'].dt.to_period("M").dt.start_time).astype(np.int64) // 10**6
+        df_tmp['unix'] = (df_tmp['date'].dt.to_period("M").dt.start_time).astype(np.int64) // 10**6        
 
         if self.metrics[metric_id]['monthly_agg'] == 'sum':
             df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index()
@@ -894,6 +931,7 @@ class JSONCreation():
         chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
         metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
                                                 'cca_last7d_exclusive', 'costs_total_eth', 'costs_total_usd', 
+                                                'costs_l1_eth', 'costs_l1_usd', 'costs_blobs_eth', 'costs_blobs_usd',
                                                 'l1_settlement_eth', 'l1_settlement_usd', 'costs_da_eth', 'costs_da_usd', 'blob_size_bytes']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
@@ -1091,7 +1129,7 @@ class JSONCreation():
         return chains_dict
     
     ## This method generates a dict containing aggregate daily values for all_l2s (all chains except Ethereum) for a specific metric_id
-    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False):
+    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False, days=730):
         metric = self.metrics[metric_id]
         mks = metric['metric_keys']
 
@@ -1102,7 +1140,7 @@ class JSONCreation():
             df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api))]
 
         # filter df _tmp by date so that date is greather than 2 years ago
-        df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=730)).strftime('%Y-%m-%d')]  
+        df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')]  
         
         # group by unix and metric_key and sum up the values or calculate the mean (depending on the metric)
         if metric['all_l2s_aggregate'] == 'sum':
@@ -1651,14 +1689,17 @@ class JSONCreation():
             }
         }
 
-        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True)
+        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=548)
 
         economics_dict['data']['all_l2s']['metrics']['costs'] = {
-            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=False, economics_api=True),
-            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=False, economics_api=True)
+            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=False, economics_api=True, days=548), ## TODO: remove
+            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=False, economics_api=True, days=548), ## TODO: remove
+            'costs_l1': self.generate_all_l2s_metric_dict(df, 'costs_l1', rolling_avg=False, economics_api=True, days=548),
+            'costs_blobs': self.generate_all_l2s_metric_dict(df, 'costs_blobs', rolling_avg=False, economics_api=True, days=548)
+            
         }
 
-        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True)
+        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=548)
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
@@ -1687,6 +1728,8 @@ class JSONCreation():
                         "total": [self.aggregate_metric(df, origin_key, 'costs_total_usd', days), self.aggregate_metric(df, origin_key, 'costs_total_eth', days)],
                         "settlement": [self.aggregate_metric(df, origin_key, 'l1_settlement_usd', days), self.aggregate_metric(df, origin_key, 'l1_settlement_eth', days)], 
                         "da": [self.aggregate_metric(df, origin_key, 'costs_da_usd', days), self.aggregate_metric(df, origin_key, 'costs_da_eth', days)],
+                        "costs_l1": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], 
+                        "costs_blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)],
                     },
                     "profit": {
                         "types": ["usd", "eth"],
@@ -1702,9 +1745,6 @@ class JSONCreation():
                     }
                 }
 
-            ## add timeseries data for each chain
-            economics_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
-
             econ_metrics = ['fees', 'costs', 'profit']
             ## determine the min date for all metric_keys of econ_metrics in df
             min_date_fees = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['fees']['metric_keys']))]['date'].min()
@@ -1712,22 +1752,37 @@ class JSONCreation():
             min_date_profit = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['profit']['metric_keys']))]['date'].min()
             start_date = max(min_date_fees, min_date_costs, min_date_profit)
 
-            for metric in econ_metrics:
-                mk_list = self.generate_daily_list(df, metric, origin_key, start_date)
-                mk_list_int = mk_list[0]
-                mk_list_columns = mk_list[1]
-
-                metric_to_key = {
+            metric_to_key = {
                     'fees': 'revenue',
                     'costs': 'costs',
                     'profit': 'profit'
                 }
+            
+            ## add timeseries data for each chain
+            economics_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
+            economics_dict['data']['chain_breakdown'][origin_key]['monthly'] = {}
 
+            for metric in econ_metrics:
                 key = metric_to_key.get(metric)
+
+                ## Fill daily values
+                mk_list = self.generate_daily_list(df, metric, origin_key, start_date)
+                mk_list_int = mk_list[0]
+                mk_list_columns = mk_list[1]                
 
                 economics_dict['data']['chain_breakdown'][origin_key]['daily'][key] = {
                     'types' : mk_list_columns,
                     'data' : mk_list_int
+                }
+
+                ## Fill monthly values
+                mk_list_monthly = self.generate_monthly_list(df, metric, origin_key, start_date)
+                mk_list_int_monthly = mk_list_monthly[0]
+                mk_list_columns_monthly = mk_list_monthly[1]
+
+                economics_dict['data']['chain_breakdown'][origin_key]['monthly'][key] = {
+                    'types' : mk_list_columns_monthly,
+                    'data' : mk_list_int_monthly
                 }
 
         economics_dict = fix_dict_nan(economics_dict, 'economics')

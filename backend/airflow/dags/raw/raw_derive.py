@@ -19,8 +19,8 @@ from src.misc.airflow_utils import alert_via_webhook
         'retry_delay': timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='raw_lyra',
-    description='Load raw tx data from Lyra',
+    dag_id='raw_derive',
+    description='Load raw tx data from Derive',
     tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2023, 9, 1),
     schedule_interval='*/15 * * * *'
@@ -28,15 +28,15 @@ from src.misc.airflow_utils import alert_via_webhook
 
 def adapter_rpc():
     @task(execution_timeout=timedelta(minutes=45))
-    def run_lyra():
+    def run_derive():
 
         # Initialize DbConnector
         db_connector = DbConnector()
         
-        chain_name = 'lyra'
+        chain_name = 'derive'
 
         active_rpc_configs, batch_size = get_chain_config(db_connector, chain_name)
-        print(f"LYRA_CONFIG={active_rpc_configs}")
+        print(f"DERIVE_CONFIG={active_rpc_configs}")
 
         adapter_params = {
             'rpc': 'local_node',
@@ -59,6 +59,6 @@ def adapter_rpc():
             print(f"Extraction stopped due to maximum wait time being exceeded: {e}")
             raise e
 
-    run_lyra()
+    run_derive()
 adapter_rpc()
     
