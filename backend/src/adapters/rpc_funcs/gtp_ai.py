@@ -411,17 +411,31 @@ class GTPAI:
         self.send_discord_embed_message(webhook_url, embed_messages)
         
     def generate_milestone_responses(self, combined_data):
-        # Base template without the fire symbol
-        base_template = (
+        # Base template for percentage increase
+        pct_increase_template = (
             "\n\n**{origin}** - **{metric}**: **{milestone}**"
             "\n> with an increase of {exact_value}."
             "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
         )
-        
-        # Template with the fire symbol for high importance
-        fire_template = (
+
+        # Base template for absolute value
+        absolute_value_template = (
+            "\n\n**{origin}** - **{metric}**: **{milestone}**"
+            "\n> with a current value of {exact_value}."
+            "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
+        )
+
+        # Template with the fire symbol for high importance, percentage increase
+        fire_pct_increase_template = (
             "\n\n🔥 **{origin}** - **{metric}**: **{milestone}**"
             "\n> with an increase of {exact_value}."
+            "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
+        )
+
+        # Template with the fire symbol for high importance, absolute value
+        fire_absolute_value_template = (
+            "\n\n🔥 **{origin}** - **{metric}**: **{milestone}**"
+            "\n> with a current value of {exact_value}."
             "\n>**Total Importance:** {total_importance}  (Milestone: {importance_score}/10, Chain Rank: {rank}):"
         )
 
@@ -435,8 +449,12 @@ class GTPAI:
                 for date, metrics in chain_data.items():
                     for metric_name, milestones in metrics.items():
                         for milestone in milestones:
-                            # Use the fire template if total importance >= 10, otherwise use the base template
-                            template = fire_template if milestone["total_importance"] >= 10 else base_template
+                            # Determine the template to use
+                            is_percentage_increase = "%" in milestone.get("exact_value", "")
+                            if milestone["total_importance"] >= 10:
+                                template = fire_pct_increase_template if is_percentage_increase else fire_absolute_value_template
+                            else:
+                                template = pct_increase_template if is_percentage_increase else absolute_value_template
                             
                             response += template.format(
                                 origin=milestone["origin"].upper(),
@@ -458,8 +476,12 @@ class GTPAI:
                 for date, metrics in chain_data.items():
                     for metric_name, milestones in metrics.items():
                         for milestone in milestones:
-                            # Use the fire template if total importance >= 10, otherwise use the base template
-                            template = fire_template if milestone["total_importance"] >= 10 else base_template
+                            # Determine the template to use
+                            is_percentage_increase = "%" in milestone.get("exact_value", "")
+                            if milestone["total_importance"] >= 10:
+                                template = fire_pct_increase_template if is_percentage_increase else fire_absolute_value_template
+                            else:
+                                template = pct_increase_template if is_percentage_increase else absolute_value_template
                             
                             response += template.format(
                                 origin=milestone["origin"].upper(),

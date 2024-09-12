@@ -203,7 +203,7 @@ class DbConnector:
                 else:
                         exclude_string = "AND tkd.origin_key not in ('" + "', '".join(exclude_chains) + "')"
                 
-                if origin_keys is None == 0:
+                if origin_keys is None:
                         ok_string = ''
                 else:
                         ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
