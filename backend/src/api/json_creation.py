@@ -266,6 +266,7 @@ class JSONCreation():
                 'ranking_bubble': False
             }
 
+            ## TODO: remove this metric
             ,'settlement': {
                 'name': 'Settlement',
                 'fundamental': False, ## not a fundamental metric
@@ -281,10 +282,41 @@ class JSONCreation():
                 'ranking_bubble': False
             }
 
+            ## TODO: remove this metric
             ,'da': {
                 'name': 'Data Availability',
                 'fundamental': False, ## not a fundamental metric
                 'metric_keys': ['costs_da_usd', 'costs_da_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
+
+            ,'costs_l1': {
+                'name': 'L1 Costs',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['costs_l1_usd', 'costs_l1_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'ranking_bubble': False
+            }
+
+            ,'costs_blobs': {
+                'name': 'Blobs',
+                'fundamental': False, ## not a fundamental metric
+                'metric_keys': ['costs_blobs_usd', 'costs_blobs_eth'],
                 'units': {
                     'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
                     'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
@@ -899,6 +931,7 @@ class JSONCreation():
         chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
         metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
                                                 'cca_last7d_exclusive', 'costs_total_eth', 'costs_total_usd', 
+                                                'costs_l1_eth', 'costs_l1_usd', 'costs_blobs_eth', 'costs_blobs_usd',
                                                 'l1_settlement_eth', 'l1_settlement_usd', 'costs_da_eth', 'costs_da_usd', 'blob_size_bytes']
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
@@ -1659,8 +1692,11 @@ class JSONCreation():
         economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=548)
 
         economics_dict['data']['all_l2s']['metrics']['costs'] = {
-            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=False, economics_api=True, days=548),
-            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=False, economics_api=True, days=548)
+            'settlement': self.generate_all_l2s_metric_dict(df, 'settlement', rolling_avg=False, economics_api=True, days=548), ## TODO: remove
+            'da': self.generate_all_l2s_metric_dict(df, 'da', rolling_avg=False, economics_api=True, days=548), ## TODO: remove
+            'costs_l1': self.generate_all_l2s_metric_dict(df, 'costs_l1', rolling_avg=False, economics_api=True, days=548),
+            'costs_blobs': self.generate_all_l2s_metric_dict(df, 'costs_blobs', rolling_avg=False, economics_api=True, days=548)
+            
         }
 
         economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=548)
@@ -1692,6 +1728,8 @@ class JSONCreation():
                         "total": [self.aggregate_metric(df, origin_key, 'costs_total_usd', days), self.aggregate_metric(df, origin_key, 'costs_total_eth', days)],
                         "settlement": [self.aggregate_metric(df, origin_key, 'l1_settlement_usd', days), self.aggregate_metric(df, origin_key, 'l1_settlement_eth', days)], 
                         "da": [self.aggregate_metric(df, origin_key, 'costs_da_usd', days), self.aggregate_metric(df, origin_key, 'costs_da_eth', days)],
+                        "costs_l1": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], 
+                        "costs_blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)],
                     },
                     "profit": {
                         "types": ["usd", "eth"],
