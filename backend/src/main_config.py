@@ -1,6 +1,6 @@
 import json
 import os
-from jsonschema import ValidationError
+import pickle
 from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional, List, Dict, Any
 import numpy as np
@@ -72,13 +72,13 @@ class MainConfig(BaseModel):
     metadata_raas: Optional[str] = Field(alias="metadata_raas")
 
     ## SOCIALS
-    socials_website: Optional[HttpUrl] = Field(alias="socials_website")
-    socials_twitter: Optional[HttpUrl] = Field(alias="socials_twitter")
+    socials_website: Optional[HttpUrl] = Field(alias="socials_website", default=None)
+    socials_twitter: Optional[HttpUrl] = Field(alias="socials_twitter", default=None)
 
     ## RUNS
-    runs_aggregate_blockspace: Optional[bool] = Field(alias="runs_aggregate_blockspace")
-    runs_aggregate_addresses: Optional[bool] = Field(alias="runs_aggregate_addresses")
-    runs_contract_metadata: Optional[bool] = Field(alias="runs_contract_metadata")
+    runs_aggregate_blockspace: Optional[bool] = Field(alias="runs_aggregate_blockspace", default=False)
+    runs_aggregate_addresses: Optional[bool] = Field(alias="runs_aggregate_addresses", default=False)
+    runs_contract_metadata: Optional[bool] = Field(alias="runs_contract_metadata", default=False)
 
     ## RPC CONFIG
     backfiller_on: Optional[bool] = Field(alias="backfiller_backfiller_on")
@@ -90,12 +90,12 @@ class MainConfig(BaseModel):
 
     ## CIRCULATING SUPPLY
     cs_token_address: Optional[str] = Field(alias="circulating_supply_token_address")
-    cs_token_abi: Optional[Any] = Field(alias="circulating_supply_token_abi")
+    cs_token_abi: Optional[Any] = Field(alias="circulating_supply_token_abi", default=None)
+    cs_token_abi_file: Optional[str] = Field(alias="circulating_supply_token_abi_file", default=None)
     cs_deployment_date: Optional[str] = Field(alias="circulating_supply_token_deployment_date")
     cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key")
     cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_circulating_supply_function")
 
-# Function to save ABI separately, with safe handling for missing/invalid ABIs
 def save_abi(chain_data, file_name):
     # Check if circulating_supply_token_abi exists directly in the chain data
     if 'circulating_supply_token_abi' in chain_data:
@@ -107,7 +107,7 @@ def save_abi(chain_data, file_name):
             with open(abi_file, "w") as f:
                 json.dump(abi_data, f, indent=4)
             
-            # Reference the ABI file in the main metadata
+            # Store the ABI file path in the Pydantic model (so that it can be linked later)
             chain_data['circulating_supply_token_abi_file'] = abi_file
             
             # Remove the inline ABI since it's stored separately
@@ -117,7 +117,7 @@ def save_abi(chain_data, file_name):
     else:
         print(f"'circulating_supply_token_abi' not found for {file_name}")
 
-# Function to save main chain config
+# Function to save main chain config as Pydantic objects
 def save_main_config(db_connector):
     main_conf_dict = db_connector.get_main_config_dict()
     
@@ -130,39 +130,38 @@ def save_main_config(db_connector):
         # Save ABI separately if exists
         save_abi(chain_data, file_name)
 
-        # Save chain metadata
-        metadata_file = os.path.join(base_dir, f"{file_name}.json")
-        with open(metadata_file, "w") as f:
-            json.dump(chain_data, f, indent=4)
+        pydantic_metadata_file = os.path.join(base_dir, f"{file_name}.pydantic")
+        
+        main_config_obj = MainConfig(**chain_data)
+        
+        with open(pydantic_metadata_file, "wb") as f:
+            pickle.dump(main_config_obj, f)
+        print(f"Saved Pydantic config for {file_name} at {pydantic_metadata_file}")
             
 # Function to load metadata as Pydantic objects, safely handling missing files and cleaning keys
 def get_main_config():
-    metadata_dir = "src/metadata/chains"
     config = []
-    
-    for file_name in os.listdir(metadata_dir):
-        if file_name.endswith('.json'):
-            with open(os.path.join(metadata_dir, file_name), 'r') as f:
-                chain_data = json.load(f)
-                
-                # Clean the keys to remove extra spaces
-                chain_data = clean_keys(chain_data)
 
-                # Load ABI separately, if referenced in the metadata
-                if 'circulating_supply_token_abi_file' in chain_data:
-                    abi_file = chain_data['circulating_supply_token_abi_file']
-                    try:
-                        with open(abi_file, 'r') as abi_f:
-                            abi_data = json.load(abi_f)
-                            chain_data['circulating_supply_token_abi'] = abi_data
-                    except FileNotFoundError:
-                        pass  # Handle the missing ABI file without logging or breaking
+    for file_name in os.listdir(base_dir):
+        if file_name.endswith('.pydantic'):
+            pydantic_file_path = os.path.join(base_dir, file_name)
+            
+            with open(pydantic_file_path, "rb") as f:
+                main_config_obj = pickle.load(f)
                 
-                try:
-                    # Try to load the data into the Pydantic model
-                    config.append(MainConfig(**chain_data))
-                except ValidationError as e:
-                    print(f"Error in {file_name}: {e}")
+                if main_config_obj.cs_token_abi is None and main_config_obj.cs_token_abi_file:
+                    abi_file = main_config_obj.cs_token_abi_file
+                    
+                    if abi_file and os.path.exists(abi_file):
+                        try:
+                            with open(abi_file, 'r') as abi_f:
+                                abi_data = json.load(abi_f)
+                                # Attach the ABI back to the main config object
+                                main_config_obj.cs_token_abi = abi_data
+                        except FileNotFoundError:
+                            print(f"ABI file {abi_file} not found.")
+                
+                config.append(main_config_obj)
     
     return config
 
