@@ -6,8 +6,8 @@ from typing import Optional, List, Dict, Any
 import numpy as np
 
 # Use absolute paths
-base_dir = os.path.abspath("src/metadata/chains")
-abi_dir = os.path.abspath("src/metadata/token_abis")
+base_dir = os.path.abspath("metadata/chains")
+abi_dir = os.path.abspath("metadata/token_abis")
 
 # Ensure directories exist
 os.makedirs(base_dir, exist_ok=True)
