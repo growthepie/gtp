@@ -2009,6 +2009,215 @@ sql_q= {
                 AND block_timestamp < date_trunc('day', now())
         GROUP BY 1
         """
+
+        , 'derive_celestia_blob_size_bytes': """
+        SELECT 
+                date_trunc('day', block_timestamp) AS day, 
+                sum(blob_sizes) AS value
+        FROM (
+        SELECT 
+                tx_hash, 
+                block_timestamp, 
+                jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_sizes,
+                trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
+        FROM celestia_tx
+        WHERE 
+                block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
+                AND block_timestamp < date_trunc('day', now())
+                AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
+        ) a
+        JOIN (
+                SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
+                FROM sys_chains
+                WHERE origin_key = 'derive'
+        ) b
+        ON a.namespace = b.namespace
+        GROUP BY 1;
+        """
+
+        , 'derive_celestia_blobs_eth': """
+        WITH tia_price AS (
+                SELECT "timestamp", value AS price_eth
+                FROM public.fact_kpis_granular
+                WHERE 
+                        origin_key = 'celestia' AND metric_key = 'price_eth' AND granularity = 'hourly'
+                        AND timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        )
+        SELECT 
+                date_trunc('day', block_timestamp) AS day, 
+                sum(fee * price_eth)/1e6 AS value
+        FROM (
+                SELECT 
+                        tx_hash,
+                        block_timestamp,
+                        fee,
+                        price_eth,
+                        trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
+                FROM celestia_tx tx
+                LEFT JOIN tia_price p ON date_trunc('hour', tx.block_timestamp) = p.timestamp
+                WHERE 
+                        block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
+                        AND block_timestamp < date_trunc('day', now())
+                        AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
+        ) a
+        JOIN (
+                SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
+                FROM sys_chains
+                WHERE origin_key = 'derive'
+        ) b
+        ON a.namespace = b.namespace
+        group by 1
+        """
+
+
+        ### orderly
+        ,'orderly_txcount_raw': """
+        SELECT date_trunc('day', gpt.block_timestamp) AS day,
+                count(*) AS value
+        FROM orderly_tx gpt
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        AND gas_price > 0
+        GROUP BY 1
+        """
+
+        ,'orderly_fees_paid_eth': """
+        with orderly_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.orderly_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                orderly.day,
+                orderly.total_tx_fee AS value
+        FROM orderly_tx_filtered orderly
+        """
+
+        ,'orderly_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.orderly_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'orderly_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
+        WHERE
+                origin_key = 'orderly' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+         ,'orderly_aa_last_xxd': """
+        with tmp as (
+                SELECT 
+                        date as day, 
+                        #hll_union_agg(hll_addresses) OVER seven_days as value
+                FROM fact_active_addresses_hll
+                where origin_key = 'orderly' 
+                        AND date > current_date - interval '{{Days}} days' - INTERVAL '{{Timerange}} days' AND date < current_date
+                WINDOW seven_days AS (ORDER BY date asc ROWS {{Timerange}} - 1 PRECEDING)
+        )
+
+        select 
+                day,
+                value::int as value
+        from tmp
+        where day >= current_date - interval '{{Days}} days'
+        """
+
+        ,'orderly_txcosts_median_eth': """
+        WITH 
+        orderly_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.orderly_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                orderly.day,
+                orderly.median_tx_fee as value
+        FROM orderly_median orderly
+        """
+
+        ,'orderly_gas_per_second': """
+        SELECT  date_trunc('day', block_timestamp) AS day,
+                sum(gas_used) / (24*60*60) AS value
+        FROM    orderly_tx
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        , 'orderly_celestia_blob_size_bytes': """
+        SELECT 
+                date_trunc('day', block_timestamp) AS day, 
+                sum(blob_sizes) AS value
+        FROM (
+        SELECT 
+                tx_hash, 
+                block_timestamp, 
+                jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_sizes,
+                trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
+        FROM celestia_tx
+        WHERE 
+                block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
+                AND block_timestamp < date_trunc('day', now())
+                AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
+        ) a
+        JOIN (
+                SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
+                FROM sys_chains
+                WHERE origin_key = 'orderly'
+        ) b
+        ON a.namespace = b.namespace
+        GROUP BY 1;
+        """
+
+        , 'orderly_celestia_blobs_eth': """
+        WITH tia_price AS (
+                SELECT "timestamp", value AS price_eth
+                FROM public.fact_kpis_granular
+                WHERE 
+                        origin_key = 'celestia' AND metric_key = 'price_eth' AND granularity = 'hourly'
+                        AND timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        )
+        SELECT 
+                date_trunc('day', block_timestamp) AS day, 
+                sum(fee * price_eth)/1e6 AS value
+        FROM (
+                SELECT 
+                        tx_hash,
+                        block_timestamp,
+                        fee,
+                        price_eth,
+                        trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
+                FROM celestia_tx tx
+                LEFT JOIN tia_price p ON date_trunc('hour', tx.block_timestamp) = p.timestamp
+                WHERE 
+                        block_timestamp > date_trunc('day', now()) - interval '{{Days}} days'
+                        AND block_timestamp < date_trunc('day', now())
+                        AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
+        ) a
+        JOIN (
+                SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
+                FROM sys_chains
+                WHERE origin_key = 'orderly'
+        ) b
+        ON a.namespace = b.namespace
+        group by 1
+        """
+        
 }
 
 
@@ -2320,4 +2529,21 @@ sql_queries = [
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "derive", sql=sql_q["derive_txcosts_median_eth"], query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "cca", origin_key = "derive", sql=get_cross_chain_activity('derive'), currency_dependent = False, query_parameters={})
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "derive", sql=sql_q["derive_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "celestia_blob_size_bytes", origin_key = "derive", sql=sql_q["derive_celestia_blob_size_bytes"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "celestia_blobs_eth", origin_key = "derive", sql=sql_q["derive_celestia_blobs_eth"], currency_dependent = True, query_parameters={"Days": 7})
+
+        ## Orderly
+        ,SQLQuery(metric_key = "txcount_raw", origin_key = "orderly", sql=sql_q["orderly_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        ,SQLQuery(metric_key = "txcount", origin_key = "orderly", sql=sql_q["orderly_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "daa", origin_key = "orderly", sql=sql_q["orderly_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+        #,SQLQuery(metric_key = "waa", origin_key = "orderly", sql=sql_q["orderly_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+        ,SQLQuery(metric_key = "maa", origin_key = "orderly", sql=sql_q["orderly_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+        ,SQLQuery(metric_key = "aa_last7d", origin_key = "orderly", sql=sql_q["orderly_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
+        ,SQLQuery(metric_key = "aa_last30d", origin_key = "orderly", sql=sql_q["orderly_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "orderly", sql=sql_q["orderly_fees_paid_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "orderly", sql=sql_q["orderly_txcosts_median_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "cca", origin_key = "orderly", sql=get_cross_chain_activity('orderly'), currency_dependent = False, query_parameters={})
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "orderly", sql=sql_q["orderly_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "celestia_blob_size_bytes", origin_key = "orderly", sql=sql_q["orderly_celestia_blob_size_bytes"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "celestia_blobs_eth", origin_key = "orderly", sql=sql_q["orderly_celestia_blobs_eth"], currency_dependent = True, query_parameters={"Days": 7})
 ]
