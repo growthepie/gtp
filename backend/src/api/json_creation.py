@@ -715,7 +715,7 @@ class JSONCreation():
             FROM public.fact_kpis kpi
             where kpi.origin_key in ({chains_string})
                 and kpi.metric_key in ({metrics_string})
-                and kpi."date" >= '2021-01-01'
+                and kpi."date" >= '2022-01-01'
                 and kpi."date" < date_trunc('day', now())
         """
 
@@ -898,8 +898,7 @@ class JSONCreation():
         ## Load all data from database
         chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
         metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
-                                                'cca_last7d_exclusive', 'costs_total_eth', 'costs_total_usd', 
-                                                'costs_l1_eth', 'costs_l1_usd', 'costs_blobs_eth', 'costs_blobs_usd', 'blob_size_bytes']
+                                                'cca_last7d_exclusive', 'blob_size_bytes'] ## add metrics that are not in the metrics_list
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
         metrics_user_string = "'" + "','".join(metric_user_list) + "'"
