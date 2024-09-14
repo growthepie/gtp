@@ -19,7 +19,7 @@ from src.main_config import get_main_config
         'retries': 2,
         'email_on_failure': False,
         'retry_delay': timedelta(minutes=5),
-        'on_failure_callback': alert_via_webhook,
+        'on_failure_callback': lambda context: alert_via_webhook(context, user='lorenz')
     },
     dag_id='oli_metadata',
     description='Loads contract data using the ContractLoader',

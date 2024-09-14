@@ -22,7 +22,7 @@ CET = timezone("Europe/Paris")
         'retries': 2,
         'email_on_failure': False,
         'retry_delay': timedelta(minutes=5),
-        'on_failure_callback': alert_via_webhook,
+        'on_failure_callback': lambda context: alert_via_webhook(context, user='nader')
     },
     dag_id='other_ai',
     description='Generate AI Insights',

@@ -17,7 +17,7 @@ from src.adapters.adapter_oso import AdapterOSO
         'retries' : 2,
         'email_on_failure': False,
         'retry_delay' : timedelta(minutes=5),
-        'on_failure_callback': alert_via_webhook
+        'on_failure_callback': lambda context: alert_via_webhook(context, user='lorenz')
     },
     dag_id='oli_oss_directory',
     description='Loads project data from the OSS Directory API',
