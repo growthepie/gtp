@@ -282,9 +282,14 @@ class GTPAI:
 
     def analyze_cross_chain_milestones(self, data, milestones):
         cross_chain_results = []
+        significance_multiplier = 1.5  # Multiplier for combined milestones (Multiple + ATH)
+        CHAIN_WEIGHT = 0.1
 
         data['date'] = pd.to_datetime(data['date']).dt.date
         data = data.sort_values(by=['metric', 'date'])
+
+        if not milestones:
+            return cross_chain_results
 
         for metric in data['metric'].unique():
             metric_data = data[data['metric'] == metric]
@@ -292,20 +297,44 @@ class GTPAI:
 
             for date in metric_data['date'].unique():
                 daily_data = metric_data[metric_data['date'] == date]
+                
                 max_value_row = daily_data.loc[daily_data['value'].idxmax()]
 
-                if global_ath is None or max_value_row['value'] > global_ath:
+                # If there's no global ATH yet or the current max value exceeds the global ATH
+                if global_ath is None or max_value_row['value'] > float(global_ath):
                     global_ath = max_value_row['value']
+                    
+                    total_importance = round(milestones[0]['importance_score'] + (max_value_row['rank'] * CHAIN_WEIGHT), 2)
+                    
+                    formatted_global_ath = f"{global_ath:,.2f}"
+                    
                     cross_chain_results.append({
                         "origin": max_value_row['origin'],
+                        "rank": max_value_row['rank'],
                         "date": date.strftime('%d.%m.%Y'),
                         "metric": max_value_row['metric'],
                         "milestone": milestones[0]['milestone'].format(metric=max_value_row['metric']),
                         "importance_score": milestones[0]['importance_score'],
-                        "global_ath": global_ath
+                        "exact_value": formatted_global_ath,
+                        "total_importance": total_importance
                     })
+                    
+                    # Check if the ATH also meets any multiple thresholds
+                    for milestone in milestones:
+                        if 'type' in milestone and milestone['type'] == 'Multiples' and max_value_row['value'] >= milestone['threshold']:
+                            combined_importance = round((milestone['importance_score'] + (max_value_row['rank'] * CHAIN_WEIGHT)) * significance_multiplier, 2)
+                            cross_chain_results.append({
+                                "origin": max_value_row['origin'],
+                                "rank": max_value_row['rank'],
+                                "date": date.strftime('%d.%m.%Y'),
+                                "metric": max_value_row['metric'],
+                                "milestone": f"ATH and {milestone['milestone']}",
+                                "importance_score": milestone['importance_score'],
+                                "exact_value": formatted_global_ath,
+                                "total_importance": combined_importance
+                            })
 
-        cross_chain_results.sort(key=lambda x: (-pd.to_datetime(x['date'], format='%d.%m.%Y').timestamp(), -x['importance_score']))
+        cross_chain_results.sort(key=lambda x: (-pd.to_datetime(x['date'], format='%d.%m.%Y').timestamp(), -x['total_importance']))
 
         return cross_chain_results
 
