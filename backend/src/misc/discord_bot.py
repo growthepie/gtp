@@ -3,10 +3,12 @@ import nextcord
 import json
 import boto3
 from datetime import datetime
+import requests
+from requests.auth import HTTPBasicAuth
 
 def load_config():
     try:
-        with open('config.json', 'r') as config_file:
+        with open('discord_config.json', 'r') as config_file:
             return json.load(config_file)
     except FileNotFoundError:
         print("Configuration file not found. Please check the path.")
@@ -90,5 +92,51 @@ async def whitelist(interaction: nextcord.Interaction, ip_address: str, port: in
         await interaction.followup.send(f"Your IP has been whitelisted on port {port}.")
     except Exception as e:
         await interaction.followup.send(f"Failed to whitelist: {str(e)}")
+
+@bot.slash_command(description="Trigger master.json DAG run on Airflow")
+async def trigger_dag(
+    interaction: nextcord.Interaction,
+    api_version: str = nextcord.SlashOption(
+        name="api_version",
+        description="Select the API version (v1 or dev)",
+        choices={"v1": "v1", "dev": "dev"},
+        default="v1"
+    )
+):
+    await interaction.response.defer()
+
+    # Dynamically retrieve the local machine's IP address for Airflow URL
+    # local_ip = socket.gethostbyname(socket.gethostname())
+    # airflow_url = f"http://{local_ip}:8080"  # Airflow URL using local machine IP
+    airflow_url = "http://3.81.151.178:8080"
+
+    # Airflow credentials
+    username = config['airflow']['username']
+    password = config['airflow']['password']
+    
+    # Fixed DAG ID
+    dag_id = "api_master_json_creation"
+    
+    # API endpoint for triggering the DAG run
+    dag_run_url = f"{airflow_url}/api/v1/dags/{dag_id}/dagRuns"
+
+    # Payload with custom parameter
+    payload = {
+        "conf": {
+            "api_version": api_version
+        }
+    }
+
+    # Make the POST request to trigger the DAG run
+    try:
+        response = requests.post(dag_run_url, json=payload, auth=HTTPBasicAuth(username, password))
+
+        # Check the response status
+        if response.status_code == 200:
+            await interaction.followup.send(f"DAG {dag_id} triggered successfully with API version {api_version}!")
+        else:
+            await interaction.followup.send(f"Failed to trigger DAG {dag_id}: {response.text}")
+    except Exception as e:
+        await interaction.followup.send(f"An error occurred: {str(e)}")
 
 bot.run(BOT_TOKEN)
