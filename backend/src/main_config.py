@@ -1,6 +1,10 @@
 from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional, List, Dict, Any
 from src.db_connector import DbConnector
+import zipfile
+import io
+import json
+import requests
 
 class MainConfig(BaseModel):
     origin_key: str
@@ -63,9 +67,69 @@ class MainConfig(BaseModel):
     cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key")
     cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function")
 
+# def get_main_config(db_connector:DbConnector):
+#     main_conf_dict = db_connector.get_main_config_dict()
+#     return [MainConfig(**data) for data in main_conf_dict]
+
 def get_main_config(db_connector:DbConnector):
-    main_conf_dict = db_connector.get_main_config_dict()
-    return [MainConfig(**data) for data in main_conf_dict]
+    # Get the repository
+    repo_url = "https://github.com/growthepie/chain-registry/tree/main/"
+    _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
+    path = '/'.join(path)
+
+    # Download oss-directory as ZIP file
+    zip_url = f"https://github.com/{owner}/{repo_name}/archive/{branch}.zip"
+    response = requests.get(zip_url)
+    zip_content = io.BytesIO(response.content)
+
+    main_config_dict = []
+
+    with zipfile.ZipFile(zip_content) as zip_ref:
+        nameslist = zip_ref.namelist()
+        ## only exact folders from nameslist
+        chains = [name.split('/')[1] for name in nameslist if name.endswith('/')]
+        chains = [chain for chain in chains if chain]
+
+        for chain in chains:      
+            chain_data = {}
+            path = f"chain-registry-main/{chain}"
+
+            main_path = f"{path}/main.json"
+            logo_path = f"{path}/logo.json"
+            token_abi_path = f"{path}/token_abi.json"
+
+            if main_path in nameslist:
+                with zip_ref.open(main_path) as file:
+                    content = file.read().decode('utf-8')
+                    content = json.loads(content)
+                    chain_data = content
+                    
+            if logo_path in nameslist:
+                with zip_ref.open(logo_path) as file:
+                    content = file.read().decode('utf-8')
+                    content = json.loads(content)
+                    chain_data["logo"] = content
+                                
+            if token_abi_path in nameslist:
+                with zip_ref.open(token_abi_path) as file:
+                    content = file.read().decode('utf-8')
+                    content = json.loads(content)
+                    chain_data["circulating_supply_token_abi"] = content
+
+            ##chain_data['l2beat_stage'] = db_connector.get_stage(chain)
+            main_config_dict.append(chain_data)
+
+    main_config = [MainConfig(**data) for data in main_config_dict]
+
+    ## add dynamic l2beat stage info
+    stages = db_connector.get_stages_dict()
+    ## iterate over stages and update the new_config with the stage
+    for stage in stages:
+        chain = [chain for chain in main_config if chain.origin_key == stage]
+        if chain:
+            chain[0].l2beat_stage = stages[stage]
+
+    return main_config
 
 def get_all_l2_config(db_connector:DbConnector):
     main_config = get_main_config(db_connector)
