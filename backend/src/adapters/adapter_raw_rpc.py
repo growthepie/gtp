@@ -105,7 +105,9 @@ class NodeAdapter(AbstractAdapterRaw):
     def monitor_workers(self, threads, block_range_queue, rpc_configs, rpc_errors, error_lock):
         additional_threads = []
         while True:
-            active_threads = [thread for _, thread in threads if thread.is_alive()]
+            #active_threads = [thread for _, thread in threads if thread.is_alive()]
+            active_threads = [(rpc_url, thread) for rpc_url, thread in threads if thread.is_alive()]
+            active_rpc_urls = [rpc_url for rpc_url, _ in active_threads]
             active = bool(active_threads)
 
             # Check if the block range queue is empty and no threads are active
@@ -115,9 +117,10 @@ class NodeAdapter(AbstractAdapterRaw):
             
             # Check if there are no more block ranges to process, but threads are still active
             if block_range_queue.qsize() == 0 and active:
-                print("...no more block ranges to process. Waiting for workers to finish.")
+                combined_rpc_urls = ", ".join(active_rpc_urls)
+                print(f"...no more block ranges to process. Waiting for workers to finish. Active RPCs: {combined_rpc_urls}")
             else:
-                print(f"====> Block range queue size: {block_range_queue.qsize()}. Active threads: {len(active_threads)}")
+                print(f"====> Block range queue size: {block_range_queue.qsize()}. #Active threads: {len(active_threads)}")
                 
             if not block_range_queue.empty() and not active:
                 print("Detected unfinished tasks with no active workers. Restarting worker.")
