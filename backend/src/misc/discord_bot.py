@@ -127,9 +127,12 @@ async def trigger_dag(
         }
     }
 
+    print(f"Triggering DAG {dag_id} with API version {api_version}...")
+
     # Make the POST request to trigger the DAG run
     try:
         response = requests.post(dag_run_url, json=payload, auth=HTTPBasicAuth(username, password))
+        print(response.text)
 
         # Check the response status
         if response.status_code == 200:
