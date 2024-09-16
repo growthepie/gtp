@@ -23,7 +23,7 @@ from src.api.json_creation import JSONCreation
     description='Create master json file.',
     tags=['api', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='30 05 * * *',
+    schedule=None,
     params={"api_version": "v1"}
 )
 

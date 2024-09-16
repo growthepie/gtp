@@ -97,12 +97,12 @@ async def whitelist(interaction: nextcord.Interaction, ip_address: str, port: in
 async def create_master_json(
     interaction: nextcord.Interaction,
     api_version: str = nextcord.SlashOption(
-        name="api_version",
-        description="Select the API version (v1 or dev)",
-        choices={"v1": "v1", "dev": "dev"},
-        default="dev"
-    )
-):
+            name="api_version",
+            description="Select the API version (v1 or dev)",
+            choices={"v1": "v1", "dev": "dev"},
+            default="dev"
+        )
+    ):
     await interaction.response.defer()
 
     airflow_url = "http://localhost:8080"
