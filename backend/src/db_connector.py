@@ -121,6 +121,12 @@ class DbConnector:
                         print(e)
                         return None
                 
+        def get_stages_dict(self):
+                exec_string = "SELECT origin_key, l2beat_stage FROM sys_chains WHERE l2beat_stage IS NOT NULL"
+                df = pd.read_sql(exec_string, self.engine.connect())
+                stages_dict = df.set_index("origin_key").to_dict()["l2beat_stage"]
+                return stages_dict
+                
         def get_chain_info(self, origin_key:str, column:str):
                 try:
                         query = f"SELECT {column} FROM sys_chains WHERE origin_key = '{origin_key}' LIMIT 1"
