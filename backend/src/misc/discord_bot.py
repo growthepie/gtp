@@ -108,7 +108,7 @@ async def trigger_dag(
     # Dynamically retrieve the local machine's IP address for Airflow URL
     # local_ip = socket.gethostbyname(socket.gethostname())
     # airflow_url = f"http://{local_ip}:8080"  # Airflow URL using local machine IP
-    airflow_url = "http://localhost:8080/api/v1/dags/api_master_json_creation/dagRuns"
+    airflow_url = "http://localhost:8080"
 
     # Airflow credentials
     username = config['airflow']['username']
