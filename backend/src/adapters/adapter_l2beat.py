@@ -103,25 +103,21 @@ class AdapterL2Beat(AbstractAdapter):
     
     def extract_stages(self, projects_to_load):
         stages = []
+        url = f"https://l2beat.com/api/scaling/summary"
+        response = api_get_call(url)
+
         for chain in projects_to_load:
             origin_key = chain.origin_key
-            print(f'...loading stage info for {origin_key}')
-            url = f"https://l2beat.com/scaling/projects/{chain.aliases_l2beat}"
-            response = api_get_call(url, as_json=False)
-            if response:
-                tree = html.fromstring(response)
-                #element = tree.xpath('/html/body/div[4]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
-                element = tree.xpath('/html/body/div[1]/div[4]/div/main/div[2]/header/div[1]/div[3]/div[2]/li[4]/span/span/a/div/span/span')
-                if len(element) == 0:
-                    stage = 'NA'
-                else:
-                    stage = element[0].xpath('string()')
+            l2beat_id = str(chain.aliases_l2beat)
+            print(f'...loading stage info for {origin_key} with l2beat_id: {l2beat_id}') 
+            stage = response['data']['projects'][l2beat_id]['stage']
+
+            if stage == 'NotApplicable':
+                stage = 'NA'
                 
-                stages.append({'origin_key': origin_key, 'l2beat_stage': stage})
-                print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
-                time.sleep(0.5)
-            else:
-                print(f'Error loading stage data for {origin_key}')
-                send_discord_message(f'L2Beat: Error loading stage data for {origin_key}. Other chains are not impacted.', self.webhook)
+            stages.append({'origin_key': origin_key, 'l2beat_stage': stage})
+            print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
+            time.sleep(0.5)
+            
         df = pd.DataFrame(stages)
         return df
