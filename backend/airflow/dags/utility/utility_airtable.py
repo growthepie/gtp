@@ -105,8 +105,9 @@ def etl():
         df3['internal_description'] = 'project ' + df3['old_owner_project'] + ' needs to be remapped'
         df3 = df3.drop(columns=['old_owner_project'])
         
-        # merge the all dataframes
+        # merge the all dataframes & reset index
         df = pd.concat([df1, df2, df3])
+        df = df.reset_index(drop=True)
 
         # remove duplicates
         df = df.drop_duplicates(subset=['address', 'origin_key'])
