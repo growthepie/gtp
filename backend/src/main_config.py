@@ -34,6 +34,7 @@ class MainConfig(BaseModel):
 
     ## ALIASES
     aliases_l2beat: Optional[str] = Field(alias="aliases_l2beat")
+    aliases_l2beat_slug: Optional[str] = Field(alias="aliases_l2beat_slug")
     aliases_coingecko: Optional[str] = Field(alias="aliases_coingecko")
     aliases_rhino: Optional[str] = Field(alias="aliases_rhino")
 
