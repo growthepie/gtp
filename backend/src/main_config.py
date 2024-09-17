@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, HttpUrl, Field, validator
 from typing import Optional, List, Dict, Any
 from src.db_connector import DbConnector
 import zipfile
@@ -9,15 +9,19 @@ import requests
 class MainConfig(BaseModel):
     origin_key: str
     chain_type: str
-    l2beat_stage: Optional[str]
+    l2beat_stage: str = "NA" ## default NA
     caip2: Optional[str]
-    evm_chain_id: Optional[float]
+    evm_chain_id: Optional[int]
     name: str
     name_short: str
     bucket: str
     block_explorers: Optional[dict]
     colors: dict
-    logo: Optional[dict]
+    logo: dict = {
+        'body': "<svg width=\"15\" height=\"15\" viewBox=\"0 0 15 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"7.5\" cy=\"7.5\" r=\"7.5\" fill=\"currentColor\"/></svg>",
+        'width': 15,
+        'height': 15
+    }
     ecosystem: list = Field(alias="ecosystem_old")    
 
     ## API
@@ -67,11 +71,18 @@ class MainConfig(BaseModel):
     cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key")
     cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function")
 
+    ## VALIDATOR to set default values if field exists with None in dictionary
+    @validator('logo', 'l2beat_stage', pre=True, always=True)
+    def set_default_if_none(cls, v, field):
+        if v is None:
+            return field.default
+        return v
+
 # def get_main_config(db_connector:DbConnector):
 #     main_conf_dict = db_connector.get_main_config_dict()
 #     return [MainConfig(**data) for data in main_conf_dict]
 
-def get_main_config(db_connector:DbConnector):
+def get_main_config_dict(db_connector:DbConnector):
     # Get the repository
     repo_url = "https://github.com/growthepie/chain-registry/tree/main/"
     _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
@@ -118,6 +129,12 @@ def get_main_config(db_connector:DbConnector):
 
             ##chain_data['l2beat_stage'] = db_connector.get_stage(chain)
             main_config_dict.append(chain_data)
+
+    return main_config_dict
+
+def get_main_config(db_connector:DbConnector, main_config_dict=None):
+    if not main_config_dict:
+        main_config_dict = get_main_config_dict(db_connector)
 
     main_config = [MainConfig(**data) for data in main_config_dict]
 
