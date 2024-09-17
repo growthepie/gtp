@@ -43,23 +43,23 @@ def etl():
         # load
         ad.load(df)
 
-    # @task()
-    # def run_stages():
-    #     adapter_params = {
-    #     }
-    #     load_params = {
-    #         'origin_keys' : None,
-    #         'load_type' : 'stages',
-    #     }
+    @task()
+    def run_stages():
+        adapter_params = {
+        }
+        load_params = {
+            'origin_keys' : None,
+            'load_type' : 'stages',
+        }
 
-    #    # initialize adapter
-    #     db_connector = DbConnector()
-    #     ad = AdapterL2Beat(adapter_params, db_connector)
-    #     # extract
-    #     df = ad.extract(load_params)
-    #     # load
-    #     ad.load(df)
+       # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterL2Beat(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
     
     run_tvl()
-    #run_stages()
+    run_stages()
 etl()
