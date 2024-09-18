@@ -629,7 +629,7 @@ class AdapterSQL(AbstractAdapter):
                             print(f"... processing throughput for {origin_key} and {granularity} granularity")
 
                             if origin_key in ['arbitrum']:
-                                gas_query = "(sum(gas_used) - sum(gas_used_l1))"
+                                gas_query = "(sum(gas_used) - sum(l1_gas_used))"
                             else:
                                 gas_query = "sum(gas_used)"
                             exec_string = f"""
