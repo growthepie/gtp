@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime, timedelta
-from src.misc.gtp_ai import GTPAI, convert_timestamps
+from backend.src.misc.gtp_analyst import GTPAnalyst, convert_timestamps
 import pandas as pd
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
@@ -24,7 +24,7 @@ CET = timezone("Europe/Paris")
         'retry_delay': timedelta(minutes=5),
         'on_failure_callback': lambda context: alert_via_webhook(context, user='nader')
     },
-    dag_id='other_ai',
+    dag_id='other_gtp_analyst',
     description='Generate AI Insights',
     tags=['ai', 'milestones', 'metrics'],
     start_date=CET.convert(datetime(2023, 9, 1, 8, 0)),
@@ -45,7 +45,7 @@ def gtp_ai():
             raise ValueError("Environment variables for URL, local filename, or webhook URL are not set.")
         print("Environment variables loaded successfully!")
 
-        analytics = GTPAI()
+        analytics = GTPAnalyst()
 
         # Fetch and process data
         print(f"Fetching data from URL: {url} and saving to {local_filename}...")
