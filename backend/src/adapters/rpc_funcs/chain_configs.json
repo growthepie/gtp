@@ -33,7 +33,7 @@
       "handle_l1_gas_price",
       "handle_l1_fee_scalar",
       "handle_l1_gas_used",
-      "calculate_tx_fee_default",
+      "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
     "date_columns": {
@@ -77,7 +77,7 @@
       "gas_used"
     ],
     "special_operations": [
-      "calculate_tx_fee_simple",
+      "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
     "date_columns": {
@@ -166,7 +166,7 @@
     ],
     "special_operations": [
       "handle_l1_gas_used",
-      "calculate_tx_fee_simple",
+      "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
     "date_columns": {
@@ -215,7 +215,7 @@
       "handle_effective_gas_price",
       "convert_type_to_bytea",
       "handle_tx_hash",
-      "calculate_tx_fee_simple",
+      "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
     "date_columns": {
@@ -263,7 +263,7 @@
     ],
     "special_operations": [
       "convert_type_to_bytea",
-      "calculate_tx_fee_simple",
+      "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
     "date_columns": {
@@ -308,7 +308,7 @@
       "gas_used"
     ],
     "special_operations": [
-      "calculate_tx_fee_simple",
+      "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
     "date_columns": {
@@ -365,7 +365,7 @@
       "handle_max_fee_per_blob_gas",
       "calculate_priority_fee",
       "convert_input_to_boolean",
-      "calculate_tx_fee_simple"
+      "calculate_tx_fee"
     ],
     "date_columns": {
       "block_timestamp": "s"
@@ -429,7 +429,7 @@
       "handle_l1_fee",
       "handle_l1_fee_scalar",
       "handle_l1_gas_used",
-      "calculate_tx_fee_opchain",
+      "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
     "date_columns": {
