@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from datetime import datetime, timedelta
-from src.adapters.rpc_funcs.gtp_ai import GTPAI, convert_timestamps
+from src.misc.gtp_ai import GTPAI, convert_timestamps
 import pandas as pd
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
