@@ -78,24 +78,23 @@ def handle_l1_gas_used(df):
         df['l1_gas_used'].fillna(0, inplace=True)
     return df
 
-def calculate_tx_fee_default(df):
-    if all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_gas_used', 'l1_gas_price', 'l1_fee_scalar']):
-            df['tx_fee'] = (
-            (df['gas_price'] * df['gas_used']) +
-            (df['l1_gas_used'] * df['l1_gas_price'] * df['l1_fee_scalar'])
-        ) / 1e18
-    return df
-
-def calculate_tx_fee_opchain(df):
+def calculate_tx_fee(df):
     if all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_fee']):
+        # OpChains calculation
         df['tx_fee'] = (
             (df['gas_price'] * df['gas_used']) + df['l1_fee']
         ) / 1e18
-    return df
-
-def calculate_tx_fee_simple(df):
-    if all(col in df.columns for col in ['gas_price', 'gas_used']):
-        df['tx_fee'] = (df['gas_price'] * df['gas_used']).astype('float64') / 1e18
+    elif all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_gas_used', 'l1_gas_price', 'l1_fee_scalar']):
+        # Default calculation
+        df['tx_fee'] = (
+            (df['gas_price'] * df['gas_used']) +
+            (df['l1_gas_used'] * df['l1_gas_price'] * df['l1_fee_scalar'])
+        ) / 1e18
+    elif all(col in df.columns for col in ['gas_price', 'gas_used']):
+        # Simple calculation
+        df['tx_fee'] = (df['gas_price'] * df['gas_used']) / 1e18
+    else:
+        df['tx_fee'] = np.nan
     return df
 
 def handle_tx_hash(df, column_name='tx_hash'):
