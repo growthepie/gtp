@@ -1683,6 +1683,9 @@ class JSONCreation():
                 profit = self.aggregate_metric(df, origin_key, 'profit_eth', days)
                 profit_margin = profit / revenue if revenue != 0 else 0.0
 
+                if profit_margin > 1:
+                    profit_margin = 1
+
                 economics_dict['data']['chain_breakdown'][origin_key][timeframe_key] = {
                     "revenue": {
                         "types": ["usd", "eth"],
