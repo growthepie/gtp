@@ -944,7 +944,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 df_prep = prep_dataframe_linea(df)
             elif chain == 'scroll':
                 df_prep = prep_dataframe_scroll(df)
-            elif chain == 'arbitrum':
+            elif chain in ['arbitrum', 'gravity']:
                 df_prep = prep_dataframe_arbitrum(df)
             elif chain == 'polygon_zkevm':
                 df_prep = prep_dataframe_polygon_zkevm(df)
