@@ -1175,7 +1175,7 @@ class JSONCreation():
     
     def gen_l2beat_link(self, chain):
         if chain.aliases_l2beat:
-            return f'https://l2beat.com/scaling/projects/{chain.aliases_l2beat}'
+            return f'https://l2beat.com/scaling/projects/{chain.aliases_l2beat_slug}'
         else:
             return 'https://l2beat.com'
 
@@ -1266,6 +1266,7 @@ class JSONCreation():
                 'enable_contracts': chain.api_in_labels,
                 'l2beat_stage': self.gen_l2beat_stage(chain),
                 'l2beat_link': self.gen_l2beat_link(chain),
+                'l2beat_id': chain.aliases_l2beat,
                 'raas': chain.metadata_raas,
                 'stack': chain.metadata_stack,
                 'website': chain.socials_website,
