@@ -473,7 +473,7 @@ class JSONCreation():
             rank = df_tmp.loc[df_tmp.origin_key == origin_key, 'rank'].values[0]
             rank_max = df_tmp['rank'].max()
 
-            print(f"...rank for {origin_key} and {metric_id} is {int(rank)} out of {int(rank_max)}")
+            #print(f"...rank for {origin_key} and {metric_id} is {int(rank)} out of {int(rank_max)}")
             return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2)}    
         else:
             print(f"...no rank for {origin_key} and {metric_id}")
@@ -1022,13 +1022,19 @@ class JSONCreation():
         all_users = self.get_aa_last7d(df, 'all')
         for chain in self.main_config:
             if chain.api_in_main == True and chain.origin_key != 'ethereum':
+                ranking_dict = {}
+                for metric in self.metrics:
+                    if self.metrics[metric]['ranking_bubble']:
+                        ranking_dict[metric] = self.get_ranking(df, metric, chain.origin_key)
+
                 chains_dict[chain.origin_key] = {
                     "chain_name": chain.name,
                     "technology": chain.metadata_technology,
                     "purpose": chain.metadata_purpose,
                     "users": self.get_aa_last7d(df, chain.origin_key),
                     "user_share": round(self.get_aa_last7d(df, chain.origin_key)/all_users,4),
-                    "cross_chain_activity": self.get_cross_chain_activity(df, chain)
+                    "cross_chain_activity": self.get_cross_chain_activity(df, chain),
+                    "ranking": ranking_dict
                 }
         
         return chains_dict
