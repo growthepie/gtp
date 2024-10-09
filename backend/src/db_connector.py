@@ -1340,6 +1340,33 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
 
+        # function to return the most used contracts by chain (used for blockscout adapter)
+        def get_most_used_contracts(self, number_of_contracts, origin_key, days):
+                number_of_contracts = int(number_of_contracts)
+                exec_string = f'''
+                        WITH ranked_contracts AS (
+                                SELECT
+                                        address, 
+                                        origin_key, 
+                                        SUM(gas_fees_eth) AS gas_eth, 
+                                        SUM(txcount) AS txcount,
+                                        ROUND(AVG(daa)) AS avg_daa,
+                                        ROW_NUMBER() OVER (PARTITION BY origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num_gas,
+                                        ROW_NUMBER() OVER (PARTITION BY origin_key ORDER BY SUM(txcount) DESC) AS row_num_txcount,
+                                        ROW_NUMBER() OVER (PARTITION BY origin_key ORDER BY SUM(daa) DESC) AS row_num_daa
+                                FROM public.blockspace_fact_contract_level
+                                WHERE origin_key = '{origin_key}' AND date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                GROUP BY 1,2
+                        )
+                        SELECT 
+                                rc.address, 
+                                rc.origin_key
+                        FROM ranked_contracts rc
+                        WHERE row_num_gas <= {str(number_of_contracts)} or row_num_txcount <= {str(number_of_contracts)} or row_num_daa <= {str(number_of_contracts)}
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
         # function that returns all contracts from inactive projects that need reassigning
         def get_inactive_contracts(self):
                 exec_string = f'''
