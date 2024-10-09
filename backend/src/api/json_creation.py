@@ -8,6 +8,7 @@ from datetime import timedelta, datetime, timezone
 from src.main_config import get_main_config, get_multi_config
 from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
+from src.db_connector import DbConnector
 
 import warnings
 
@@ -25,7 +26,7 @@ def merge_dicts(default, custom):
 
 class JSONCreation():
 
-    def __init__(self, s3_bucket, cf_distribution_id, db_connector, api_version):
+    def __init__(self, s3_bucket, cf_distribution_id, db_connector:DbConnector, api_version):
         ## Constants
         self.api_version = api_version
         self.s3_bucket = s3_bucket
@@ -33,6 +34,7 @@ class JSONCreation():
         self.db_connector = db_connector
         self.main_config = get_main_config(self.db_connector)
         self.multi_config = get_multi_config(self.db_connector)
+        self.latest_eth_price = self.db_connector.get_last_price_usd('ethereum')
 
         ## Decimals: only relevant if value isn't aggregated
         ## When aggregated (starting >1k), we always show 2 decimals
@@ -446,23 +448,22 @@ class JSONCreation():
         first_non_zero_index = group['value'].ne(0).idxmax()  # Find first non-zero index in each group
         return group.loc[first_non_zero_index:]  # Return the DataFrame slice starting from this index
     
-    def get_ranking(self, df, metric_id, origin_key):
+    def get_ranking(self, df, metric_id, origin_key, incl_value = False):
         mks = self.metrics[metric_id]['metric_keys']
         ## remove elements in mks list that end with _eth
         mks = [x for x in mks if not x.endswith('_eth')]
 
         ## First filter down to metric
-        df_tmp = df.loc[(df.metric_key.isin(mks)), ["origin_key", "value", "metric_key", "date"]]
+        df_tmp = df.loc[(df.metric_key.isin(mks)), ["origin_key", "value", "metric_key", "date"]].copy()
 
         ## then max date of this metric per origin_key
-        #df_tmp = df_tmp.loc[(df_tmp.date == df_tmp.date.max()), ["origin_key", "value", "metric_key", "date"]]
         df_tmp = df_tmp.loc[df_tmp.groupby("origin_key")["date"].idxmax()]
 
         ## filter out chains that have this metric excluded
         chains_list_metric = [chain.origin_key for chain in self.main_config if metric_id not in chain.api_exclude_metrics]
         df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(chains_list_metric))]
 
-        ## asign rank based on order (descending order if metric_key is not 'txcosts')
+        ## assign rank based on order (descending order if metric_key is not 'txcosts')
         if metric_id != 'txcosts':
             df_tmp['rank'] = df_tmp['value'].rank(ascending=False, method='first')
         else:
@@ -473,8 +474,23 @@ class JSONCreation():
             rank = df_tmp.loc[df_tmp.origin_key == origin_key, 'rank'].values[0]
             rank_max = df_tmp['rank'].max()
 
-            #print(f"...rank for {origin_key} and {metric_id} is {int(rank)} out of {int(rank_max)}")
-            return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2)}    
+            if incl_value:
+                 ## check if metric units include eth and usd
+                if 'usd' in self.metrics[metric_id]['units'].keys():
+                    is_currency = True
+                else:
+                    is_currency = False
+                
+                if is_currency:
+                    value_usd = df_tmp.loc[df_tmp.origin_key == origin_key, 'value'].values[0]
+                    value_eth = value_usd / self.latest_eth_price
+                    return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2), 'value_usd': value_usd, 'value_eth': value_eth}
+                else:
+                    value = df_tmp.loc[df_tmp.origin_key == origin_key, 'value'].values[0]
+                    return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2), 'value': value}
+            else:
+                #print(f"...rank for {origin_key} and {metric_id} is {int(rank)} out of {int(rank_max)}")
+                return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2)}    
         else:
             print(f"...no rank for {origin_key} and {metric_id}")
             return {'rank': None, 'out_of': None, 'color_scale': None}         
@@ -1025,7 +1041,7 @@ class JSONCreation():
                 ranking_dict = {}
                 for metric in self.metrics:
                     if self.metrics[metric]['ranking_bubble']:
-                        ranking_dict[metric] = self.get_ranking(df, metric, chain.origin_key)
+                        ranking_dict[metric] = self.get_ranking(df, metric, chain.origin_key, incl_value=True)
 
                 chains_dict[chain.origin_key] = {
                     "chain_name": chain.name,
