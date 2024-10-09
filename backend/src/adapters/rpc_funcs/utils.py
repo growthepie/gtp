@@ -4,12 +4,10 @@ import boto3
 import botocore
 import pandas as pd
 from sqlalchemy import create_engine, exc
-from dotenv import load_dotenv
 import os
 import sys
 import random
 import time
-import ast
 from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
 from src.main_config import get_main_config 
@@ -28,18 +26,6 @@ def hex_to_int(hex_str):
         return int(hex_str, 16)
     except (ValueError, TypeError):
         return None 
-
-def load_environment():
-    load_dotenv()
-
-    # Postgres details from .env file
-    db_name = os.getenv("DB_DATABASE")
-    db_user = os.getenv("DB_USERNAME")
-    db_password = os.getenv("DB_PASSWORD")
-    db_host = os.getenv("DB_HOST")
-    db_port = os.getenv("DB_PORT")
-
-    return db_name, db_user, db_password, db_host, db_port
 
 # ---------------- Connection Functions ------------------
 def connect_to_node(rpc_config):
@@ -83,7 +69,7 @@ def s3_file_exists(s3, file_key, bucket_name):
             raise e
 
 # ---------------- Data Processing Functions -------------
-def prep_dataframe(df):
+def prep_dataframe_old(df):
     # Ensure the required columns exist, filling with 0 if they don't
     required_columns = ['l1GasUsed', 'l1GasPrice', 'l1FeeScalar']
     for col in required_columns:
@@ -461,7 +447,7 @@ def prep_dataframe_polygon_zkevm(df):
 
     # Rename the columns based on the above mapping
     df = df.rename(columns=column_mapping)
-    df['tx_hash'] = df['tx_hash'].apply(lambda x: '\\x' + ast.literal_eval(x).hex() if pd.notnull(x) else None)
+    df['tx_hash'] = df['tx_hash'].apply(lambda tx_hash: '\\x' + (tx_hash[2:] if isinstance(tx_hash, str) and tx_hash.startswith('0x') else tx_hash.hex()[2:] if isinstance(tx_hash, bytes) and tx_hash.hex().startswith('0x') else tx_hash.hex() if isinstance(tx_hash, bytes) else tx_hash) if pd.notnull(tx_hash) else None)
 
     # Convert Integer to BYTEA
     df['type'] = df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
@@ -731,8 +717,6 @@ def prep_dataframe_zksync_era(df):
     return filtered_df
 
 def prep_dataframe_taiko(df):
-
-    print("Preprocessing dataframe...")
     # Define a mapping of old columns to new columns
     column_mapping = {
         'blockNumber': 'block_number',
@@ -788,7 +772,7 @@ def prep_dataframe_taiko(df):
     # value column divide by 1e18 to convert to eth
     filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
 
-    return filtered_df    
+    return filtered_df
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
@@ -957,7 +941,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
             elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']:
                 df_prep = prep_dataframe_opchain(df)
             else:
-                df_prep = prep_dataframe(df)
+                df_prep = prep_dataframe_old(df)
 
             df_prep.drop_duplicates(subset=['tx_hash'], inplace=True)
             df_prep.set_index('tx_hash', inplace=True)
