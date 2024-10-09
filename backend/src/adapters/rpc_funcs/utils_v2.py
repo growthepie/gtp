@@ -437,7 +437,7 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
     s3_path = f"s3://{bucket_name}/{file_key}"
     df.to_parquet(s3_path, index=False)
 
-def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
+def fetch_and_process_range2(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
     base_wait_time = 3   # Base wait time in seconds
     start_time = time.time()
     while True:

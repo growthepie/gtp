@@ -5,6 +5,8 @@ from src.adapters.rpc_funcs.funcs_backfill import check_and_record_missing_block
 from queue import Queue, Empty
 from threading import Thread, Lock
 from src.adapters.rpc_funcs.utils import Web3CC, connect_to_s3, check_db_connection, check_s3_connection, get_latest_block, connect_to_node, fetch_and_process_range
+from src.adapters.rpc_funcs.utils_v2 import fetch_and_process_range2
+
 
 class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -196,7 +198,10 @@ class NodeAdapter(AbstractAdapterRaw):
             try:
                 block_range = block_range_queue.get(timeout=5)
                 print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
-                fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
+                if self.chain.lower() == 'fraxtal':
+                    fetch_and_process_range2(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
+                else:
+                    fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
             except Empty:
                 print("DONE: no more blocks to process. Worker is shutting down.")
                 return
