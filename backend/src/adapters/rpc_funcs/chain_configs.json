@@ -145,7 +145,7 @@
       "to_address"
     ]
   },
-  "arbitrum": {
+  "arbitrum_nitro": {
     "column_mapping": {
       "blockNumber": "block_number",
       "hash": "tx_hash",

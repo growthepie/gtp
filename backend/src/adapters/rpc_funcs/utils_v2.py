@@ -239,13 +239,22 @@ def s3_file_exists(s3, file_key, bucket_name):
 
 # ---------------- Generic Preparation Function ------------------
 def prep_dataframe_new(df, chain):
-    # Check for OP chains and adjust configuration accordingly
     op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
+    default_chains = ['manta', 'metis']
+    arbitrum_nitro_chains = ['arbitrum', 'gravity']
     
-    if chain.lower() in op_chains:
-        config = chain_configs.get('op_chains')  # Use the specific 'op_chains' configuration
+    chain_lower = chain.lower()
+
+    if chain_lower in op_chains:
+        config = chain_configs.get('op_chains')
+    elif chain_lower in arbitrum_nitro_chains:
+        config = chain_configs.get('arbitrum_nitro')
+    elif chain_lower in chain_configs:
+        config = chain_configs[chain_lower]
+    elif chain_lower in default_chains:
+        config = chain_configs['default']
     else:
-        config = chain_configs.get(chain.lower(), chain_configs['default'])  # Use the normal chain config
+        raise ValueError(f"Chain '{chain}' is not listed in the supported chains.")
 
     # Ensure the required columns exist, filling with default values
     required_columns = config.get('required_columns', [])
