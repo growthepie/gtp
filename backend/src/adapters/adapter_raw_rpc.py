@@ -194,8 +194,7 @@ class NodeAdapter(AbstractAdapterRaw):
             
     def worker_task(self, rpc_config, node_connection, block_range_queue, rpc_errors, error_lock):
         arbitrum_nitro_chains = ['arbitrum', 'gravity']
-        op_chains = ['fraxtal']
-        #op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
+        op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
         while rpc_config['url'] in self.active_rpcs and not block_range_queue.empty():
             block_range = None
             try:
