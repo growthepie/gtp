@@ -10,21 +10,22 @@ import time
 from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
 from src.main_config import get_main_config 
+from src.adapters.rpc_funcs.chain_configs import chain_configs
 
-CHAIN_CONFIG_FILE = 'src/adapters/rpc_funcs/chain_configs.json'
+# CHAIN_CONFIG_FILE = 'src/adapters/rpc_funcs/chain_configs.json'
 
-# ---------------- Chain Configurations ------------------
+# # ---------------- Chain Configurations ------------------
 
-def load_chain_configs(json_file_path):
-    try:
-        with open(json_file_path, 'r') as file:
-            chain_configs = json.load(file)
-        return chain_configs
-    except Exception as e:
-        print(f"ERROR: Unable to load chain configuration file: {e}")
-        raise
+# def load_chain_configs(json_file_path):
+#     try:
+#         with open(json_file_path, 'r') as file:
+#             chain_configs = json.load(file)
+#         return chain_configs
+#     except Exception as e:
+#         print(f"ERROR: Unable to load chain configuration file: {e}")
+#         raise
 
-chain_configs = load_chain_configs(CHAIN_CONFIG_FILE)
+# chain_configs = load_chain_configs(CHAIN_CONFIG_FILE)
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):

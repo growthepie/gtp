@@ -1,4 +1,4 @@
-{
+chain_configs ={
   "default": {
     "required_columns": [
       "l1GasUsed",
