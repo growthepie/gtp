@@ -11,7 +11,7 @@ from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
 from src.main_config import get_main_config 
 
-CHAIN_CONFIG_FILE = 'backend/src/adapters/rpc_funcs/chain_configs.json'
+CHAIN_CONFIG_FILE = 'src/adapters/rpc_funcs/chain_configs.json'
 
 # ---------------- Chain Configurations ------------------
 
