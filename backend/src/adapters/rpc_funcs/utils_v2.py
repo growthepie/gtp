@@ -1,3 +1,4 @@
+import ast
 from datetime import datetime
 import numpy as np
 import boto3
@@ -107,6 +108,13 @@ def handle_tx_hash(df, column_name='tx_hash'):
                 else tx_hash.hex() if isinstance(tx_hash, bytes) 
                 else tx_hash
             ) if pd.notnull(tx_hash) else None
+        )
+    return df
+
+def handle_tx_hash_polygon_zkevm(df, column_name='tx_hash'):
+    if column_name in df.columns:
+        df[column_name] = df[column_name].apply(
+            lambda x: '\\x' + ast.literal_eval(x).hex() if pd.notnull(x) else None
         )
     return df
 
