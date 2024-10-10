@@ -196,7 +196,7 @@ class NodeAdapter(AbstractAdapterRaw):
         arbitrum_nitro_chains = ['arbitrum', 'gravity']
         op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
         default_chains = ['manta', 'metis']
-        special_chains = ['linea', 'scroll', 'zksync_era']
+        special_chains = ['linea', 'scroll', 'zksync_era','taiko','ethereum','polygon_zkevm']
         while rpc_config['url'] in self.active_rpcs and not block_range_queue.empty():
             block_range = None
             try:
