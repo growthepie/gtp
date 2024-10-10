@@ -103,7 +103,7 @@ def handle_tx_hash(df, column_name='tx_hash'):
         df[column_name] = df[column_name].apply(
             lambda tx_hash: '\\x' + (
                 tx_hash[2:] if isinstance(tx_hash, str) and tx_hash.startswith('0x') 
-                else tx_hash.hex()[2:] if isinstance(tx_hash, bytes) and tx_hash.hex().startswith('0x') 
+                else tx_hash.hex()[2:] if isinstance(tx_hash, bytes) 
                 else tx_hash.hex() if isinstance(tx_hash, bytes) 
                 else tx_hash
             ) if pd.notnull(tx_hash) else None
