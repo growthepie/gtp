@@ -2,7 +2,7 @@ import numpy as np
 from web3 import Web3
 from web3.middleware import geth_poa_middleware
 from src.db_connector import DbConnector
-from src.adapters.rpc_funcs.utils_v2 import prep_dataframe_new
+from backend.src.adapters.rpc_funcs.utils import prep_dataframe_new
 from src.adapters.rpc_funcs.utils import (
     MaxWaitTimeExceededException,
     fetch_data_for_range,
