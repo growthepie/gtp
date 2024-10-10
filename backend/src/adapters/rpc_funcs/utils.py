@@ -1,3 +1,4 @@
+import ast
 from datetime import datetime
 import numpy as np
 import boto3
@@ -447,8 +448,7 @@ def prep_dataframe_polygon_zkevm(df):
 
     # Rename the columns based on the above mapping
     df = df.rename(columns=column_mapping)
-    df['tx_hash'] = df['tx_hash'].apply(lambda tx_hash: '\\x' + (tx_hash[2:] if isinstance(tx_hash, str) and tx_hash.startswith('0x') else tx_hash.hex()[2:] if isinstance(tx_hash, bytes) and tx_hash.hex().startswith('0x') else tx_hash.hex() if isinstance(tx_hash, bytes) else tx_hash) if pd.notnull(tx_hash) else None)
-
+    df['tx_hash'] = df['tx_hash'].apply(lambda x: '\\x' + ast.literal_eval(x).hex() if pd.notnull(x) else None)
     # Convert Integer to BYTEA
     df['type'] = df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
     
