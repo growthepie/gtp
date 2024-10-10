@@ -4,7 +4,7 @@ from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
-from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis, get_missing_days_kpis
+from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis, get_missing_days_kpis, send_discord_message
 from src.misc.helper_functions import print_init, print_load, print_extract
 
 ##ToDos: 
@@ -131,25 +131,30 @@ class AdapterCoingecko(AbstractAdapter):
 
             for currency in vs_currencies:
                 url = f"{base_url}{naming}/market_chart?vs_currency={currency}&days={day_val}{interval}"
-                response_json = api_get_call(url, sleeper=10, retries=20)
 
-                dfAllFi = pd.json_normalize(response_json)
-                for fi in metric_keys:
-                    match fi:
-                        case 'price':
-                            series = dfAllFi['prices'].explode()
-                        case 'volume':
-                            series = dfAllFi['total_volumes'].explode()
-                        case 'market_cap':
-                            series = dfAllFi['market_caps'].explode()
-                    df = pd.DataFrame(columns = ['date', 'value'], data = series.to_list())
-                    df['date'] = pd.to_datetime(df['date'],unit='ms')                    
-                    df['metric_key'] = f"{fi}_{currency}"
-                    df['origin_key'] = origin_key
+                response_json = api_get_call(url, sleeper=10, retries=10)
+                if response_json:
+                    dfAllFi = pd.json_normalize(response_json)
+                    for fi in metric_keys:
+                        match fi:
+                            case 'price':
+                                series = dfAllFi['prices'].explode()
+                            case 'volume':
+                                series = dfAllFi['total_volumes'].explode()
+                            case 'market_cap':
+                                series = dfAllFi['market_caps'].explode()
+                        df = pd.DataFrame(columns = ['date', 'value'], data = series.to_list())
+                        df['date'] = pd.to_datetime(df['date'],unit='ms')                    
+                        df['metric_key'] = f"{fi}_{currency}"
+                        df['origin_key'] = origin_key
 
-                    df.value.fillna(0, inplace=True)
-                    dfMain = pd.concat([dfMain,df])
-                    print(f"...{self.name} {origin_key} done for {currency} and {fi} with granularity {granularity}. Shape: {df.shape}")
+                        df.value.fillna(0, inplace=True)
+                        dfMain = pd.concat([dfMain,df])
+                        print(f"...{self.name} {origin_key} done for {currency} and {fi} with granularity {granularity}. Shape: {df.shape}")
+                else:
+                    print(f"...{self.name} {origin_key} failed for {currency} with url {url}")
+                    send_discord_message(f"Failed to load {origin_key} for {currency} with url {url}")
+
                 time.sleep(12) #only 10-50 calls allowed per minute with free tier
 
         ## Date prep
