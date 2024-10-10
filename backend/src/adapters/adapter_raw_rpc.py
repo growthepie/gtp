@@ -195,13 +195,14 @@ class NodeAdapter(AbstractAdapterRaw):
     def worker_task(self, rpc_config, node_connection, block_range_queue, rpc_errors, error_lock):
         arbitrum_nitro_chains = ['arbitrum', 'gravity']
         op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
+        default_chains = ['manta', 'metis']
         while rpc_config['url'] in self.active_rpcs and not block_range_queue.empty():
             block_range = None
             try:
                 block_range = block_range_queue.get(timeout=5)
                 print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
         
-                if self.chain.lower() in op_chains or self.chain.lower() in arbitrum_nitro_chains:
+                if self.chain.lower() in op_chains or self.chain.lower() in arbitrum_nitro_chains or self.chain.lower() in default_chains:
                     print("NEW")
                     fetch_and_process_range2(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
                 else:
