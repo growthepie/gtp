@@ -16,7 +16,6 @@ from src.misc.octant_lib.helpers import (
     generate_create_table_sql,
     table_definitions,
     GLM_TOKEN_DECIMALS,
-    ETH_TOKEN_DECIMALS,
     get_lockeds,
     get_unlockeds,
     get_last_epoch,
@@ -26,16 +25,12 @@ from src.misc.octant_lib.helpers import (
     get_allocations,
     get_rewards,
     fetch_rest,
-    process_possible_base64,
-    endpoint,
 )
 
-logging.basicConfig(level=logging.INFO,
-                    format="%(asctime)s - %(levelname)s - %(message)s")
-
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 class OctantV2():
-    def __init__(self, s3_bucket, cf_distribution_id, db_connector: DbConnector, api_version, user):
+    def __init__(self, s3_bucket, cf_distribution_id, db_connector: DbConnector, api_version, user=None):
         """
         Initializes the OctantV2 class
 
@@ -66,30 +61,30 @@ class OctantV2():
         if db_connector.engine is None:
             raise Exception("Database connection not established")
 
-        # create database tables if they do not exist
-        for table_key in table_definitions:
-            table_name = table_definitions[table_key]['table_name']
-            table_exists = self.table_exists(table_name)
-            logging.info(
-                f"Table {table_name} exists: {table_exists}")
+        # # create database tables if they do not exist
+        # for table_key in table_definitions:
+        #     table_name = table_definitions[table_key]['table_name']
+        #     table_exists = self.table_exists(table_name)
+        #     logging.info(
+        #         f"Table {table_name} exists: {table_exists}")
 
-            if not table_exists:
-                logging.info(
-                    f"Running table creation for {table_name} table")
-                create_table_sql = generate_create_table_sql(
-                    table_key=table_key, db_type='sqlite' if db_connector.use_sqlite else 'postgres')
+        #     if not table_exists:
+        #         logging.info(
+        #             f"Running table creation for {table_name} table")
+        #         create_table_sql = generate_create_table_sql(
+        #             table_key=table_key, db_type='postgres')
 
-                # create the table in the database, all rows will have an id column when inserting/upserting (id is alphanumeric)
-                self.db_connector.engine.execute(
-                    create_table_sql
-                )
+        #         # create the table in the database, all rows will have an id column when inserting/upserting (id is alphanumeric)
+        #         self.db_connector.engine.execute(
+        #             create_table_sql
+        #         )
 
-        self.local_output_dir = f"./output/{api_version}/trackers/octantv2/"
-        if self.is_local:
-            self.local_output_dir = f"./output/{api_version}/trackers/octantv2/"
-            # Create the output directory if it does not exist
-            if not os.path.exists(self.local_output_dir):
-                os.makedirs(self.local_output_dir)
+        # self.local_output_dir = f"./output/{api_version}/trackers/octantv2/"
+        # if self.is_local:
+        #     self.local_output_dir = f"./output/{api_version}/trackers/octantv2/"
+        #     # Create the output directory if it does not exist
+        #     if not os.path.exists(self.local_output_dir):
+        #         os.makedirs(self.local_output_dir)
 
     def table_exists(self, table_name: str):
         """
@@ -116,36 +111,12 @@ class OctantV2():
         column_defs = table_definitions[table_key]['columns']
         columns = [col[0] for col in column_defs]
 
-        table_exists = self.table_exists(table_name)
-
-        logging.info(f"Table {table_name} exists: {table_exists}")
-
-        if not table_exists:
-            create_table_sql = generate_create_table_sql(
-                table_name=table_name, db_type='sqlite' if self.db_connector.use_sqlite else 'postgres')
-            logging.info(
-                f"Creating table {table_name} with SQL: {create_table_sql}")
-            # create the table in the database, all rows will have an id column when inserting/upserting (id is alphanumeric)
-            self.db_connector.engine.execute(
-                create_table_sql
-            )
-
         # if user column exists, rename to user_address
         if 'user' in df.columns:
             df.rename(columns={'user': 'user_address'}, inplace=True)
 
         # reduce to only the columns that are in the table definition
         df = df[columns]
-
-        if self.db_connector.use_sqlite:
-            columns_to_convert_to_float = [
-                'amount', 'current_total_locked', 'current_total_locked_for_user', 'allocated', 'matched', 'total']
-            # print types of columns
-            # logging.info(df.dtypes)
-            # convert the amount columns to float
-            for col in columns_to_convert_to_float:
-                if col in df.columns:
-                    df.loc[:, col] = df[col].astype(float)
 
         # set index to the id column if it exists
         if 'id' in df.columns:
@@ -291,19 +262,15 @@ class OctantV2():
         logging.info(
             "Saving Octant data to the database")
 
-        # Save the final DataFrames to CSV files
+        # Save the final DataFrames to DB
         if not projects_metadata_df.empty:
-            self.save_to_db(
-                projects_metadata_df, 'projects_metadata')
+            self.save_to_db(projects_metadata_df, 'projects_metadata')
         if not budgets_df.empty:
-            self.save_to_db(
-                budgets_df, 'user_budgets')
+            self.save_to_db(budgets_df, 'user_budgets')
         if not allocations_df.empty:
-            self.save_to_db(
-                allocations_df, 'user_allocations')
+            self.save_to_db(allocations_df, 'user_allocations')
         if not rewards_df.empty:
-            self.save_to_db(
-                rewards_df, 'project_allocations_and_matched_rewards')
+            self.save_to_db(rewards_df, 'project_allocations_and_matched_rewards')
 
     def get_latest_locked_balances(self):
         """
@@ -814,10 +781,10 @@ class OctantV2():
                 'allocated_to_project_keys': group.set_index('epoch')['allocated_to_project_keys'].to_dict()
             }
             # convert the value of the allocated_to_project_keys[epoch] to a list
-            if self.db_connector.use_sqlite:
-                for epoch in row['allocated_to_project_keys']:
-                    row['allocated_to_project_keys'][epoch] = eval(
-                        row['allocated_to_project_keys'][epoch])
+            # if self.db_connector.use_sqlite:
+            #     for epoch in row['allocated_to_project_keys']:
+            #         row['allocated_to_project_keys'][epoch] = eval(
+            #             row['allocated_to_project_keys'][epoch])
 
             # add "all" key to the lockeds, mins, maxs, budget_amounts, allocation_amounts, allocated_to_project_counts, and allocated_to_project_keys dictionaries
 
@@ -838,7 +805,7 @@ class OctantV2():
             compiled_data.append(row)
 
         # save compiled_data
-        if self.s3_bucket == None or self.is_local:
+        if self.s3_bucket == None:
             self.save_to_json(compiled_data, '/trackers/octant/community')
             logging.info(
                 "/trackers/octant/community.json community JSON saved")
@@ -875,9 +842,9 @@ class OctantV2():
                 'donor_lists': group.set_index('epoch')['donor_list'].to_dict()
             }
             # convert the value of the donor_lists[epoch] to a list
-            if self.db_connector.use_sqlite:
-                for epoch in row['donor_lists']:
-                    row['donor_lists'][epoch] = eval(row['donor_lists'][epoch])
+            # if self.db_connector.use_sqlite:
+            #     for epoch in row['donor_lists']:
+            #         row['donor_lists'][epoch] = eval(row['donor_lists'][epoch])
 
             # add "all" key to the allocations, matched_rewards, donor_counts, and donor_lists dictionaries
             row['allocations']['all'] = group['allocated'].sum()
@@ -892,7 +859,7 @@ class OctantV2():
             compiled_data.append(row)
 
         # save compiled_data
-        if self.s3_bucket == None or self.is_local:
+        if self.s3_bucket == None:
             self.save_to_json(
                 compiled_data, '/trackers/octant/project_funding')
             logging.info(
@@ -954,7 +921,7 @@ class OctantV2():
             compiled_data[project_key] = metadata
 
         # save compiled_data
-        if self.s3_bucket == None or self.is_local:
+        if self.s3_bucket == None:
             self.save_to_json(
                 compiled_data, '/trackers/octant/project_metadata')
             logging.info(
@@ -989,14 +956,10 @@ class OctantV2():
         for epoch in range(last_epoch, 0, -1):
             epoch_info = self.get_epoch_info(epoch)
             # convert the datetime objects to strings
-            epoch_info['fromDatetime'] = epoch_info['fromDatetime'].strftime(
-                "%Y-%m-%d %H:%M:%S")
-            epoch_info['toDatetime'] = epoch_info['toDatetime'].strftime(
-                "%Y-%m-%d %H:%M:%S")
-            epoch_info['allocationStart'] = epoch_info['allocationStart'].strftime(
-                "%Y-%m-%d %H:%M:%S")
-            epoch_info['allocationEnd'] = epoch_info['allocationEnd'].strftime(
-                "%Y-%m-%d %H:%M:%S")
+            epoch_info['fromDatetime'] = epoch_info['fromDatetime'].strftime("%Y-%m-%d %H:%M:%S")
+            epoch_info['toDatetime'] = epoch_info['toDatetime'].strftime("%Y-%m-%d %H:%M:%S")
+            epoch_info['allocationStart'] = epoch_info['allocationStart'].strftime("%Y-%m-%d %H:%M:%S")
+            epoch_info['allocationEnd'] = epoch_info['allocationEnd'].strftime("%Y-%m-%d %H:%M:%S")
 
             # add the epoch info to the data dictionary
             compiled_data['epochs'][epoch] = epoch_info
@@ -1014,7 +977,7 @@ class OctantV2():
         compiled_data['median_reward_amounts'] = median_reward_amounts
 
         # save compiled_data
-        if self.s3_bucket == None or self.is_local:
+        if self.s3_bucket == None:
             self.save_to_json(compiled_data, '/trackers/octant/summary')
             logging.info(
                 "/trackers/octant/summary.json summary JSON saved")
