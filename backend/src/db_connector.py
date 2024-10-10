@@ -342,7 +342,7 @@ class DbConnector:
                                         WHEN 'costs_l1_eth' THEN 'costs_l1_usd'
                                         WHEN 'costs_da_eth' THEN 'costs_da_usd'
                                         WHEN 'costs_total_eth' THEN 'costs_total_usd'
-                                        WHEN 'total_blobs_eth' THEN 'total_blobs_usd'
+                                        WHEN 'da_fees_eth' THEN 'da_fees_usd'
                                         WHEN 'fees_paid_eth' THEN 'fees_paid_usd'
                                         WHEN 'profit_eth' THEN 'profit_usd'
                                         WHEN 'txcosts_median_eth' THEN 'txcosts_median_usd'

@@ -224,34 +224,34 @@ class JSONCreation():
             }
 
             ## Non fundamental metrics
-            ,'total_blob_size': {
-                'name': 'Total Blob Size',
-                'fundamental': False, ## not a fundamental metric
-                'metric_keys': ['total_blob_size_bytes'],
-                'units': {
-                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False, 'agg': False, 'suffix': 'Bytes'},
-                },
-                'avg': True,
-                'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum',
-                'max_date_fill' : False,
-                'ranking_bubble': False
-            }
+            # ,'total_blob_size': {
+            #     'name': 'Total Blob Size',
+            #     'fundamental': False, ## not a fundamental metric
+            #     'metric_keys': ['total_blob_size_bytes'],
+            #     'units': {
+            #         'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False, 'agg': False, 'suffix': 'Bytes'},
+            #     },
+            #     'avg': True,
+            #     'all_l2s_aggregate': 'sum',
+            #     'monthly_agg': 'sum',
+            #     'max_date_fill' : False,
+            #     'ranking_bubble': False
+            # }
 
-            ,'total_blob_fees': {
-                'name': 'Total Blob Fees',
-                'fundamental': False, ## not a fundamental metric
-                'metric_keys': ['total_blobs_usd', 'total_blobs_eth'],
-                'units': {
-                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
-                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
-                },
-                'avg': True,
-                'all_l2s_aggregate': 'sum',
-                'monthly_agg': 'sum',
-                'max_date_fill' : False,
-                'ranking_bubble': False
-            }
+            # ,'total_blob_fees': {
+            #     'name': 'Total Blob Fees',
+            #     'fundamental': False, ## not a fundamental metric
+            #     'metric_keys': ['da_fees_usd', 'da_fees_eth'],
+            #     'units': {
+            #         'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+            #         'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+            #     },
+            #     'avg': True,
+            #     'all_l2s_aggregate': 'sum',
+            #     'monthly_agg': 'sum',
+            #     'max_date_fill' : False,
+            #     'ranking_bubble': False
+            # }
 
             ,'costs': {
                 'name': 'Costs',
