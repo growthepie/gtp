@@ -46,7 +46,7 @@ sql_q= {
         """
 
         ### Celestia
-        ,'celestia_total_blob_size_bytes': """
+        ,'celestia_da_data_posted_bytes': """
         select 
                 date_trunc('day', block_timestamp) as day, 
                 sum(blob_sizes) as value
@@ -60,7 +60,7 @@ sql_q= {
         group by 1
         """
 
-        ,'celestia_total_blobs_eth': """
+        ,'celestia_da_fees_eth': """
         with tia_price as (
                 SELECT "timestamp", value as price_eth
                 FROM public.fact_kpis_granular
@@ -78,7 +78,7 @@ sql_q= {
         group by 1
         """
 
-        ,'celestia_unique_blob_producers': """
+        ,'celestia_da_unique_blob_producers': """
         SELECT 
                 date_trunc('day', block_timestamp) as day,
                 COUNT(DISTINCT signer) AS value
@@ -91,7 +91,7 @@ sql_q= {
         group by 1;
         """
 
-        ,'celestia_total_blob_count': """
+        ,'celestia_da_blob_count': """
         SELECT 
                 date_trunc('day', block_timestamp) as day, 
                 COUNT(*) as value
@@ -2256,10 +2256,10 @@ sql_queries = [
         # ,SQLQuery(metric_key = "user_base_monthly", origin_key = "multi", sql=sql_q["user_base_xxx"], currency_dependent = False, query_parameters={"Days": 7*4*12, "aggregation": "month"})
         
         ## Celestia
-        ,SQLQuery(metric_key = "total_blob_size_bytes", origin_key = "celestia", sql=sql_q["celestia_total_blob_size_bytes"], currency_dependent = False, query_parameters={"Days": 7})
-        ,SQLQuery(metric_key = "total_blobs_eth", origin_key = "celestia", sql=sql_q["celestia_total_blobs_eth"], currency_dependent = True, query_parameters={"Days": 7})
-        ,SQLQuery(metric_key = "total_unique_blob_producers", origin_key = "celestia", sql=sql_q["celestia_unique_blob_producers"], currency_dependent = False, query_parameters={"Days": 7})
-        ,SQLQuery(metric_key = "total_blob_count", origin_key = "celestia", sql=sql_q["celestia_total_blob_count"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "da_data_posted_bytes", origin_key = "da_celestia", sql=sql_q["celestia_da_data_posted_bytes"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "da_fees_eth", origin_key = "da_celestia", sql=sql_q["celestia_da_fees_eth"], currency_dependent = True, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "da_unique_blob_producers", origin_key = "da_celestia", sql=sql_q["celestia_da_unique_blob_producers"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "da_blob_count", origin_key = "da_celestia", sql=sql_q["celestia_da_blob_count"], currency_dependent = False, query_parameters={"Days": 7})
 
         ## Ethereum
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", sql=sql_q["ethereum_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
