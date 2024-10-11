@@ -1020,13 +1020,17 @@ class OctantV2():
     def run_create_all_octant_jsons(self):
         # loads locked GLM data, epoch info, calculates median reward amounts from data in the DB
         # then creates the summary.json from the data
+        logging.info(f"# Creating Octant Summary JSON")
         self.load_and_create_summary_json()
 
         # creates the community.json from data in the DB
+        logging.info(f"# Creating Octant Community JSON")
         self.create_community_data_json()
 
         # creates the project_funding.json from data in the DB
+        logging.info(f"# Creating Octant Project Funding JSON")
         self.create_project_funding_json()
 
         # creates the project_metadata.json from data in the DB
+        logging.info(f"# Creating Octant Project Metadata JSON")
         self.create_project_metadata_json()
