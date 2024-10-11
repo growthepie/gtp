@@ -15,7 +15,7 @@ from src.misc.octant_v2 import OctantV2
 @dag(
     default_args={
         'owner' : 'mseidl',
-        'retries' : 5,
+        'retries' : 3,
         'email_on_failure': False,
         'retry_delay' : timedelta(minutes=2),
         'on_failure_callback': alert_via_webhook
@@ -36,7 +36,10 @@ def run_dag():
 
         octantv2 = OctantV2(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         #octantv2.run_load_octant_data_for_all_epochs()
+        print('### LOAD DATA FOR LATEST EPOCH ###')
         octantv2.run_load_latest_epoch_data()
+        
+        print('### CREATE ALL OCTANT JSONS ###')
         octantv2.run_create_all_octant_jsons()
     
     run_octant_v2()
