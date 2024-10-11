@@ -5,7 +5,6 @@ from src.adapters.rpc_funcs.funcs_backfill import check_and_record_missing_block
 from queue import Queue, Empty
 from threading import Thread, Lock
 from src.adapters.rpc_funcs.utils import Web3CC, connect_to_s3, check_db_connection, check_s3_connection, get_latest_block, connect_to_node, fetch_and_process_range
-from src.adapters.rpc_funcs.utils_v2 import fetch_and_process_range2
 
 
 class NodeAdapter(AbstractAdapterRaw):
@@ -193,21 +192,12 @@ class NodeAdapter(AbstractAdapterRaw):
                 print(f"Worker for {rpc_config['url']} has stopped.")
             
     def worker_task(self, rpc_config, node_connection, block_range_queue, rpc_errors, error_lock):
-        arbitrum_nitro_chains = ['arbitrum', 'gravity']
-        op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
-        default_chains = ['manta', 'metis']
-        special_chains = ['linea', 'scroll', 'zksync_era','taiko','ethereum','polygon_zkevm']
         while rpc_config['url'] in self.active_rpcs and not block_range_queue.empty():
             block_range = None
             try:
                 block_range = block_range_queue.get(timeout=5)
                 print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
-        
-                if self.chain.lower() in op_chains or self.chain.lower() in arbitrum_nitro_chains or self.chain.lower() in default_chains or self.chain.lower() in special_chains:
-                    print("NEW")
-                    fetch_and_process_range2(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
-                else:
-                    fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
+                fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
             except Empty:
                 print("DONE: no more blocks to process. Worker is shutting down.")
                 return
