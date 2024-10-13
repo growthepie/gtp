@@ -1002,12 +1002,16 @@ class OctantV2():
         self.load_user_data(epoch_info)
         logging.info(f"User data loaded for epoch {epoch}")
 
-    def run_load_latest_epoch_data(self):
+    def run_load_epoch_data(self, epoch=None):
         """
-        Loads all Octant data for the latest epoch into the database
+        Loads all Octant data for the latest epoch into the database.
+        If epoch is specified, loads all Octant data for the given epoch into the database.
+        Else, loads all Octant data for the latest epoch into the database.
         """
-        last_epoch = get_last_epoch()
-        self.load_epoch_data(last_epoch)
+        if epoch is None:
+            epoch = get_last_epoch()
+
+        self.load_epoch_data(epoch)
 
     def run_load_octant_data_for_all_epochs(self):
         """
