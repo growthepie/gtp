@@ -852,9 +852,18 @@ class OctantV2():
             row['total']['all'] = group['total'].sum()
 
             # for donor_counts and donor_lists, we'll get the sum of the unique donors and the list of unique donors
-            row['donor_lists']['all'] = list(
-                set([donor for donor_list in row['donor_lists'].values() for donor in donor_list]))
+            row['donor_lists']['all'] = row['donor_lists']['all'] = list(set([donor for donor_list in row['donor_lists'].values() if donor_list is not None for donor in donor_list]))
             row['donor_counts']['all'] = len(row['donor_lists']['all'])
+
+            # check if any donor_list is None and set to empty list
+            for epoch in row['donor_lists']:
+                if row['donor_lists'][epoch] is None:
+                    row['donor_lists'][epoch] = []
+
+            # check if any donor_counts are nan and set to 0
+            for epoch in row['donor_counts']:
+                if math.isnan(row['donor_counts'][epoch]):
+                    row['donor_counts'][epoch] = 0
 
             compiled_data.append(row)
 
