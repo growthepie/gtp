@@ -10,6 +10,7 @@ import os
 import eth_utils
 import random
 import numpy as np
+from openai import OpenAI
 
 ## API interaction functions
 def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_characters=False, as_json=True, proxy=None):
@@ -437,3 +438,16 @@ def dataframe_to_s3(path_name, df):
 
     print(f'...uploaded to S3 longterm in {path_name}')
 
+# prompt chatgpt, requires openai library
+def prompt_chatgpt(prompt, api_key, model="gpt-3.5-turbo"):
+    client = OpenAI(api_key=api_key)
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        return f"An error occurred while prompting chatgpt: {str(e)}"
