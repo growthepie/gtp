@@ -243,6 +243,29 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        def get_da_metrics_in_eth(self, days, origin_keys = None):
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                exec_string = f'''
+                        SELECT 
+                                date
+                                ,origin_key
+                                ,'da_fees_per_mbyte_eth' as metric_key
+                                ,SUM(CASE WHEN metric_key = 'da_fees_eth' THEN value END) / (SUM(CASE WHEN metric_key = 'da_data_posted_bytes' THEN value END)/1024/1024) AS value
+                        FROM fact_kpis tkd
+                        WHERE metric_key in ('da_data_posted_bytes', 'da_fees_eth')
+                                {ok_string}
+                                AND date >= date_trunc('day',now()) - interval '{days} days'
+                                AND date < date_trunc('day', now())
+                        GROUP BY 1,2
+
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         def get_fdv_in_usd(self, days, origin_keys = None):               
                 if origin_keys is None or len(origin_keys) == 0:
                         ok_string = ''
@@ -346,6 +369,7 @@ class DbConnector:
                                         WHEN 'fees_paid_eth' THEN 'fees_paid_usd'
                                         WHEN 'profit_eth' THEN 'profit_usd'
                                         WHEN 'txcosts_median_eth' THEN 'txcosts_median_usd'
+                                        WHEN 'da_fees_per_mbyte_eth' THEN 'da_fees_per_mbyte_usd'
                                         ELSE 'error'
                                 END AS metric_key, 
                                 tkd.origin_key,

@@ -54,7 +54,8 @@ class AdapterSQL(AbstractAdapter):
 
         elif load_type == 'eth_to_usd': ## also make sure to add new metrics in db_connector
             raw_metrics = ['fees_paid_eth', 'txcosts_median_eth', 'profit_eth', 'rent_paid_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 
-                           'ethereum_blobs_eth', 'celestia_blobs_eth', 'costs_blobs_eth', 'costs_l1_eth', 'costs_da_eth', 'costs_total_eth', 'da_fees_eth']
+                           'ethereum_blobs_eth', 'celestia_blobs_eth', 'costs_blobs_eth', 'costs_l1_eth', 'costs_da_eth', 'costs_total_eth', 'da_fees_eth',
+                           'da_fees_per_mbyte_eth']
             ## only keep metrics that are in raw_metrics and metric_keys
             if metric_keys is not None:
                 metric_keys = [x for x in metric_keys if x in raw_metrics]
@@ -91,6 +92,9 @@ class AdapterSQL(AbstractAdapter):
 
         elif load_type == 'fdv':
             df = self.db_connector.get_fdv_in_usd(days, origin_keys)
+
+        elif load_type == 'da_metrics':
+            df = self.db_connector.get_da_metrics_in_eth(days, origin_keys)
 
         elif load_type == 'metrics':        
             upsert = load_params.get('upsert', False)
