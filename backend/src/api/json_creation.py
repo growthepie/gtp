@@ -384,7 +384,70 @@ class JSONCreation():
             '7d' : {'granularity': 'hourly', 'filter_days': 7, 'tps_divisor': 60*60},
             '30d' : {'granularity': '4_hours', 'filter_days': 30, 'tps_divisor': 60*60*4},
             '180d' : {'granularity': 'daily', 'filter_days': 180, 'tps_divisor': 60*60*24},
-            }
+        }
+
+        self.da_layers = {
+            'da_ethereum_calldata': {
+                'name': 'Ethereum Calldata',
+                'name_short': 'Eth Calldata',
+                'logo': {
+                    'body': "<svg width=\"15\" height=\"15\" viewBox=\"0 0 15 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"7.5\" cy=\"7.5\" r=\"7.5\" fill=\"currentColor\"/></svg>",
+                    'width': 15,
+                    'height': 15
+                },
+                "colors": {
+                    "light": [
+                        "#8B8B8B",
+                        "#8B8B8B"
+                    ],
+                    "dark": [
+                        "#C1C1C1",
+                        "#C1C1C1"
+                    ],
+                    "darkTextOnBackground": True
+                },
+            },
+            'da_ethereum_blobs': {
+                'name': 'Ethereum Blobs',
+                'name_short': 'Eth Blobs',
+                'logo': {
+                    'body': "<svg width=\"15\" height=\"15\" viewBox=\"0 0 15 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"7.5\" cy=\"7.5\" r=\"7.5\" fill=\"currentColor\"/></svg>",
+                    'width': 15,
+                    'height': 15
+                },
+                "colors": {
+                    "light": [
+                        "#8B8B8B",
+                        "#8B8B8B"
+                    ],
+                    "dark": [
+                        "#C1C1C1",
+                        "#C1C1C1"
+                    ],
+                    "darkTextOnBackground": True
+                },
+            },
+            'da_celestia': {
+                'name': 'Celestia',
+                'name_short': 'Celestia',
+                'logo': {
+                    'body': "<svg width=\"15\" height=\"15\" viewBox=\"0 0 15 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"7.5\" cy=\"7.5\" r=\"7.5\" fill=\"currentColor\"/></svg>",
+                    'width': 15,
+                    'height': 15
+                },
+                "colors": {
+                    "light": [
+                        "#8B8B8B",
+                        "#8B8B8B"
+                    ],
+                    "dark": [
+                        "#C1C1C1",
+                        "#C1C1C1"
+                    ],
+                    "darkTextOnBackground": True
+                },
+            },
+        }
         
         for metric_key, metric_value in self.metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
@@ -1301,6 +1364,8 @@ class JSONCreation():
 
         ## sort chain_dict by key (origin_key) alphabetically asc
         chain_dict = dict(sorted(chain_dict.items()))
+
+        da_dict = self.da_layers
         
         ## create dict for fees without metric_keys field
         fees_types_api = {key: {sub_key: value for sub_key, value in sub_dict.items() if sub_key != 'metric_keys'} 
@@ -1310,6 +1375,7 @@ class JSONCreation():
             'current_version' : self.api_version,
             'default_chain_selection' : self.get_default_selection(df_data),
             'chains' : chain_dict,
+            'da_layer' : da_dict,
             'metrics' : self.metrics,
             'fee_metrics' : fees_types_api,
             'blockspace_categories' : {
