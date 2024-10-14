@@ -23,7 +23,10 @@ def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_char
                 break
             elif response.status_code == 400:
                 print(f"400 error, Bad Request with: {url} and response: {response.text}") 
-                return "400"
+                return False
+            elif response.status_code == 404:
+                print(f"404 error, Not Found with: {url} and response: {response.text}")
+                return False
             else:
                 retry_counter += 1
                 if retry_counter <= retries:
@@ -33,7 +36,7 @@ def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_char
                     for i in range(1, waiting_time):
                         time.sleep(1)
                 else:
-                    print("retrying failed more than " + str(retries) + " times - start over")
+                    print("retrying failed more than " + str(retries) + " times - Canceling")
                     return False
         except KeyboardInterrupt:
             interupt = True
@@ -229,8 +232,10 @@ def print_orchestration_raw_end(name:str):
     print(f'Orchestration {name} RAW finished.')
 
 ## Discord functions
-def send_discord_message(message, webhook_url):
+def send_discord_message(message, webhook_url=None):
     data = {"content": message}
+    if webhook_url is None:
+        webhook_url = os.getenv('DISCORD_ALERTS')
     response = requests.post(webhook_url, json=data)
 
     # Check the response status code

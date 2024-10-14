@@ -1,18 +1,17 @@
+import ast
 from datetime import datetime
 import numpy as np
 import boto3
 import botocore
 import pandas as pd
-from sqlalchemy import create_engine, exc
-from dotenv import load_dotenv
 import os
-import sys
 import random
+import json
 import time
-import ast
 from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
 from src.main_config import get_main_config 
+from src.adapters.rpc_funcs.chain_configs import chain_configs
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
@@ -27,19 +26,171 @@ def hex_to_int(hex_str):
     try:
         return int(hex_str, 16)
     except (ValueError, TypeError):
-        return None 
+        return None
 
-def load_environment():
-    load_dotenv()
+def convert_input_to_boolean(df):
+    if 'input_data' in df.columns:
+        df['empty_input'] = df['input_data'].apply(
+            lambda x: True if x in ['0x', '', b'\x00', b''] else False
+        ).astype(bool)
+    elif 'empty_input' in df.columns:
+        df['empty_input'] = df['empty_input'].apply(
+            lambda x: True if x in ['0x', '', b'\x00', b''] else False
+        ).astype(bool)
+    return df
 
-    # Postgres details from .env file
-    db_name = os.getenv("DB_DATABASE")
-    db_user = os.getenv("DB_USERNAME")
-    db_password = os.getenv("DB_PASSWORD")
-    db_host = os.getenv("DB_HOST")
-    db_port = os.getenv("DB_PORT")
+def handle_l1_gas_price(df):
+    if 'l1_gas_price' in df.columns:
+        df['l1_gas_price'] = df['l1_gas_price'].apply(safe_float_conversion)
+        df['l1_gas_price'] = df['l1_gas_price'].astype('float64')
+        df['l1_gas_price'].fillna(0, inplace=True)
+    return df
 
-    return db_name, db_user, db_password, db_host, db_port
+def handle_l1_fee(df):
+    if 'l1_fee' in df.columns:
+        df['l1_fee'] = df['l1_fee'].apply(safe_float_conversion)
+        df['l1_fee'] = df['l1_fee'].astype('float64')
+        df['l1_fee'].fillna(0, inplace=True)
+    
+    return df
+
+def handle_l1_fee_scalar(df):
+    if 'l1_fee_scalar' in df.columns:
+        df['l1_fee_scalar'].fillna('0', inplace=True)
+    return df
+
+def handle_l1_gas_used(df):
+    if 'l1_gas_used' in df.columns:
+        df['l1_gas_used'] = df['l1_gas_used'].apply(hex_to_int)
+        df['l1_gas_used'].fillna(0, inplace=True)
+    return df
+
+def calculate_tx_fee(df):
+    if all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_fee']):
+        # OpChains calculation
+        df['tx_fee'] = (
+            (df['gas_price'] * df['gas_used']) + df['l1_fee']
+        ) / 1e18
+    elif all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_gas_used', 'l1_gas_price', 'l1_fee_scalar']):
+        # Default calculation
+        df['tx_fee'] = (
+            (df['gas_price'] * df['gas_used']) +
+            (df['l1_gas_used'] * df['l1_gas_price'] * df['l1_fee_scalar'])
+        ) / 1e18
+    elif all(col in df.columns for col in ['gas_price', 'gas_used']):
+        # Simple calculation
+        df['tx_fee'] = (df['gas_price'] * df['gas_used']) / 1e18
+    else:
+        df['tx_fee'] = np.nan
+    return df
+
+def handle_tx_hash(df, column_name='tx_hash'):
+    if column_name in df.columns:
+        df[column_name] = df[column_name].apply(
+            lambda tx_hash: '\\x' + (
+                tx_hash[2:] if isinstance(tx_hash, str) and tx_hash.startswith('0x') 
+                else tx_hash.hex()[2:] if isinstance(tx_hash, bytes) 
+                else tx_hash.hex() if isinstance(tx_hash, bytes) 
+                else tx_hash
+            ) if pd.notnull(tx_hash) else None
+        )
+    return df
+
+def handle_tx_hash_polygon_zkevm(df, column_name='tx_hash'):
+    if column_name in df.columns:
+        df[column_name] = df[column_name].apply(
+            lambda x: '\\x' + ast.literal_eval(x).hex() if pd.notnull(x) else None
+        )
+    return df
+
+def handle_bytea_columns(df, bytea_columns):
+    for col in bytea_columns:
+        if col in df.columns:
+            df[col] = df[col].replace(['nan', 'None', 'NaN'], np.nan)
+            df[col] = df[col].apply(lambda x: str(x) if pd.notna(x) else x)
+            df[col] = df[col].apply(lambda x: x.replace('0x', '\\x') if pd.notna(x) else x)
+
+    return df
+
+def handle_status(df, status_mapping):
+    if 'status' in df.columns:
+        default_value = status_mapping.get("default", -1)
+        df['status'] = df['status'].apply(lambda x: status_mapping.get(str(x), default_value))
+    return df
+
+def handle_address_columns(df, address_columns):
+    for col in address_columns:
+        if col in df.columns:
+            df[col] = df[col].replace('None', np.nan).fillna('')
+
+            if col == 'receipt_contract_address':
+                df[col] = df[col].apply(lambda x: None if not x or x.lower() == 'none' or x.lower() == '4e6f6e65' else x)
+
+            if col == 'to_address':
+                df[col] = df[col].replace('', np.nan)
+                
+    return df
+
+def handle_effective_gas_price(df):
+    if 'effective_gas_price' in df.columns and 'gas_price' in df.columns:
+        df['gas_price'] = df['effective_gas_price'].fillna(df['gas_price'])
+        df.drop(['effective_gas_price'], axis=1, inplace=True)
+    return df
+
+def convert_columns_to_numeric(df, numeric_columns):
+    for col in numeric_columns:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+    return df
+
+def convert_columns_to_eth(df, value_conversion):
+    for col, divisor in value_conversion.items():
+        if col in df.columns:
+            df[col] = df[col].astype(float) / divisor
+    return df
+
+def shorten_input_data(df):
+    if 'input_data' in df.columns:
+        df['input_data'] = df['input_data'].apply(lambda x: x[:10] if x else None)
+    return df
+
+def convert_type_to_bytea(df):
+    if 'type' in df.columns:
+        df['type'] = df['type'].apply(
+            lambda x: '\\x' + int(x).to_bytes(4, byteorder='little', signed=True).hex() 
+            if pd.notnull(x) and isinstance(x, (int, float)) else None
+        )
+    return df
+
+# Custom operation for Scroll
+def handle_l1_fee_scroll(df):
+    if 'l1_fee' in df.columns:
+        df['l1_fee'] = df['l1_fee'].apply(
+            lambda x: int(x, 16) / 1e18 if isinstance(x, str) and x.startswith('0x') else float(x) / 1e18
+        )
+    
+    if 'gas_price' in df.columns and 'gas_used' in df.columns:
+        df['tx_fee'] = (df['gas_price'] * df['gas_used']) / 1e18
+
+    if 'l1_fee' in df.columns and 'tx_fee' in df.columns:
+        df['tx_fee'] += df['l1_fee']
+    
+    return df
+
+def calculate_priority_fee(df):
+    if 'max_fee_per_gas' in df.columns and 'base_fee_per_gas' in df.columns:
+        df['priority_fee_per_gas'] = (df['max_fee_per_gas'] - df['base_fee_per_gas']) / 1e18
+        df.drop('base_fee_per_gas', axis=1, inplace=True)
+    else:
+        df['priority_fee_per_gas'] = np.nan
+    return df
+
+def handle_max_fee_per_blob_gas(df):
+    if 'max_fee_per_blob_gas' in df.columns:
+        df['max_fee_per_blob_gas'] = df['max_fee_per_blob_gas'].apply(
+            lambda x: int(x, 16) / 1e18 if isinstance(x, str) and x.startswith('0x') else float(x) / 1e18
+        ).astype(float)
+    return df
 
 # ---------------- Connection Functions ------------------
 def connect_to_node(rpc_config):
@@ -74,721 +225,99 @@ def s3_file_exists(s3, file_key, bucket_name):
         s3.head_object(Bucket=bucket_name, Key=file_key)
         return True
     except botocore.exceptions.ClientError as e:
-        # If the error code is 404 (Not Found), then the file doesn't exist.
         error_code = int(e.response['Error']['Code'])
         if error_code == 404:
             return False
         else:
-            # Re-raise the exception if it's any other error.
             raise e
 
-# ---------------- Data Processing Functions -------------
-def prep_dataframe(df):
-    # Ensure the required columns exist, filling with 0 if they don't
-    required_columns = ['l1GasUsed', 'l1GasPrice', 'l1FeeScalar']
+# ---------------- Generic Preparation Function ------------------
+def prep_dataframe_new(df, chain):
+    op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
+    default_chains = ['manta', 'metis']
+    arbitrum_nitro_chains = ['arbitrum', 'gravity']
+    
+    chain_lower = chain.lower()
+
+    if chain_lower in op_chains:
+        config = chain_configs.get('op_chains')
+    elif chain_lower in arbitrum_nitro_chains:
+        config = chain_configs.get('arbitrum_nitro')
+    elif chain_lower in chain_configs:
+        config = chain_configs[chain_lower]
+    elif chain_lower in default_chains:
+        config = chain_configs['default']
+    else:
+        raise ValueError(f"Chain '{chain}' is not listed in the supported chains.")
+
+    # Ensure the required columns exist, filling with default values
+    required_columns = config.get('required_columns', [])
     for col in required_columns:
         if col not in df.columns:
             df[col] = 0
 
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'l1GasUsed': 'l1_gas_used',
-        'l1GasPrice': 'l1_gas_price',
-        'l1FeeScalar': 'l1_fee_scalar',
-        'block_timestamp': 'block_timestamp'
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    filtered_df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    filtered_df = filtered_df.rename(columns=column_mapping)
-
-    # Convert columns to numeric if they aren't already
-    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
-    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
-
-    # Apply the safe conversion to the l1_gas_price column
-    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].apply(safe_float_conversion)
-    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].astype('float64')
-    filtered_df['l1_gas_price'].fillna(0, inplace=True)
-    
-    # Handle 'l1_fee_scalar'
-    filtered_df['l1_fee_scalar'].fillna('0', inplace=True)
-    filtered_df['l1_fee_scalar'] = pd.to_numeric(filtered_df['l1_fee_scalar'], errors='coerce')
-
-    # Handle 'l1_gas_used'
-    filtered_df['l1_gas_used'] = filtered_df['l1_gas_used'].apply(hex_to_int)
-    filtered_df['l1_gas_used'].fillna(0, inplace=True)
-
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = ((filtered_df['gas_price'] * filtered_df['gas_used']) + (filtered_df['l1_gas_used'] * filtered_df['l1_gas_price'] * filtered_df['l1_fee_scalar'])) / 1e18
-    
-    # Convert the 'l1_gas_price' column to eth
-    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].astype(float) / 1e18
-    
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '' or x == b'\x00' or x == b'') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")             
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df
-
-def prep_dataframe_opchain(df):
-    # Ensure the required columns exist, filling with 0 if they don't
-    required_columns = ['l1GasUsed', 'l1GasPrice', 'l1FeeScalar', 'l1Fee']
-    for col in required_columns:
-        if col not in df.columns:
-            df[col] = 0
-
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'l1GasUsed': 'l1_gas_used',
-        'l1GasPrice': 'l1_gas_price',
-        'l1FeeScalar': 'l1_fee_scalar',
-        'l1Fee': 'l1_fee',
-        'block_timestamp': 'block_timestamp'
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    filtered_df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    filtered_df = filtered_df.rename(columns=column_mapping)
-
-    # Convert columns to numeric if they aren't already
-    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
-    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
-
-    # Apply the safe conversion to the l1_gas_price column
-    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].apply(safe_float_conversion)
-    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].astype('float64')
-    filtered_df['l1_gas_price'].fillna(0, inplace=True)
-
-    # Apply the safe conversion to the l1_fee column
-    filtered_df['l1_fee'] = filtered_df['l1_fee'].apply(safe_float_conversion)
-    filtered_df['l1_fee'] = filtered_df['l1_fee'].astype('float64')
-    filtered_df['l1_fee'].fillna(0, inplace=True)
-    
-    # Handle 'l1_fee_scalar'
-    filtered_df['l1_fee_scalar'].fillna('0', inplace=True)
-    filtered_df['l1_fee_scalar'] = pd.to_numeric(filtered_df['l1_fee_scalar'], errors='coerce')
-
-    # Handle 'l1_gas_used'
-    filtered_df['l1_gas_used'] = filtered_df['l1_gas_used'].apply(hex_to_int)
-    filtered_df['l1_gas_used'].fillna(0, inplace=True)
-
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = ((filtered_df['gas_price'] * filtered_df['gas_used']) + (filtered_df['l1_fee'])) / 1e18
-    
-    # Convert the 'l1_gas_price' column to eth
-    filtered_df['l1_gas_price'] = filtered_df['l1_gas_price'].astype(float) / 1e18
-
-    # Convert the 'l1_fee' column to eth
-    filtered_df['l1_fee'] = filtered_df['l1_fee'].astype(float) / 1e18
-    
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '' or x == b'\x00' or x == b'') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(filtered_df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")             
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df    
-
-def prep_dataframe_scroll(df):
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'l1Fee': 'l1_fee',
-        'block_timestamp': 'block_timestamp'
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    filtered_df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    filtered_df = filtered_df.rename(columns=column_mapping)
-
-    filtered_df['l1_fee'] = filtered_df['l1_fee'].apply(lambda x: int(x, 16) / 1e18 if x.startswith('0x') else float(x) / 1e18)
-    
-    # Convert columns to numeric if they aren't already
-    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
-    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
-    
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18 + filtered_df['l1_fee']
-    
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-    
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-        
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df  
-
-def prep_dataframe_linea(df):
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'block_timestamp': 'block_timestamp'
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    filtered_df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    filtered_df = filtered_df.rename(columns=column_mapping)
-
-    # Convert columns to numeric if they aren't already
-    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
-    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
-    
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used'])  / 1e18
-    
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-        
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df 
-
-def prep_dataframe_arbitrum(df):
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'effectiveGasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'block_timestamp': 'block_timestamp',
-        'gasUsedForL1': 'l1_gas_used',
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    filtered_df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    filtered_df = filtered_df.rename(columns=column_mapping)
-
-    # Convert columns to numeric if they aren't already
-    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
-    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
-    
-    filtered_df['l1_gas_used'] = filtered_df['l1_gas_used'].apply(hex_to_int)
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used'])  / 1e18
-    
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # handle 'to_address' column for missing values (to avoid 4E6F6E65 bytea)
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df 
-
-def prep_dataframe_polygon_zkevm(df):
-    # Mapping of input columns to the required dataframe structure
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'transactionHash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'effectiveGasPrice': 'effective_gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'block_timestamp': 'block_timestamp',
-        'contractAddress': 'receipt_contract_address',
-        'type': 'type'
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    df = df.rename(columns=column_mapping)
-    df['tx_hash'] = df['tx_hash'].apply(lambda x: '\\x' + ast.literal_eval(x).hex() if pd.notnull(x) else None)
-
-    # Convert Integer to BYTEA
-    df['type'] = df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
-    
-    # Use 'effective_gas_price' if available; otherwise, fallback to 'gas_price'
-    df['gas_price'] = df['effective_gas_price'].fillna(df['gas_price'])
-    
-    # Convert numeric columns to appropriate types
-    df['gas_price'] = pd.to_numeric(df['gas_price'], errors='coerce')
-    df['gas_used'] = pd.to_numeric(df['gas_used'], errors='coerce')
-    
-    # Convert 'block_time' to datetime
-    df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # Convert 'empty_input' column to boolean
-    df['empty_input'] = df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert Ethereum values from Wei to Ether for 'gas_price' and 'value'
-    df['gas_price'] = df['gas_price'].astype(float) / 1e18
-    df['value'] = df['value'].astype(float) / 1e18
-
-    # 'status' column: convert to expected status values
-    df['status'] = df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # Handle 'to_address', 'from_address', 'receipt_contract_address' for missing values
-    address_columns = ['to_address', 'from_address', 'receipt_contract_address']
-    for col in address_columns:
-        df[col] = df[col].fillna('')
-
-        if col == 'receipt_contract_address':
-            df[col] = df[col].apply(lambda x: None if not x or x.lower() == 'none' or x.lower() == '4e6f6e65' else x)
-    
-    for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
+    # Fill NaN values with specified defaults
+    fillna_values = config.get('fillna_values', {})
+    for col, value in fillna_values.items():
         if col in df.columns:
-            df[col] = df[col].str.replace('0x', '\\x', regex=False)
+            df[col].fillna(value, inplace=True)
+
+    # Map columns
+    column_mapping = config.get('column_mapping', {})
+    existing_columns = [col for col in column_mapping.keys() if col in df.columns]
+    df = df[existing_columns]
+    df = df.rename(columns=column_mapping)
+
+    # Convert columns to numeric
+    numeric_columns = config.get('numeric_columns', [])
+    df = convert_columns_to_numeric(df, numeric_columns)
+
+    # Apply special operations
+    special_operations = config.get('special_operations', [])
+    for operation_name in special_operations:
+        operation_function = globals().get(operation_name)
+        if operation_function:
+            df = operation_function(df)
         else:
-            print(f"Column {col} not found in dataframe.")      
-            
-    df['tx_fee'] = df['gas_used'] * df['gas_price']
-    df.drop(['effective_gas_price'], axis=1, inplace=True)
+            print(f"Warning: Special operation '{operation_name}' not found.")
+
+    # Apply custom operations if any
+    custom_operations = config.get('custom_operations', [])
+    for op_name in custom_operations:
+        operation_function = globals().get(op_name)
+        if operation_function:
+            df = operation_function(df)
+        else:
+            print(f"Warning: Custom operation '{op_name}' not found.")
+
+    # Convert date columns
+    date_columns = config.get('date_columns', {})
+    for col, unit in date_columns.items():
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], unit=unit)
+
+    # Map status values
+    status_mapping = config.get('status_mapping', {})
+    df = handle_status(df, status_mapping)
+
+    # Handle address columns
+    address_columns = config.get('address_columns', [])
+    df = handle_address_columns(df, address_columns)
+
+    # Handle bytea columns
+    bytea_columns = config.get('bytea_columns', [])
+    df = handle_bytea_columns(df, bytea_columns)
+
+    # Value conversions
+    value_conversion = config.get('value_conversion', {})
+    df = convert_columns_to_eth(df, value_conversion)
+
+    # Any additional custom steps
+    if chain.lower() == 'ethereum':
+        df = shorten_input_data(df)
+
     return df
 
-def prep_dataframe_blast(df):
-
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'block_timestamp': 'block_timestamp'
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    filtered_df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    filtered_df = filtered_df.rename(columns=column_mapping)
-
-    # Convert columns to numeric if they aren't already
-    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
-    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
-    
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
-    
-    
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")             
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df
-def prep_dataframe_eth(df):
-
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'input_data',
-        'block_timestamp': 'block_timestamp',
-        'maxFeePerGas': 'max_fee_per_gas',
-        'maxPriorityFeePerGas': 'max_priority_fee_per_gas',
-        'type': 'tx_type',
-        'nonce': 'nonce',
-        'transactionIndex': 'position',
-        'baseFeePerGas': 'base_fee_per_gas',
-        'maxFeePerBlobGas': 'max_fee_per_blob_gas'
-    }
-
-    # Filter the dataframe to only include the relevant columns that exist in the DataFrame
-    existing_columns = [col for col in column_mapping.keys() if col in df.columns]
-    filtered_df = df[existing_columns]
-
-    # Rename the columns based on the above mapping
-    existing_column_mapping = {key: column_mapping[key] for key in existing_columns}
-
-    # Rename the columns based on the updated mapping
-    filtered_df = filtered_df.rename(columns=existing_column_mapping)
-
-    # Ensure numeric columns are handled appropriately
-    for col in ['gas_price', 'gas_used', 'value', 'max_fee_per_gas', 'max_priority_fee_per_gas']:
-        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
-    
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
-
-    filtered_df['max_fee_per_gas'] = filtered_df['max_fee_per_gas'].astype(float) / 1e18
-    filtered_df['max_priority_fee_per_gas'] = filtered_df['max_priority_fee_per_gas'].astype(float) / 1e18
-    filtered_df['base_fee_per_gas'] = filtered_df['base_fee_per_gas'].astype(float) / 1e18
-    
-    if 'max_fee_per_blob_gas' in filtered_df.columns:
-        filtered_df['max_fee_per_blob_gas'] = filtered_df['max_fee_per_blob_gas'].apply(lambda x: int(x, 16) if isinstance(x, str) and x.startswith('0x') else float(x)) / 1e18
-        
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['input_data'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address', 'input_data']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")      
-
-    ## shorten input_data column to first 4 bytes (only method that is called)
-    filtered_df['input_data'] = filtered_df['input_data'].apply(lambda x: x[:10] if x else None)       
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    # calculate priority_fee_per_gas
-    if 'max_fee_per_gas' in filtered_df.columns and 'base_fee_per_gas' in filtered_df.columns:
-        filtered_df['base_fee_per_gas'] = pd.to_numeric(filtered_df['base_fee_per_gas'], errors='coerce')
-        filtered_df['priority_fee_per_gas'] = (filtered_df['max_fee_per_gas'] - filtered_df['base_fee_per_gas'])
-    else:
-        filtered_df['priority_fee_per_gas'] = np.nan
-    
-    # drop base_fee_per_gas
-    filtered_df.drop('base_fee_per_gas', axis=1, inplace=True)
-
-    return filtered_df
-
-def prep_dataframe_zksync_era(df):
-
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'gasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'block_timestamp': 'block_timestamp',
-        'type': 'type',
-        'contractAddress': 'receipt_contract_address'
-    }
-    
-    # Filter the dataframe to only include the relevant columns that exist in the DataFrame
-    existing_columns = [col for col in column_mapping.keys() if col in df.columns]
-    filtered_df = df[existing_columns]
-
-    # Rename the columns based on the above mapping
-    existing_column_mapping = {key: column_mapping[key] for key in existing_columns}
-
-    # Rename the columns based on the updated mapping
-    filtered_df = filtered_df.rename(columns=existing_column_mapping)
-
-    # Convert columns to numeric if they aren't already
-    # Ensure numeric columns are handled appropriately
-    for col in ['gas_price', 'gas_used', 'value']:
-        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
-    
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
-
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-        
-    # Convert the 'type' integer values to bytea format before insertion
-    filtered_df['type'] = filtered_df['type'].apply(lambda x: '\\x' + x.to_bytes(4, byteorder='little', signed=True).hex() if pd.notnull(x) else None)
-
-    # Handle 'to_address', 'from_address', 'receipt_contract_address' for missing values
-    address_columns = ['to_address', 'from_address', 'receipt_contract_address']
-    for col in address_columns:
-        filtered_df[col] = filtered_df[col].fillna('')
-
-        if col == 'receipt_contract_address':
-            filtered_df[col] = filtered_df[col].apply(lambda x: None if not x or x.lower() == 'none' or x.lower() == '4e6f6e65' else x)
-    
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address', 'receipt_contract_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")             
-    
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-    
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df
-
-def prep_dataframe_taiko(df):
-
-    print("Preprocessing dataframe...")
-    # Define a mapping of old columns to new columns
-    column_mapping = {
-        'blockNumber': 'block_number',
-        'hash': 'tx_hash',
-        'from': 'from_address',
-        'to': 'to_address',
-        'effectiveGasPrice': 'gas_price',
-        'gas': 'gas_limit',
-        'gasUsed': 'gas_used',
-        'value': 'value',
-        'status': 'status',
-        'input': 'empty_input',
-        'block_timestamp': 'block_timestamp'
-    }
-
-    # Filter the dataframe to only include the relevant columns
-    filtered_df = df[list(column_mapping.keys())]
-
-    # Rename the columns based on the above mapping
-    filtered_df = filtered_df.rename(columns=column_mapping)
-    
-    # Convert columns to numeric if they aren't already
-    filtered_df['gas_price'] = pd.to_numeric(filtered_df['gas_price'], errors='coerce')
-    filtered_df['gas_used'] = pd.to_numeric(filtered_df['gas_used'], errors='coerce')
-    
-    # Calculating the tx_fee
-    filtered_df['tx_fee'] = (filtered_df['gas_price'] * filtered_df['gas_used']) / 1e18
-    
-    # Convert the 'input' column to boolean to indicate if it's empty or not
-    filtered_df['empty_input'] = filtered_df['empty_input'].apply(lambda x: True if (x == '0x' or x == '') else False)
-
-    # Convert block_timestamp to datetime
-    filtered_df['block_timestamp'] = pd.to_datetime(df['block_timestamp'], unit='s')
-
-    # status column: 1 if status is success, 0 if failed else -1
-    filtered_df['status'] = filtered_df['status'].apply(lambda x: 1 if x == 1 else 0 if x == 0 else -1)
-    
-    # replace None in 'to_address' column with empty string
-    if 'to_address' in filtered_df.columns:
-        filtered_df['to_address'] = filtered_df['to_address'].fillna(np.nan)
-        filtered_df['to_address'] = filtered_df['to_address'].replace('None', np.nan)
-        
-    # Handle bytea data type
-    for col in ['tx_hash', 'to_address', 'from_address']:
-        if col in filtered_df.columns:
-            filtered_df[col] = filtered_df[col].str.replace('0x', '\\x', regex=False)
-        else:
-            print(f"Column {col} not found in dataframe.")
-
-    # gas_price column in eth
-    filtered_df['gas_price'] = filtered_df['gas_price'].astype(float) / 1e18
-
-    # value column divide by 1e18 to convert to eth
-    filtered_df['value'] = filtered_df['value'].astype(float) / 1e18
-
-    return filtered_df    
 # ---------------- Error Handling -----------------------
 class MaxWaitTimeExceededException(Exception):
     pass
@@ -814,18 +343,6 @@ def handle_retry_exception(current_start, current_end, base_wait_time, rpc_url):
 # ---------------- Database Interaction ------------------
 def check_db_connection(db_connector):
     return db_connector is not None
-
-def create_db_engine(db_user, db_password, db_host, db_port, db_name):
-    print("Creating database engine...")
-    try:
-        # create connection to Postgres
-        engine = create_engine(f'postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}')
-        engine.connect()  # test connection
-        return engine
-    except exc.SQLAlchemyError as e:
-        print("ERROR: connecting to database. Check your database configurations.")
-        print(e)
-        sys.exit(1)
 
 # ---------------- Data Interaction --------------------
 def get_latest_block(w3):
@@ -871,14 +388,11 @@ def fetch_block_transaction_details(w3, block):
     return transaction_details
     
 def fetch_data_for_range(w3, block_start, block_end):
-    #print(f"...fetching data for blocks {block_start} to {block_end}. RPC: {w3.get_rpc_url()}")
     all_transaction_details = []
-
     try:
         # Loop through each block in the range
         for block_num in range(block_start, block_end + 1):
             block = w3.eth.get_block(block_num, full_transactions=True)
-            #print(f"...fetching data for block {block_num}. RPC: {w3.get_rpc_url()}")
             
             # Fetch transaction details for the block using the new function
             transaction_details = fetch_block_transaction_details(w3, block)
@@ -917,20 +431,13 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
     s3_path = f"s3://{bucket_name}/{file_key}"
     df.to_parquet(s3_path, index=False)
 
-    # # Check if the file exists in S3
-    # if s3_file_exists(s3_connection, file_key, bucket_name):
-    #     print(f"...file {file_key} uploaded to S3 bucket {bucket_name}.")
-    # else:
-    #     print(f"...file {file_key} not found in S3 bucket {bucket_name}.")
-    #     raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
-
 def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
     base_wait_time = 3   # Base wait time in seconds
     start_time = time.time()
     while True:
         try:
             elapsed_time = time.time() - start_time
-            
+
             df = fetch_data_for_range(w3, current_start, current_end)
 
             # Check if df is None or empty, and if so, return early without further processing.
@@ -939,30 +446,13 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 return
 
             save_data_for_range(df, current_start, current_end, chain, s3_connection, bucket_name)
-            
-            if chain == 'linea':
-                df_prep = prep_dataframe_linea(df)
-            elif chain == 'scroll':
-                df_prep = prep_dataframe_scroll(df)
-            elif chain in ['arbitrum', 'gravity']:
-                df_prep = prep_dataframe_arbitrum(df)
-            elif chain == 'polygon_zkevm':
-                df_prep = prep_dataframe_polygon_zkevm(df)
-            elif chain == 'zksync_era':
-                df_prep = prep_dataframe_zksync_era(df)
-            elif chain == 'ethereum':
-                df_prep = prep_dataframe_eth(df)
-            elif chain == 'taiko':
-                df_prep = prep_dataframe_taiko(df)
-            elif chain in ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']:
-                df_prep = prep_dataframe_opchain(df)
-            else:
-                df_prep = prep_dataframe(df)
+
+            df_prep = prep_dataframe_new(df, chain)
 
             df_prep.drop_duplicates(subset=['tx_hash'], inplace=True)
             df_prep.set_index('tx_hash', inplace=True)
             df_prep.index.name = 'tx_hash'
-            
+
             try:
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
                 print(f"...data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}. RPC: {w3.get_rpc_url()}")

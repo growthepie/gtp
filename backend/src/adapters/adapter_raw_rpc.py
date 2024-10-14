@@ -6,6 +6,7 @@ from queue import Queue, Empty
 from threading import Thread, Lock
 from src.adapters.rpc_funcs.utils import Web3CC, connect_to_s3, check_db_connection, check_s3_connection, get_latest_block, connect_to_node, fetch_and_process_range
 
+
 class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("RPC-Raw", adapter_params, db_connector)

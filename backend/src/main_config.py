@@ -117,20 +117,20 @@ def get_main_config_dict(db_connector:DbConnector):
                     content = json.loads(content)
                     chain_data = content
                     
-            if logo_path in nameslist:
-                with zip_ref.open(logo_path) as file:
-                    content = file.read().decode('utf-8')
-                    content = json.loads(content)
-                    chain_data["logo"] = content
-                                
-            if token_abi_path in nameslist:
-                with zip_ref.open(token_abi_path) as file:
-                    content = file.read().decode('utf-8')
-                    content = json.loads(content)
-                    chain_data["circulating_supply_token_abi"] = content
+                if logo_path in nameslist:
+                    with zip_ref.open(logo_path) as file:
+                        content = file.read().decode('utf-8')
+                        content = json.loads(content)
+                        chain_data["logo"] = content
+                                    
+                if token_abi_path in nameslist:
+                    with zip_ref.open(token_abi_path) as file:
+                        content = file.read().decode('utf-8')
+                        content = json.loads(content)
+                        chain_data["circulating_supply_token_abi"] = content
 
-            ##chain_data['l2beat_stage'] = db_connector.get_stage(chain)
-            main_config_dict.append(chain_data)
+                ##chain_data['l2beat_stage'] = db_connector.get_stage(chain)
+                main_config_dict.append(chain_data)
 
     return main_config_dict
 
