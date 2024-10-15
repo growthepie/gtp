@@ -10,6 +10,16 @@ import time
 from src.adapters.rpc_funcs.utils import get_latest_block
 
 def connect_to_node(url):
+    """
+    Connects to an Ethereum node at the given URL using Web3.
+    Retries the connection up to 5 times in case of failure.
+
+    Args:
+        url (str): The URL of the Ethereum node.
+
+    Returns:
+        Web3: The connected Web3 instance or None if the connection fails after retries.
+    """
     retries = 5
     delay = 5
     w3 = Web3(HTTPProvider(url))
@@ -28,6 +38,16 @@ def connect_to_node(url):
     return None
         
 def fetch_rpc_urls(db_connector, chain_name):
+    """
+    Fetches active RPC URLs for a specific blockchain chain from the database.
+
+    Args:
+        db_connector: Database connector used to execute the query.
+        chain_name (str): The name of the blockchain chain.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the active RPC URLs for the specified chain.
+    """
     query = f"""
     SELECT url
     FROM sys_rpc_config
@@ -45,6 +65,14 @@ def fetch_rpc_urls(db_connector, chain_name):
         return pd.DataFrame()
     
 def fetch_block(url, results):
+    """
+    Fetches the latest block number from the specified Ethereum node URL.
+    If the connection fails, it returns 0 for that URL.
+
+    Args:
+        url (str): The URL of the Ethereum node.
+        results (dict): A dictionary to store the block number for the URL.
+    """
     try:
         web3_instance = connect_to_node(url)
         if web3_instance is not None:
@@ -59,6 +87,15 @@ def fetch_block(url, results):
 
 
 def fetch_all_blocks(rpc_urls):
+    """
+    Fetches the latest block number from all provided RPC URLs in parallel using threading.
+
+    Args:
+        rpc_urls (pd.DataFrame): DataFrame containing the RPC URLs.
+
+    Returns:
+        dict: A dictionary mapping each RPC URL to its latest block number.
+    """
     threads = []
     results = {}
     for index, rpc in rpc_urls.iterrows():
@@ -72,6 +109,17 @@ def fetch_all_blocks(rpc_urls):
     return results
 
 def check_sync_state(blocks, block_threshold):
+    """
+    Checks the synchronization state of all nodes by comparing their block heights.
+    Identifies nodes that are either too far behind or not responding.
+
+    Args:
+        blocks (dict): A dictionary mapping RPC URLs to their block numbers.
+        block_threshold (int): The maximum allowed difference between the highest block and a node's block before it is considered unsynced.
+
+    Returns:
+        list: A list of URLs for nodes that are unsynced.
+    """
     max_block = max(blocks.values())
     notsynced_nodes = []
     for url, block in blocks.items():
@@ -84,6 +132,14 @@ def check_sync_state(blocks, block_threshold):
     return notsynced_nodes
 
 def deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes):
+    """
+    Deactivates nodes in the database that are not synchronized by marking them as 'unsynced'.
+
+    Args:
+        db_connector: Database connector used to execute the query.
+        chain_name (str): The name of the blockchain chain.
+        notsynced_nodes (list): A list of unsynced node URLs.
+    """
     if notsynced_nodes:
         query = """
         UPDATE sys_rpc_config
@@ -101,6 +157,15 @@ def deactivate_behind_nodes(db_connector, chain_name, notsynced_nodes):
         print("...no nodes to deactivate.")
           
 def get_chains_available(db_connector):
+    """
+    Retrieves a list of unique blockchain chain names from the database.
+
+    Args:
+        db_connector: Database connector used to execute the query.
+
+    Returns:
+        list: A list of distinct blockchain chain names.
+    """
     try:
         with db_connector.engine.connect() as conn:
             query = """
@@ -115,6 +180,14 @@ def get_chains_available(db_connector):
         return []
 
 def activate_nodes(db_connector, chain_name, rpc_urls):
+    """
+    Activates nodes in the database by marking them as 'synced'.
+
+    Args:
+        db_connector: Database connector used to execute the query.
+        chain_name (str): The name of the blockchain chain.
+        rpc_urls (pd.DataFrame): A DataFrame containing the URLs of the nodes to activate.
+    """
     if not rpc_urls.empty:
         rpc_urls = tuple(rpc_urls['url'].tolist())
         query = """
@@ -133,6 +206,12 @@ def activate_nodes(db_connector, chain_name, rpc_urls):
         print("...no nodes to activate.")
           
 def sync_check():
+    """
+    Performs a synchronization check for all blockchain chains.
+    Fetches the latest block numbers, checks sync state, activates synchronized nodes, and deactivates unsynced nodes.
+
+    The function sets a block threshold of 100 for 'arbitrum' and 30 for other chains.
+    """
     db_connector = DbConnector()
 
     chains = get_chains_available(db_connector)
