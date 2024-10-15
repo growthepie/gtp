@@ -10,6 +10,26 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 
 class EndpointTester:
     def __init__(self, url):
+        """
+        Initializes the EndpointTester instance with the given RPC URL and initializes 
+        necessary attributes for tracking calls, latency, and errors.
+
+        Args:
+            url (str): The RPC URL to test.
+
+        Attributes:
+            w3: Web3 instance for making requests.
+            error_occurred (bool): Tracks if any error has occurred during the test.
+            calls_made (int): Tracks the total number of calls made.
+            max_calls_per_sec (int): Tracks the maximum number of calls made per second.
+            latency_sum (float): Tracks the sum of all latencies for calculating average latency.
+            latencies_recorded (int): Number of successful latencies recorded.
+            test_start_time (float): The start time of the test.
+            calls_lock (threading.Lock): Lock for synchronizing call count updates.
+            calls_last_check (int): Tracks the number of calls at the last rate check.
+            last_check_time (float): The time of the last rate check.
+            test_duration (int): Duration of the test in seconds.
+        """
         self.url = url
         self.w3 = None
         self.error_occurred = False
@@ -25,6 +45,11 @@ class EndpointTester:
         logging.debug(f"EndpointTester initialized for URL: {url}")
         
     def connect_to_node(self):
+        """
+        Connects to the Ethereum node using the specified RPC URL. Injects the geth POA middleware for compatibility with certain chains.
+        
+        Logs whether the connection was successful or failed.
+        """
         self.w3 = Web3(HTTPProvider(self.url))
         self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
         if self.w3.is_connected():
@@ -33,6 +58,12 @@ class EndpointTester:
             logging.error("Failed to connect to RPC node.")
 
     def make_request(self):
+        """
+        Makes a request to retrieve the latest block number from the Ethereum node.
+        Measures and logs the latency of the request and updates the call count and latency sum.
+        
+        Handles any exceptions and logs errors if the request fails.
+        """
         logging.debug("Making a request...")
         try:
             start_time = time.time()
@@ -51,12 +82,23 @@ class EndpointTester:
             logging.debug("Request failed.")
 
     def calculate_average_latency(self):
+        """
+        Calculates the average latency of the successful requests made during the test.
+
+        Returns:
+            float: The average latency in seconds, rounded to 3 decimal places, or None if no latencies were recorded.
+        """
         if self.latencies_recorded > 0:
             return round(self.latency_sum / self.latencies_recorded, 3)
         else:
             return None
 
     def check_rate_reset(self):
+        """
+        Checks the call rate and resets the tracking for the number of calls made per second. 
+        Updates the maximum calls per second if the current rate exceeds the previous maximum.
+        Resets the call count for the next period.
+        """
         logging.debug("Checking rate and resetting if necessary...")
         current_time = time.time()
         elapsed_time = current_time - self.last_check_time
@@ -71,6 +113,17 @@ class EndpointTester:
             logging.debug(f"Rate check and reset done, max_calls_per_sec: {self.max_calls_per_sec}")
             
     def run_test(self):
+        """
+        Runs the performance test for the specified RPC URL.
+        Spawns multiple threads to make requests to the node, increasing the thread count over time to stress test the endpoint.
+        
+        Tracks the number of calls made, the maximum number of calls per second, and the average latency.
+        Stops the test if an error occurs or the test duration is exceeded.
+
+        Returns:
+            dict: A dictionary containing test results including the RPC URL, maximum call count, 
+                maximum calls per second, average latency, and error details (if any).
+        """
         logging.debug("Starting test...")
         try:
             self.connect_to_node()
@@ -123,6 +176,12 @@ class EndpointTester:
 
 
 def main():
+    """
+    Main function to test multiple RPC endpoints for performance.
+    For each endpoint, it initializes an EndpointTester instance, runs the test, and saves the results to a JSON file.
+    
+    Logs errors if any occur during testing or file writing.
+    """
     logging.debug("Starting main function...")
     chain = "blast"
     endpoints = [

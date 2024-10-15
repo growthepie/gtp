@@ -15,6 +15,16 @@ from src.adapters.rpc_funcs.chain_configs import chain_configs
 
 # ---------------- Utility Functions ---------------------
 def safe_float_conversion(x):
+    """
+    Safely converts the input value to a float. If the input is a hexadecimal string, 
+    it is first converted to an integer before converting to float.
+    
+    Args:
+        x: The input value to convert (can be string, int, etc.).
+
+    Returns:
+        float: The converted float value or NaN if the conversion fails.
+    """
     try:
         if isinstance(x, str) and x.startswith('0x'):
             return float(int(x, 16))
@@ -23,12 +33,30 @@ def safe_float_conversion(x):
         return np.nan
 
 def hex_to_int(hex_str):
+    """
+    Converts a hexadecimal string to an integer.
+    
+    Args:
+        hex_str (str): The hexadecimal string to convert.
+
+    Returns:
+        int: The integer value or None if conversion fails.
+    """
     try:
         return int(hex_str, 16)
     except (ValueError, TypeError):
         return None
 
 def convert_input_to_boolean(df):
+    """
+    Converts 'input_data' or 'empty_input' columns in the DataFrame to boolean values based on the presence of data.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'input_data' or 'empty_input' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with the converted boolean values.
+    """
     if 'input_data' in df.columns:
         df['empty_input'] = df['input_data'].apply(
             lambda x: True if x in ['0x', '', b'\x00', b''] else False
@@ -40,6 +68,15 @@ def convert_input_to_boolean(df):
     return df
 
 def handle_l1_gas_price(df):
+    """
+    Safely converts the 'l1_gas_price' column to float and fills NaN values with 0.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'l1_gas_price' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'l1_gas_price' converted to float.
+    """
     if 'l1_gas_price' in df.columns:
         df['l1_gas_price'] = df['l1_gas_price'].apply(safe_float_conversion)
         df['l1_gas_price'] = df['l1_gas_price'].astype('float64')
@@ -47,6 +84,15 @@ def handle_l1_gas_price(df):
     return df
 
 def handle_l1_fee(df):
+    """
+    Safely converts the 'l1_fee' column to float and fills NaN values with 0.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'l1_fee' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'l1_fee' converted to float.
+    """
     if 'l1_fee' in df.columns:
         df['l1_fee'] = df['l1_fee'].apply(safe_float_conversion)
         df['l1_fee'] = df['l1_fee'].astype('float64')
@@ -55,17 +101,44 @@ def handle_l1_fee(df):
     return df
 
 def handle_l1_fee_scalar(df):
+    """
+    Fills NaN values in the 'l1_fee_scalar' column with '0'.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'l1_fee_scalar' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'l1_fee_scalar' column processed.
+    """
     if 'l1_fee_scalar' in df.columns:
         df['l1_fee_scalar'].fillna('0', inplace=True)
     return df
 
 def handle_l1_gas_used(df):
+    """
+    Converts the 'l1_gas_used' column from hexadecimal to integer and fills NaN values with 0.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'l1_gas_used' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'l1_gas_used' column processed.
+    """
     if 'l1_gas_used' in df.columns:
         df['l1_gas_used'] = df['l1_gas_used'].apply(hex_to_int)
         df['l1_gas_used'].fillna(0, inplace=True)
     return df
 
 def calculate_tx_fee(df):
+    """
+    Calculates the transaction fee based on gas price, gas used, and L1 fee if applicable.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing transaction data.
+
+    Returns:
+        pd.DataFrame: DataFrame with a new 'tx_fee' column added.
+    """
     if all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_fee']):
         # OpChains calculation
         df['tx_fee'] = (
@@ -85,6 +158,16 @@ def calculate_tx_fee(df):
     return df
 
 def handle_tx_hash(df, column_name='tx_hash'):
+    """
+    Converts the 'tx_hash' column values into the proper '\\x' hex format if applicable.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'tx_hash' column.
+        column_name (str): The name of the column to process (default is 'tx_hash').
+
+    Returns:
+        pd.DataFrame: DataFrame with 'tx_hash' column processed.
+    """
     if column_name in df.columns:
         df[column_name] = df[column_name].apply(
             lambda tx_hash: '\\x' + (
@@ -97,6 +180,16 @@ def handle_tx_hash(df, column_name='tx_hash'):
     return df
 
 def handle_tx_hash_polygon_zkevm(df, column_name='tx_hash'):
+    """
+    Processes 'tx_hash' values for the Polygon zkEVM chain by converting them to '\\x' hex format.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'tx_hash' column.
+        column_name (str): The name of the column to process (default is 'tx_hash').
+
+    Returns:
+        pd.DataFrame: DataFrame with 'tx_hash' values processed for Polygon zkEVM.
+    """
     if column_name in df.columns:
         df[column_name] = df[column_name].apply(
             lambda x: '\\x' + ast.literal_eval(x).hex() if pd.notnull(x) else None
@@ -104,6 +197,16 @@ def handle_tx_hash_polygon_zkevm(df, column_name='tx_hash'):
     return df
 
 def handle_bytea_columns(df, bytea_columns):
+    """
+    Processes columns in a DataFrame to handle PostgreSQL bytea types by ensuring proper formatting.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        bytea_columns (list): List of column names that need to be formatted as bytea.
+
+    Returns:
+        pd.DataFrame: DataFrame with bytea columns processed.
+    """
     for col in bytea_columns:
         if col in df.columns:
             df[col] = df[col].replace(['nan', 'None', 'NaN'], np.nan)
@@ -113,12 +216,32 @@ def handle_bytea_columns(df, bytea_columns):
     return df
 
 def handle_status(df, status_mapping):
+    """
+    Maps the 'status' column in the DataFrame to corresponding values using a status mapping dictionary.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'status' column.
+        status_mapping (dict): Dictionary mapping status values.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'status' column processed.
+    """
     if 'status' in df.columns:
         default_value = status_mapping.get("default", -1)
         df['status'] = df['status'].apply(lambda x: status_mapping.get(str(x), default_value))
     return df
 
 def handle_address_columns(df, address_columns):
+    """
+    Processes specified address columns, replacing missing values and handling specific cases like contract addresses.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing address columns.
+        address_columns (list): List of column names to process.
+
+    Returns:
+        pd.DataFrame: DataFrame with address columns processed.
+    """
     for col in address_columns:
         if col in df.columns:
             df[col] = df[col].replace('None', np.nan).fillna('')
@@ -132,29 +255,76 @@ def handle_address_columns(df, address_columns):
     return df
 
 def handle_effective_gas_price(df):
+    """
+    Replaces 'gas_price' with 'effective_gas_price' where available, and drops the 'effective_gas_price' column.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing gas price columns.
+
+    Returns:
+        pd.DataFrame: DataFrame with effective gas prices handled.
+    """
     if 'effective_gas_price' in df.columns and 'gas_price' in df.columns:
         df['gas_price'] = df['effective_gas_price'].fillna(df['gas_price'])
         df.drop(['effective_gas_price'], axis=1, inplace=True)
     return df
 
 def convert_columns_to_numeric(df, numeric_columns):
+    """
+    Converts specified columns in a DataFrame to numeric types, handling any errors gracefully.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        numeric_columns (list): List of columns to convert to numeric.
+
+    Returns:
+        pd.DataFrame: DataFrame with numeric columns converted.
+    """
     for col in numeric_columns:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
     return df
 
 def convert_columns_to_eth(df, value_conversion):
+    """
+    Converts specified columns from their original units to Ether by dividing them with the provided divisor.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame.
+        value_conversion (dict): A dictionary with column names as keys and divisors as values.
+
+    Returns:
+        pd.DataFrame: DataFrame with values converted to Ether.
+    """
     for col, divisor in value_conversion.items():
         if col in df.columns:
             df[col] = df[col].astype(float) / divisor
     return df
 
 def shorten_input_data(df):
+    """
+    Trims 'input_data' column values to 10 characters for storage optimization.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'input_data' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with shortened 'input_data' column.
+    """
     if 'input_data' in df.columns:
         df['input_data'] = df['input_data'].apply(lambda x: x[:10] if x else None)
     return df
 
 def convert_type_to_bytea(df):
+    """
+    Converts the 'type' column values to bytea format for storage in PostgreSQL.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'type' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'type' values converted to bytea.
+    """
     if 'type' in df.columns:
         df['type'] = df['type'].apply(
             lambda x: '\\x' + int(x).to_bytes(4, byteorder='little', signed=True).hex() 
@@ -164,6 +334,15 @@ def convert_type_to_bytea(df):
 
 # Custom operation for Scroll
 def handle_l1_fee_scroll(df):
+    """
+    Custom handler for Scroll chain: converts 'l1_fee' to Ether and calculates total transaction fee.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing transaction data for the Scroll chain.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'l1_fee' and transaction fees processed.
+    """
     if 'l1_fee' in df.columns:
         df['l1_fee'] = df['l1_fee'].apply(
             lambda x: int(x, 16) / 1e18 if isinstance(x, str) and x.startswith('0x') else float(x) / 1e18
@@ -178,6 +357,15 @@ def handle_l1_fee_scroll(df):
     return df
 
 def calculate_priority_fee(df):
+    """
+    Calculates the priority fee per gas by subtracting 'base_fee_per_gas' from 'max_fee_per_gas' and converting to Ether.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing gas price columns.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'priority_fee_per_gas' calculated.
+    """
     if 'max_fee_per_gas' in df.columns and 'base_fee_per_gas' in df.columns:
         df['priority_fee_per_gas'] = (df['max_fee_per_gas'] - df['base_fee_per_gas']) / 1e18
         df.drop('base_fee_per_gas', axis=1, inplace=True)
@@ -186,6 +374,15 @@ def calculate_priority_fee(df):
     return df
 
 def handle_max_fee_per_blob_gas(df):
+    """
+    Processes the 'max_fee_per_blob_gas' column by converting its values from hexadecimal to Ether.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing 'max_fee_per_blob_gas' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'max_fee_per_blob_gas' processed.
+    """
     if 'max_fee_per_blob_gas' in df.columns:
         df['max_fee_per_blob_gas'] = df['max_fee_per_blob_gas'].apply(
             lambda x: int(x, 16) / 1e18 if isinstance(x, str) and x.startswith('0x') else float(x) / 1e18
@@ -194,6 +391,15 @@ def handle_max_fee_per_blob_gas(df):
 
 # ---------------- Connection Functions ------------------
 def connect_to_node(rpc_config):
+    """
+    Establishes a connection to the Ethereum node using the provided RPC configuration.
+    
+    Args:
+        rpc_config (dict): RPC configuration details for connecting to the node.
+
+    Returns:
+        Web3CC: The Web3CC object for interacting with the blockchain, or raises a ConnectionError if connection fails.
+    """
     try:
         return Web3CC(rpc_config)
     except ConnectionError as e:
@@ -201,6 +407,15 @@ def connect_to_node(rpc_config):
         raise
 
 def connect_to_s3():
+    """
+    Establishes a connection to an S3 bucket using credentials from environment variables.
+    
+    Returns:
+        tuple: A tuple containing the S3 client object and the bucket name.
+
+    Raises:
+        ConnectionError: If the connection to S3 fails.
+    """
     try:
         aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
         aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
@@ -218,9 +433,29 @@ def connect_to_s3():
         raise ConnectionError(f"An error occurred while connecting to S3: {str(e)}")
 
 def check_s3_connection(s3_connection):
+    """
+    Checks if the connection to S3 is established.
+    
+    Args:
+        s3_connection: The S3 connection object.
+
+    Returns:
+        bool: True if the connection is valid, False otherwise.
+    """
     return s3_connection is not None
 
 def s3_file_exists(s3, file_key, bucket_name):
+    """
+    Checks if a file exists in the specified S3 bucket.
+    
+    Args:
+        s3: The S3 client object.
+        file_key (str): The key (file path) in the S3 bucket.
+        bucket_name (str): The name of the S3 bucket.
+
+    Returns:
+        bool: True if the file exists, False otherwise.
+    """
     try:
         s3.head_object(Bucket=bucket_name, Key=file_key)
         return True
@@ -233,6 +468,16 @@ def s3_file_exists(s3, file_key, bucket_name):
 
 # ---------------- Generic Preparation Function ------------------
 def prep_dataframe_new(df, chain):
+    """
+    Prepares the given DataFrame for storage and processing based on chain-specific configurations.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing transaction data.
+        chain (str): The name of the blockchain chain.
+
+    Returns:
+        pd.DataFrame: The prepared DataFrame with necessary columns, data types, and operations applied.
+    """
     op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber']
     default_chains = ['manta', 'metis']
     arbitrum_nitro_chains = ['arbitrum', 'gravity']
@@ -342,10 +587,28 @@ def handle_retry_exception(current_start, current_end, base_wait_time, rpc_url):
 
 # ---------------- Database Interaction ------------------
 def check_db_connection(db_connector):
+    """
+    Checks if the connection to the database is valid.
+    
+    Args:
+        db_connector: The database connector object.
+
+    Returns:
+        bool: True if the connection is valid, False otherwise.
+    """
     return db_connector is not None
 
 # ---------------- Data Interaction --------------------
 def get_latest_block(w3):
+    """
+    Retrieves the latest block number from the connected Ethereum node.
+    
+    Args:
+        w3: The Web3 instance for interacting with the blockchain.
+
+    Returns:
+        int: The latest block number, or None if the retrieval fails after retries.
+    """
     retries = 0
     while retries < 3:
         try:
@@ -359,6 +622,16 @@ def get_latest_block(w3):
     return None
     
 def fetch_block_transaction_details(w3, block):
+    """
+    Fetches detailed information for all transactions in a given block.
+    
+    Args:
+        w3: The Web3 instance for interacting with the blockchain.
+        block (dict): The block data containing transactions.
+
+    Returns:
+        list: A list of dictionaries containing transaction details.
+    """
     transaction_details = []
     block_timestamp = block['timestamp']  # Get the block timestamp
     base_fee_per_gas = block['baseFeePerGas'] if 'baseFeePerGas' in block else None  # Fetch baseFeePerGas from the block
@@ -388,6 +661,17 @@ def fetch_block_transaction_details(w3, block):
     return transaction_details
     
 def fetch_data_for_range(w3, block_start, block_end):
+    """
+    Fetches transaction data for a range of blocks and returns it as a DataFrame.
+    
+    Args:
+        w3: The Web3 instance for interacting with the blockchain.
+        block_start (int): The starting block number.
+        block_end (int): The ending block number.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the transaction data for the specified block range.
+    """
     all_transaction_details = []
     try:
         # Loop through each block in the range
@@ -413,6 +697,17 @@ def fetch_data_for_range(w3, block_start, block_end):
         raise e
 
 def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket_name):
+    """
+    Saves the transaction data for a range of blocks to an S3 bucket in parquet format.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame containing transaction data.
+        block_start (int): The starting block number.
+        block_end (int): The ending block number.
+        chain (str): The name of the blockchain chain.
+        s3_connection: The S3 connection object.
+        bucket_name (str): The name of the S3 bucket.
+    """
     # Convert any 'object' dtype columns to string
     for col in df.columns:
         if df[col].dtype == 'object':
@@ -432,6 +727,24 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
     df.to_parquet(s3_path, index=False)
 
 def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
+    """
+    Fetches and processes transaction data for a range of blocks, saves it to S3, and inserts it into the database.
+    Retries the operation on failure with exponential backoff.
+
+    Args:
+        current_start (int): The starting block number.
+        current_end (int): The ending block number.
+        chain (str): The name of the blockchain chain.
+        w3: The Web3 instance for interacting with the blockchain.
+        table_name (str): The database table name to insert data into.
+        s3_connection: The S3 connection object.
+        bucket_name (str): The name of the S3 bucket.
+        db_connector: The database connector object.
+        rpc_url (str): The RPC URL used for fetching data.
+
+    Raises:
+        MaxWaitTimeExceededException: If the operation exceeds the maximum wait time.
+    """
     base_wait_time = 3   # Base wait time in seconds
     start_time = time.time()
     while True:
@@ -469,6 +782,18 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 raise MaxWaitTimeExceededException(f"For {rpc_url}: Maximum wait time exceeded for blocks {current_start} to {current_end}")
 
 def save_to_s3(df, chain, s3_connection, bucket_name):
+    """
+    Saves the provided DataFrame to an S3 bucket in parquet format.
+    
+    Args:
+        df (pd.DataFrame): The DataFrame to save.
+        chain (str): The name of the blockchain chain.
+        s3_connection: The S3 connection object.
+        bucket_name (str): The name of the S3 bucket.
+
+    Raises:
+        Exception: If the file upload fails.
+    """
     # Convert any 'object' dtype columns to string
     for col in df.columns:
         if df[col].dtype == 'object':
@@ -496,6 +821,16 @@ def save_to_s3(df, chain, s3_connection, bucket_name):
         raise Exception(f"File {file_key} not uploaded to S3 bucket {bucket_name}. Stopping execution.")
 
 def get_chain_config(db_connector, chain_name):
+    """
+    Retrieves the RPC configuration and batch size for the specified blockchain chain.
+    
+    Args:
+        db_connector: The database connector object.
+        chain_name (str): The name of the blockchain chain.
+
+    Returns:
+        tuple: A tuple containing the list of RPC configurations and the batch size.
+    """
     # Determine the SQL query based on the chain name
     if chain_name.lower() == "celestia" or chain_name.lower() == "starknet":
         raw_sql = text(

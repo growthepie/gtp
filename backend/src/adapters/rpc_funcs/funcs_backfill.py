@@ -17,6 +17,18 @@ DB_PORT = os.getenv("DB_PORT")
 
 # ------------------ Batch Processing Functions ------------------
 def check_and_record_missing_block_ranges(db_connector, table_name, start_block, end_block):
+    """
+    Checks for missing block ranges in the specified table and records them as ranges.
+
+    Args:
+        db_connector: Database connector to execute queries.
+        table_name (str): Name of the table to check for missing blocks.
+        start_block (int): The starting block number for the check.
+        end_block (int): The ending block number for the check.
+
+    Returns:
+        list: A list of tuples representing missing block ranges (start_block, end_block).
+    """
     print(f"Checking and recording missing block ranges for table: {table_name}")
 
     # Ensure start_block is not less than the smallest block in the database
@@ -80,9 +92,30 @@ def check_and_record_missing_block_ranges(db_connector, table_name, start_block,
     return missing_ranges
 
 def date_to_unix_timestamp(year, month, day):
+    """
+    Converts a specific date into a Unix timestamp.
+
+    Args:
+        year (int): The year of the date.
+        month (int): The month of the date.
+        day (int): The day of the date.
+
+    Returns:
+        int: The Unix timestamp for the provided date.
+    """
     return int(time.mktime(datetime(year, month, day).timetuple()))
 
 def find_first_block_of_day(w3, target_timestamp):
+    """
+    Finds the first block of the day based on a target timestamp using a binary search.
+
+    Args:
+        w3: Web3 instance to interact with the Ethereum blockchain.
+        target_timestamp (int): The Unix timestamp of the start of the target day.
+
+    Returns:
+        int: The block number corresponding to the first block of the day.
+    """
     min_block = 0
     max_block = w3.eth.block_number
     while min_block <= max_block:
@@ -102,6 +135,16 @@ def find_first_block_of_day(w3, target_timestamp):
     return min_block
 
 def find_last_block_of_day(w3, target_timestamp):
+    """
+    Finds the last block of the day based on a target timestamp using a binary search.
+
+    Args:
+        w3: Web3 instance to interact with the Ethereum blockchain.
+        target_timestamp (int): The Unix timestamp of the start of the target day.
+
+    Returns:
+        int: The block number corresponding to the last block of the day.
+    """
     # Set the end of the day timestamp (23:59:59 of the target day)
     end_of_day_timestamp = target_timestamp + 86400 - 1  # 86400 seconds in a day, -1 to stay in the same day
 

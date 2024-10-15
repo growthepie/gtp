@@ -9,6 +9,17 @@ from src.adapters.rpc_funcs.utils import Web3CC, connect_to_s3, check_db_connect
 
 class NodeAdapter(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
+        """
+        Initializes the NodeAdapter class with the given RPC configurations and database connector.
+
+        Args:
+            adapter_params (dict): Adapter parameters, including RPC configurations and chain.
+            db_connector: Database connection object for interaction with the database.
+
+        Raises:
+            ValueError: If no RPC configurations are provided.
+            ConnectionError: If connection to any RPC node fails.
+        """
         super().__init__("RPC-Raw", adapter_params, db_connector)
         
         self.rpc_configs = adapter_params.get('rpc_configs', [])
@@ -37,12 +48,32 @@ class NodeAdapter(AbstractAdapterRaw):
         self.s3_connection, self.bucket_name = connect_to_s3()
             
     def extract_raw(self, load_params:dict):
+        """
+        Extracts raw transaction data by starting from a specific block and batch size.
+
+        Args:
+            load_params (dict): Dictionary containing block start and batch size parameters.
+
+        Prints a message upon successful completion.
+        """
         self.block_start = load_params['block_start']
         self.batch_size = load_params['batch_size']
         self.run(self.block_start, self.batch_size)
         print(f"FINISHED loading raw tx data for {self.chain}.")
         
     def run(self, block_start, batch_size):
+        """
+        Runs the transaction extraction process, checking connections to the database and S3.
+        Fetches the latest block and enqueues block ranges for processing.
+
+        Args:
+            block_start (int/str): The block number to start processing, or 'auto' to start from the last processed block.
+            batch_size (int): Number of blocks to process per batch.
+
+        Raises:
+            ConnectionError: If database or S3 connection is not established.
+            ValueError: If the start block is higher than the latest block.
+        """
         if not check_db_connection(self.db_connector):
             raise ConnectionError("Database is not connected.")
         else:
@@ -75,11 +106,29 @@ class NodeAdapter(AbstractAdapterRaw):
         self.manage_threads(block_range_queue)     
 
     def enqueue_block_ranges(self, block_start, block_end, batch_size, queue):
+        """
+        Enqueues block ranges in the provided queue for parallel processing by worker threads.
+
+        Args:
+            block_start (int): Starting block number.
+            block_end (int): Ending block number.
+            batch_size (int): Size of block batches to enqueue.
+            queue (Queue): The queue to enqueue block ranges.
+        """
         for start in range(block_start, block_end + 1, batch_size):
             end = min(start + batch_size - 1, block_end)
             queue.put((start, end))
 
     def manage_threads(self, block_range_queue):
+        """
+        Manages worker threads to process the block ranges in parallel.
+        Tracks and manages RPC configuration errors and thread lifecycle.
+
+        Args:
+            block_range_queue (Queue): Queue containing block ranges for processing.
+
+        Starts the worker threads and a monitoring thread to oversee the process.
+        """
         threads = []
         rpc_errors = {}  # Track errors for each RPC configuration
         error_lock = Lock()
@@ -104,6 +153,17 @@ class NodeAdapter(AbstractAdapterRaw):
         print("All worker and monitoring threads have completed.")
 
     def monitor_workers(self, threads, block_range_queue, rpc_configs, rpc_errors, error_lock):
+        """
+        Monitors active worker threads and block range processing, restarting workers if necessary.
+        Ensures that workers continue processing as long as there are tasks.
+
+        Args:
+            threads (list): List of active worker threads.
+            block_range_queue (Queue): Queue of block ranges for processing.
+            rpc_configs (list): List of RPC configurations.
+            rpc_errors (dict): Dictionary tracking errors per RPC configuration.
+            error_lock (Lock): Thread lock to manage concurrent access to the error dictionary.
+        """
         additional_threads = []
         while True:
             #active_threads = [thread for _, thread in threads if thread.is_alive()]
@@ -156,6 +216,16 @@ class NodeAdapter(AbstractAdapterRaw):
         print("All worker and monitoring threads have completed.")
             
     def process_rpc_config(self, rpc_config, block_range_queue, rpc_errors, error_lock):
+        """
+        Processes a block range using a specific RPC configuration.
+        Starts worker threads to handle block ranges and retries on RPC connection failure.
+
+        Args:
+            rpc_config (dict): RPC configuration used to connect to the node.
+            block_range_queue (Queue): Queue containing block ranges to process.
+            rpc_errors (dict): Dictionary tracking errors for each RPC configuration.
+            error_lock (Lock): Thread lock to synchronize access to rpc_errors.
+        """
         max_retries = 3
         retry_delay = 10
         attempt = 0
@@ -192,6 +262,17 @@ class NodeAdapter(AbstractAdapterRaw):
                 print(f"Worker for {rpc_config['url']} has stopped.")
             
     def worker_task(self, rpc_config, node_connection, block_range_queue, rpc_errors, error_lock):
+        """
+        Performs the task of fetching and processing a block range using the specified RPC configuration.
+        Requeues the block range if processing fails and tracks errors.
+
+        Args:
+            rpc_config (dict): RPC configuration for connecting to the blockchain node.
+            node_connection: The node connection object.
+            block_range_queue (Queue): Queue of block ranges to process.
+            rpc_errors (dict): Dictionary to track RPC errors.
+            error_lock (Lock): Lock for managing concurrent error tracking.
+        """
         while rpc_config['url'] in self.active_rpcs and not block_range_queue.empty():
             block_range = None
             try:
@@ -218,16 +299,43 @@ class NodeAdapter(AbstractAdapterRaw):
                     block_range_queue.task_done()
 
     def process_missing_blocks(self, missing_block_ranges, batch_size):
+        """
+        Processes missing block ranges by enqueuing them and managing threads for backfill.
+
+        Args:
+            missing_block_ranges (list): List of tuples representing missing block ranges.
+            batch_size (int): Size of block batches to process at once.
+        """
         block_range_queue = Queue()
         for start, end in missing_block_ranges:
             self.enqueue_block_ranges(start, end, batch_size, block_range_queue)
         self.manage_threads(block_range_queue)
     
     def fetch_block_transaction_count(self, w3, block_num):
+        """
+        Fetches the total number of transactions in a specific block.
+
+        Args:
+            w3: Web3 instance used to interact with the blockchain.
+            block_num (int): Block number for which transaction count is retrieved.
+
+        Returns:
+            int: The number of transactions in the block.
+        """
         block = w3.eth.get_block(block_num, full_transactions=False)
         return len(block['transactions'])
 
     def backfill_missing_blocks(self, start_block, end_block, batch_size):
+        """
+        Identifies and backfills missing blocks by processing the appropriate block ranges.
+
+        Args:
+            start_block (int): The starting block number for backfill.
+            end_block (int): The ending block number for backfill.
+            batch_size (int): Number of blocks to process per batch.
+
+        Filters out block ranges with no transactions.
+        """
         missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)
         if not missing_block_ranges:
             print("No missing block ranges found.")
