@@ -223,36 +223,7 @@ class JSONCreation():
                 'ranking_bubble': True
             }
 
-            ## Non fundamental metrics
-            # ,'total_blob_size': {
-            #     'name': 'Total Blob Size',
-            #     'fundamental': False, ## not a fundamental metric
-            #     'metric_keys': ['total_blob_size_bytes'],
-            #     'units': {
-            #         'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False, 'agg': False, 'suffix': 'Bytes'},
-            #     },
-            #     'avg': True,
-            #     'all_l2s_aggregate': 'sum',
-            #     'monthly_agg': 'sum',
-            #     'max_date_fill' : False,
-            #     'ranking_bubble': False
-            # }
-
-            # ,'total_blob_fees': {
-            #     'name': 'Total Blob Fees',
-            #     'fundamental': False, ## not a fundamental metric
-            #     'metric_keys': ['da_fees_usd', 'da_fees_eth'],
-            #     'units': {
-            #         'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
-            #         'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
-            #     },
-            #     'avg': True,
-            #     'all_l2s_aggregate': 'sum',
-            #     'monthly_agg': 'sum',
-            #     'max_date_fill' : False,
-            #     'ranking_bubble': False
-            # }
-
+            ## Non Fundamental Metrics
             ,'costs': {
                 'name': 'Costs',
                 'fundamental': False, ## not a fundamental metric
@@ -448,6 +419,59 @@ class JSONCreation():
                 },
             },
         }
+
+        self.da_metrics = {
+            'blob_count': {
+                'name': 'Blob Count',
+                'fundamental': True,
+                'metric_keys': ['da_blob_count'],
+                'units': {
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                },
+                'avg': True, ##7d rolling average
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+            }
+            ,'data_posted': {
+                'name': 'Data Posted',
+                'fundamental': True,
+                'metric_keys': ['da_data_posted_bytes'],
+                'units': {
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+            }
+            ,'fees_paid': {
+                'name': 'DA Fees',
+                'fundamental': True,
+                'metric_keys': ['da_fees_usd', 'da_fees_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+            }
+            ,'fees_per_mbyte': {
+                'name': 'Fees per MByte',
+                'fundamental': True,
+                'metric_keys': ['da_fees_per_mbyte_usd', 'da_fees_per_mbyte_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'avg',
+                'monthly_agg': 'avg',
+                'max_date_fill' : False,
+            }
+        }
         
         for metric_key, metric_value in self.metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
@@ -457,6 +481,7 @@ class JSONCreation():
 
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
+        self.da_metrics_list = [item for sublist in [self.da_metrics[metric]['metric_keys'] for metric in self.da_metrics] for item in sublist]
         #concat all values of metrics_list to a string and add apostrophes around each value
         self.metrics_string = "'" + "','".join(self.metrics_list) + "'"
 
@@ -473,19 +498,26 @@ class JSONCreation():
 
         self.chains_list_in_api_economics = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True]
 
+        self.da_layers_list = [layer for layer in self.da_layers]
+
         ## all feest metrics keys
         self.fees_list = [item for sublist in [self.fees_types[metric]['metric_keys'] for metric in self.fees_types] for item in sublist]
 
     
     ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
 
-    def df_rename(self, df, metric_id, col_name_removal=False):
+    def df_rename(self, df, metric_id, col_name_removal=False, da=False):
         # print(f'called df_rename for {metric_id}')
         # print(df.columns.to_list())
+        if da == True:
+            tmp_metrics_dict = self.da_metrics
+        else:
+            tmp_metrics_dict = self.metrics
+
         if col_name_removal:
             df.columns.name = None
 
-        if 'usd' in self.metrics[metric_id]['units'] or 'eth' in self.metrics[metric_id]['units']:
+        if 'usd' in tmp_metrics_dict[metric_id]['units'] or 'eth' in tmp_metrics_dict[metric_id]['units']:
             for col in df.columns.to_list():
                 if col == 'unix':
                     continue
@@ -560,9 +592,14 @@ class JSONCreation():
 
 
     # this method returns a list of lists with the unix timestamp and all associated values for a certain metric_id and chain_id
-    def generate_daily_list(self, df, metric_id, origin_key, start_date = None):
+    def generate_daily_list(self, df, metric_id, origin_key, start_date = None, da=False):
         ##print(f'called generate int for {metric_id} and {origin_key}')
-        mks = self.metrics[metric_id]['metric_keys']
+        if da == True:
+            tmp_metrics_dict = self.da_metrics
+        else:
+            tmp_metrics_dict = self.metrics
+
+        mks = tmp_metrics_dict[metric_id]['metric_keys']
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key", "date"]]
 
         ## if start_date is not None, filter df_tmp date to only values after start date
@@ -575,7 +612,7 @@ class JSONCreation():
         yesterday = yesterday.date()
 
         ## if max_date_fill is True, fill missing rows until yesterday with 0
-        if self.metrics[metric_id]['max_date_fill']:
+        if tmp_metrics_dict[metric_id]['max_date_fill']:
             #check if max_date is yesterday
             if max_date.date() != yesterday:
                 print(f"max_date in df for {mks} is {max_date}. Will fill missing rows until {yesterday} with None.")
@@ -597,13 +634,13 @@ class JSONCreation():
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
         
-        df_tmp = self.df_rename(df_tmp, metric_id, True)
+        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True, da=da)
 
         mk_list = df_tmp.values.tolist() ## creates a list of lists
 
-        if len(self.metrics[metric_id]['units']) == 1:
+        if len(tmp_metrics_dict[metric_id]['units']) == 1:
             mk_list_int = [[int(i[0]),i[1]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
-        elif len(self.metrics[metric_id]['units']) == 2:
+        elif len(tmp_metrics_dict[metric_id]['units']) == 2:
             mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
         else:
             raise NotImplementedError("Only 1 or 2 units are supported")
@@ -611,9 +648,13 @@ class JSONCreation():
         return mk_list_int, df_tmp.columns.to_list()
     
     # this method returns a list of lists with the unix timestamp (first day of month) and all associated values for a certain metric_id and chain_id
-    def generate_monthly_list(self, df, metric_id, origin_key, start_date = None):
+    def generate_monthly_list(self, df, metric_id, origin_key, start_date = None, da=False):
+        if da == True:
+            tmp_metrics_dict = self.da_metrics
+        else:
+            tmp_metrics_dict = self.metrics
         ##print(f'called generate int for {metric_id} and {chain_id}')
-        mks = self.metrics[metric_id]['metric_keys'].copy()
+        mks = tmp_metrics_dict[metric_id]['metric_keys'].copy()
         if 'daa' in mks:
             mks[mks.index('daa')] = 'maa'
 
@@ -629,14 +670,14 @@ class JSONCreation():
         ## replace earliest date with first day of month (in unix) in unix column
         df_tmp['unix'] = (df_tmp['date'].dt.to_period("M").dt.start_time).astype(np.int64) // 10**6        
 
-        if self.metrics[metric_id]['monthly_agg'] == 'sum':
+        if tmp_metrics_dict[metric_id]['monthly_agg'] == 'sum':
             df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'sum', 'unix': 'min'}).reset_index()
-        elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+        elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'avg':
             df_tmp = df_tmp.groupby([df_tmp.date.dt.to_period("M"), df_tmp.metric_key]).agg({'value': 'mean', 'unix': 'min'}).reset_index()
-        elif self.metrics[metric_id]['monthly_agg'] == 'maa':
+        elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'maa':
             pass ## no aggregation necessary
         else:
-            raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
+            raise NotImplementedError(f"monthly_agg {tmp_metrics_dict[metric_id]['monthly_agg']} not implemented")
 
         ## drop column date
         df_tmp = df_tmp.drop(columns=['date'])
@@ -644,13 +685,13 @@ class JSONCreation():
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
 
-        df_tmp = self.df_rename(df_tmp, metric_id, True)
+        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True, da=da)
 
         mk_list = df_tmp.values.tolist() ## creates a list of lists
 
-        if len(self.metrics[metric_id]['units']) == 1:
+        if len(tmp_metrics_dict[metric_id]['units']) == 1:
             mk_list_int = [[int(i[0]),i[1]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
-        elif len(self.metrics[metric_id]['units']) == 2:
+        elif len(tmp_metrics_dict[metric_id]['units']) == 2:
             mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
         else:
             raise NotImplementedError("Only 1 or 2 units are supported")
@@ -852,9 +893,14 @@ class JSONCreation():
         df.value.fillna(0, inplace=True)
         return df
 
-    def create_changes_dict(self, df, metric_id, origin_key):
+    def create_changes_dict(self, df, metric_id, origin_key, da=False):
+        if da == True:
+            tmp_metrics_dict = self.da_metrics
+        else:
+            tmp_metrics_dict = self.metrics
+
         #print(f'called create_changes_dict for {metric_id} and {origin_key}')
-        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(self.metrics[metric_id]['metric_keys'])), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
+        df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(tmp_metrics_dict[metric_id]['metric_keys'])), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
         df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
 
         changes_dict = {
@@ -867,7 +913,7 @@ class JSONCreation():
                         '365d': []
                     }
 
-        for mk in self.metrics[metric_id]['metric_keys']:
+        for mk in tmp_metrics_dict[metric_id]['metric_keys']:
             #print(mk)
             cur_val = df_tmp[mk].iloc[0]
             changes = [1,7,30,90,180,365]
@@ -887,14 +933,18 @@ class JSONCreation():
                             change_val = 99.99
                 changes_dict[f'{change}d'].append(change_val)
 
-        df_tmp = self.df_rename(df_tmp, metric_id)
+        df_tmp = self.df_rename(df_tmp, metric_id, da=da)
         changes_dict['types'] = df_tmp.columns.to_list()
 
         return changes_dict
     
-    def create_changes_dict_monthly(self, df, metric_id, origin_key):
+    def create_changes_dict_monthly(self, df, metric_id, origin_key, da=False):
+        if da == True:
+            tmp_metrics_dict = self.da_metrics
+        else:
+            tmp_metrics_dict = self.metrics
         #print(f'called create_changes_dict for {metric_id} and {origin_key}')
-        mks = self.metrics[metric_id]['metric_keys'].copy()
+        mks = tmp_metrics_dict[metric_id]['metric_keys'].copy()
         if 'daa' in mks:
             mks[mks.index('daa')] = 'aa_last30d'
 
@@ -911,28 +961,28 @@ class JSONCreation():
 
         for mk in mks:
             #print(mk)
-            if self.metrics[metric_id]['monthly_agg'] == 'sum':
+            if tmp_metrics_dict[metric_id]['monthly_agg'] == 'sum':
                 cur_val = df_tmp[mk].iloc[0:29].sum()
-            elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+            elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'avg':
                 cur_val = df_tmp[mk].iloc[0:29].mean()
-            elif self.metrics[metric_id]['monthly_agg'] == 'maa':
+            elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'maa':
                 cur_val = df_tmp[mk].iloc[0]
             else:
-                raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
+                raise NotImplementedError(f"monthly_agg {tmp_metrics_dict[metric_id]['monthly_agg']} not implemented")
             
             changes = [30,90,180,365]
             for change in changes:
                 if df_tmp[mk].shape[0] <= change:
                     change_val = None
                 else:
-                    if self.metrics[metric_id]['monthly_agg'] == 'sum':
+                    if tmp_metrics_dict[metric_id]['monthly_agg'] == 'sum':
                         prev_val = df_tmp[mk].iloc[change:change+29].sum()
-                    elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+                    elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'avg':
                         prev_val = df_tmp[mk].iloc[change:change+29].mean()
-                    elif self.metrics[metric_id]['monthly_agg'] == 'maa':
+                    elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'maa':
                         prev_val = df_tmp[mk].iloc[change]
                     else:
-                        raise NotImplementedError(f"monthly_agg {self.metrics[metric_id]['monthly_agg']} not implemented")
+                        raise NotImplementedError(f"monthly_agg {tmp_metrics_dict[metric_id]['monthly_agg']} not implemented")
                     
                     if (prev_val < 0) or (cur_val < 0) or (prev_val == 0):
                         change_val = None
@@ -943,27 +993,32 @@ class JSONCreation():
                             change_val = 99.99
                 changes_dict[f'{change}d'].append(change_val)
 
-        df_tmp = self.df_rename(df_tmp, metric_id)
+        df_tmp = self.df_rename(df_tmp, metric_id, da=da)
         changes_dict['types'] = df_tmp.columns.to_list()
 
         return changes_dict
     
     ## this function takes a dataframe and a metric_id and origin_key as input and returns a value that aggregates the last 30 days
-    def value_last_30d(self, df, metric_id, origin_key):     
-        mks = self.metrics[metric_id]['metric_keys'].copy()
+    def value_last_30d(self, df, metric_id, origin_key, da=False):
+        if da == True:
+            tmp_metrics_dict = self.da_metrics
+        else:
+            tmp_metrics_dict = self.metrics
+
+        mks = tmp_metrics_dict[metric_id]['metric_keys'].copy()
         if 'daa' in mks:
             mks[mks.index('daa')] = 'aa_last30d'
 
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
         df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
 
-        df_tmp = self.df_rename(df_tmp, metric_id, True)
+        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True, da=da)
 
-        if self.metrics[metric_id]['monthly_agg'] == 'sum':
+        if tmp_metrics_dict[metric_id]['monthly_agg'] == 'sum':
             val = df_tmp.iloc[0:29].sum()
-        elif self.metrics[metric_id]['monthly_agg'] == 'avg':
+        elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'avg':
             val = df_tmp.iloc[0:29].mean()
-        elif self.metrics[metric_id]['monthly_agg'] == 'maa':
+        elif tmp_metrics_dict[metric_id]['monthly_agg'] == 'maa':
             val = df_tmp.iloc[0]
 
         val_dict = {
@@ -975,8 +1030,8 @@ class JSONCreation():
 
     def get_all_data(self):
         ## Load all data from database
-        chain_user_list = self.chains_list_in_api + ['multiple', 'celestia']
-        metric_user_list = self.metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
+        chain_user_list = self.chains_list_in_api + self.da_layers_list + ['multiple', 'celestia']
+        metric_user_list = self.metrics_list + self.da_metrics_list + ['user_base_daily', 'user_base_weekly', 'user_base_monthly', 'waa', 'maa', 'aa_last30d', 'aa_last7d', 
                                                 'cca_last7d_exclusive', 'blob_size_bytes'] ## add metrics that are not in the metrics_list
 
         chain_user_string = "'" + "','".join(chain_user_list) + "'"
@@ -1216,7 +1271,7 @@ class JSONCreation():
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
         df_tmp.columns.name = None
 
-        df_tmp = self.df_rename(df_tmp, metric_id, True)
+        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True)
 
         mk_list = df_tmp.values.tolist()
 
@@ -1375,7 +1430,7 @@ class JSONCreation():
             'current_version' : self.api_version,
             'default_chain_selection' : self.get_default_selection(df_data),
             'chains' : chain_dict,
-            'da_layer' : da_dict,
+            'da_layers' : da_dict,
             'metrics' : self.metrics,
             'fee_metrics' : fees_types_api,
             'blockspace_categories' : {
@@ -1617,6 +1672,82 @@ class JSONCreation():
             else:
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
             print(f'DONE -- Metric details export for {metric}')
+
+    def create_da_metric_details_jsons(self, df, metric_keys:list=None):
+        if metric_keys != None:
+            ## create metrics_filtered that only contains metrics that are in the metric_keys list
+            metrics_filtered = {key: value for key, value in self.da_metrics.items() if key in metric_keys}
+        else:
+            metrics_filtered = self.da_metrics
+
+        ## loop over all metrics and generate a metric details json for all metrics and with all possible chainn
+        for metric in metrics_filtered:
+            if self.da_metrics[metric]['fundamental'] == False:
+                continue
+            
+            da_dict = {}    
+            for da in self.da_layers:
+                origin_key = da
+                # if chain.api_in_main == False:
+                #     print(f'..skipped: Metric details export for {origin_key}. API is set to False')
+                #     continue
+
+                # if metric in chain.api_exclude_metrics:
+                #     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
+                #     continue
+
+                if metric == 'blob_count' and origin_key == 'da_ethereum_calldata':
+                    print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
+                    continue
+
+                mk_list = self.generate_daily_list(df, metric, origin_key, da=True)
+                mk_list_int = mk_list[0]
+                mk_list_columns = mk_list[1]
+
+                mk_list_monthly = self.generate_monthly_list(df, metric, origin_key, da=True)
+                mk_list_int_monthly = mk_list_monthly[0]
+                mk_list_columns_monthly = mk_list_monthly[1]
+
+                da_dict[origin_key] = {
+                    'changes': self.create_changes_dict(df, metric, origin_key, da=True),
+                    'changes_monthly': self.create_changes_dict_monthly(df, metric, origin_key, da=True),
+                    'daily': {
+                        'types' : mk_list_columns,
+                        'data' : mk_list_int
+                    },
+                    'last_30d': self.value_last_30d(df, metric, origin_key, da=True),
+                    'monthly': {
+                        'types' : mk_list_columns_monthly,
+                        'data' : mk_list_int_monthly
+                    }
+                }
+
+                ## check if metric should be averagd and add 7d rolling avg field
+                if self.da_metrics[metric]['avg'] == True:
+                    mk_list_int_7d = self.create_7d_rolling_avg(mk_list_int)
+                    da_dict[origin_key]['daily_7d_rolling'] = {
+                        'types' : mk_list_columns,
+                        'data' : mk_list_int_7d
+                    }
+
+            details_dict = {
+                'data': {
+                    'metric_id': metric,
+                    'metric_name': self.da_metrics[metric]['name'],
+                    'source': self.db_connector.get_metric_sources(metric, []),
+                    'avg': self.da_metrics[metric]['avg'],
+                    'monthly_agg': 'distinct' if self.da_metrics[metric]['monthly_agg'] in ['maa'] else self.da_metrics[metric]['monthly_agg'],
+                    'chains': da_dict
+                }
+            }
+
+            details_dict = fix_dict_nan(details_dict, f'da_metrics/{metric}')
+
+            if self.s3_bucket == None:
+                self.save_to_json(details_dict, f'da_metrics/{metric}')
+            else:
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/da_metrics/{metric}', details_dict, self.cf_distribution_id)
+            print(f'DONE -- DA Metric details export for {metric}')
 
     #######################################################################
     ### FEES PAGE

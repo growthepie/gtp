@@ -43,6 +43,7 @@ def etl():
     @task()
     def run_create_metrics_details():
         json_creator.create_metric_details_jsons(df)
+        json_creator.create_da_metric_details_jsons(df)
 
     @task()
     def run_create_landingpage():
@@ -68,11 +69,6 @@ def etl():
         json_creator.create_labels_json('quick')
         json_creator.create_labels_sparkline_json()
         json_creator.create_projects_json()
-
-        # json_creator.create_labels_parquet('full')
-        # json_creator.create_labels_parquet('quick')
-        # json_creator.create_labels_sparkline_parquet()
-        # json_creator.create_projects_parquet()
 
         json_creator.create_export_labels_parquet('top50k')
 
