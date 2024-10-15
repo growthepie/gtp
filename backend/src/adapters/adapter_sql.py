@@ -308,8 +308,9 @@ class AdapterSQL(AbstractAdapter):
             print(f"...HLL: aggregating + inserting active addresses data for {origin_key} and last {days} days...")
             self.db_connector.aggregate_unique_addresses_hll(origin_key, days)
 
-        print(f'...aggregate_addresses_first_seen_global for last {days} days...')
-        self.db_connector.aggregate_addresses_first_seen_global(days)
+        ## STOPPED loading this on October 15th, 2024 (currently not used)
+        # print(f'...aggregate_addresses_first_seen_global for last {days} days...')
+        # self.db_connector.aggregate_addresses_first_seen_global(days)
 
     def run_fees_queries(self, origin_keys, days, granularities, metric_keys=None):
         if origin_keys is None:

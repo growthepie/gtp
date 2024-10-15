@@ -2218,6 +2218,124 @@ sql_q= {
         group by 1
         """
         
+        ## Gravity
+        ,'gravity_txcount_raw': """
+	SELECT date_trunc('day', at2.block_timestamp) AS day,
+		count(*) AS value
+	FROM gravity_tx at2
+	WHERE at2.gas_used > 0
+		AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+	GROUP BY 1
+	"""
+        
+        ,'gravity_fees_paid_eth': """
+        WITH token_price AS (
+                SELECT "date", value as price_usd
+                FROM public.fact_kpis
+                WHERE origin_key = 'gravity' and metric_key = 'price_usd' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        eth_price AS (
+                SELECT "date", value as price_usd
+                FROM public.fact_kpis
+                WHERE origin_key = 'ethereum' and metric_key = 'price_usd' AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        gravity_tx_filtered AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        SUM(tx_fee) AS total_tx_fee
+                FROM public.gravity_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                gravity.day,
+                gravity.total_tx_fee * e.price_usd / eth.price_usd AS value
+        FROM gravity_tx_filtered gravity
+        LEFT JOIN token_price e ON gravity.day = e."date"
+        LEFT JOIN eth_price eth ON gravity.day = eth."date"
+        """
+
+        ,'gravity_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.gravity_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+	,'gravity_aa_xxx': """
+	SELECT 
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+	FROM fact_active_addresses_hll
+	WHERE
+                origin_key = 'gravity' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+	GROUP BY  1
+
+	"""
+
+	,'gravity_aa_last_xxd': """        
+	with tmp as (
+                SELECT 
+                                date as day, 
+                                #hll_union_agg(hll_addresses) OVER seven_days as value
+                FROM fact_active_addresses_hll
+                where origin_key = 'gravity' 
+                                AND date > current_date - interval '{{Days}} days' - INTERVAL '{{Timerange}} days' AND date < current_date
+                WINDOW seven_days AS (ORDER BY date asc ROWS {{Timerange}} - 1 PRECEDING)
+	)
+
+	select 
+                day,
+                value::int as value
+	from tmp
+	where day >= current_date - interval '{{Days}} days'
+	"""
+     
+     ,'gravity_txcosts_median_eth': """
+        WITH mnt_price AS (
+                        SELECT "date", value as price_usd 
+                        FROM fact_kpis
+                        WHERE origin_key  = 'gravity' and metric_key = 'price_usd' 
+                        AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                ),
+                eth_price AS (
+                        SELECT "date", value as price_usd 
+                        FROM fact_kpis
+                        WHERE origin_key  = 'ethereum' and metric_key = 'price_usd' 
+                        AND "date" BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ),
+        gravity_median AS (
+                SELECT
+                        date_trunc('day', "block_timestamp") AS day,
+                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+                FROM public.gravity_tx
+                WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+                GROUP BY 1
+        )
+        SELECT
+                gravity.day,
+                gravity.median_tx_fee * e.price_usd / eth.price_usd as value
+        FROM gravity_median gravity
+        LEFT JOIN mnt_price e ON gravity.day = e."date"
+        LEFT JOIN eth_price eth ON gravity.day = eth."date"
+        """
+
+        ,'gravity_gas_per_second': """
+
+                SELECT  date_trunc('day', block_timestamp) AS day,
+                        SUM(gas_used - l1_gas_used) / (24*60*60) AS value
+                FROM    gravity_tx
+                WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                        AND block_timestamp < date_trunc('day', now())
+                        AND block_timestamp > '2024-07-18'
+                GROUP BY 1
+        """
+
+
 }
 
 
@@ -2546,4 +2664,17 @@ sql_queries = [
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "orderly", sql=sql_q["orderly_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "celestia_blob_size_bytes", origin_key = "orderly", sql=sql_q["orderly_celestia_blob_size_bytes"], currency_dependent = False, query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "celestia_blobs_eth", origin_key = "orderly", sql=sql_q["orderly_celestia_blobs_eth"], currency_dependent = True, query_parameters={"Days": 7})
+
+        ## Gravity
+        ,SQLQuery(metric_key = "txcount_raw", origin_key = "gravity", sql=sql_q["gravity_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        ,SQLQuery(metric_key = "txcount", origin_key = "gravity", sql=sql_q["gravity_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "daa", origin_key = "gravity", sql=sql_q["gravity_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+        #,SQLQuery(metric_key = "waa", origin_key = "gravity", sql=sql_q["gravity_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+        ,SQLQuery(metric_key = "maa", origin_key = "gravity", sql=sql_q["gravity_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+        ,SQLQuery(metric_key = "aa_last7d", origin_key = "gravity", sql=sql_q["gravity_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
+        ,SQLQuery(metric_key = "aa_last30d", origin_key = "gravity", sql=sql_q["gravity_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gravity", sql=sql_q["gravity_fees_paid_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gravity", sql=sql_q["gravity_txcosts_median_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "cca", origin_key = "gravity", sql=get_cross_chain_activity('gravity'), currency_dependent = False, query_parameters={})
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "gravity", sql=sql_q["gravity_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
 ]
