@@ -18,7 +18,7 @@ from src.misc.airflow_utils import alert_via_webhook
         'retry_delay': timedelta(minutes=1),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='raw_arbitrum',
+    dag_id='raw_gravity',
     description='Load raw tx data from Gravity',
     tags=['raw', 'near-real-time', 'rpc'],
     start_date=datetime(2024, 10, 15),
