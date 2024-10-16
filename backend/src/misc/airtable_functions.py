@@ -86,9 +86,11 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
         df['labelling_type'] = ''
     if 'internal_description' not in df.columns:
         df['internal_description'] = None
+    if 'is_proxy' not in df.columns:
+        df['is_proxy'] = None
 
     # drop not needded columns and clean df
-    df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', 'labelling_type', 'internal_description']]
+    df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', 'labelling_type', 'internal_description', 'is_proxy']]
     df.rename(columns={'contract_name': 'name' , 'labelling_type' : 'source'}, inplace=True)
 
     # owner_project and usage_category are lists with 1 element, so we extract the element at index 0

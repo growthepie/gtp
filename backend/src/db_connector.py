@@ -1362,6 +1362,7 @@ class DbConnector:
                         ORDER BY origin_key, row_num_gas, row_num_daa
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
+                df['day range'] = int(days)
                 return df
 
         # function to return the most used contracts by chain (used for blockscout adapter)
