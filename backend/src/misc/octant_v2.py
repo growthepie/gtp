@@ -740,12 +740,13 @@ class OctantV2():
             projects_json['data']['data'], columns=projects_json['data']['types'])
 
         # remove rows with no website
-        oli_projects_metadata = oli_projects_metadata[oli_projects_metadata['website'].notnull(
-        )]
+        oli_projects_metadata = oli_projects_metadata[oli_projects_metadata['website'].notnull()]
 
         # remove trailing slashes from the website
-        oli_projects_metadata['website'] = oli_projects_metadata['website'].str.rstrip(
-            '/')
+        oli_projects_metadata['website'] = oli_projects_metadata['website'].str.rstrip('/')
+
+        # remove duplicate rows based on the website
+        oli_projects_metadata = oli_projects_metadata.drop_duplicates(subset='website')
 
         return oli_projects_metadata
 
@@ -886,12 +887,10 @@ class OctantV2():
         project_key - contains keys for each project with the following keys:
             address, cid, name, introDescription, description, profileImageSmall, profileImageMedium, profileImageLarge, websiteLabel, websiteUrl - str
         """
-        projects_metadata_df = self.load_from_db(
-            'projects_metadata')
+        projects_metadata_df = self.load_from_db('projects_metadata')
 
         # remove trailing slashes from the websiteUrl
-        projects_metadata_df['website_url'] = projects_metadata_df['website_url'].str.rstrip(
-            '/')
+        projects_metadata_df['website_url'] = projects_metadata_df['website_url'].str.rstrip('/')
 
         oli_metadata = self.get_oli_projects_with_websites()
         # make the website the index

@@ -15,7 +15,7 @@ from src.misc.octant_v2 import OctantV2
 @dag(
     default_args={
         'owner' : 'mseidl',
-        'retries' : 3,
+        'retries' : 1,
         'email_on_failure': False,
         'retry_delay' : timedelta(minutes=2),
         'on_failure_callback': alert_via_webhook
