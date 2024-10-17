@@ -83,7 +83,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
-                'ranking_bubble': False
+                'ranking_bubble': False,
+                'log_default': False
             }
             ,'txcount': {
                 'name': 'Transaction Count',
@@ -96,7 +97,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
-                'ranking_bubble': False
+                'ranking_bubble': False,
+                'log_default': False
             }
             ,'daa': {
                 'name': 'Active Addresses',
@@ -109,7 +111,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'maa',
                 'max_date_fill' : False,
-                'ranking_bubble': True
+                'ranking_bubble': True,
+                'log_default': False
             }
             ,'stables_mcap': {
                 'name': 'Stablecoin Market Cap',
@@ -123,7 +126,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
-                'ranking_bubble': True
+                'ranking_bubble': True,
+                'log_default': False
             }
             ,'fees': {
                 'name': 'Revenue',
@@ -137,7 +141,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
-                'ranking_bubble': True
+                'ranking_bubble': True,
+                'log_default': False
             }
             ,'rent_paid': {
                 'name': 'Rent Paid to L1',
@@ -151,7 +156,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : True,
-                'ranking_bubble': False
+                'ranking_bubble': False,
+                'log_default': False
             }
             ,'profit': {
                 'name': 'Profit',
@@ -165,7 +171,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : True,
-                'ranking_bubble': True
+                'ranking_bubble': True,
+                'log_default': False
             }
             ,'txcosts': {
                 'name': 'Transaction Costs',
@@ -179,7 +186,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'weighted_mean',
                 'monthly_agg': 'avg',
                 'max_date_fill' : True,
-                'ranking_bubble': True
+                'ranking_bubble': True,
+                'log_default': False
             }
             ,'fdv': {
                 'name': 'Fully Diluted Valuation',
@@ -193,7 +201,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
-                'ranking_bubble': True
+                'ranking_bubble': True,
+                'log_default': False
             }
             ,'market_cap': {
                 'name': 'Market Cap',
@@ -207,7 +216,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
-                'ranking_bubble': False
+                'ranking_bubble': False,
+                'log_default': False
             }
             ,'throughput': {
                 'name': 'Throughput',
@@ -220,7 +230,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
-                'ranking_bubble': True
+                'ranking_bubble': True,
+                'log_default': False
             }
 
             ## Non Fundamental Metrics
@@ -236,7 +247,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
-                'ranking_bubble': False
+                'ranking_bubble': False,
+                'log_default': False
             }
 
             ,'costs_l1': {
@@ -251,7 +263,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
-                'ranking_bubble': False
+                'ranking_bubble': False,
+                'log_default': False
             }
 
             ,'costs_blobs': {
@@ -266,7 +279,8 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
-                'ranking_bubble': False
+                'ranking_bubble': False,
+                'log_default': False
             }
         }
 
@@ -432,6 +446,7 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
+                'log_default': False
             }
             ,'data_posted': {
                 'name': 'Data Posted',
@@ -444,6 +459,7 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
+                'log_default': False
             }
             ,'fees_paid': {
                 'name': 'DA Fees',
@@ -457,6 +473,7 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
+                'log_default': True
             }
             ,'fees_per_mbyte': {
                 'name': 'Fees per MByte',
@@ -470,6 +487,7 @@ class JSONCreation():
                 'all_l2s_aggregate': 'avg',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
+                'log_default': True
             }
         }
         
@@ -1432,6 +1450,7 @@ class JSONCreation():
             'chains' : chain_dict,
             'da_layers' : da_dict,
             'metrics' : self.metrics,
+            'da_metrics' : self.da_metrics,
             'fee_metrics' : fees_types_api,
             'blockspace_categories' : {
                 'main_categories' : main_category_dict,
