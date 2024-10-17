@@ -453,7 +453,7 @@ class JSONCreation():
                 'fundamental': True,
                 'metric_keys': ['da_data_posted_bytes'],
                 'units': {
-                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'suffix': 'GB'}
                 },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
@@ -1059,6 +1059,7 @@ class JSONCreation():
 
         ## divide value by 1000000 where metric_key is gas_per_second --> mgas/s
         df.loc[df['metric_key'] == 'gas_per_second', 'value'] = df['value'] / 1000000
+        df.loc[df['metric_key'] == 'da_data_posted_bytes', 'value'] = df['value'] / 1024 / 1024 / 1024
         return df
     
     def get_data_fees(self):
