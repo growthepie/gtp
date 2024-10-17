@@ -497,6 +497,9 @@ class JSONCreation():
         for metric_key, metric_value in self.fees_types.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
 
+        for metric_key, metric_value in self.da_metrics.items():
+            metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
+
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
         self.da_metrics_list = [item for sublist in [self.da_metrics[metric]['metric_keys'] for metric in self.da_metrics] for item in sublist]
