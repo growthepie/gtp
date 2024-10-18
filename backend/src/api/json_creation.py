@@ -84,6 +84,7 @@ class JSONCreation():
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'ranking_bubble': False,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'txcount': {
@@ -98,6 +99,7 @@ class JSONCreation():
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
                 'ranking_bubble': False,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'daa': {
@@ -112,6 +114,7 @@ class JSONCreation():
                 'monthly_agg': 'maa',
                 'max_date_fill' : False,
                 'ranking_bubble': True,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'stables_mcap': {
@@ -127,6 +130,7 @@ class JSONCreation():
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'ranking_bubble': True,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'fees': {
@@ -142,6 +146,7 @@ class JSONCreation():
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
                 'ranking_bubble': True,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'rent_paid': {
@@ -157,6 +162,7 @@ class JSONCreation():
                 'monthly_agg': 'sum',
                 'max_date_fill' : True,
                 'ranking_bubble': False,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'profit': {
@@ -172,6 +178,7 @@ class JSONCreation():
                 'monthly_agg': 'sum',
                 'max_date_fill' : True,
                 'ranking_bubble': True,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'txcosts': {
@@ -187,6 +194,7 @@ class JSONCreation():
                 'monthly_agg': 'avg',
                 'max_date_fill' : True,
                 'ranking_bubble': True,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'fdv': {
@@ -202,6 +210,7 @@ class JSONCreation():
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'ranking_bubble': True,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'market_cap': {
@@ -217,6 +226,7 @@ class JSONCreation():
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'ranking_bubble': False,
+                'ranking_landing': True,
                 'log_default': False
             }
             ,'throughput': {
@@ -231,6 +241,7 @@ class JSONCreation():
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'ranking_bubble': True,
+                'ranking_landing': True,
                 'log_default': False
             }
 
@@ -248,6 +259,7 @@ class JSONCreation():
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
                 'ranking_bubble': False,
+                'ranking_landing': False,
                 'log_default': False
             }
 
@@ -264,6 +276,7 @@ class JSONCreation():
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
                 'ranking_bubble': False,
+                'ranking_landing': False,
                 'log_default': False
             }
 
@@ -280,6 +293,7 @@ class JSONCreation():
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
                 'ranking_bubble': False,
+                'ranking_landing': False,
                 'log_default': False
             }
         }
@@ -578,6 +592,9 @@ class JSONCreation():
         ## filter out chains that have this metric excluded
         chains_list_metric = [chain.origin_key for chain in self.main_config if metric_id not in chain.api_exclude_metrics]
         df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(chains_list_metric))]
+
+        ## filter out ethereum
+        df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
 
         ## assign rank based on order (descending order if metric_key is not 'txcosts')
         if metric_id != 'txcosts':
@@ -1180,7 +1197,7 @@ class JSONCreation():
             if chain.api_in_main == True and chain.origin_key != 'ethereum':
                 ranking_dict = {}
                 for metric in self.metrics:
-                    if self.metrics[metric]['ranking_bubble']:
+                    if self.metrics[metric]['ranking_landing']:
                         ranking_dict[metric] = self.get_ranking(df, metric, chain.origin_key, incl_value=True)
 
                 chains_dict[chain.origin_key] = {
