@@ -454,7 +454,7 @@ class JSONCreation():
                 'fundamental': True,
                 'metric_keys': ['da_blob_count'],
                 'units': {
-                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': True}
                 },
                 'avg': True, ##7d rolling average
                 'all_l2s_aggregate': 'sum',
@@ -467,7 +467,7 @@ class JSONCreation():
                 'fundamental': True,
                 'metric_keys': ['da_data_posted_bytes'],
                 'units': {
-                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False, 'suffix': 'GB'}
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True, 'suffix': 'GB'}
                 },
                 'avg': True,
                 'all_l2s_aggregate': 'sum',
@@ -494,14 +494,27 @@ class JSONCreation():
                 'fundamental': True,
                 'metric_keys': ['da_fees_per_mbyte_usd', 'da_fees_per_mbyte_eth'],
                 'units': {
-                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}, 
-                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': True}
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': False}
                 },
                 'avg': True,
                 'all_l2s_aggregate': 'avg',
                 'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'log_default': True
+            }
+            ,'blob_producers': {
+                'name': 'Blob Producers',
+                'fundamental': True,
+                'metric_keys': ['da_unique_blob_producers'],
+                'units': {
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': True}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'avg',
+                'max_date_fill' : False,
+                'log_default': False
             }
         }
         
@@ -1736,7 +1749,7 @@ class JSONCreation():
                 #     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                 #     continue
 
-                if metric == 'blob_count' and origin_key == 'da_ethereum_calldata':
+                if metric in ['blob_count', 'blob_producers'] and origin_key == 'da_ethereum_calldata':
                     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                     continue
 
