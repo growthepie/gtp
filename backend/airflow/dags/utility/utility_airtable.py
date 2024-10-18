@@ -99,6 +99,7 @@ def etl():
         at.clear_all_airtable(table)
         
         # get top unlabelled contracts, short and long term and also inactive contracts
+        df0 = db_connector.get_unlabelled_contracts('16', '1000') # top 16 contracts per chain from last 1000 days
         df1 = db_connector.get_unlabelled_contracts('16', '365') # top 16 contracts per chain from last year
         df2 = db_connector.get_unlabelled_contracts('16', '7') # top 16 contracts per chain from last week
         df3 = db_connector.get_inactive_contracts() # inactive contracts
@@ -106,7 +107,7 @@ def etl():
         df3 = df3.drop(columns=['old_owner_project'])
         
         # merge the all dataframes & reset index
-        df = pd.concat([df1, df2, df3])
+        df = pd.concat([df0, df1, df2, df3])
         df = df.reset_index(drop=True)
 
         # remove duplicates
