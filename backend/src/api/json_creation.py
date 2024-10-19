@@ -490,7 +490,7 @@ class JSONCreation():
                 'log_default': True
             }
             ,'fees_per_mbyte': {
-                'name': 'Fees per MByte',
+                'name': 'Fees Paid per MB',
                 'fundamental': True,
                 'metric_keys': ['da_fees_per_mbyte_usd', 'da_fees_per_mbyte_eth'],
                 'units': {
