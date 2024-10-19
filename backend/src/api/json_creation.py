@@ -166,7 +166,7 @@ class JSONCreation():
                 'log_default': False
             }
             ,'profit': {
-                'name': 'Profit',
+                'name': 'Onchain Profit',
                 'fundamental': True,
                 'metric_keys': ['profit_usd', 'profit_eth'],
                 'units': {
@@ -476,7 +476,7 @@ class JSONCreation():
                 'log_default': False
             }
             ,'fees_paid': {
-                'name': 'DA Fees',
+                'name': 'Fees Paid',
                 'fundamental': True,
                 'metric_keys': ['da_fees_usd', 'da_fees_eth'],
                 'units': {
