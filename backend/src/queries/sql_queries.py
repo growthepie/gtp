@@ -2335,6 +2335,80 @@ sql_q= {
                 GROUP BY 1
         """
 
+        ### worldchain
+        ,'worldchain_txcount_raw': """
+        SELECT  date_trunc('day', bt.block_timestamp) AS day,
+                count(*) AS value
+        FROM    worldchain_tx bt
+        WHERE   block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'worldchain_txcount': """
+        SELECT 
+                DATE_TRUNC('day', block_timestamp) AS day,
+                COUNT(*) AS value
+        FROM public.worldchain_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'worldchain_fees_paid_eth': """
+        SELECT
+                date_trunc('day', "block_timestamp") AS day,
+                SUM(tx_fee) AS value
+        FROM public.worldchain_tx
+        WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'worldchain_txcosts_median_eth': """
+        SELECT
+                date_trunc('day', "block_timestamp") AS day,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS value
+        FROM public.worldchain_tx
+        WHERE gas_price <> 0 AND block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        GROUP BY 1
+        """
+
+        ,'worldchain_aa_xxx': """
+        SELECT 
+                date_trunc('{{aggregation}}', date) AS day,
+                hll_cardinality(hll_union_agg(hll_addresses))::int as value
+        FROM fact_active_addresses_hll
+        WHERE
+                origin_key = 'worldchain' 
+                AND date < date_trunc('day', current_date)
+                AND date >= date_trunc('{{aggregation}}', current_date - interval '{{Days}}' day)
+        GROUP BY  1
+        """
+
+        ,'worldchain_aa_last_xxd': """
+        with tmp as (
+                SELECT 
+                        date as day, 
+                        #hll_union_agg(hll_addresses) OVER seven_days as value
+                FROM fact_active_addresses_hll
+                where origin_key = 'worldchain' 
+                        AND date > current_date - interval '{{Days}} days' - INTERVAL '{{Timerange}} days' AND date < current_date
+                WINDOW seven_days AS (ORDER BY date asc ROWS {{Timerange}} - 1 PRECEDING)
+        )
+
+        select 
+                day,
+                value::int as value
+        from tmp
+        where day >= current_date - interval '{{Days}} days'
+        """
+
+        ,'worldchain_gas_per_second': """
+        SELECT  date_trunc('day', block_timestamp) AS day,
+                sum(gas_used) / (24*60*60) AS value
+        FROM    worldchain_tx
+        WHERE   block_timestamp > date_trunc('day', now()) - interval '{{Days}} days' 
+                AND block_timestamp < date_trunc('day', now())
+        GROUP BY 1
+        """
 
 }
 
@@ -2677,4 +2751,18 @@ sql_queries = [
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gravity", sql=sql_q["gravity_txcosts_median_eth"], query_parameters={"Days": 7})
         ,SQLQuery(metric_key = "cca", origin_key = "gravity", sql=get_cross_chain_activity('gravity'), currency_dependent = False, query_parameters={})
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "gravity", sql=sql_q["gravity_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+
+        ## Worldchain
+        ,SQLQuery(metric_key = "txcount_raw", origin_key = "worldchain", sql=sql_q["worldchain_txcount_raw"], currency_dependent = False, query_parameters={"Days": 30})
+        ,SQLQuery(metric_key = "txcount", origin_key = "worldchain", sql=sql_q["worldchain_txcount"], currency_dependent = False, query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "daa", origin_key = "worldchain", sql=sql_q["worldchain_aa_xxx"], currency_dependent = False, query_parameters={"Days": 7, "aggregation": "day"})
+        #,SQLQuery(metric_key = "waa", origin_key = "worldchain", sql=sql_q["worldchain_aa_xxx"], currency_dependent = False, query_parameters={"Days": 21, "aggregation": "week"})
+        ,SQLQuery(metric_key = "maa", origin_key = "worldchain", sql=sql_q["worldchain_aa_xxx"], currency_dependent = False, query_parameters={"Days": 60, "aggregation": "month"})
+        ,SQLQuery(metric_key = "aa_last7d", origin_key = "worldchain", sql=sql_q["worldchain_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 7})
+        ,SQLQuery(metric_key = "aa_last30d", origin_key = "worldchain", sql=sql_q["worldchain_aa_last_xxd"], currency_dependent = False, query_parameters={"Days": 3, "Timerange" : 30})
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "worldchain", sql=sql_q["worldchain_fees_paid_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "worldchain", sql=sql_q["worldchain_txcosts_median_eth"], query_parameters={"Days": 7})
+        ,SQLQuery(metric_key = "cca", origin_key = "worldchain", sql=get_cross_chain_activity('worldchain'), currency_dependent = False, query_parameters={})
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "worldchain", sql=sql_q["worldchain_gas_per_second"], currency_dependent = False, query_parameters={"Days": 7})
+
 ]
