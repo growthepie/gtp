@@ -79,16 +79,17 @@ sql_q= {
         """
 
         ,'celestia_da_unique_blob_producers': """
-        SELECT 
-                date_trunc('day', block_timestamp) as day,
-                COUNT(DISTINCT signer) AS value
-        FROM public.celestia_tx
-        WHERE 
-                signer IS NOT null
-                and signer != 'nan'
-                and block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
-                and "action" = 'celestia.blob.v1.MsgPayForBlobs'
-        group by 1;
+        select 
+                date_trunc('day', block_timestamp) as day, 
+                COUNT(DISTINCT namespaces) AS value
+        from (
+                SELECT 
+                        block_timestamp, 
+                        jsonb_array_elements(namespaces::jsonb)::text as namespaces
+                FROM celestia_tx
+                WHERE block_timestamp BETWEEN date_trunc('day', now()) - interval '{{Days}} days' AND date_trunc('day', now())
+        ) a
+        group by 1
         """
 
         ,'celestia_da_blob_count': """
