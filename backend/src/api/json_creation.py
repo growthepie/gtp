@@ -638,7 +638,7 @@ class JSONCreation():
                 #print(f"...rank for {origin_key} and {metric_id} is {int(rank)} out of {int(rank_max)}")
                 return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2)}    
         else:
-            print(f"...no rank for {origin_key} and {metric_id}")
+            #print(f"...no rank for {origin_key} and {metric_id}")
             return {'rank': None, 'out_of': None, 'color_scale': None}         
 
 
