@@ -1471,6 +1471,8 @@ class JSONCreation():
 
         ## sort chain_dict by key (origin_key) alphabetically asc
         chain_dict = dict(sorted(chain_dict.items()))
+        ## move ethereum to the top
+        chain_dict = dict(sorted(chain_dict.items(), key=lambda x: x[0] != 'ethereum'))
 
         da_dict = self.da_layers
         
