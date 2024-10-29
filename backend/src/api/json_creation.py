@@ -494,8 +494,8 @@ class JSONCreation():
                 'fundamental': True,
                 'metric_keys': ['da_fees_per_mbyte_usd', 'da_fees_per_mbyte_eth'],
                 'units': {
-                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
-                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': False}
+                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 6, 'decimals_tooltip': 6, 'agg_tooltip': False}
                 },
                 'avg': True,
                 'all_l2s_aggregate': 'avg',
