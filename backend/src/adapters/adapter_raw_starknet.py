@@ -1,31 +1,35 @@
 from src.adapters.rpc_funcs.funcs_backfill import check_and_record_missing_block_ranges
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import traceback
-from src.adapters.rpc_funcs.utils import hex_to_int, connect_to_s3, check_s3_connection, handle_retry_exception, check_db_connection, save_data_for_range
+from src.adapters.rpc_funcs.utils import connect_to_s3, check_s3_connection, handle_retry_exception, check_db_connection, save_data_for_range
+from queue import Queue, Empty
+from threading import Thread, Lock
 import requests
 import pandas as pd
 import json
+import time
 
 class AdapterStarknet(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
         super().__init__("StarkNet", adapter_params, db_connector)
         self.chain = adapter_params['chain']
-        self.url = adapter_params['rpc_url']
         self.table_name = f'{self.chain}_tx'
         self.db_connector = db_connector
-        
+
+        self.rpc_configs = adapter_params.get('rpc_configs', [])
+        if not self.rpc_configs:
+            raise ValueError("No RPC configurations provided.")
+        self.active_rpcs = set()
+
         # Initialize S3 connection
         self.s3_connection, self.bucket_name = connect_to_s3()
 
     def extract_raw(self, load_params:dict):
         self.block_start = load_params['block_start']
         self.batch_size = load_params['batch_size']
-        self.threads = load_params['threads']
-        self.run(self.block_start, self.batch_size, self.threads)
+        self.run(self.block_start, self.batch_size)
         print(f"FINISHED loading raw tx data for {self.chain}.")
 
-    def run(self, block_start, batch_size, threads):
+    def run(self, block_start, batch_size):
         if not check_db_connection(self.db_connector):
             raise ConnectionError("Database is not connected.")
         else:
@@ -36,132 +40,158 @@ class AdapterStarknet(AbstractAdapterRaw):
         else:
             print("Successfully connected to S3.")
 
-        latest_block = self.get_latest_block_id()
+        latest_block = None
+        for rpc_config in self.rpc_configs:
+            try:
+                latest_block = self.get_latest_block_id(rpc_config['url'])
+                print(f"Connected to RPC URL: {rpc_config['url']}")
+                break
+            except Exception as e:
+                print(f"Failed to get latest block from RPC URL: {rpc_config['url']} with error: {e}")
+
         if latest_block is None:
-            print("Could not fetch the latest block.")
-            raise ValueError("Could not fetch the latest block.")
+            raise ConnectionError("Failed to connect to any provided RPC node.")
+
         if block_start == 'auto':
             block_start = self.db_connector.get_max_block(self.table_name)
         else:
             block_start = int(block_start)
 
+        if block_start > latest_block:
+            raise ValueError("The start block cannot be higher than the latest block.")
+
         print(f"Running with start block {block_start} and latest block {latest_block}")
 
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            futures = []
-            
-            for current_start in range(block_start, latest_block + 1, batch_size):
-                current_end = min(current_start + batch_size - 1, latest_block)
-                futures.append(executor.submit(self.fetch_and_process_range_starknet, current_start, current_end, self.chain, self.s3_connection, self.bucket_name, self.db_connector))
-            for future in as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    print(f"Thread raised an exception: {e}")
-                    traceback.print_exc()
+        block_range_queue = Queue()
+        self.enqueue_block_ranges(block_start, latest_block, batch_size, block_range_queue)
+        print(f"Enqueued {block_range_queue.qsize()} block ranges.")
+        self.manage_threads(block_range_queue)
 
-    def get_latest_block_id(self):
+    def enqueue_block_ranges(self, block_start, block_end, batch_size, queue):
+        for start in range(block_start, block_end + 1, batch_size):
+            end = min(start + batch_size - 1, block_end)
+            queue.put((start, end))
+
+    def manage_threads(self, block_range_queue):
+        threads = []
+        rpc_errors = {}
+        error_lock = Lock()
+        
+        for rpc_config in self.rpc_configs:
+            rpc_errors[rpc_config['url']] = 0
+            self.active_rpcs.add(rpc_config['url'])
+            thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
+                rpc, block_range_queue, rpc_errors, error_lock))
+            threads.append((rpc_config['url'], thread))
+            thread.start()
+            print(f"Started thread for {rpc_config['url']}")
+
+        monitor_thread = Thread(target=self.monitor_workers, args=(
+            threads, block_range_queue, self.rpc_configs, rpc_errors, error_lock))
+        monitor_thread.start()
+        print("Started monitoring thread.")
+        
+        monitor_thread.join()
+        
+        print("All worker and monitoring threads have completed.")
+
+    def monitor_workers(self, threads, block_range_queue, rpc_configs, rpc_errors, error_lock):
+        additional_threads = []
+        while True:
+            active_threads = [(rpc_url, thread) for rpc_url, thread in threads if thread.is_alive()]
+            active_rpc_urls = [rpc_url for rpc_url, _ in active_threads]
+            active = bool(active_threads)
+
+            if block_range_queue.empty() and not active:
+                print("DONE: All workers have stopped and the queue is empty.")
+                break
+
+            if block_range_queue.qsize() == 0 and active:
+                combined_rpc_urls = ", ".join(active_rpc_urls)
+                print(f"...no more block ranges to process. Waiting for workers to finish. Active RPCs: {combined_rpc_urls}")
+            else:
+                print(f"====> Block range queue size: {block_range_queue.qsize()}. #Active threads: {len(active_threads)}")
+
+            if not block_range_queue.empty() and not active:
+                print("Detected unfinished tasks with no active workers. Restarting worker.")
+
+                active_rpcs = [rpc_config for rpc_config in rpc_configs if rpc_config['url'] in self.active_rpcs]
+                if not active_rpcs:
+                    raise Exception("No active RPCs available. Stopping the DAG.")
+
+                for rpc_config in active_rpcs:
+                    print(f"Restarting workers for RPC URL: {rpc_config['url']}")
+                    new_thread = Thread(target=lambda rpc=rpc_config: self.process_rpc_config(
+                        rpc, block_range_queue, rpc_errors, error_lock))
+                    threads.append((rpc_config['url'], new_thread))
+                    additional_threads.append(new_thread)
+                    new_thread.start()
+                    break
+
+            time.sleep(5)
+
+        for _, thread in threads:
+            thread.join()
+            print(f"Thread for RPC URL has completed.")
+
+        for thread in additional_threads:
+            thread.join()
+            print("Additional worker thread has completed.")
+
+        print("All worker and monitoring threads have completed.")
+
+    def process_rpc_config(self, rpc_config, block_range_queue, rpc_errors, error_lock):
+        workers = []
+        workers_count = rpc_config.get('workers', 1)
+        for _ in range(workers_count):
+            worker = Thread(target=self.worker_task, args=(rpc_config, block_range_queue, rpc_errors, error_lock))
+            workers.append(worker)
+            worker.start()
+
+        for worker in workers:
+            worker.join()
+            if not worker.is_alive():
+                print(f"Worker for {rpc_config['url']} has stopped.")
+
+    def worker_task(self, rpc_config, block_range_queue, rpc_errors, error_lock):
+        while rpc_config['url'] in self.active_rpcs and not block_range_queue.empty():
+            block_range = None
+            try:
+                block_range = block_range_queue.get(timeout=5)
+                print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
+                self.fetch_and_process_range_starknet(block_range[0], block_range[1], self.chain, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
+            except Empty:
+                print("DONE: no more blocks to process. Worker is shutting down.")
+                return
+            except Exception as e:
+                with error_lock:
+                    rpc_errors[rpc_config['url']] += 1
+                    total_workers = sum([rpc.get('workers',1) for rpc in self.rpc_configs if rpc['url'] == rpc_config['url']])
+                    if rpc_errors[rpc_config['url']] >= total_workers:
+                        print(f"All workers for {rpc_config['url']} failed. Removing this RPC from rotation.")
+                        self.rpc_configs = [rpc for rpc in self.rpc_configs if rpc['url'] != rpc_config['url']]
+                        self.active_rpcs.remove(rpc_config['url'])
+                print(f"ERROR: for {rpc_config['url']} on block range {block_range[0]}-{block_range[1]}: {e}")
+                block_range_queue.put(block_range)
+                print(f"RE-QUEUED: block range {block_range[0]}-{block_range[1]}")
+                break
+            finally:
+                if block_range:
+                    block_range_queue.task_done()
+
+    def get_latest_block_id(self, rpc_url):
         method = "starknet_blockNumber"
-        response = self.send_request(method)
+        response = self.send_request(method, rpc_url=rpc_url)
         if 'result' in response:
             return response['result']
         else:
             raise Exception("Failed to retrieve the latest block number.")
 
-    def get_transactions_with_receipts(self, block_id):
-        try:
-            block_data, transactions = self.get_transactions_by_block(block_id)
-
-            for transaction in transactions:
-                tx_hash = transaction['transaction_hash']
-                receipt = self.get_transaction_receipt(tx_hash)
-
-                # Merge receipt data into the transaction
-                for key, value in receipt.items():
-                    if key not in transaction:
-                        transaction[key] = value
-
-            block_data['transactions'] = transactions
-            return block_data
-        except Exception as e:
-            raise Exception(f"Error enriching transactions with receipts: {str(e)}")
-    
-    def get_transaction_receipt(self, tx_hash):
-        method = "starknet_getTransactionReceipt"
-        params = [tx_hash]
-        response = self.send_request(method, params)
-        if 'result' in response:
-            return response['result']
-        else:
-            raise Exception(f"No receipt data available for transaction {tx_hash}. Response: {response}")
-
-    def get_transactions_by_block(self, block_id):
-        method = "starknet_getBlockWithTxs"
-        params = [{"block_number": block_id}]
-        response = self.send_request(method, params)
-        if 'result' in response and response['result']:
-            transactions = response['result'].get('transactions', [])
-            return response['result'], transactions
-        else:
-            raise Exception(f"No block data available for block {block_id}. Response: {response}")
-
-    def get_block_data_and_events(self, block_id):
-        try:
-            block_data, transactions = self.get_transactions_by_block(block_id)
-            if not transactions:
-                print(f"No transactions found for block {block_id}.")
-                return None, pd.DataFrame()
-            
-            events_data = []
-
-            # Process each transaction
-            for transaction in transactions:
-                tx_hash = transaction.get('transaction_hash')
-                if not tx_hash:
-                    print(f"Missing 'transaction_hash' in transaction: {transaction}")
-                    continue  # Skip this transaction if 'transaction_hash' is missing
-                try:
-                    receipt = self.get_transaction_receipt(tx_hash)
-                    if not receipt:
-                        print(f"No receipt found for transaction hash: {tx_hash}")
-                        continue
-                    
-                    # Merge receipt data into the transaction
-                    for key, value in receipt.items():
-                        if key not in transaction:
-                            transaction[key] = value
-
-                    # Extract and enumerate events from the receipt for the events DataFrame
-                    for idx, event in enumerate(receipt.get('events', [])):
-                        event_id = f"{tx_hash}_{idx:02d}"
-                        event_dict = {
-                            "event_id": event_id,
-                            "tx_hash": tx_hash,
-                            "from_address": event.get("from_address"),
-                            "data": json.dumps(event.get("data")),
-                            "keys": json.dumps(event.get("keys"))
-                        }
-                        events_data.append(event_dict)
-                        
-                except Exception as e:
-                    print(f"Unexpected error when processing transaction {tx_hash}: {e}")
-                    
-            # Update the block data with enriched transactions
-            block_data['transactions'] = transactions
-
-            # Create a DataFrame from the events data
-            events_df = pd.DataFrame(events_data)
-
-            return block_data, events_df
-        
-        except Exception as e:
-            print(f"Error processing block data and events for block {block_id}: {e}")
-       
-    def fetch_and_process_range_starknet(self, current_start, current_end, chain, s3_connection, bucket_name, db_connector):
+    def fetch_and_process_range_starknet(self, current_start, current_end, chain, s3_connection, bucket_name, db_connector, rpc_url):
         base_wait_time = 5
         while True:
             try:
-                transactions_df, events_df = self.fetch_starknet_data_for_range(current_start, current_end)
+                transactions_df, events_df = self.fetch_starknet_data_for_range(current_start, current_end, rpc_url)
                 
                 # Check if both DataFrames are empty
                 if transactions_df.empty and events_df.empty:
@@ -184,7 +214,7 @@ class AdapterStarknet(AbstractAdapterRaw):
                 print(f"Error processing blocks {current_start} to {current_end}: {e}")
                 base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time)
 
-    def fetch_starknet_data_for_range(self, current_start, current_end):
+    def fetch_starknet_data_for_range(self, current_start, current_end, rpc_url):
         print(f"Fetching data for blocks {current_start} to {current_end}...")
         all_blocks_dfs = []
         all_events_dfs = []
@@ -193,7 +223,9 @@ class AdapterStarknet(AbstractAdapterRaw):
 
         for block_id in range(current_start, current_end + 1):
             try:
-                full_block_data, events_df = self.get_block_data_and_events(block_id)
+                full_block_data, events_df = self.get_block_data_and_events(block_id, rpc_url)
+                if full_block_data is None:
+                    continue
                 filtered_df = self.prep_starknet_data(full_block_data, strketh_price)
 
                 # Only append if DataFrame is not empty
@@ -220,24 +252,99 @@ class AdapterStarknet(AbstractAdapterRaw):
 
         return all_blocks_df, all_events_df
 
+    def get_block_data_and_events(self, block_id, rpc_url):
+        try:
+            # Use starknet_getBlockWithReceipts to get the block data with receipts
+            block_data = self.get_block_with_receipts(block_id, rpc_url)
+            transactions_with_receipts = block_data.get('transactions', [])
+            
+            if not transactions_with_receipts:
+                print(f"No transactions found for block {block_id}.")
+                return None, pd.DataFrame()
+
+            events_data = []
+            enriched_transactions = []
+
+            # Process each transaction (which now includes receipt data)
+            for tx_item in transactions_with_receipts:
+                transaction = tx_item.get('transaction', {})
+                receipt = tx_item.get('receipt', {})
+
+                # Get the transaction hash from either transaction or receipt
+                tx_hash = transaction.get('transaction_hash') or receipt.get('transaction_hash')
+                if not tx_hash:
+                    print(f"Missing 'transaction_hash' in transaction: {tx_item}")
+                    continue
+
+                # Merge receipt data into the transaction
+                transaction_with_receipt = {**transaction, **receipt}
+                enriched_transactions.append(transaction_with_receipt)
+
+                # Extract and enumerate events from the receipt
+                for idx, event in enumerate(receipt.get('events', [])):
+                    event_id = f"{tx_hash}_{idx:02d}"
+                    event_dict = {
+                        "event_id": event_id,
+                        "tx_hash": tx_hash,
+                        "from_address": event.get("from_address"),
+                        "data": json.dumps(event.get("data")),
+                        "keys": json.dumps(event.get("keys"))
+                    }
+                    events_data.append(event_dict)
+
+            # Update the block data with enriched transactions
+            block_data['transactions'] = enriched_transactions
+
+            # Create a DataFrame from the events data
+            events_df = pd.DataFrame(events_data)
+
+            return block_data, events_df
+
+        except Exception as e:
+            print(f"Error processing block data and events for block {block_id}: {e}")
+
+    def get_transactions_by_block(self, block_id, rpc_url):
+        method = "starknet_getBlockWithTxs"
+        params = [{"block_number": block_id}]
+        response = self.send_request(method, params, rpc_url)
+        if 'result' in response and response['result']:
+            transactions = response['result'].get('transactions', [])
+            return response['result'], transactions
+        else:
+            raise Exception(f"No block data available for block {block_id}. Response: {response}")
+
+    def get_block_with_receipts(self, block_id, rpc_url):
+        method = "starknet_getBlockWithReceipts"
+        params = [{"block_number": block_id}]
+        response = self.send_request(method, params, rpc_url)
+        if 'result' in response and response['result']:
+            return response['result']
+        elif 'error' in response and response['error'].get('code') == -32601:
+            # Method not found
+            print(f"Method {method} not found on RPC {rpc_url}.")
+            return None
+        else:
+            raise Exception(f"No block data available for block {block_id}. Response: {response}")
 
     def prep_starknet_data(self, full_block_data, strketh_price):        
         # Extract the required fields for each transaction
         extracted_data = []
         for tx in full_block_data['transactions']:
+            if not tx.get('events'):
+                continue
             last_event = tx['events'][-1]
             from_address = last_event['from_address']
             gas_token = ''  # Default to empty
 
             # Parse actual_fee and l1_gas_price as integers from hexadecimal strings
             l1_gas_price_hex = full_block_data.get('l1_gas_price', {}).get('price_in_wei', None)
-            l1_gas_price = hex_to_int(l1_gas_price_hex) / 1e18
+            l1_gas_price = hex_to_int(l1_gas_price_hex) / 1e18 if l1_gas_price_hex else 0
 
             max_fee_hex = tx.get('max_fee', None)
-            max_fee = hex_to_int(max_fee_hex) / 1e18
+            max_fee = hex_to_int(max_fee_hex) / 1e18 if max_fee_hex else 0
 
             actual_fee_hex = tx.get('actual_fee', None)
-            actual_fee = hex_to_int(actual_fee_hex) / 1e18
+            actual_fee = hex_to_int(actual_fee_hex) / 1e18 if actual_fee_hex else 0
             
             raw_tx_fee = actual_fee                      
 
@@ -252,7 +359,7 @@ class AdapterStarknet(AbstractAdapterRaw):
             else:
                 print(f"Skipping transaction with zero actual_fee: {tx['transaction_hash']}")
 
-            gas_used = actual_fee // l1_gas_price if l1_gas_price != 0 else 0
+            gas_used = actual_fee / l1_gas_price if l1_gas_price != 0 else 0
                 
             tx_data = {
                 'block_number': full_block_data['block_number'],
@@ -299,7 +406,7 @@ class AdapterStarknet(AbstractAdapterRaw):
 # Helper Function
     def send_request(self, method, params=[], rpc_url=None):
         if rpc_url is None:
-            rpc_url = self.url
+            raise ValueError("rpc_url must be provided")
 
         headers = {"Content-Type": "application/json"}
         payload = {
@@ -308,31 +415,29 @@ class AdapterStarknet(AbstractAdapterRaw):
             "params": params,
             "id": 1
         }
-        response = requests.post(rpc_url, headers=headers, json=payload)
-        if response.status_code != 200:
-            print(f"Request failed with status code {response.status_code}: {response.text}")
-            raise ConnectionError("Request to RPC failed with status code != 200")
-        return response.json()
+        try:
+            response = requests.post(rpc_url, headers=headers, json=payload)
+            if response.status_code != 200:
+                raise ConnectionError("Request to RPC failed with status code != 200")
+            return response.json()
+        except Exception as e:
+            print(f"Exception when sending request to {rpc_url}: {e}")
+            raise e
 
-    def process_missing_blocks_in_batches(self, missing_block_ranges, batch_size, threads):
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            futures = []
-
-            for start_block, end_block in missing_block_ranges:
-                for batch_start in range(start_block, end_block + 1, batch_size):
-                    batch_end = min(batch_start + batch_size - 1, end_block)
-                    future = executor.submit(self.fetch_and_process_range_starknet, batch_start, batch_end, self.chain, self.s3_connection, self.bucket_name, self.db_connector)
-                    futures.append(future)
-
-            for future in as_completed(futures):
-                try:
-                    future.result()
-                except Exception as e:
-                    print(f"An error occurred during backfilling: {e}")
-
-    def backfill_missing_blocks(self, start_block, end_block, batch_size, threads):
+    def backfill_missing_blocks(self, start_block, end_block, batch_size):
         missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)
-        self.process_missing_blocks_in_batches(missing_block_ranges, batch_size, threads)
+        if not missing_block_ranges:
+            print("No missing block ranges found.")
+            return
+        print(f"Found {len(missing_block_ranges)} missing block ranges.")
+        print("Backfilling missing blocks")
+        print("Missing block ranges:")
+        for start, end in missing_block_ranges:
+            print(f"{start}-{end}")
+        block_range_queue = Queue()
+        for start, end in missing_block_ranges:
+            self.enqueue_block_ranges(start, end, batch_size, block_range_queue)
+        self.manage_threads(block_range_queue)
         
 def hex_to_int(input_value):
     if isinstance(input_value, str) and input_value.startswith('0x'):
@@ -340,8 +445,6 @@ def hex_to_int(input_value):
     elif isinstance(input_value, dict) and 'amount' in input_value and isinstance(input_value['amount'], str):
         return int(input_value['amount'], 16)
     elif input_value is None:
-        # Handle None input by returning 0 or another default value
         return 0
     else:
-        print(f"Unexpected input type or format for hex_to_int: {type(input_value)} with value {input_value}")
         return 0

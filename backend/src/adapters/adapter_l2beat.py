@@ -19,6 +19,7 @@ class AdapterL2Beat(AbstractAdapter):
         super().__init__("L2Beat", adapter_params, db_connector)
         self.base_url = 'https://l2beat.com/api/'
         self.webhook = os.getenv('DISCORD_ALERTS')
+        self.webhook_analyst = os.getenv('GTP_AI_WEBHOOK_URL')
         print_init(self.name, self.adapter_params)
 
     """
@@ -106,6 +107,9 @@ class AdapterL2Beat(AbstractAdapter):
         url = f"https://l2beat.com/api/scaling/summary"
         response = api_get_call(url)
 
+        # Get current main_config to compare against new L2Beat values
+        current_config = get_main_config(self.db_connector)
+
         for chain in projects_to_load:
             origin_key = chain.origin_key
             l2beat_id = str(chain.aliases_l2beat)
@@ -115,6 +119,13 @@ class AdapterL2Beat(AbstractAdapter):
             if stage == 'NotApplicable':
                 stage = 'NA'
                 
+            # Compare with the existing stage in the main_config
+            current_stage = next((config.l2beat_stage for config in current_config if config.origin_key == origin_key), 'NA')
+
+            # If the stage has changed, send a notification
+            if stage != current_stage:
+                send_discord_message(f'L2Beat: {origin_key} has changed stage from {current_stage} to {stage}', self.webhook)
+            
             stages.append({'origin_key': origin_key, 'l2beat_stage': stage})
             print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
             time.sleep(0.5)
