@@ -254,50 +254,52 @@ class AdapterStarknet(AbstractAdapterRaw):
 
     def get_block_data_and_events(self, block_id, rpc_url):
         try:
-            block_data, transactions = self.get_transactions_by_block(block_id, rpc_url)
-            if not transactions:
+            # Use starknet_getBlockWithReceipts to get the block data with receipts
+            block_data = self.get_block_with_receipts(block_id, rpc_url)
+            transactions_with_receipts = block_data.get('transactions', [])
+            
+            if not transactions_with_receipts:
                 print(f"No transactions found for block {block_id}.")
                 return None, pd.DataFrame()
-            
+
             events_data = []
+            enriched_transactions = []
 
-            for transaction in transactions:
-                tx_hash = transaction.get('transaction_hash')
+            # Process each transaction (which now includes receipt data)
+            for tx_item in transactions_with_receipts:
+                transaction = tx_item.get('transaction', {})
+                receipt = tx_item.get('receipt', {})
+
+                # Get the transaction hash from either transaction or receipt
+                tx_hash = transaction.get('transaction_hash') or receipt.get('transaction_hash')
                 if not tx_hash:
-                    print(f"Missing 'transaction_hash' in transaction: {transaction}")
+                    print(f"Missing 'transaction_hash' in transaction: {tx_item}")
                     continue
-                try:
-                    # Fetch the transaction receipt
-                    receipt = self.get_transaction_receipt(tx_hash, rpc_url)
-                    if not receipt:
-                        print(f"No receipt found for transaction hash: {tx_hash}")
-                        continue
 
-                    # Merge receipt data into the transaction
-                    for key, value in receipt.items():
-                        if key not in transaction:
-                            transaction[key] = value
+                # Merge receipt data into the transaction
+                transaction_with_receipt = {**transaction, **receipt}
+                enriched_transactions.append(transaction_with_receipt)
 
-                    # Extract and enumerate events from the receipt for the events DataFrame
-                    for idx, event in enumerate(receipt.get('events', [])):
-                        event_id = f"{tx_hash}_{idx:02d}"
-                        event_dict = {
-                            "event_id": event_id,
-                            "tx_hash": tx_hash,
-                            "from_address": event.get("from_address"),
-                            "data": json.dumps(event.get("data")),
-                            "keys": json.dumps(event.get("keys"))
-                        }
-                        events_data.append(event_dict)
-                                    
-                except Exception as e:
-                    print(f"Unexpected error when processing transaction {tx_hash}: {e}")
+                # Extract and enumerate events from the receipt
+                for idx, event in enumerate(receipt.get('events', [])):
+                    event_id = f"{tx_hash}_{idx:02d}"
+                    event_dict = {
+                        "event_id": event_id,
+                        "tx_hash": tx_hash,
+                        "from_address": event.get("from_address"),
+                        "data": json.dumps(event.get("data")),
+                        "keys": json.dumps(event.get("keys"))
+                    }
+                    events_data.append(event_dict)
 
-            block_data['transactions'] = transactions
+            # Update the block data with enriched transactions
+            block_data['transactions'] = enriched_transactions
+
+            # Create a DataFrame from the events data
             events_df = pd.DataFrame(events_data)
 
             return block_data, events_df
-        
+
         except Exception as e:
             print(f"Error processing block data and events for block {block_id}: {e}")
 
@@ -311,44 +313,38 @@ class AdapterStarknet(AbstractAdapterRaw):
         else:
             raise Exception(f"No block data available for block {block_id}. Response: {response}")
 
-    def get_transaction_receipt(self, tx_hash, rpc_url):
-        method = "starknet_getTransactionReceipt"
-        params = [tx_hash]
-
-        tried_rpc_urls = set()
-        rpc_urls_to_try = [rpc_url] + [rpc_config['url'] for rpc_config in self.rpc_configs if rpc_config['url'] != rpc_url]
-
-        for url in rpc_urls_to_try:
-            if url in tried_rpc_urls:
-                continue
-            tried_rpc_urls.add(url)
-            try:
-                response = self.send_request(method, params, url)
-                if 'result' in response:
-                    return response['result']
-            except Exception as e:
-                print(f"Failed to get receipt from {url}: {e}")
-
-        # If none of the RPC URLs provide the receipt, raise exception
-        raise Exception(f"No receipt data available for transaction {tx_hash} from any RPC URL.")
+    def get_block_with_receipts(self, block_id, rpc_url):
+        method = "starknet_getBlockWithReceipts"
+        params = [{"block_number": block_id}]
+        response = self.send_request(method, params, rpc_url)
+        if 'result' in response and response['result']:
+            return response['result']
+        elif 'error' in response and response['error'].get('code') == -32601:
+            # Method not found
+            print(f"Method {method} not found on RPC {rpc_url}.")
+            return None
+        else:
+            raise Exception(f"No block data available for block {block_id}. Response: {response}")
 
     def prep_starknet_data(self, full_block_data, strketh_price):        
         # Extract the required fields for each transaction
         extracted_data = []
         for tx in full_block_data['transactions']:
+            if not tx.get('events'):
+                continue
             last_event = tx['events'][-1]
             from_address = last_event['from_address']
             gas_token = ''  # Default to empty
 
             # Parse actual_fee and l1_gas_price as integers from hexadecimal strings
             l1_gas_price_hex = full_block_data.get('l1_gas_price', {}).get('price_in_wei', None)
-            l1_gas_price = hex_to_int(l1_gas_price_hex) / 1e18
+            l1_gas_price = hex_to_int(l1_gas_price_hex) / 1e18 if l1_gas_price_hex else 0
 
             max_fee_hex = tx.get('max_fee', None)
-            max_fee = hex_to_int(max_fee_hex) / 1e18
+            max_fee = hex_to_int(max_fee_hex) / 1e18 if max_fee_hex else 0
 
             actual_fee_hex = tx.get('actual_fee', None)
-            actual_fee = hex_to_int(actual_fee_hex) / 1e18
+            actual_fee = hex_to_int(actual_fee_hex) / 1e18 if actual_fee_hex else 0
             
             raw_tx_fee = actual_fee                      
 
@@ -363,7 +359,7 @@ class AdapterStarknet(AbstractAdapterRaw):
             else:
                 print(f"Skipping transaction with zero actual_fee: {tx['transaction_hash']}")
 
-            gas_used = actual_fee // l1_gas_price if l1_gas_price != 0 else 0
+            gas_used = actual_fee / l1_gas_price if l1_gas_price != 0 else 0
                 
             tx_data = {
                 'block_number': full_block_data['block_number'],
@@ -449,8 +445,6 @@ def hex_to_int(input_value):
     elif isinstance(input_value, dict) and 'amount' in input_value and isinstance(input_value['amount'], str):
         return int(input_value['amount'], 16)
     elif input_value is None:
-        # Handle None input by returning 0 or another default value
         return 0
     else:
-        print(f"Unexpected input type or format for hex_to_int: {type(input_value)} with value {input_value}")
         return 0
