@@ -59,8 +59,8 @@ def etl():
 
     @task()
     def run_create_fundamentals():
-        # json_creator.create_fundamentals_json(df)
-        # json_creator.create_fundamentals_full_json(df)
+        json_creator.create_fundamentals_json(df)
+        json_creator.create_fundamentals_full_json(df)
         json_creator.create_metrics_export_json(df)
 
     @task()

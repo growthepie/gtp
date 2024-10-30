@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 class GTPAnalyst:
     def __init__(self):
-        self.CHAIN_WEIGHT = 0.3
+        self.CHAIN_WEIGHT = 0.2
         self.SIGNIFICANCE_MULTIPLIER = 1.5
         self.MIN_TOTAL_IMPORTANCE = 5
         

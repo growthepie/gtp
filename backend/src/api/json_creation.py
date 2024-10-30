@@ -494,8 +494,8 @@ class JSONCreation():
                 'fundamental': True,
                 'metric_keys': ['da_fees_per_mbyte_usd', 'da_fees_per_mbyte_eth'],
                 'units': {
-                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
-                    'eth': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': False}
+                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 6, 'decimals_tooltip': 6, 'agg_tooltip': False}
                 },
                 'avg': True,
                 'all_l2s_aggregate': 'avg',
@@ -638,7 +638,7 @@ class JSONCreation():
                 #print(f"...rank for {origin_key} and {metric_id} is {int(rank)} out of {int(rank_max)}")
                 return {'rank': int(rank), 'out_of': int(rank_max), 'color_scale': round(rank/rank_max, 2)}    
         else:
-            print(f"...no rank for {origin_key} and {metric_id}")
+            #print(f"...no rank for {origin_key} and {metric_id}")
             return {'rank': None, 'out_of': None, 'color_scale': None}         
 
 
@@ -1471,6 +1471,8 @@ class JSONCreation():
 
         ## sort chain_dict by key (origin_key) alphabetically asc
         chain_dict = dict(sorted(chain_dict.items()))
+        ## move ethereum to the top
+        chain_dict = dict(sorted(chain_dict.items(), key=lambda x: x[0] != 'ethereum'))
 
         da_dict = self.da_layers
         
