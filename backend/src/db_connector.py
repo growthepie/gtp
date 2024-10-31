@@ -192,6 +192,35 @@ class DbConnector:
                 else:
                         return val
                 
+        def get_fact_eim(self, metric_key, origin_keys=None, days=7):
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                exec_string = f'''
+                        SELECT 
+                                date
+                                ,origin_key
+                                ,value
+                        FROM fact_eim
+                        WHERE metric_key = '{metric_key}'
+                                {ok_string}
+                                AND date >= date_trunc('day',now()) - interval '{days} days'
+                                AND date < date_trunc('day', now())
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
+        def get_eth_exported(self, days):
+                exec_string = f"""
+                        SELECT origin_key, "date", value, split_part(metric_key, '_', 3) AS asset
+                        FROM public.fact_eim
+                        where metric_key like 'eth_exported_%%'
+                        AND date >= date_trunc('day', current_date - interval '{days}' day)
+                        """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
 
         """
         The get_economics_in_eth function is used to get the economics data on chain level in ETH. The following metrics are calculated:
