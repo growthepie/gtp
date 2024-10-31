@@ -20,7 +20,7 @@ class AdapterCrossCheck(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Cross-Check", adapter_params, db_connector)
         main_conf = get_main_config(db_connector)
-        self.projects = [chain for chain in main_conf if chain.cross_check_url is not None]
+        self.projects = [chain for chain in main_conf if chain.cross_check_type is not None]
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
         }
@@ -74,17 +74,12 @@ class AdapterCrossCheck(AbstractAdapter):
                     dfMain = pd.concat([dfMain, df], ignore_index=True)        
 
                 elif project.cross_check_type == 'l2beat':
-                    response_json = api_get_call(project.cross_check_url, sleeper=10, retries=20)
+                    response_json = api_get_call(f"https://l2beat.com/api/scaling/activity/{project.aliases_l2beat_slug}?range=max")
                     if response_json:
-                        df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
-
-                        if project.origin_key == 'ethereum':
-                            df = df.iloc[:,[0,2]]
-                            df.rename(columns={2:'value'}, inplace=True)
-                        else:
-                            ## only keep the columns 0 (date) and 1 (transactions)
-                            df = df.iloc[:,[0,1]]                     
-                            df.rename(columns={1:'value'}, inplace=True)
+                        df = df = pd.json_normalize(response_json['data']['chart'], record_path=['data'])
+                        ## only keep the columns 0 (date) and 1 (transactions)
+                        df = df.iloc[:,[0,1]]                     
+                        df.rename(columns={1:'value'}, inplace=True)
 
                         df['date'] = pd.to_datetime(df[0],unit='s').dt.date
                         df.drop([0], axis=1, inplace=True)
