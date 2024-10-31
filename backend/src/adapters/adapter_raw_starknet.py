@@ -212,7 +212,7 @@ class AdapterStarknet(AbstractAdapterRaw):
 
             except Exception as e:
                 print(f"Error processing blocks {current_start} to {current_end}: {e}")
-                base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time)
+                base_wait_time = handle_retry_exception(current_start, current_end, base_wait_time, rpc_url)
 
     def fetch_starknet_data_for_range(self, current_start, current_end, rpc_url):
         print(f"Fetching data for blocks {current_start} to {current_end}...")
