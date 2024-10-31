@@ -207,7 +207,6 @@ class DbConnector:
                         WHERE metric_key = '{metric_key}'
                                 {ok_string}
                                 AND date >= date_trunc('day',now()) - interval '{days} days'
-                                AND date < date_trunc('day', now())
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
