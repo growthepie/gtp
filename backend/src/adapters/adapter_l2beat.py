@@ -66,6 +66,9 @@ class AdapterL2Beat(AbstractAdapter):
         dfMain = get_df_kpis()
         for chain in projects_to_load:
             origin_key = chain.origin_key
+            
+            if origin_key == 'ethereum':
+                continue
 
             naming = chain.aliases_l2beat_slug
             url = f"https://l2beat.com/api/scaling/tvl/{naming}?range=max"       
