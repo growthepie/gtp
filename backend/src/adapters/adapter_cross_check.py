@@ -74,17 +74,12 @@ class AdapterCrossCheck(AbstractAdapter):
                     dfMain = pd.concat([dfMain, df], ignore_index=True)        
 
                 elif project.cross_check_type == 'l2beat':
-                    response_json = api_get_call(project.cross_check_url, sleeper=10, retries=20)
+                    response_json = api_get_call(f"https://l2beat.com/api/scaling/activity/{project.aliases_l2beat}?range=max")
                     if response_json:
-                        df = pd.json_normalize(response_json['daily'], record_path=['data'], sep='_')
-
-                        if project.origin_key == 'ethereum':
-                            df = df.iloc[:,[0,2]]
-                            df.rename(columns={2:'value'}, inplace=True)
-                        else:
-                            ## only keep the columns 0 (date) and 1 (transactions)
-                            df = df.iloc[:,[0,1]]                     
-                            df.rename(columns={1:'value'}, inplace=True)
+                        df = df = pd.json_normalize(response_json['data']['chart'], record_path=['data'])
+                        ## only keep the columns 0 (date) and 1 (transactions)
+                        df = df.iloc[:,[0,1]]                     
+                        df.rename(columns={1:'value'}, inplace=True)
 
                         df['date'] = pd.to_datetime(df[0],unit='s').dt.date
                         df.drop([0], axis=1, inplace=True)
