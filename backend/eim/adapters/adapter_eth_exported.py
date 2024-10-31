@@ -15,9 +15,18 @@ class AdapterEthExported(AbstractAdapter):
         super().__init__("ETH exported", adapter_params, db_connector)
         rpc_url = 'https://mainnet.gateway.tenderly.co' #TODO: get from db
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
-        self.eth_derivatives = read_yaml_file('eim/eth_derivatives.yml')
-        self.ethereum_token_addresses = self.eth_derivatives['ethereum']
-        self.eth_exported_contracts = read_yaml_file('eim/eth_exported_contracts.yml')
+
+        self.path = adapter_params['path']
+
+        if self.path:
+            self.ethereum_token_addresses = read_yaml_file(f'{self.path}/eim/ethereum_token_addresses.yml')
+            self.eth_exported_contracts = read_yaml_file(f'{self.path}/eim/eth_exported_contracts.yml')
+            self.eth_derivatives = read_yaml_file(f'{self.path}/eim/eth_derivatives.yml')
+        else:
+            self.eth_derivatives = read_yaml_file('eim/eth_derivatives.yml')
+            self.ethereum_token_addresses = self.eth_derivatives['ethereum']
+            self.eth_exported_contracts = read_yaml_file('eim/eth_exported_contracts.yml')
+        
         print_init(self.name, self.adapter_params)
 
     """

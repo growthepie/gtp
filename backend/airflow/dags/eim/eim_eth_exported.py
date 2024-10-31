@@ -3,7 +3,8 @@ import getpass
 sys_user = getpass.getuser()
 
 import sys
-sys.path.append(f"/home/{sys_user}/gtp/backend/")
+af_path = f"/home/{sys_user}/gtp/backend"
+sys.path.append(af_path)
 
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
@@ -28,7 +29,7 @@ from eim.adapters.adapter_eth_exported import AdapterEthExported
 def run():
     @task()
     def run_first_block_of_day():
-        adapter_params = {}
+        adapter_params = {'path': af_path}
         load_params = {
             'load_type' : 'first_block_of_day',
             'days' : 3,
@@ -44,7 +45,7 @@ def run():
 
     @task()
     def run_bridge_balances(x):
-        adapter_params = {}
+        adapter_params = {'path': af_path}
         load_params = {
             'load_type' : 'bridge_balances',
             'days' : 3,
@@ -62,12 +63,12 @@ def run():
 
     @task()
     def run_conversion_rates(x):
-        adapter_params = {}
+        adapter_params = {'path': af_path}
         load_params = {
             'load_type' : 'conversion_rates',
             'days' : 3,
-            #'entities': ['arbitrum']
-            'entities': None
+            #'assets': ['ETH']
+            'assets': None
         }
 
         # initialize adapter
@@ -80,12 +81,10 @@ def run():
 
     @task()
     def run_native_eth_exported(x):
-        adapter_params = {}
+        adapter_params = {'path': af_path}
         load_params = {
             'load_type' : 'native_eth_exported',
-            'days' : 3,
-            #'entities': ['arbitrum']
-            'entities': None
+            'days' : 3
         }
 
         # initialize adapter
