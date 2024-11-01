@@ -167,8 +167,8 @@ class AdapterCoingecko(AbstractAdapter):
             dfMain.set_index(['metric_key', 'origin_key', 'timestamp', 'granularity'], inplace=True)
         else:
             dfMain['date'] = pd.to_datetime(dfMain['date']).dt.date
-            today = datetime.today().date()
-            dfMain = dfMain[dfMain['date'] != today]
+            # today = datetime.today().date()
+            # dfMain = dfMain[dfMain['date'] != today]
 
             ## remove duplicates and set index
             dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
