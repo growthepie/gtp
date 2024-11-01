@@ -115,10 +115,10 @@ class AdapterL2Beat(AbstractAdapter):
         current_config = get_main_config(self.db_connector)
 
         for chain in projects_to_load:
+            origin_key = chain.origin_key
             if origin_key == 'ethereum':
                 continue
-
-            origin_key = chain.origin_key
+            
             l2beat_id = str(chain.aliases_l2beat)
             print(f'...loading stage info for {origin_key} with l2beat_id: {l2beat_id}') 
             stage = response['data']['projects'][l2beat_id]['stage']
