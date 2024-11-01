@@ -102,6 +102,7 @@ class AdapterL2Beat(AbstractAdapter):
                 print(f'Error loading TVL data for {origin_key}')
                 send_discord_message(f'L2Beat: Error loading TVL data for {origin_key}. Other chains are not impacted.', self.webhook)            
 
+        dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return dfMain
     
@@ -114,6 +115,9 @@ class AdapterL2Beat(AbstractAdapter):
         current_config = get_main_config(self.db_connector)
 
         for chain in projects_to_load:
+            if origin_key == 'ethereum':
+                continue
+
             origin_key = chain.origin_key
             l2beat_id = str(chain.aliases_l2beat)
             print(f'...loading stage info for {origin_key} with l2beat_id: {l2beat_id}') 
