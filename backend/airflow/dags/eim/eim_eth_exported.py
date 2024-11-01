@@ -95,6 +95,22 @@ def run():
         # load
         ad.load(df)
 
-    run_native_eth_exported(run_conversion_rates(run_bridge_balances(run_first_block_of_day())))
+    @task()
+    def run_convert_usd(x):
+        adapter_params = {'path': af_path}
+        load_params = {
+            'load_type' : 'eth_equivalent_in_usd',
+            'days' : 3
+        }
+
+        # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterEthExported(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
+
+    run_convert_usd(run_native_eth_exported(run_conversion_rates(run_bridge_balances(run_first_block_of_day()))))
 
 run()

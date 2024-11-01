@@ -16,7 +16,7 @@ class AdapterEthExported(AbstractAdapter):
         rpc_url = 'https://mainnet.gateway.tenderly.co' #TODO: get from db
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
 
-        self.path = adapter_params['path']
+        self.path = adapter_params.get('path', None)
 
         if self.path:
             self.eth_derivatives = read_yaml_file(f'{self.path}/eim/eth_derivatives.yml')
@@ -50,6 +50,8 @@ class AdapterEthExported(AbstractAdapter):
             df = self.get_conversion_rate_per_asset(self.assets)
         elif self.load_type == 'native_eth_exported':
             df = self.get_eth_equivalent_exported()
+        elif self.load_type == 'eth_equivalent_in_usd':
+            df = self.get_eth_equivalent_in_usd()
         else:
             raise ValueError(f"load_type {self.load_type} not supported for this adapter")
 
@@ -258,3 +260,12 @@ class AdapterEthExported(AbstractAdapter):
         ## group by origin_key, date, metric_key and sum value
         df = df.groupby(['origin_key', 'date', 'metric_key']).sum()
         return df
+    
+    def get_eth_equivalent_in_usd(self):
+        df = self.db_connector.get_values_in_usd_eim(['eth_equivalent_exported_eth'], self.days)
+        df = df[df['value'] != 0]
+        df = df.dropna()
+        df.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
+        df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+        return df
+        

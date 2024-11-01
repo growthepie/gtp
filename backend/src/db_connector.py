@@ -413,6 +413,39 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        def get_values_in_usd_eim(self, metric_keys, days, origin_keys = None):
+                mk_string = "'" + "', '".join(metric_keys) + "'"
+
+                if origin_keys is None or len(origin_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
+
+                print(f"load usd values for : {mk_string} and {origin_keys}")
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        SELECT 
+                                Case tkd.metric_key 
+                                        WHEN 'eth_equivalent_exported_eth' THEN 'eth_equivalent_exported_usd'
+                                        ELSE 'error'
+                                END AS metric_key, 
+                                tkd.origin_key,
+                                tkd."date", 
+                                tkd.value * p.value as value
+                        FROM fact_eim tkd
+                        LEFT JOIN eth_price p on tkd."date" = p."date"
+                        WHERE tkd.metric_key in ({mk_string})
+                                {ok_string}
+                                AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         def get_latest_imx_refresh_date(self, tbl_name):
                 if tbl_name == 'imx_orders':
                         exec_string = f"SELECT MAX(updated_timestamp) as last_refresh FROM {tbl_name};"
