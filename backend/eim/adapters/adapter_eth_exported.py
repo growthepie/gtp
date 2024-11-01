@@ -21,11 +21,11 @@ class AdapterEthExported(AbstractAdapter):
         if self.path:
             self.eth_derivatives = read_yaml_file(f'{self.path}/eim/eth_derivatives.yml')
             self.ethereum_token_addresses = self.eth_derivatives['ethereum']
-            self.eth_exported_contracts = read_yaml_file(f'{self.path}/eim/eth_exported_contracts.yml')
+            self.eth_exported_entities = read_yaml_file(f'{self.path}/eim/eth_exported_entities.yml')
         else:
             self.eth_derivatives = read_yaml_file('eim/eth_derivatives.yml')
             self.ethereum_token_addresses = self.eth_derivatives['ethereum']
-            self.eth_exported_contracts = read_yaml_file('eim/eth_exported_contracts.yml')
+            self.eth_exported_entities = read_yaml_file('eim/eth_exported_entities.yml')
         
         print_init(self.name, self.adapter_params)
 
@@ -49,7 +49,7 @@ class AdapterEthExported(AbstractAdapter):
             self.assets = load_params['assets']
             df = self.get_conversion_rate_per_asset(self.assets)
         elif self.load_type == 'native_eth_exported':
-            df = self.get_native_eth_exported()
+            df = self.get_eth_equivalent_exported()
         else:
             raise ValueError(f"load_type {self.load_type} not supported for this adapter")
 
@@ -85,7 +85,7 @@ class AdapterEthExported(AbstractAdapter):
         df_main = pd.DataFrame()
 
         if entities is None:
-            entity_list = self.eth_exported_contracts.keys()
+            entity_list = self.eth_exported_entities.keys()
         else:
             entity_list = entities
 
@@ -95,7 +95,7 @@ class AdapterEthExported(AbstractAdapter):
             print(f"Processing {entity}")     
 
             # iterating over all assets
-            for asset_dict in self.eth_exported_contracts[entity]['ethereum']:
+            for asset_dict in self.eth_exported_entities[entity]['ethereum']:
                 asset = list(asset_dict.keys())[0]
 
                 df = df_blocknumbers.copy()
@@ -238,7 +238,7 @@ class AdapterEthExported(AbstractAdapter):
         df_main.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return df_main
     
-    def get_native_eth_exported(self):
+    def get_eth_equivalent_exported(self):
         df_eth_exported = self.db_connector.get_eth_exported(self.days)
         df_price_eth = self.db_connector.get_fact_eim('price_eth', days=self.days)
         df_price_eth['asset'] = df_price_eth['origin_key'].str.split('_').str[1]
@@ -253,7 +253,7 @@ class AdapterEthExported(AbstractAdapter):
         df = df[['origin_key_x', 'date', 'value']]
         df.columns = ['origin_key', 'date', 'value']
 
-        df['metric_key'] = 'native_eth_equivalent_exported'
+        df['metric_key'] = 'eth_equivalent_exported_eth'
 
         ## group by origin_key, date, metric_key and sum value
         df = df.groupby(['origin_key', 'date', 'metric_key']).sum()
