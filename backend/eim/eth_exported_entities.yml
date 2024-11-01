@@ -4,8 +4,9 @@
 
 arbitrum:
   name: "Arbitrum One"
-  chain: ["arbitrum"]
-  type: "single-chain"
+  chains: ["arbitrum"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH:
       - address: ["0x8315177ab297ba92a06054ce80a67ed4dbd7ed3a", "0x011B6E24FfB0B5f5fCc564cf4183C5BBBc96D515"]
@@ -14,8 +15,9 @@ arbitrum:
 
 base:
   name: "Base"
-  chain: ["base"]
-  type: "single-chain"
+  chains: ["base"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x49048044d57e1c92a77f79988d21fa8faf74e97e"]
@@ -26,8 +28,9 @@ base:
 
 optimism:
   name: "OP Mainnet"
-  chain: ["optimism"]
-  type: "single-chain"
+  chains: ["optimism"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0xbEb5Fc579115071764c7423A4f12eDde41f106Ed", "0x99C9fc46f92E8a1c0deC1b1747d010903E884bE1"]
@@ -36,8 +39,9 @@ optimism:
 
 scroll:
   name: "Scroll"
-  chain: ["scroll"]
-  type: "single-chain"
+  chains: ["scroll"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x6774Bcbd5ceCeF1336b5300fb5186a12DDD8b367"]
@@ -48,8 +52,9 @@ scroll:
 
 blast:
   name: "Blast"
-  chain: ["blast"]
-  type: "single-chain"
+  chains: ["blast"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x98078db053902644191f93988341E31289E1C8FE"]
@@ -58,8 +63,9 @@ blast:
 
 mantle:
   name: "Blast"
-  chain: ["mantle"]
-  type: "single-chain"
+  chains: ["mantle"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0xc54cb22944F2bE476E02dECfCD7e3E7d3e15A8Fb", "0x95fC37A27a2f68e3A647CDc081F0A89bb47c3012"]
@@ -68,8 +74,9 @@ mantle:
 
 zksync_era:
   name: "ZKsync Era"
-  chain: ["zksync_era"]
-  type: "single-chain"
+  chains: ["zksync_era"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0xD7f9f54194C633F36CCD5F3da84ad4a1c38cB2cB", "0x32400084C286CF3E17e7B677ea9583e60a000324"]
@@ -78,8 +85,9 @@ zksync_era:
 
 linea:
   name: "Linea"
-  chain: ["linea"]
-  type: "single-chain"
+  chains: ["linea"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0xd19d4B5d358258f05D7B411E21A1460D11B0876F"]
@@ -88,8 +96,9 @@ linea:
 
 starknet:
   name: "Starknet"
-  chain: ["starknet"]
-  type: "single-chain"
+  chains: ["starknet"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0xae0Ee0A63A2cE6BaeEFFE56e7714FB4EFE48D419"]
@@ -98,48 +107,54 @@ starknet:
 
 manta:
   name: "Manta Pacific"
-  chain: ["manta"]
-  type: "single-chain"
+  chains: ["manta"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x9168765EE952de7C6f8fC6FaD5Ec209B960b7622"]
 
 mode:
   name: "Mode"
-  chain: ["mode"]
-  type: "single-chain"
+  chains: ["mode"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x8B34b14c7c7123459Cf3076b8Cb929BE097d0C07"]
 
 metis:
   name: "Metis"
-  chain: ["metis"]
-  type: "single-chain"
+  chains: ["metis"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x3980c9ed79d2c191A89E02Fa3529C60eD6e9c04b"]
 
 polygon_zkevm:
   name: "Polygon zkEVM"
-  chain: ["polygon_zkevm"]
-  type: "single-chain"
+  chains: ["polygon_zkevm"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x2a3DD3EB832aF982ec71669E178424b10Dca2EDe"]
 
 polygon_pos:
   name: "Polygon PoS"
-  chain: ["polygon_pos"]
-  type: "single-chain"
+  chains: ["polygon_pos"]
+  type: "Sidechain"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x8484Ef722627bf18ca5Ae6BcF031c23E6e922B30", "0xa45b966996374E9e65ab991C6FE4Bfce3a56DDe8"]
 
 ronin:
   name: "Ronin"
-  chain: ["ronin"]
-  type: "single-chain"
+  chains: ["ronin"]
+  type: "Layer 1"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x64192819Ac13Ef72bF6b5AE239AC672B43a9AF08", "0x1A2a1c938CE3eC39b6D47113c7955bAa9DD454F2"]
@@ -148,8 +163,9 @@ ronin:
 
 avalanche:
   name: "Avalanche"
-  chain: ["avalanche"]
-  type: "single-chain"
+  chains: ["avalanche"]
+  type: "Layer 1"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x8EB8a3b98659Cce290402893d0123abb75E3ab28", "0xE78388b4CE79068e89Bf8aA7f218eF6b9AB0e9d0"]
@@ -158,24 +174,27 @@ avalanche:
 
 pulse:
   name: "Pulse"
-  chain: ["pulse"]
-  type: "single-chain"
+  chains: ["pulse"]
+  type: "Layer 1"
+  purpose: "single-chain"
   ethereum:
     - wETH: 
       - address: ["0x1715a3E4A142d8b698131108995174F37aEBA10D"]
 
 aptos:
   name: "Aptos"
-  chain: ["aptos"]
-  type: "single-chain"
+  chains: ["aptos"]
+  type: "Layer 1"
+  purpose: "single-chain"
   ethereum:
     - wETH: 
       - address: ["0x50002CdFe7CCb0C41F519c6Eb0653158d11cd907"]
 
 near:
   name: "Near"
-  chain: ["near"]
-  type: "single-chain"
+  chains: ["near"]
+  type: "Layer 1"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0x6BFaD42cFC4EfC96f529D786D643Ff4A8B89FA52"]
@@ -184,8 +203,9 @@ near:
 
 gnosis:
   name: "Gnosis"
-  chain: ["gnosis"]
-  type: "single-chain"
+  chains: ["gnosis"]
+  type: "Sidechain"
+  purpose: "single-chain"
   ethereum:
     - wETH: 
       - address: ["0x88ad09518695c6c3712AC10a214bE5109a655671"]
@@ -196,24 +216,27 @@ gnosis:
 
 sui:
   name: "Sui"
-  chain: ["sui"]
-  type: "single-chain"
+  chains: ["sui"]
+  type: "Layer 1"
+  purpose: "single-chain"
   ethereum:
     - wETH: 
       - address: ["0x312e67b47A2A29AE200184949093D92369F80B53"]
 
 worldchain:
   name: "World Chain"
-  chain: ["worldchain"]
-  type: "single-chain"
+  chains: ["worldchain"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0xd5ec14a83B7d95BE1E2Ac12523e2dEE12Cbeea6C"]
 
 derive:
   name: "Derive"
-  chain: ["derive"]
-  type: "single-chain"
+  chains: ["derive"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - rswETH:
       - address: ["0x4BB4C3CDc7562f08e9910A0C7D8bB7e108861eB4"]
@@ -228,8 +251,9 @@ derive:
 
 kinto:
   name: "Kinto"
-  chain: ["kinto"]
-  type: "single-chain"
+  chains: ["kinto"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - wstETH:
       - address: ["0xc5d01939Af7Ce9Ffc505F0bb36eFeDde7920f2dc", "0x0f1b7bd7762662B23486320AA91F30312184f70C"]
@@ -240,24 +264,27 @@ kinto:
 
 sollet:
   name: "Sollet"
-  chain: ["solana"]
-  type: "xxx"
+  chains: ["solana"]
+  type: "Bridge"
+  purpose: "xxx"
   ethereum:
     - ETH: 
       - address: ["0xeae57ce9cc1984F202e15e038B964bb8bdF7229a"]
 
 wormhole:
   name: "Wormhole"
-  chain: ["solana", "arbitrun", "base", "sui", "bnb_chain", "optimism", "fantom", "polygon_pos", "avalanche", "celo", "moonbeam", "kaia", "scroll", "mantle", "aptos", "x_layer"]
-  type: "multi-chain"
+  chains: ["solana", "arbitrun", "base", "sui", "bnb_chain", "optimism", "fantom", "polygon_pos", "avalanche", "celo", "moonbeam", "kaia", "scroll", "mantle", "aptos", "x_layer"]
+  type: "Bridge"
+  purpose: "multi-chain"
   ethereum:
     - wETH:
       - address: ["0x3ee18B2214AFF97000D974cf647E7C347E8fa585", "0xf92cD566Ea4864356C5491c177A430C222d7e678"]
 
 stargate:
   name: "Stargate"
-  chain: ["arbitrum", "base", "linea", "optimism", "ethereum", "flare", "gravity", "iota", "kaia", "mantle", "metis", "sei", "scroll"]
-  type: "multi-chain"
+  chains: ["arbitrum", "base", "linea", "optimism", "ethereum", "flare", "gravity", "iota", "kaia", "mantle", "metis", "sei", "scroll"]
+  type: "Bridge"
+  purpose: "multi-chain"
   ethereum:
     - ETH:
       - address: ["0x72E2F4830b9E45d52F80aC08CB2bEC0FeF72eD9c", "0x77b2043768d28E9C9aB44E1aBfC95944bcE57931"]
@@ -266,24 +293,27 @@ stargate:
 
 orbit:
   name: "Orbit"
-  chain: ["klaytn"]
-  type: "xxx"
+  chains: ["klaytn"]
+  type: "Bridge"
+  purpose: "xxx"
   ethereum:
     - ETH:
       - address: ["0x1Bf68A9d1EaEe7826b3593C20a0ca93293cb489a"]
 
 rhino:
   name: "Rhino"
-  chain: ["rhino"]
-  type: "single-chain"
+  chains: ["rhino"]
+  type: "Layer 2"
+  purpose: "single-chain"
   ethereum:
     - ETH:
       - address: ["0x5d22045DAcEAB03B158031eCB7D9d06Fad24609b"]
 
 fraxferry:
   name: "FraxFerry"
-  chain: ["arbitrum", "aurora", "avalanche", "bnb_chain", "evmos", "fantom", "moonbeam", "moonriver", "optimism", "polygon_pos", "polygon_zkevm", "fraxtal", "zksync_era", "boba"]
-  type: "multi-chain"
+  chains: ["arbitrum", "aurora", "avalanche", "bnb_chain", "evmos", "fantom", "moonbeam", "moonriver", "optimism", "polygon_pos", "polygon_zkevm", "fraxtal", "zksync_era", "boba"]
+  type: "Bridge"
+  purpose: "multi-chain"
   ethereum:
     - frxETH:
       - address: ["0x505603e2440b44C1602b44D0Eb8385399b3F7bab"]
@@ -292,16 +322,18 @@ fraxferry:
 
 harmony:
   name: "Harmony"
-  chain: ["harmony"]
-  type: "single-chain"
+  chains: ["harmony"]
+  type: "Layer 1"
+  purpose: "single-chain"
   ethereum:
     - ETH:
       - address: ["0xF9Fb1c508Ff49F78b60d3A96dea99Fa5d7F3A8A6"]
 
 layer_zero:
   name: "LayerZero"
-  chain: ["ethereum", "bnb_chain", "linea", "base", "blast", "mode", "optimism", "scroll", "zksync_era", "sei", "fraxtal", "gnosis", "taiko"]
-  type: "multi-chain"
+  chains: ["ethereum", "bnb_chain", "linea", "base", "blast", "mode", "optimism", "scroll", "zksync_era", "sei", "fraxtal", "gnosis", "taiko"]
+  type: "Bridge"
+  purpose: "multi-chain"
   ethereum:
     - weETH:
       - address: ["0xFE7fe01F8B9A76803aF3750144C2715D9bcf7D0D"]
@@ -314,16 +346,18 @@ layer_zero:
 
 nomad:
   name: Nomad
-  chain: [""]
-  type: "xxx"
+  chains: [""]
+  type: "Bridge"
+  purpose: "xxx"
   ethereum:
     - wETH:
       - address: ["0x88A69B4E698A4B090DF6CF5Bd7B2D47325Ad30A3"]
 
 optics:
   name: "Optics"
-  chain: ["celo"]
-  type: "xxx"
+  chains: ["celo"]
+  type: "Bridge"
+  purpose: "xxx"
   ethereum:
     - wETH:
       - address: ["0x6a39909e805A3eaDd2b61fFf61147796ca6aBB47", "0x4fc16De11deAc71E8b2Db539d82d93BE4b486892"]
