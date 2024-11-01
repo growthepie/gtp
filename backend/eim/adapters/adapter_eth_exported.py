@@ -1,6 +1,9 @@
 import pandas as pd
 from web3 import Web3
 from datetime import datetime
+import getpass
+sys_user = getpass.getuser()
+
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
@@ -16,12 +19,10 @@ class AdapterEthExported(AbstractAdapter):
         rpc_url = 'https://mainnet.gateway.tenderly.co' #TODO: get from db
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
 
-        self.path = adapter_params.get('path', None)
-
-        if self.path:
-            self.eth_derivatives = read_yaml_file(f'{self.path}/eim/eth_derivatives.yml')
+        if sys_user == 'ubuntu':
+            self.eth_derivatives = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_derivatives.yml')
             self.ethereum_token_addresses = self.eth_derivatives['ethereum']
-            self.eth_exported_entities = read_yaml_file(f'{self.path}/eim/eth_exported_entities.yml')
+            self.eth_exported_entities = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_exported_entities.yml')
         else:
             self.eth_derivatives = read_yaml_file('eim/eth_derivatives.yml')
             self.ethereum_token_addresses = self.eth_derivatives['ethereum']
