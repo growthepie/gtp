@@ -2,6 +2,7 @@ import yaml
 import pandas as pd
 from web3 import Web3
 import datetime
+import time
 
 def read_yaml_file(file_path):
     """
@@ -49,12 +50,14 @@ def call_contract_function(w3: Web3, contract_address: str, abi: dict, function_
 
     # check if the contract was deployed at the given address
     code = w3.eth.get_code(contract_address, block_identifier=at_block)
+    time.sleep(0.2)  # Sleep to avoid rate limiting
     if code == b'':  # Contract not deployed by this block
         print(f"Contract not deployed at address {contract_address} with block {at_block}")
         return None
 
     try:
         contract = w3.eth.contract(address=Web3.to_checksum_address(contract_address), abi=abi)
+        time.sleep(0.2)  # Sleep to avoid rate limiting
         function = getattr(contract.functions, function_name)
         return function(*args).call(block_identifier=int(at_block))
     except Exception as e:
