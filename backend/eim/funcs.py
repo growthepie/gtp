@@ -3,7 +3,6 @@ import pandas as pd
 from web3 import Web3
 import datetime
 import time
-import traceback
 
 def read_yaml_file(file_path):
     """
@@ -63,7 +62,6 @@ def call_contract_function(w3: Web3, contract_address: str, abi: dict, function_
         return function(*args).call(block_identifier=int(at_block))
     except Exception as e:
         print(f"Error calling function {function_name} with args {args} on contract {contract_address} with block_identifier {at_block}: {e}")
-        traceback.print_exc()
         raise e
 
 def get_erc20_balance_ethereum(w3: Web3, token_contract: str, token_abi: dict, address, at_block='latest'):
