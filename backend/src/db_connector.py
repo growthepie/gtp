@@ -460,7 +460,7 @@ class DbConnector:
                                 FROM
                                         fact_eim
                                 WHERE metric_key = 'eth_supply_eth' and origin_key = 'ethereum'
-                                        and date >= date_trunc('day',now()) - interval '{days} days'
+                                        and date >= date_trunc('day',now()) - interval '{days+14} days'
                                 ),
                         dod_change AS (
                                 SELECT
@@ -476,8 +476,8 @@ class DbConnector:
                                         WHEN previous_day_avg IS NULL THEN NULL
                                         ELSE (rolling_7d_avg - previous_day_avg) / previous_day_avg
                                 END * 365 AS value
-                        FROM
-                        dod_change;
+                        FROM dod_change
+                        WHERE date >= date_trunc('day',now()) - interval '{days} days'
 
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())

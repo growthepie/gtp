@@ -1,4 +1,5 @@
 import pandas as pd
+from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import api_get_call, upsert_to_kpis
@@ -73,9 +74,14 @@ class AdapterEthSupply(AbstractAdapter):
     
     def get_inflation_rate(self, days):
         df = self.db_connector.get_eth_inflation_rate(days)
+        
+        ## filter date to be after 2015-08-05
+        df = df[df['date'] > datetime(2015,8,5).date()]
+        
         df = df.dropna()
         df['metric_key'] = 'eth_inflation_rate'
         df['origin_key'] = 'ethereum'
+
         df.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
         df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return df
