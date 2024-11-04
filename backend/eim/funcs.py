@@ -62,6 +62,12 @@ def call_contract_function(w3: Web3, contract_address: str, abi: dict, function_
         return function(*args).call(block_identifier=int(at_block))
     except Exception as e:
         print(f"Error calling function {function_name} with args {args} on contract {contract_address} with block_identifier {at_block}: {e}")
+        ## print datatypes of all variables
+        print(f"contract_address: {type(contract_address)}")
+        print(f"abi: {type(abi)}")
+        print(f"function_name: {type(function_name)}")
+        print(f"args: {type(args)}")
+        print(f"at_block: {type(at_block)}")
         raise e
 
 def get_erc20_balance_ethereum(w3: Web3, token_contract: str, token_abi: dict, address, at_block='latest'):
