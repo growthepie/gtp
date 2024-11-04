@@ -432,6 +432,7 @@ class DbConnector:
                         SELECT 
                                 Case tkd.metric_key 
                                         WHEN 'eth_equivalent_exported_eth' THEN 'eth_equivalent_exported_usd'
+                                        WHEN 'eth_supply_eth' THEN 'eth_supply_usd'
                                         ELSE 'error'
                                 END AS metric_key, 
                                 tkd.origin_key,
