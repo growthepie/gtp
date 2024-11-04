@@ -4,11 +4,14 @@ import datetime
 import pandas as pd
 import numpy as np
 from datetime import timedelta, datetime, timezone
+import getpass
+sys_user = getpass.getuser()
 
 from src.main_config import get_main_config, get_multi_config
 from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 from src.db_connector import DbConnector
+from eim.funcs import read_yaml_file
 
 import warnings
 
@@ -35,6 +38,11 @@ class JSONCreation():
         self.main_config = get_main_config(self.db_connector)
         self.multi_config = get_multi_config(self.db_connector)
         self.latest_eth_price = self.db_connector.get_last_price_usd('ethereum')
+
+        if sys_user == 'ubuntu':
+            self.eth_exported_entities = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_exported_entities.yml')
+        else:
+            self.eth_exported_entities = read_yaml_file('eim/eth_exported_entities.yml')
 
         ## Decimals: only relevant if value isn't aggregated
         ## When aggregated (starting >1k), we always show 2 decimals
@@ -494,7 +502,7 @@ class JSONCreation():
                 'fundamental': True,
                 'metric_keys': ['da_fees_per_mbyte_usd', 'da_fees_per_mbyte_eth'],
                 'units': {
-                    'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False}, 
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
                     'eth': {'decimals': 6, 'decimals_tooltip': 6, 'agg_tooltip': False}
                 },
                 'avg': True,
@@ -517,6 +525,23 @@ class JSONCreation():
                 'log_default': False
             }
         }
+
+        self.eim_metrics = {
+            'eth_exported': {
+                'name': 'ETH exported',
+                'fundamental': True,
+                'metric_keys': ['eth_equivalent_exported_usd', 'eth_equivalent_exported_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
+                },
+                'avg': False, ##7d rolling average
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'log_default': False
+            }
+        }
         
         for metric_key, metric_value in self.metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
@@ -525,6 +550,9 @@ class JSONCreation():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
 
         for metric_key, metric_value in self.da_metrics.items():
+            metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
+
+        for metric_key, metric_value in self.eim_metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
 
         #append all values of metric_keys in metrics dict to a list
@@ -554,14 +582,17 @@ class JSONCreation():
     
     ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
 
-    def df_rename(self, df, metric_id, col_name_removal=False, da=False):
-        # print(f'called df_rename for {metric_id}')
-        # print(df.columns.to_list())
-        if da == True:
-            tmp_metrics_dict = self.da_metrics
+    def get_metric_dict(self, metric_type):
+        if metric_type == 'default':
+            return self.metrics
+        elif metric_type == 'da':
+            return self.da_metrics
+        elif metric_type == 'eim':
+            return self.eim_metrics
         else:
-            tmp_metrics_dict = self.metrics
+            raise ValueError(f"ERROR: metric type {metric_type} is not implemented")
 
+    def df_rename(self, df, metric_id, tmp_metrics_dict, col_name_removal=False):
         if col_name_removal:
             df.columns.name = None
 
@@ -643,12 +674,8 @@ class JSONCreation():
 
 
     # this method returns a list of lists with the unix timestamp and all associated values for a certain metric_id and chain_id
-    def generate_daily_list(self, df, metric_id, origin_key, start_date = None, da=False):
-        ##print(f'called generate int for {metric_id} and {origin_key}')
-        if da == True:
-            tmp_metrics_dict = self.da_metrics
-        else:
-            tmp_metrics_dict = self.metrics
+    def generate_daily_list(self, df, metric_id, origin_key, start_date = None, metric_type='default'):
+        tmp_metrics_dict = self.get_metric_dict(metric_type)            
 
         mks = tmp_metrics_dict[metric_id]['metric_keys']
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["unix", "value", "metric_key", "date"]]
@@ -685,7 +712,7 @@ class JSONCreation():
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
         
-        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True, da=da)
+        df_tmp = self.df_rename(df_tmp, metric_id, tmp_metrics_dict, col_name_removal=True)
 
         mk_list = df_tmp.values.tolist() ## creates a list of lists
 
@@ -699,12 +726,9 @@ class JSONCreation():
         return mk_list_int, df_tmp.columns.to_list()
     
     # this method returns a list of lists with the unix timestamp (first day of month) and all associated values for a certain metric_id and chain_id
-    def generate_monthly_list(self, df, metric_id, origin_key, start_date = None, da=False):
-        if da == True:
-            tmp_metrics_dict = self.da_metrics
-        else:
-            tmp_metrics_dict = self.metrics
-        ##print(f'called generate int for {metric_id} and {chain_id}')
+    def generate_monthly_list(self, df, metric_id, origin_key, start_date = None, metric_type='default'):
+        tmp_metrics_dict = self.get_metric_dict(metric_type)   
+
         mks = tmp_metrics_dict[metric_id]['metric_keys'].copy()
         if 'daa' in mks:
             mks[mks.index('daa')] = 'maa'
@@ -736,7 +760,7 @@ class JSONCreation():
         df_tmp = df_tmp.pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
 
-        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True, da=da)
+        df_tmp = self.df_rename(df_tmp, metric_id, tmp_metrics_dict, col_name_removal=True)
 
         mk_list = df_tmp.values.tolist() ## creates a list of lists
 
@@ -943,12 +967,31 @@ class JSONCreation():
         # fill NaN values with 0
         df.value.fillna(0, inplace=True)
         return df
+    
+    def download_data_eim(self):
+        exec_string = f"""
+            SELECT 
+                kpi.metric_key, 
+                kpi.origin_key as origin_key, 
+                kpi."date", 
+                kpi.value
+            FROM public.fact_eim kpi
+            where kpi."date" >= '2021-01-01'
+                and metric_key in ('eth_equivalent_exported_usd', 'eth_equivalent_exported_eth')
+        """
 
-    def create_changes_dict(self, df, metric_id, origin_key, da=False):
-        if da == True:
-            tmp_metrics_dict = self.da_metrics
-        else:
-            tmp_metrics_dict = self.metrics
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+
+        ## date to datetime column in UTC
+        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+        ## datetime to unix timestamp using timestamp() function
+        df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+        # fill NaN values with 0
+        df.value.fillna(0, inplace=True)
+        return df
+
+    def create_changes_dict(self, df, metric_id, origin_key, metric_type='default'):
+        tmp_metrics_dict = self.get_metric_dict(metric_type)   
 
         #print(f'called create_changes_dict for {metric_id} and {origin_key}')
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(tmp_metrics_dict[metric_id]['metric_keys'])), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
@@ -984,17 +1027,14 @@ class JSONCreation():
                             change_val = 99.99
                 changes_dict[f'{change}d'].append(change_val)
 
-        df_tmp = self.df_rename(df_tmp, metric_id, da=da)
+        df_tmp = self.df_rename(df_tmp, metric_id, tmp_metrics_dict)
         changes_dict['types'] = df_tmp.columns.to_list()
 
         return changes_dict
     
-    def create_changes_dict_monthly(self, df, metric_id, origin_key, da=False):
-        if da == True:
-            tmp_metrics_dict = self.da_metrics
-        else:
-            tmp_metrics_dict = self.metrics
-        #print(f'called create_changes_dict for {metric_id} and {origin_key}')
+    def create_changes_dict_monthly(self, df, metric_id, origin_key, metric_type='default'):
+        tmp_metrics_dict = self.get_metric_dict(metric_type)   
+
         mks = tmp_metrics_dict[metric_id]['metric_keys'].copy()
         if 'daa' in mks:
             mks[mks.index('daa')] = 'aa_last30d'
@@ -1044,17 +1084,14 @@ class JSONCreation():
                             change_val = 99.99
                 changes_dict[f'{change}d'].append(change_val)
 
-        df_tmp = self.df_rename(df_tmp, metric_id, da=da)
+        df_tmp = self.df_rename(df_tmp, metric_id, tmp_metrics_dict)
         changes_dict['types'] = df_tmp.columns.to_list()
 
         return changes_dict
     
     ## this function takes a dataframe and a metric_id and origin_key as input and returns a value that aggregates the last 30 days
-    def value_last_30d(self, df, metric_id, origin_key, da=False):
-        if da == True:
-            tmp_metrics_dict = self.da_metrics
-        else:
-            tmp_metrics_dict = self.metrics
+    def value_last_30d(self, df, metric_id, origin_key, metric_type='default'):
+        tmp_metrics_dict = self.get_metric_dict(metric_type)
 
         mks = tmp_metrics_dict[metric_id]['metric_keys'].copy()
         if 'daa' in mks:
@@ -1063,7 +1100,7 @@ class JSONCreation():
         df_tmp = df.loc[(df.origin_key==origin_key) & (df.metric_key.isin(mks)), ["date", "value", "metric_key"]].pivot(index='date', columns='metric_key', values='value')
         df_tmp.sort_values(by=['date'], inplace=True, ascending=False)
 
-        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True, da=da)
+        df_tmp = self.df_rename(df_tmp, metric_id, tmp_metrics_dict, col_name_removal=True)
 
         if tmp_metrics_dict[metric_id]['monthly_agg'] == 'sum':
             val = df_tmp.iloc[0:29].sum()
@@ -1097,6 +1134,18 @@ class JSONCreation():
     
     def get_data_fees(self):
         df = self.download_data_fees(self.fees_list)
+        return df
+    
+    def get_data_eim(self):
+        df = self.download_data_eim()
+
+        ## create new df that sums up all values for each metric_key/date combination and assign "total" to origin_key
+        df_total = df.groupby(['date', 'metric_key']).sum().reset_index()
+        df_total['origin_key'] = 'total'
+
+        ## append df_total to df
+        df = pd.concat([df, df_total], ignore_index=True)
+
         return df
     
     ##### LANDING PAGE METHODS #####
@@ -1323,7 +1372,7 @@ class JSONCreation():
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
         df_tmp.columns.name = None
 
-        df_tmp = self.df_rename(df_tmp, metric_id, col_name_removal=True)
+        df_tmp = self.df_rename(df_tmp, metric_id, self.metrics, col_name_removal=True)
 
         mk_list = df_tmp.values.tolist()
 
@@ -1755,22 +1804,22 @@ class JSONCreation():
                     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                     continue
 
-                mk_list = self.generate_daily_list(df, metric, origin_key, da=True)
+                mk_list = self.generate_daily_list(df, metric, origin_key, metric_type='da')
                 mk_list_int = mk_list[0]
                 mk_list_columns = mk_list[1]
 
-                mk_list_monthly = self.generate_monthly_list(df, metric, origin_key, da=True)
+                mk_list_monthly = self.generate_monthly_list(df, metric, origin_key, metric_type='da')
                 mk_list_int_monthly = mk_list_monthly[0]
                 mk_list_columns_monthly = mk_list_monthly[1]
 
                 da_dict[origin_key] = {
-                    'changes': self.create_changes_dict(df, metric, origin_key, da=True),
-                    'changes_monthly': self.create_changes_dict_monthly(df, metric, origin_key, da=True),
+                    'changes': self.create_changes_dict(df, metric, origin_key, metric_type='da'),
+                    'changes_monthly': self.create_changes_dict_monthly(df, metric, origin_key, metric_type='da'),
                     'daily': {
                         'types' : mk_list_columns,
                         'data' : mk_list_int
                     },
-                    'last_30d': self.value_last_30d(df, metric, origin_key, da=True),
+                    'last_30d': self.value_last_30d(df, metric, origin_key, metric_type='da'),
                     'monthly': {
                         'types' : mk_list_columns_monthly,
                         'data' : mk_list_int_monthly
@@ -2205,6 +2254,53 @@ class JSONCreation():
 
         upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/export_labels_{subset}', df, self.cf_distribution_id)
         print(f'DONE -- labels export_labels_{subset}.parquet export')
+
+
+    #######################################################################
+    ### EIM
+    #######################################################################
+
+    def create_eth_exported_json(self, df):
+        entity_dict = {}    
+        metric = 'eth_exported'
+
+        ## add 'total' to the list of entities
+        self.eth_exported_entities['total'] = {
+            'name': 'Total ETH Exported',
+            'type': 'total',
+            'chains': ['all']
+        }
+
+        for entity in self.eth_exported_entities:
+            mk_list = self.generate_daily_list(df, metric, entity, metric_type='eim')
+            mk_list_int = mk_list[0]
+            mk_list_columns = mk_list[1]
+
+            entity_dict[entity] = {
+                'changes': self.create_changes_dict(df, metric, entity, metric_type='eim'),
+                'daily': {
+                    'types' : mk_list_columns,
+                    'data' : mk_list_int
+                }
+            }        
+
+        details_dict = {
+            'data': {
+                'metric_id': metric,
+                'metric_name': self.eim_metrics[metric]['name'],
+                'entities': self.eth_exported_entities,
+                'chart': entity_dict
+            }
+        }
+
+        details_dict = fix_dict_nan(details_dict, f'metrics/{metric}')
+
+        if self.s3_bucket == None:
+            self.save_to_json(details_dict, f'eim/eth_exported')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eim/eth_exported', details_dict, self.cf_distribution_id)
+        print(f'DONE -- ETH exported export done')
+
 
     #######################################################################
     ### API ENDPOINTS
