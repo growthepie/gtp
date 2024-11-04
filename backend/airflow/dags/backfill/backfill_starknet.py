@@ -17,7 +17,7 @@ from src.adapters.rpc_funcs.utils import get_chain_config
         'retries': 2,
         'email_on_failure': False,
         'retry_delay': timedelta(minutes=5),
-        'on_failure_callback': alert_via_webhook
+        'on_failure_callback': lambda context: alert_via_webhook(context, user='nader')
     },
     dag_id='backfill_starknet',
     description='Backfill potentially missing Starknet data',

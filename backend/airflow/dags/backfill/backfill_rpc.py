@@ -33,7 +33,7 @@ chain_settings = {
         'retries': 2,
         'retry_delay': timedelta(minutes=5),
         'email_on_failure': False,
-        'on_failure_callback': alert_via_webhook
+        'on_failure_callback': lambda context: alert_via_webhook(context, user='nader')
     },
     dag_id='backfill_rpc',
     description='DAG for backfilling missing blockchain data',
