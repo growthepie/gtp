@@ -46,6 +46,7 @@ def run():
         adapter_params = {}
         load_params = {
             'load_type' : 'supply_in_usd',
+            'days' : 5,
         }
 
         # initialize adapter
@@ -56,6 +57,22 @@ def run():
         # load
         ad.load(df)
 
-    run_supply_in_usd(run_extract_eth_supply())
+    @task()
+    def run_inflation_rate(x):
+        adapter_params = {}
+        load_params = {
+            'load_type' : 'inflation_rate',
+            'days' : 5
+        }
+
+        # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterEthSupply(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
+
+    run_inflation_rate(run_supply_in_usd(run_extract_eth_supply()))
 
 run()

@@ -19,12 +19,14 @@ class AdapterEthSupply(AbstractAdapter):
     """
     def extract(self, load_params:dict):
         self.load_type = load_params['load_type']
-        
+        days = load_params.get('days', 5)
+
         if self.load_type == 'extract_eth_supply':
             df = self.extract_eth_supply()
-        elif self.load_type == 'supply_in_usd':
-            days = load_params.get('days', 5)      
+        elif self.load_type == 'supply_in_usd':                  
             df = self.get_supply_in_usd(days)
+        elif self.load_type == 'inflation_rate':
+            df = self.get_inflation_rate(days)
         else:
             raise ValueError(f"load_type {self.load_type} not supported for this adapter")        
 
@@ -65,6 +67,15 @@ class AdapterEthSupply(AbstractAdapter):
         df = self.db_connector.get_values_in_usd_eim(['eth_supply_eth'], days)
         df = df[df['value'] != 0]
         df = df.dropna()
+        df.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
+        df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+        return df
+    
+    def get_inflation_rate(self, days):
+        df = self.db_connector.get_eth_inflation_rate(days)
+        df = df.dropna()
+        df['metric_key'] = 'eth_inflation_rate'
+        df['origin_key'] = 'ethereum'
         df.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
         df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return df

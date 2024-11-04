@@ -447,6 +447,42 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        """
+        Get the inflation rate for ETH. The inflation rate is calculated as the daily change in ETH supply over the past 7 days.       
+        """
+        def get_eth_inflation_rate(self, days):
+                exec_string = f'''
+                        WITH rolling_avg AS (
+                                SELECT
+                                        date,
+                                        value,
+                                        AVG(value) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS rolling_7d_avg
+                                FROM
+                                        fact_eim
+                                WHERE metric_key = 'eth_supply_eth' and origin_key = 'ethereum'
+                                        and date >= date_trunc('day',now()) - interval '{days} days'
+                                ),
+                        dod_change AS (
+                                SELECT
+                                        date,
+                                        rolling_7d_avg,
+                                        LAG(rolling_7d_avg) OVER (ORDER BY date) AS previous_day_avg
+                                FROM
+                                        rolling_avg
+                        )
+                        SELECT
+                                date,
+                                CASE
+                                        WHEN previous_day_avg IS NULL THEN NULL
+                                        ELSE (rolling_7d_avg - previous_day_avg) / previous_day_avg
+                                END * 365 AS value
+                        FROM
+                        dod_change;
+
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
         def get_latest_imx_refresh_date(self, tbl_name):
                 if tbl_name == 'imx_orders':
                         exec_string = f"SELECT MAX(updated_timestamp) as last_refresh FROM {tbl_name};"
