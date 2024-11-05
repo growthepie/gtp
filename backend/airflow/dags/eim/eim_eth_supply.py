@@ -58,10 +58,10 @@ def run():
         ad.load(df)
 
     @task()
-    def run_inflation_rate(x):
+    def run_issuance_rate(x):
         adapter_params = {}
         load_params = {
-            'load_type' : 'inflation_rate',
+            'load_type' : 'issuance_rate',
             'days' : 5
         }
 
@@ -73,6 +73,6 @@ def run():
         # load
         ad.load(df)
 
-    run_inflation_rate(run_supply_in_usd(run_extract_eth_supply()))
+    run_issuance_rate(run_supply_in_usd(run_extract_eth_supply()))
 
 run()

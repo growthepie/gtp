@@ -450,7 +450,7 @@ class DbConnector:
         """
         Get the inflation rate for ETH. The inflation rate is calculated as the daily change in ETH supply over the past 7 days.       
         """
-        def get_eth_inflation_rate(self, days):
+        def get_eth_issuance_rate(self, days):
                 exec_string = f'''
                         WITH rolling_avg AS (
                                 SELECT

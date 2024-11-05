@@ -26,8 +26,8 @@ class AdapterEthSupply(AbstractAdapter):
             df = self.extract_eth_supply()
         elif self.load_type == 'supply_in_usd':                  
             df = self.get_supply_in_usd(days)
-        elif self.load_type == 'inflation_rate':
-            df = self.get_inflation_rate(days)
+        elif self.load_type == 'issuance_rate':
+            df = self.get_issuance_rate(days)
         else:
             raise ValueError(f"load_type {self.load_type} not supported for this adapter")        
 
@@ -72,14 +72,14 @@ class AdapterEthSupply(AbstractAdapter):
         df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return df
     
-    def get_inflation_rate(self, days):
-        df = self.db_connector.get_eth_inflation_rate(days)
+    def get_issuance_rate(self, days):
+        df = self.db_connector.get_eth_issuance_rate(days)
         
         ## filter date to be after 2015-08-05
         df = df[df['date'] > datetime(2015,8,5).date()]
         
         df = df.dropna()
-        df['metric_key'] = 'eth_inflation_rate'
+        df['metric_key'] = 'eth_issuance_rate'
         df['origin_key'] = 'ethereum'
 
         df.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)

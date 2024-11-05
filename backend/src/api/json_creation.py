@@ -41,8 +41,11 @@ class JSONCreation():
 
         if sys_user == 'ubuntu':
             self.eth_exported_entities = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_exported_entities.yml')
+            self.ethereum_upgrades = json.load(open(f'/home/{sys_user}/gtp/backend/eim/ethereum_protocol_upgrades.json'))
         else:
             self.eth_exported_entities = read_yaml_file('eim/eth_exported_entities.yml')
+            self.ethereum_upgrades = json.load(open('eim/ethereum_protocol_upgrades.json'))
+
 
         ## Decimals: only relevant if value isn't aggregated
         ## When aggregated (starting >1k), we always show 2 decimals
@@ -536,13 +539,36 @@ class JSONCreation():
                     'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
                 },
                 'avg': False, ##7d rolling average
-                'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
+                'max_date_fill' : False,
+                'log_default': False
+            },
+            'eth_supply': {
+                'name': 'ETH supply',
+                'fundamental': True,
+                'metric_keys': ['eth_supply_eth'],
+                'units': {
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}
+                },
+                'avg': False, ##7d rolling average
+                'monthly_agg': 'avg',
+                'max_date_fill' : False,
+                'log_default': False
+            },
+            'eth_issuance_rate': {
+                'name': 'ETH issuance rate',
+                'fundamental': True,
+                'metric_keys': ['eth_issuance_rate'],
+                'units': {
+                    'value': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': True}
+                },
+                'avg': False, ##7d rolling average
+                'monthly_agg': 'avg',
                 'max_date_fill' : False,
                 'log_default': False
             }
         }
-        
+
         for metric_key, metric_value in self.metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
 
@@ -976,8 +1002,8 @@ class JSONCreation():
                 kpi."date", 
                 kpi.value
             FROM public.fact_eim kpi
-            where kpi."date" >= '2021-01-01'
-                and metric_key in ('eth_equivalent_exported_usd', 'eth_equivalent_exported_eth')
+            where kpi."date" >= '2015-01-01'
+                and metric_key in ('eth_equivalent_exported_usd', 'eth_equivalent_exported_eth', 'eth_supply_eth', 'eth_issuance_rate')
         """
 
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
@@ -2272,7 +2298,7 @@ class JSONCreation():
         }
 
         for entity in self.eth_exported_entities:
-            mk_list = self.generate_daily_list(df, metric, entity, metric_type='eim')
+            mk_list = self.generate_daily_list(df, metric, entity, metric_type='eim', start_date='2021-01-01')
             mk_list_int = mk_list[0]
             mk_list_columns = mk_list[1]
 
@@ -2300,6 +2326,39 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eim/eth_exported', details_dict, self.cf_distribution_id)
         print(f'DONE -- ETH exported export done')
+
+    def create_eth_supply_json(self, df):
+        metric_dict = {}
+        metrics_list = ['eth_supply', 'eth_issuance_rate']
+        ## keep only metrics from self.da_metrics that are in the metrics_list
+        metrics = {key: value for key, value in self.eim_metrics.items() if key in metrics_list} 
+
+        for metric in metrics:
+            mk_list = self.generate_daily_list(df, metric, "ethereum", metric_type='eim')
+            mk_list_int = mk_list[0]
+            mk_list_columns = mk_list[1]
+
+            metric_dict[metric] = {
+                'daily': {
+                    'types' : mk_list_columns,
+                    'data' : mk_list_int
+                }
+            }        
+
+        details_dict = {
+            'data': {
+                'chart': metric_dict,
+                'events': self.ethereum_upgrades
+            }
+        }
+
+        details_dict = fix_dict_nan(details_dict, f'metrics/{metric}')
+
+        if self.s3_bucket == None:
+            self.save_to_json(details_dict, f'eim/eth_supply')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eim/eth_supply', details_dict, self.cf_distribution_id)
+        print(f'DONE -- ETH supply export done')
 
 
     #######################################################################
