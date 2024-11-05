@@ -192,7 +192,7 @@ class DbConnector:
                 else:
                         return val
                 
-        def get_fact_eim(self, metric_key, origin_keys=None, days=7):
+        def get_eim_fact(self, metric_key, origin_keys=None, days=7):
                 if origin_keys is None or len(origin_keys) == 0:
                         ok_string = ''
                 else:
@@ -203,7 +203,7 @@ class DbConnector:
                                 date
                                 ,origin_key
                                 ,value
-                        FROM fact_eim
+                        FROM eim_fact
                         WHERE metric_key = '{metric_key}'
                                 {ok_string}
                                 AND date >= date_trunc('day',now()) - interval '{days} days'
@@ -214,7 +214,7 @@ class DbConnector:
         def get_eth_exported(self, days):
                 exec_string = f"""
                         SELECT origin_key, "date", value, split_part(metric_key, '_', 3) AS asset
-                        FROM public.fact_eim
+                        FROM public.eim_fact
                         where metric_key like 'eth_exported_%%'
                         AND date >= date_trunc('day', current_date - interval '{days}' day)
                         """
@@ -438,7 +438,7 @@ class DbConnector:
                                 tkd.origin_key,
                                 tkd."date", 
                                 tkd.value * p.value as value
-                        FROM fact_eim tkd
+                        FROM eim_fact tkd
                         LEFT JOIN eth_price p on tkd."date" = p."date"
                         WHERE tkd.metric_key in ({mk_string})
                                 {ok_string}
@@ -458,7 +458,7 @@ class DbConnector:
                                         value,
                                         AVG(value) OVER (ORDER BY date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW) AS rolling_7d_avg
                                 FROM
-                                        fact_eim
+                                        eim_fact
                                 WHERE metric_key = 'eth_supply_eth' and origin_key = 'ethereum'
                                         and date >= date_trunc('day',now()) - interval '{days+14} days'
                                 ),

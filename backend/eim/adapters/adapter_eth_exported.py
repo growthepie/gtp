@@ -60,7 +60,7 @@ class AdapterEthExported(AbstractAdapter):
         return df
     
     def load(self, df:pd.DataFrame):
-        tbl_name = 'fact_eim'
+        tbl_name = 'eim_fact'
         upserted = self.db_connector.upsert_table(tbl_name, df)
         print_load(self.name, upserted, tbl_name)
 
@@ -82,7 +82,7 @@ class AdapterEthExported(AbstractAdapter):
         return df
     
     def get_balances_per_entity(self, entities:list=None):
-        df_blocknumbers = self.db_connector.get_fact_eim('first_block_of_day', ['ethereum'], days=self.days)
+        df_blocknumbers = self.db_connector.get_eim_fact('first_block_of_day', ['ethereum'], days=self.days)
         df_blocknumbers['block'] = df_blocknumbers['value'].astype(int).astype(str)
         df_blocknumbers.drop(columns=['value', 'origin_key'], inplace=True)
         df_main = pd.DataFrame()
@@ -153,7 +153,7 @@ class AdapterEthExported(AbstractAdapter):
         return df_main
     
     def get_conversion_rate_per_asset(self, assets:list=None):
-        df_blocknumbers = self.db_connector.get_fact_eim('first_block_of_day', ['ethereum'], days=self.days)
+        df_blocknumbers = self.db_connector.get_eim_fact('first_block_of_day', ['ethereum'], days=self.days)
         df_blocknumbers['block'] = df_blocknumbers['value'].astype(int).astype(str)
         df_blocknumbers.drop(columns=['value', 'origin_key'], inplace=True)
         df_main = pd.DataFrame()
@@ -243,7 +243,7 @@ class AdapterEthExported(AbstractAdapter):
     
     def get_eth_equivalent_exported(self):
         df_eth_exported = self.db_connector.get_eth_exported(self.days)
-        df_price_eth = self.db_connector.get_fact_eim('price_eth', days=self.days)
+        df_price_eth = self.db_connector.get_eim_fact('price_eth', days=self.days)
         df_price_eth['asset'] = df_price_eth['origin_key'].str.split('_').str[1]
 
         ## merge df_eth_exported and df_price_eth based on date and asset

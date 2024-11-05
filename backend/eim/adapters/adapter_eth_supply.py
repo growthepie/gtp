@@ -35,7 +35,7 @@ class AdapterEthSupply(AbstractAdapter):
         return df 
 
     def load(self, df:pd.DataFrame):
-        tbl_name = 'fact_eim'
+        tbl_name = 'eim_fact'
         upserted = self.db_connector.upsert_table(tbl_name, df)
         print_load(self.name, upserted, tbl_name)
 

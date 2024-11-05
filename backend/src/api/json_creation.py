@@ -1001,7 +1001,7 @@ class JSONCreation():
                 kpi.origin_key as origin_key, 
                 kpi."date", 
                 kpi.value
-            FROM public.fact_eim kpi
+            FROM public.eim_fact kpi
             where kpi."date" >= '2015-01-01'
                 and metric_key in ('eth_equivalent_exported_usd', 'eth_equivalent_exported_eth', 'eth_supply_eth', 'eth_issuance_rate')
         """
