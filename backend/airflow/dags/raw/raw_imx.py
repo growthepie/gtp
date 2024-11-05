@@ -22,7 +22,7 @@ from src.adapters.adapter_raw_imx import AdapterRawImx
     description='Load raw data on withdrawals, deposits, trades, orders_filled, transfers, mints.',
     tags=['raw', 'near-real-time'],
     start_date=datetime(2023,4,24),
-    schedule_interval='*/15 * * * *'
+    schedule_interval='*/17 * * * *'
 )
 
 def etl():
