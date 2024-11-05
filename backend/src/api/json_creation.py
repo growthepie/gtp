@@ -1166,7 +1166,7 @@ class JSONCreation():
         df = self.download_data_eim()
 
         ## create new df that sums up all values for each metric_key/date combination and assign "total" to origin_key
-        df_total = df.groupby(['date', 'metric_key']).sum().reset_index()
+        df_total = df.groupby(['date', 'unix', 'metric_key']).sum().reset_index()
         df_total['origin_key'] = 'total'
 
         ## append df_total to df
