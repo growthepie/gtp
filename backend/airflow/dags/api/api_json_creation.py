@@ -13,12 +13,6 @@ from src.api.json_creation import JSONCreation
 from src.api.blockspace_json_creation import BlockspaceJSONCreation
 
 api_version = "v1"
-db_connector = DbConnector()
-
-json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
-blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
-
-df = json_creator.get_all_data()
 
 @dag(
     default_args={
@@ -38,33 +32,61 @@ df = json_creator.get_all_data()
 def etl():
     @task()
     def run_create_chain_details():        
+        
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_all_data()
+
         json_creator.create_chain_details_jsons(df)
 
     @task()
     def run_create_metrics_details():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_all_data()
+
         json_creator.create_metric_details_jsons(df)
         json_creator.create_da_metric_details_jsons(df)
 
     @task()
     def run_create_landingpage():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_all_data()
+
         json_creator.create_landingpage_json(df)
 
     @task()
     def run_create_economics():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_all_data()
+
         json_creator.create_economics_json(df)
 
     @task()
     def run_create_master():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_all_data()
+
         json_creator.create_master_json(df)
 
     @task()
     def run_create_fundamentals():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_all_data()
+
         json_creator.create_fundamentals_json(df)
         json_creator.create_fundamentals_full_json(df)
         json_creator.create_metrics_export_json(df)
 
     @task()
     def run_create_labels():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
         json_creator.create_labels_json('full')
         json_creator.create_labels_json('quick')
         json_creator.create_labels_sparkline_json()
@@ -74,18 +96,30 @@ def etl():
 
     @task()
     def run_create_blockspace_overview():
+        db_connector = DbConnector()
+        blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
         blockspace_json_creator.create_blockspace_overview_json()
 
     @task()
     def run_create_blockspace_category_comparison():
+        db_connector = DbConnector()
+        blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
         blockspace_json_creator.create_blockspace_comparison_json()    
 
     @task()
     def run_create_chain_blockspace():
+        db_connector = DbConnector()
+        blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
         blockspace_json_creator.create_blockspace_single_chain_json()
 
     @task()
     def run_create_glo():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
         json_creator.create_glo_json()
 
     # Main

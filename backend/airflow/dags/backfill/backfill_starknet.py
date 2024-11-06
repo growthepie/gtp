@@ -3,7 +3,6 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
 from datetime import datetime, timedelta
 from src.db_connector import DbConnector
 from airflow.decorators import dag, task

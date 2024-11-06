@@ -5,6 +5,8 @@ sys_user = getpass.getuser()
 import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+import os
+from pyairtable import Api
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 from src.db_connector import DbConnector
@@ -12,14 +14,6 @@ from src.main_config import get_main_config
 import src.misc.airtable_functions as at
 from eth_utils import to_checksum_address
 
-#initialize Airtable instance
-import os
-import pandas as pd
-import numpy as np
-from pyairtable import Api
-AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
-AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
-api = Api(AIRTABLE_API_KEY)
 
 @dag(
     default_args={
@@ -39,6 +33,11 @@ api = Api(AIRTABLE_API_KEY)
 def etl():
     @task()
     def read_airtable_contracts():
+        #initialize Airtable instance
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+
         # read current airtable
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
         df = at.read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table)
@@ -78,6 +77,11 @@ def etl():
 
     @task()
     def oss_projects(run_refresh_materialized_view:str):
+        #initialize Airtable instance
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
@@ -91,6 +95,12 @@ def etl():
 
     @task()
     def write_airtable_contracts(oss_projects:str):
+        #initialize Airtable instance
+        import pandas as pd
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
