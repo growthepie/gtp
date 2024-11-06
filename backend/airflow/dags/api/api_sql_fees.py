@@ -20,7 +20,7 @@ adapter_params = {}
 ad = AdapterSQL(adapter_params, db_connector)
 main_conf = get_main_config(db_connector)
 
-def create_aggregate_metrics_task(origin_key, ad):
+def create_aggregate_metrics_task(origin_key):
     @task(task_id=f'agg_fees_metrics_{origin_key}')
     def run_aggregate_metrics():
         load_params = {
@@ -58,7 +58,7 @@ def fees_json_gen_dag():
         json_creator.create_fees_linechart_json(df)        
 
     aggregate_metrics_tasks = [
-        create_aggregate_metrics_task(chain.origin_key, ad)()
+        create_aggregate_metrics_task(chain.origin_key)()
         for chain in main_conf if chain.api_in_fees and chain.api_deployment_flag == 'PROD'
     ]
    
