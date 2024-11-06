@@ -41,10 +41,10 @@ class JSONCreation():
 
         if sys_user == 'ubuntu':
             self.eth_exported_entities = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_exported_entities.yml')
-            self.ethereum_upgrades = json.load(open(f'/home/{sys_user}/gtp/backend/eim/ethereum_protocol_upgrades.json'))
+            self.ethereum_events = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/ethereum_events.yml')
         else:
             self.eth_exported_entities = read_yaml_file('eim/eth_exported_entities.yml')
-            self.ethereum_upgrades = json.load(open('eim/ethereum_protocol_upgrades.json'))
+            self.ethereum_events = read_yaml_file('eim/ethereum_events.yml')
 
 
         ## Decimals: only relevant if value isn't aggregated
@@ -2348,7 +2348,7 @@ class JSONCreation():
         details_dict = {
             'data': {
                 'chart': metric_dict,
-                'events': self.ethereum_upgrades
+                'events': self.ethereum_events
             }
         }
 
