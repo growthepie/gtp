@@ -2348,7 +2348,7 @@ class JSONCreation():
         details_dict = {
             'data': {
                 'chart': metric_dict,
-                'events': self.ethereum_events
+                'events': self.ethereum_events['upgrades']
             }
         }
 
