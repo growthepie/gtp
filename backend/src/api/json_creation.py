@@ -2307,14 +2307,23 @@ class JSONCreation():
                 'daily': {
                     'types' : mk_list_columns,
                     'data' : mk_list_int
-                }
-            }        
+                },
+                'latest_usd': mk_list_int[-1][1],
+                'latest_eth': mk_list_int[-1][2],
+            }
+
+        #sort entity_dict by latest value desc
+        entity_dict = dict(sorted(entity_dict.items(), key=lambda item: item[1]['latest_usd'], reverse=True))
+
+        entity_metadata_dict = self.eth_exported_entities.copy()
+        ## sort entity_metadata_dict same as entity_dict
+        entity_metadata_dict = {k: entity_metadata_dict[k] for k in entity_dict.keys()}
 
         details_dict = {
             'data': {
                 'metric_id': metric,
                 'metric_name': self.eim_metrics[metric]['name'],
-                'entities': self.eth_exported_entities,
+                'entities': entity_metadata_dict,
                 'chart': entity_dict
             }
         }
