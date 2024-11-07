@@ -220,6 +220,16 @@ class DbConnector:
                         """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        def get_holders_balances(self, days):
+                exec_string = f"""
+                        SELECT holder_key, "date", value, split_part(metric_key, '_', 2) AS asset
+                        FROM public.eim_holders_balance
+                        where metric_key like 'balance_%%'
+                        AND date >= date_trunc('day', current_date - interval '{days}' day)
+                        """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
 
         """
         The get_economics_in_eth function is used to get the economics data on chain level in ETH. The following metrics are calculated:
@@ -439,6 +449,39 @@ class DbConnector:
                                 tkd."date", 
                                 tkd.value * p.value as value
                         FROM eim_fact tkd
+                        LEFT JOIN eth_price p on tkd."date" = p."date"
+                        WHERE tkd.metric_key in ({mk_string})
+                                {ok_string}
+                                AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_values_in_usd_eim_holders(self, metric_keys, days, holder_keys = None):
+                mk_string = "'" + "', '".join(metric_keys) + "'"
+
+                if holder_keys is None or len(holder_keys) == 0:
+                        ok_string = ''
+                else:
+                        ok_string = "AND tkd.origin_key in ('" + "', '".join(holder_keys) + "')"
+
+                print(f"load usd values for : {mk_string} and {holder_keys}")
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        SELECT 
+                                Case tkd.metric_key 
+                                        WHEN 'eth_equivalent_balance_eth' THEN 'eth_equivalent_balance_usd'
+                                        ELSE 'error'
+                                END AS metric_key, 
+                                tkd.holder_key,
+                                tkd."date", 
+                                tkd.value * p.value as value
+                        FROM eim_holders_balance tkd
                         LEFT JOIN eth_price p on tkd."date" = p."date"
                         WHERE tkd.metric_key in ({mk_string})
                                 {ok_string}

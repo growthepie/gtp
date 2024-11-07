@@ -291,7 +291,7 @@ sollet:
   chains: ["solana"]
   type: "Bridge"
   uoa: "no"
-  purpose: "xxx"
+  purpose: "single-chain"
   ethereum:
     - ETH: 
       - address: ["0xeae57ce9cc1984F202e15e038B964bb8bdF7229a"]
@@ -300,6 +300,7 @@ wormhole:
   name: "Wormhole"
   chains: ["solana", "arbitrun", "base", "sui", "bnb_chain", "optimism", "fantom", "polygon_pos", "avalanche", "celo", "moonbeam", "kaia", "scroll", "mantle", "aptos", "x_layer"]
   type: "Bridge"
+  uoa: "possible"
   purpose: "multi-chain"
   ethereum:
     - wETH:
@@ -309,7 +310,7 @@ stargate:
   name: "Stargate"
   chains: ["arbitrum", "base", "linea", "optimism", "ethereum", "flare", "gravity", "iota", "kaia", "mantle", "metis", "sei", "scroll"]
   type: "Bridge"
-  uoa: "no"
+  uoa: "possible"
   purpose: "multi-chain"
   ethereum:
     - ETH:
@@ -321,8 +322,8 @@ orbit:
   name: "Orbit"
   chains: ["klaytn"]
   type: "Bridge"
-  uoa: "no"
-  purpose: "xxx"
+  uoa: "possible"
+  purpose: "multi-chain"
   ethereum:
     - ETH:
       - address: ["0x1Bf68A9d1EaEe7826b3593C20a0ca93293cb489a"]
@@ -341,7 +342,7 @@ fraxferry:
   name: "FraxFerry"
   chains: ["arbitrum", "aurora", "avalanche", "bnb_chain", "evmos", "fantom", "moonbeam", "moonriver", "optimism", "polygon_pos", "polygon_zkevm", "fraxtal", "zksync_era", "boba"]
   type: "Bridge"
-  uoa: "no"
+  uoa: "possible"
   purpose: "multi-chain"
   ethereum:
     - frxETH:
@@ -363,7 +364,7 @@ layer_zero:
   name: "LayerZero"
   chains: ["ethereum", "bnb_chain", "linea", "base", "blast", "mode", "optimism", "scroll", "zksync_era", "sei", "fraxtal", "gnosis", "taiko"]
   type: "Bridge"
-  uoa: "no"
+  uoa: "possible"
   purpose: "multi-chain"
   ethereum:
     - weETH:
@@ -379,8 +380,8 @@ nomad:
   name: Nomad
   chains: [""]
   type: "Bridge"
-  uoa: "no"
-  purpose: "xxx"
+  uoa: "possible"
+  purpose: "multi-chain"
   ethereum:
     - wETH:
       - address: ["0x88A69B4E698A4B090DF6CF5Bd7B2D47325Ad30A3"]
@@ -389,8 +390,8 @@ optics:
   name: "Optics"
   chains: ["celo"]
   type: "Bridge"
-  uoa: "no"
-  purpose: "xxx"
+  uoa: "possible"
+  purpose: "multi-chain"
   ethereum:
     - wETH:
       - address: ["0x6a39909e805A3eaDd2b61fFf61147796ca6aBB47", "0x4fc16De11deAc71E8b2Db539d82d93BE4b486892"]

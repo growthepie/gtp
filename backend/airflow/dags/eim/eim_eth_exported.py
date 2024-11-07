@@ -31,7 +31,7 @@ def run():
         adapter_params = {}
         load_params = {
             'load_type' : 'first_block_of_day',
-            'days' : 3,
+            'days' : 2,
         }
 
         # initialize adapter
@@ -47,7 +47,7 @@ def run():
         adapter_params = {}
         load_params = {
             'load_type' : 'bridge_balances',
-            'days' : 3,
+            'days' : 2,
             #'entities': ['arbitrum']
             'entities': None
         }
@@ -65,7 +65,7 @@ def run():
         adapter_params = {}
         load_params = {
             'load_type' : 'conversion_rates',
-            'days' : 3,
+            'days' : 2,
             #'assets': ['ETH']
             'assets': None
         }
@@ -83,7 +83,7 @@ def run():
         adapter_params = {}
         load_params = {
             'load_type' : 'native_eth_exported',
-            'days' : 3
+            'days' : 2
         }
 
         # initialize adapter
@@ -99,7 +99,7 @@ def run():
         adapter_params = {}
         load_params = {
             'load_type' : 'eth_equivalent_in_usd',
-            'days' : 3
+            'days' : 2
         }
 
         # initialize adapter

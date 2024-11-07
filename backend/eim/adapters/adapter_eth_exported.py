@@ -3,7 +3,7 @@ from web3 import Web3
 from datetime import datetime
 import getpass
 sys_user = getpass.getuser()
-
+from web3.middleware import geth_poa_middleware
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
@@ -21,11 +21,11 @@ class AdapterEthExported(AbstractAdapter):
 
         if sys_user == 'ubuntu':
             self.eth_derivatives = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_derivatives.yml')
-            self.ethereum_token_addresses = self.eth_derivatives['ethereum']
+            self.ethereum_token_addresses = self.eth_derivatives.keys()
             self.eth_exported_entities = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_exported_entities.yml')
         else:
             self.eth_derivatives = read_yaml_file('eim/eth_derivatives.yml')
-            self.ethereum_token_addresses = self.eth_derivatives['ethereum']
+            self.ethereum_token_addresses = self.eth_derivatives.keys()
             self.eth_exported_entities = read_yaml_file('eim/eth_exported_entities.yml')
         
         print_init(self.name, self.adapter_params)
@@ -66,20 +66,30 @@ class AdapterEthExported(AbstractAdapter):
 
     ### Helper functions
     def prep_first_block_of_day_data(self):
-        df = get_block_numbers(self.w3, days=self.days)
-        df['origin_key'] = 'ethereum'
-        df['metric_key'] = 'first_block_of_day'
+        df_main = pd.DataFrame()
+        chains = ['ethereum', 'arbitrum', 'optimism', 'base']
 
-        # rename block column to value
-        df.rename(columns={'block':'value'}, inplace=True)
+        for chain in chains:
+            print(f"Processing {chain}")
+            rpc_url = self.db_connector.get_special_use_rpc(chain)
+            w3 = Web3(Web3.HTTPProvider(rpc_url))
+            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            
+            df = get_block_numbers(w3, days=self.days)
+            df['origin_key'] = chain
+            df['metric_key'] = 'first_block_of_day'
 
-        # drop block_timestamp column
-        df.drop(columns=['block_timestamp'], inplace=True)
+            # rename block column to value
+            df.rename(columns={'block':'value'}, inplace=True)
+            # drop block_timestamp column
+            df.drop(columns=['block_timestamp'], inplace=True)
+
+            df_main = pd.concat([df_main, df])
 
         ## remove duplicates and set index
-        df.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
-        df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
-        return df
+        df_main.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
+        df_main.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+        return df_main
     
     def get_balances_per_entity(self, entities:list=None):
         df_blocknumbers = self.db_connector.get_eim_fact('first_block_of_day', ['ethereum'], days=self.days)
@@ -108,8 +118,8 @@ class AdapterEthExported(AbstractAdapter):
                 
                 bridge_addresses = asset_dict[asset][0]['address']
                 if asset != 'ETH':
-                    token_contract = self.eth_derivatives['ethereum'][asset]['contract']
-                    token_abi = self.eth_derivatives['ethereum'][asset]['abi']        
+                    token_contract = self.eth_derivatives[asset]['ethereum']['contract']
+                    token_abi = self.eth_derivatives[asset]['ethereum']['abi']        
                 print(f"..processing asset: {asset}")
 
                 # iterating over each date and each contract
@@ -171,18 +181,20 @@ class AdapterEthExported(AbstractAdapter):
             df['metric_key'] = 'price_eth'
             df['asset'] = asset.lower()
 
+            start_date = None
+            fixed = self.eth_derivatives[asset]['fixed'] if 'fixed' in self.eth_derivatives[asset] else False
+
             if asset != 'ETH':
-                if 'price_contract' in self.eth_derivatives['ethereum'][asset]:
-                    token_contract = self.eth_derivatives['ethereum'][asset]['price_contract']
-                    token_abi = self.eth_derivatives['ethereum'][asset]['price_abi']  
+                if 'price_contract' in self.eth_derivatives[asset]['ethereum']:
+                    token_contract = self.eth_derivatives[asset]['ethereum']['price_contract']
+                    token_abi = self.eth_derivatives[asset]['ethereum']['price_abi']  
                 else:
-                    token_contract = self.eth_derivatives['ethereum'][asset]['contract']
-                    token_abi = self.eth_derivatives['ethereum'][asset]['abi']  
-                    
-            function_name = self.eth_derivatives['ethereum'][asset]['function'] if 'function' in self.eth_derivatives['ethereum'][asset] else None
-            args = tuple(self.eth_derivatives['ethereum'][asset]['args']) if 'args' in self.eth_derivatives['ethereum'][asset] else ()
-            fixed = self.eth_derivatives['ethereum'][asset]['fixed'] if 'fixed' in self.eth_derivatives['ethereum'][asset] else False
-            start_date = self.eth_derivatives['ethereum'][asset]['start_date'] if 'start_date' in self.eth_derivatives['ethereum'][asset] else None
+                    token_contract = self.eth_derivatives[asset]['ethereum']['contract']
+                    token_abi = self.eth_derivatives[asset]['ethereum']['abi']  
+
+                function_name = self.eth_derivatives[asset]['ethereum']['function'] if 'function' in self.eth_derivatives[asset]['ethereum'] else None
+                args = tuple(self.eth_derivatives[asset]['ethereum']['args']) if 'args' in self.eth_derivatives[asset]['ethereum'] else ()                
+                start_date = self.eth_derivatives[asset]['ethereum']['start_date'] if 'start_date' in self.eth_derivatives[asset]['ethereum'] else None
 
             contract_deployed = True
             # iterate through each row from reverse until we get price = 0
@@ -197,12 +209,12 @@ class AdapterEthExported(AbstractAdapter):
                     price = 1
                 elif asset == 'ezETH':
                     ## custom logic for ezETH
-                    main_contract = self.eth_derivatives['ethereum'][asset]['contract']
-                    main_abi = self.eth_derivatives['ethereum'][asset]['abi']
+                    main_contract = self.eth_derivatives[asset]['ethereum']['contract']
+                    main_abi = self.eth_derivatives[asset]['ethereum']['abi']
                     total_supply_ezETH = call_contract_function(self.w3, main_contract, main_abi, 'totalSupply', at_block=block)
                     total_eth = call_contract_function(self.w3, token_contract, token_abi, 'calculateTVLs', at_block=block)[2] 
                     if total_supply_ezETH and total_eth:
-                        price = total_eth / total_supply_ezETH / 10**18
+                        price = total_eth / total_supply_ezETH
                     else:
                         contract_deployed = False
                 elif asset == 'rsETH':
