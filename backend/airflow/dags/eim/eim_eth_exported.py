@@ -80,7 +80,7 @@ def run():
         ad.load(df)
 
     @task()
-    def run_eth_equivalent_exported():
+    def run_exported_eth_equivalent():
         adapter_params = {}
         load_params = {
             'load_type' : 'eth_equivalent',
@@ -96,7 +96,7 @@ def run():
         ad.load(df)
 
     @task()
-    def run_convert_usd():
+    def run_exported_in_usd():
         adapter_params = {}
         load_params = {
             'load_type' : 'eth_equivalent_in_usd',
@@ -147,7 +147,7 @@ def run():
         ad.load(df)
 
     @task() ## after run_first_block_of_day
-    def run_eth_equivalent():
+    def run_holders_eth_equivalent():
         db_connector = DbConnector()
 
         adapter_params = {}
@@ -163,7 +163,7 @@ def run():
         ad.load(df)
 
     @task() ## after run_first_block_of_day
-    def run_eth_equivalent_in_usd():
+    def run_holders_in_usd():
         db_connector = DbConnector()
 
         adapter_params = {}
@@ -183,12 +183,12 @@ def run():
 
     # Tasks that should only run once but have downstream dependencies
     first_block_of_day = run_first_block_of_day()
-    run_conversion_rates_task = run_conversion_rates() 
+    conversion_rates = run_conversion_rates() 
 
     # Sequence 1
-    first_block_of_day >> run_conversion_rates_task >> run_bridge_balances() >> run_eth_equivalent_exported() >> run_convert_usd()
+    first_block_of_day >> conversion_rates >> run_bridge_balances() >> run_exported_eth_equivalent() >> run_exported_in_usd()
 
     # Seuqence 2
-    [first_block_of_day, run_conversion_rates_task] >> run_onchain_balances() >> run_eth_equivalent() >> run_eth_equivalent_in_usd()
+    [first_block_of_day, conversion_rates] >> run_onchain_balances() >> run_holders_eth_equivalent() >> run_holders_in_usd()
 
 run()
