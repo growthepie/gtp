@@ -129,6 +129,20 @@ def run():
         # load
         ad.load(df, 'eim_holders')
 
+    @task() 
+    def run_offchain_balances():
+        db_connector = DbConnector()
+
+        adapter_params = {}
+        load_params = {
+            'load_type' : 'offchain_balances'
+        }
+        # initialize adapter
+        ad = AdapterEthHolders(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
 
     @task() ## after run_first_block_of_day
     def run_onchain_balances():
@@ -189,6 +203,6 @@ def run():
     first_block_of_day >> conversion_rates >> run_bridge_balances() >> run_exported_eth_equivalent() >> run_exported_in_usd()
 
     # Seuqence 2
-    [first_block_of_day, conversion_rates] >> run_onchain_balances() >> run_holders_eth_equivalent() >> run_holders_in_usd()
+    [first_block_of_day, conversion_rates] >> run_onchain_balances() >> run_holders_eth_equivalent() >> run_offchain_balances >> run_holders_in_usd()
 
 run()

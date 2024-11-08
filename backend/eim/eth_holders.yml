@@ -2,7 +2,8 @@
 us_gov:
   name: U.S. Government (mostly seized funds)
   type: Government
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0xc7A253fD3C61CF69d043e6184c107dF4E29475B5"
         source: https://platform.arkhamintelligence.com/explorer/address/0xc7A253fD3C61CF69d043e6184c107dF4E29475B5
@@ -21,28 +22,31 @@ us_gov:
       - address: "0x6Fa9720Ff6c36D2810edDE291882720b4c8Fa8c5"
         source: https://platform.arkhamintelligence.com/explorer/address/0x6Fa9720Ff6c36D2810edDE291882720b4c8Fa8c5
 state_of_michigan_pension:
-  name: State og Michigan Retirement System
+  name: State of Michigan Retirement System
   type: Government
-  etf:
-    timestamp: 2024-09-30 00:00:00
-    symbol: ETH ## Grayscle Ethereum Mini Trust
-    type: buy
-    amount: 460000
-    source: 13F filing on 2024-09-30
-  etf:
-    timestamp: 2024-09-30 00:00:00
-    symbol: ETHE ## Grayscle Ethereum Trust
-    type: buy
-    amount: 460000
-    source: 13F filing on 2024-09-30
-
-
+  holding_type: offchain
+  transactions:
+    - tx_id: 1
+      timestamp: 2024-09-30 00:00:00
+      asset_type: ETF
+      symbol: ETH ## Grayscale Ethereum Mini Trust    
+      tx_type: buy
+      amount_eth: 433.458 ## 460,000 ETH ETF which is 433.458 native ETH equivalent (conversion of 0.00094230 according to https://etfs.grayscale.com/eth)
+      source: 13F filing on 2024-09-30
+    - tx_id: 2
+      timestamp: 2024-09-30 00:00:00
+      asset_type: ETF
+      symbol: ETHE ## Grayscale Ethereum Trust
+      tx_type: buy
+      amount_eth: 3871.0794 ## 460,000 ETHE ETF which is 3,871.0794 native ETH equivalent (conversion of 0.00841539 according to https://etfs.grayscale.com/ethe)
+      source: 13F filing on 2024-09-30
 
 # ETH holders that can be considered Decentralized Autonomous Organizations (DAOs)
 ethereum_foundation:
   name: Ethereum Foundation
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0xde0B295669a9FD93d5F28D9Ec85E40f4cb697BAe"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -50,7 +54,8 @@ ethereum_foundation:
 golem:
   name: Golem Foundation
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0x7da82C7AB4771ff031b66538D2fB9b0B047f6CF9"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -62,7 +67,8 @@ golem:
 mantle:
   name: Mantle (former BitDAO)
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0x78605Df79524164911C144801f41e9811B7DB73D"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -72,7 +78,8 @@ mantle:
 lido:
   name: Lido
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0x3e40D73EB977Dc6a537aF587D48316feE66E9C8c"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -80,7 +87,8 @@ lido:
 arbitrum_dao:
   name: Arbitrum DAO
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     arbitrum:
       - address: "0xbFc1FECa8B09A5c5D3EFfE7429eBE24b9c09EF58"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -88,7 +96,8 @@ arbitrum_dao:
 gnosis_dao:
   name: Gnosis DAO
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0x4971DD016127F390a3EF6b956Ff944d0E2e1e462"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -100,7 +109,8 @@ gnosis_dao:
 1inch:
   name: 1inch
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0x7951c7ef839e26F63DA87a42C9a87986507f1c07"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -108,7 +118,8 @@ gnosis_dao:
 bankless_dao:
   name: Bankless DAO
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0xf26d1Bb347a59F6C283C53156519cC1B1ABacA51"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -116,7 +127,8 @@ bankless_dao:
 ens:
   name: ENS (Ethereum Name Service)
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0xFe89cc7aBB2C4183683ab71653C4cdc9B02D44b7"
         source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
@@ -126,7 +138,8 @@ ens:
 optimism_foundation:
   name: Optimism Foundation
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     optimism:
       - address: "0x2501c477D0A35545a387Aa4A3EEe4292A9a8B3F0" # OP Treasury Address for Foundation Approved Budget
         source: https://gov.optimism.io/t/where-are-the-optimisms-main-treasury-addresses/8880
@@ -138,7 +151,8 @@ optimism_foundation:
 op_collective:
   name: OP Collective
   type: DAO
-  onchain:
+  holding_type: onchain
+  chains:
     base:
       - address: "0x9c3631dDE5c8316bE5B7554B0CcD2631C15a9A05"
         source: https://github.com/ethereum-optimism/op-analytics/blob/main/op_collective_economics/opcollective_feesplit/inputs/op_collective_feesplit_config.csv
@@ -152,7 +166,8 @@ op_collective:
 v_buterin:
   name: Vitalik Buterin
   type: Celebrity
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0x220866B1A2219f40e72f5c628B65D54268cA3A9D"
         source: 
@@ -162,7 +177,8 @@ v_buterin:
 d_trump:
   name: Donald Trump
   type: Celebrity
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0x94845333028B1204Fbe14E1278Fd4Adde46B22ce"
         source: https://uk.investing.com/news/cryptocurrency-news/donald-trumps-crypto-wallet-address-revealed-he-holds-these-cryptos-apart-from-millions-in-ethereum-3126371
@@ -170,7 +186,8 @@ d_trump:
 a_hayes:
   name: Arthur Hayes
   type: Celebrity
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0xA86e3D1C80a750A310b484FB9bDc470753A7506F"
         source: https://platform.arkhamintelligence.com/explorer/address/0xA86e3D1C80a750A310b484FB9bDc470753A7506F
@@ -178,7 +195,8 @@ a_hayes:
 j_bieber:
   name: Justin Bieber
   type: Celebrity
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0xE21DC18513e3e68a52F9fcDaCfD56948d43a11c6"
         source: https://platform.arkhamintelligence.com/explorer/address/0xE21DC18513e3e68a52F9fcDaCfD56948d43a11c6
@@ -186,7 +204,8 @@ j_bieber:
 neymar_jr:
   name: Neymar Jr
   type: Celebrity
-  onchain:
+  holding_type: onchain
+  chains:
     ethereum:
       - address: "0xC4505dB8CC490767fA6f4b6f0F2bDd668B357A5D"
         source: https://platform.arkhamintelligence.com/explorer/entity/neymar-jr

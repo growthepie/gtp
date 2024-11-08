@@ -37,12 +37,14 @@ class AdapterEthHolders(AbstractAdapter):
     def extract(self, load_params:dict):
         self.days = load_params.get('days', 1)
         self.load_type = load_params['load_type']
-        
-        if self.load_type == 'onchain_balances':
-            self.holders = load_params.get('holders', None)              
-            df = self.get_onchain_balances(self.holders)
-        elif self.load_type == 'get_holders':
+        self.holders = load_params.get('holders', None)  
+
+        if self.load_type == 'get_holders':
             df = self.get_holders()
+        elif self.load_type == 'onchain_balances':                        
+            df = self.get_onchain_balances(self.holders)
+        elif self.load_type == 'offchain_balances':
+            df = self.get_offchain_balances(self.holders)
         elif self.load_type == 'eth_equivalent':
             df = self.get_eth_equivalent()
         elif self.load_type == 'eth_equivalent_in_usd':
@@ -63,6 +65,26 @@ class AdapterEthHolders(AbstractAdapter):
         print_load(self.name, upserted, tbl_name)
 
     ### Helper functions    
+    def get_holders(self, holders:list=None):
+        if holders is None:
+            all_holders = {k:v for k,v in self.eth_holders.items()}
+            holders_list = all_holders.keys()
+        else:
+            holders_list = holders
+
+        ## create df from eth_holders with holder_key, name, type
+        df = pd.DataFrame()
+        for holder in holders_list:
+            print(f"Processing {holder}")
+            holder_key = holder
+            holder_name = self.eth_holders[holder]['name']
+            holder_type = self.eth_holders[holder]['type']
+            holding_type = self.eth_holders[holder]['holding_type']
+            df = pd.concat([df, pd.DataFrame({'holder_key': [holder_key], 'name': [holder_name], 'type': [holder_type], 'holding_type': [holding_type]})])
+
+        df.set_index('holder_key', inplace=True)
+        return df
+
     def get_onchain_balances(self, holders:list=None):
         df_main = pd.DataFrame()
         df_blocknumbers = self.db_connector.get_eim_fact('first_block_of_day', days=self.days)
@@ -70,7 +92,7 @@ class AdapterEthHolders(AbstractAdapter):
         df_blocknumbers.drop(columns=['value'], inplace=True) 
 
         if holders is None:
-            onchain_holders = {k:v for k,v in self.eth_holders.items() if 'onchain' in v}
+            onchain_holders = {k:v for k,v in self.eth_holders.items() if 'onchain' in v['holding_type']}
             holders_list = onchain_holders.keys()
         else:
             holders_list = holders
@@ -81,7 +103,7 @@ class AdapterEthHolders(AbstractAdapter):
             print(f"Processing {holder}")
             # iterating over all assets
 
-            for chain in self.eth_holders[holder]['onchain']:                    
+            for chain in self.eth_holders[holder]['chains']:                    
                 rpc_url = self.db_connector.get_special_use_rpc(chain)
                 w3 = Web3(Web3.HTTPProvider(rpc_url))        
                 print(f"..processing chain: {chain}. Connecting to {rpc_url}")
@@ -111,7 +133,7 @@ class AdapterEthHolders(AbstractAdapter):
                         balance = 0
                         print(f"...retrieving balance for {asset} at block {block} ({date})")    
 
-                        for address_entry in self.eth_holders[holder]['onchain'][chain]:
+                        for address_entry in self.eth_holders[holder]['chains'][chain]:
                             address = address_entry['address']                
                             
                             print(f"....processing address: {address}")
@@ -148,23 +170,42 @@ class AdapterEthHolders(AbstractAdapter):
         df_main.set_index(['metric_key', 'holder_key', 'date'], inplace=True)
         return df_main
     
-    def get_holders(self, holders:list=None):
+    def get_offchain_balances(self, holders:list=None):
         if holders is None:
-            onchain_holders = {k:v for k,v in self.eth_holders.items() if 'onchain' in v}
+            onchain_holders = {k:v for k,v in self.eth_holders.items() if 'offchain' in v['holding_type']}
             holders_list = onchain_holders.keys()
         else:
             holders_list = holders
 
-        ## create df from eth_holders with holder_key, name, type
-        df = pd.DataFrame()
+        ## iterate through all holders and get balances for each asset and address
+        print(f"Entities to process: {holders_list}")
+        new_df_entries = []
         for holder in holders_list:
             print(f"Processing {holder}")
-            holder_key = holder
-            holder_name = self.eth_holders[holder]['name']
-            holder_type = self.eth_holders[holder]['type']
-            df = pd.concat([df, pd.DataFrame({'holder_key': [holder_key], 'name': [holder_name], 'type': [holder_type]})])
+            
+            # iterating over all transactions
+            balance = 0
+            for tx in self.eth_holders[holder]['transactions']:
+                print(f"..processing tx: {tx['tx_id']}")
+                if tx['tx_type'] == 'buy':
+                    balance += tx['amount_eth']
+                elif tx['tx_type'] == 'sell':
+                    balance -= tx['amount_eth']
+                else:
+                    raise ValueError(f"tx_type {tx['tx_type']} not supported for this adapter")
+                
+            new_df_entries.append({'holder_key': holder, 'date': tx['timestamp'], 'value': balance})
 
-        df.set_index('holder_key', inplace=True)
+        if len(new_df_entries) > 0:
+            df = pd.DataFrame(new_df_entries)
+
+        # create metric_key column based on concatenated 'eth_exported' and 'asset'
+        df['metric_key'] = 'eth_equivalent_balance_eth'
+
+        ## remove 0s, duplicates, set index
+        df = df[df['value'] != 0]
+        df.drop_duplicates(subset=['metric_key', 'holder_key', 'date'], inplace=True)
+        df.set_index(['metric_key', 'holder_key', 'date'], inplace=True)
         return df
 
     def get_eth_equivalent(self):
