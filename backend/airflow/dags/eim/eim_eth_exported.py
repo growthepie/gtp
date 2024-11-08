@@ -178,15 +178,17 @@ def run():
         # load
         ad.load(df)
 
-    # Define task dependencies in a streamlined way
+    # No dependencies
     run_get_holders()    
+
+    # Tasks that should only run once but have downstream dependencies
     first_block_of_day = run_first_block_of_day()
+    run_conversion_rates_task = run_conversion_rates() 
 
-    # Main task sequence
-    first_block_of_day >> run_conversion_rates() >> run_bridge_balances() >> run_eth_equivalent_exported() >> run_convert_usd()
+    # Sequence 1
+    first_block_of_day >> run_conversion_rates_task >> run_bridge_balances() >> run_eth_equivalent_exported() >> run_convert_usd()
 
-    # Define run_onchain_balances to start after both first_block_of_day and run_conversion_rates
-    [first_block_of_day, run_conversion_rates()] >> run_onchain_balances() >> run_eth_equivalent() >> run_eth_equivalent_in_usd()
-
+    # Seuqence 2
+    [first_block_of_day, run_conversion_rates_task] >> run_onchain_balances() >> run_eth_equivalent() >> run_eth_equivalent_in_usd()
 
 run()
