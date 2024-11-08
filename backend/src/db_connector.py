@@ -221,7 +221,7 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
-        def get_holders_balances(self, days):
+        def get_holders_raw_balances(self, days):
                 exec_string = f"""
                         SELECT holder_key, "date", value, split_part(metric_key, '_', 2) AS asset
                         FROM public.eim_holders_balance
@@ -230,6 +230,31 @@ class DbConnector:
                         """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        def get_holders_with_balances(self):
+                exec_string = f"""
+                        WITH latest_data AS (
+                                SELECT 
+                                        holder_key, 
+                                        metric_key, 
+                                        value,
+                                        ROW_NUMBER() OVER (PARTITION BY holder_key, metric_key ORDER BY date DESC) AS rn
+                                FROM eim_holders_balance
+                                WHERE metric_key IN ('eth_equivalent_balance_eth', 'eth_equivalent_balance_usd')
+                        )
+                        SELECT 
+                                holder_key, 
+                                name, 
+                                type, 
+                                SUM(CASE WHEN metric_key = 'eth_equivalent_balance_eth' THEN value END) AS eth_equivalent_balance_eth,
+                                SUM(CASE WHEN metric_key = 'eth_equivalent_balance_usd' THEN value END) AS eth_equivalent_balance_usd
+                        FROM latest_data
+                        LEFT JOIN eim_holders USING (holder_key)
+                        WHERE rn = 1
+                        GROUP BY holder_key, name, type;
+                """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df       
 
         """
         The get_economics_in_eth function is used to get the economics data on chain level in ETH. The following metrics are calculated:

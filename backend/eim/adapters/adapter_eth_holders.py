@@ -168,7 +168,7 @@ class AdapterEthHolders(AbstractAdapter):
         return df
 
     def get_eth_equivalent(self):
-        df_holders_balances = self.db_connector.get_holders_balances(self.days)
+        df_holders_balances = self.db_connector.get_holders_raw_balances(self.days)
         df_price_eth = self.db_connector.get_eim_fact('price_eth', days=self.days)
         df_price_eth['asset'] = df_price_eth['origin_key'].str.split('_').str[1]
 

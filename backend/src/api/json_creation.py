@@ -2369,6 +2369,32 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eim/eth_supply', details_dict, self.cf_distribution_id)
         print(f'DONE -- ETH supply export done')
 
+    def create_eth_holders_json(self):
+        df = self.db_connector.get_holders_with_balances()
+        ## sort df by eth_equivalent_balance_eth desc
+        df = df.sort_values(by='eth_equivalent_balance_eth', ascending=False)
+
+        ## order columns
+        df = df[["holder_key", "name", "type", "eth_equivalent_balance_usd", "eth_equivalent_balance_eth"]]
+        holders_dict = {
+            'data': {
+                'sort': {
+                    'by': 'eth_equivalent_balance_eth',
+                    'direction': 'desc'
+                },
+                'types': df.columns.to_list(),
+                'data': df.values.tolist()
+            }
+        }
+
+        holders_dict = fix_dict_nan(holders_dict, f'eim-eth_holders')
+
+        if self.s3_bucket == None:
+            self.save_to_json(holders_dict, f'eim/eth_holders')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eim/eth_holders', holders_dict, self.cf_distribution_id)
+        print(f'DONE -- ETH holders export done')
+
 
     #######################################################################
     ### API ENDPOINTS
