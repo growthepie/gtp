@@ -131,7 +131,7 @@ def run():
 
 
     @task() ## after run_first_block_of_day
-    def run_onchain_balances(x):
+    def run_onchain_balances():
         db_connector = DbConnector()
 
         adapter_params = {}
