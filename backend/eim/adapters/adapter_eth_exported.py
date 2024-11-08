@@ -49,7 +49,7 @@ class AdapterEthExported(AbstractAdapter):
         elif self.load_type == 'conversion_rates':
             self.assets = load_params['assets']
             df = self.get_conversion_rate_per_asset(self.assets)
-        elif self.load_type == 'native_eth_exported':
+        elif self.load_type == 'eth_equivalent':
             df = self.get_eth_equivalent_exported()
         elif self.load_type == 'eth_equivalent_in_usd':
             df = self.get_eth_equivalent_in_usd()

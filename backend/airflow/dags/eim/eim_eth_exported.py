@@ -44,7 +44,7 @@ def run():
         ad.load(df)
 
     @task()
-    def run_bridge_balances(x):
+    def run_bridge_balances():
         adapter_params = {}
         load_params = {
             'load_type' : 'bridge_balances',
@@ -62,7 +62,7 @@ def run():
         ad.load(df)
 
     @task()
-    def run_conversion_rates(x):
+    def run_conversion_rates():
         adapter_params = {}
         load_params = {
             'load_type' : 'conversion_rates',
@@ -80,10 +80,10 @@ def run():
         ad.load(df)
 
     @task()
-    def run_native_eth_exported(x):
+    def run_eth_equivalent_exported():
         adapter_params = {}
         load_params = {
-            'load_type' : 'native_eth_exported',
+            'load_type' : 'eth_equivalent',
             'days' : 2
         }
 
@@ -96,7 +96,7 @@ def run():
         ad.load(df)
 
     @task()
-    def run_convert_usd(x):
+    def run_convert_usd():
         adapter_params = {}
         load_params = {
             'load_type' : 'eth_equivalent_in_usd',
@@ -146,20 +146,45 @@ def run():
         # load
         ad.load(df)
 
-    
+    @task() ## after run_first_block_of_day
+    def run_eth_equivalent():
+        db_connector = DbConnector()
+
+        adapter_params = {}
+        load_params = {
+            'load_type' : 'eth_equivalent',
+        }
+
+        # initialize adapter
+        ad = AdapterEthHolders(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
+
+    @task() ## after run_first_block_of_day
+    def run_eth_equivalent_in_usd():
+        db_connector = DbConnector()
+
+        adapter_params = {}
+        load_params = {
+            'load_type' : 'eth_equivalent_in_usd',
+        }
+
+        # initialize adapter
+        ad = AdapterEthHolders(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
+
+    # Define task dependencies in a streamlined way
     run_get_holders()
 
-    # Define dependencies
-    run_onchain_balances = run_onchain_balances()  
-    first_block_of_day = run_first_block_of_day()
-    bridge_balances = run_bridge_balances(first_block_of_day)
-    conversion_rates = run_conversion_rates(bridge_balances)
-    native_eth_exported = run_native_eth_exported(conversion_rates)
-    run_convert_usd(native_eth_exported)
+    # Main task sequence
+    run_first_block_of_day() >> run_conversion_rates() >> run_bridge_balances() >> run_eth_equivalent_exported() >> run_convert_usd()
 
-    # Add run_onchain_balances to run after run_first_block_of_day
-    first_block_of_day >> run_onchain_balances
-
-    ##run_convert_usd(run_native_eth_exported(run_conversion_rates(run_bridge_balances(run_first_block_of_day()))))
+    # Define run_onchain_balances to start after both first_block_of_day and run_conversion_rates
+    [run_first_block_of_day(), run_conversion_rates()] >> run_onchain_balances() >> run_eth_equivalent() >> run_eth_equivalent_in_usd()
 
 run()
