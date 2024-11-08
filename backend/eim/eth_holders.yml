@@ -128,8 +128,12 @@ optimism_foundation:
   type: DAO
   onchain:
     optimism:
-      - address: "0x2501c477D0A35545a387Aa4A3EEe4292A9a8B3F0"
-        source: https://github.com/DefiLlama/DefiLlama-Adapters/tree/main/projects/treasury
+      - address: "0x2501c477D0A35545a387Aa4A3EEe4292A9a8B3F0" # OP Treasury Address for Foundation Approved Budget
+        source: https://gov.optimism.io/t/where-are-the-optimisms-main-treasury-addresses/8880
+      - address: "0x2A82Ae142b2e62Cb7D10b55E323ACB1Cab663a26" # OP Treasury Address for Foundation Allocated Budget
+        source: https://gov.optimism.io/t/where-are-the-optimisms-main-treasury-addresses/8880
+      - address: "0x19793c7824Be70ec58BB673CA42D2779d12581BE" # OP Foundation Grants Wallet
+        source: https://gov.optimism.io/t/where-are-the-optimisms-main-treasury-addresses/8880
 
 op_collective:
   name: OP Collective
@@ -141,6 +145,8 @@ op_collective:
     ethereum:
       - address: "0xa3d596EAfaB6B13Ab18D40FaE1A962700C84ADEa"
         source: https://github.com/ethereum-optimism/op-analytics/blob/main/op_collective_economics/opcollective_feesplit/inputs/op_collective_feesplit_config.csv
+      - address: "0x391716d440C151C42cdf1C95C1d83A5427Bca52C"
+        source: https://docs.google.com/spreadsheets/u/0/d/1XtyBu5lvCI6MtMBQPC6ZOnjZ5nbbPw4bOH7WO2Pn7cI/htmlview?pli=1
 
 # ETH holders that can be considered celebrities
 v_buterin:
