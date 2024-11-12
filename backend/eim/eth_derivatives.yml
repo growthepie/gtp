@@ -1,9 +1,18 @@
 # All token addresses and corresponding ABIs that are tracked on Ethereum in order to calculated to total ETH exported
 # Includes ETH and staked ETH derivatives such as wETH, stETH, wstETH, mETH, etc.
-# function: the function to call in the contract to get the ETH/derivative price
-# args: the arguments to pass to the function as a tuple
-# fixed: whether thoeritically you can always claim the same amount of ETH for the derivative
 
+## YAML structure
+
+# {ASSET}: the asset identifier, needs to be unique (usually asset symbol)
+#   FIXED: true/false -> whether the asset translates 1:1 to native ETH
+#   {CHAIN}: the chain the asset is deployed on 
+#     CONTRACT: the token contract
+#     ABI: the contract ABI
+#     FUNCTION: the function to call in the contract to get the ETH/derivative price
+#     ARGS: the arguments to pass to the function as a tuple
+#     PRICE_CONTRACT: if a different contract is needed to get the conversion rate into native ETH
+#     PRICE_ABI: the ABI of this 2nd contract
+#     START_DATE: when the token contract can be first used
 
 ETH:
   fixed: true

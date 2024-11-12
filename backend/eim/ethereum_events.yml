@@ -1,3 +1,5 @@
+# A list of Ethereum protocol upgrades / events
+
 upgrades:
   - date: "2016-03-14"
     title: "Homestead - Block Time Decrease"

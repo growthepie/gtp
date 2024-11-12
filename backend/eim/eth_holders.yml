@@ -1,3 +1,30 @@
+# ETH holders that can either be considered known/bigger companies, celebrities, governments, DAOs, or ETFs
+# We differentiate onchain and offchain tracking (see holding_type)
+# onchain tracking tracks native ETH and ETH derivatives balances on a number of chains
+# offchain tracking tracks buys and sells based on offchain sources
+
+## YAML structure
+
+# {HOLDER_KEY} - unique identifier of holder
+#   NAME: the humand-readable name of the holder
+#   TYPE: can be Government, Celebrity, Company, DAO, ETF
+#   HOLDING_TYPE: can be onchain or offchain
+## - if HOLDYING_TYPE = onchain
+#   CHAINS:
+#      {CHAIN} - the chain that should be tracked
+#         ADDRESS: the wallet address
+#         SOURCE: the source that identified this wallet as the specified holder
+## - if HOLDING_TYPE = offchain
+#   TRANSACTIONS
+#     TX_ID: the transaction id (counter)
+#     TIMESTAMP: the timestamp of this transaction
+#     ASSET_TYPE: what exactly was bought? ETF?
+#     SYMBOL: the symbol of what was bought
+#     TX_TYPE: buy or sell
+#     AMOUNT_ETH: the ETH equivalent amount that was bought (i.e. use conversion rates when ETF buys)
+#     SOURCE: the source that proofs that these tx happened
+
+
 # ETH holders that can be considered governments
 us_gov:
   name: U.S. Government (mostly seized funds)

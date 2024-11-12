@@ -1,6 +1,17 @@
 # All entities and corresponding contracts that can be considered as bridge contracts to other chains/ethconomies
 # Includes Layer 2s, sidechains, and other bridging solutions
-# Type can either be single-chain or multi-chain
+
+## YAML structure:
+
+# {ENTITY} - lowercase, unique name
+#   NAME: human-readyble name of the entity 
+#   CHAINS: the chains that this entity/bridge is used for (a single chain for native bridges)
+#   TYPE: the entity type. can be Layer 2, Sidechain, Bridge
+#   UOA: does the chain use ETH as gas token / unit of account. can be yes, no, possible (if ETH is one of many gas token)
+#   PURPOSE: either single-chain or multi-chain
+#   ETHEREUM: start of the list of addresses that are tracked on Ethereum
+#     {ASSET} - the asset that is tracked. Can only take values from eth_derivatives.yml
+#       address: A list of addresses that are tracked for this specific entity
 
 arbitrum:
   name: "Arbitrum One"
