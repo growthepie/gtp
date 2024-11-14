@@ -15,7 +15,7 @@ class AdapterEthHolders(AbstractAdapter):
         eim_yamls = get_eim_yamls(['eth_derivatives', 'eth_holders'])
         self.eth_derivatives = eim_yamls[0]
         self.ethereum_token_addresses = self.eth_derivatives.keys()
-        self.eth_exported_entities = eim_yamls[1]
+        self.eth_holders = eim_yamls[1]
 
         self.assets = ['ETH', 'stETH', 'wETH', 'wstETH', 'mETH']
         
