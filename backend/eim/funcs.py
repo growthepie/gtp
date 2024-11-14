@@ -3,17 +3,40 @@ import pandas as pd
 from web3 import Web3
 import datetime
 import time
+import io
+import requests
+import zipfile
 
-def read_yaml_file(file_path):
+def get_eim_yamls(file_names:list):
     """
-    Reads a YAML file from the given file path.
+    Retrieves the YAML data from the EIM data repository on GitHub.
 
-    :param file_path: Path to the YAML file.
-    :return: Parsed content of the YAML file as a Python dictionary.
-    """
-    with open(file_path, 'r') as file:
-        return yaml.safe_load(file)
-    
+    :param file_names: List of file names to retrieve from the repository.
+    :return: List of dictionaries containing the YAML data for each file.
+    """    
+    yaml_dicts = []
+
+    repo_url = "https://github.com/ethismoney-xyz/data/tree/main/"
+    _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
+    path = '/'.join(path)
+    zip_url = f"https://github.com/{owner}/{repo_name}/archive/{branch}.zip"
+    response = requests.get(zip_url)
+    zip_content = io.BytesIO(response.content)
+
+    path_start = 'data-main/'
+    with zipfile.ZipFile(zip_content) as zip_ref:
+        nameslist = zip_ref.namelist()
+        for file_name in file_names:
+            yaml_dict = None
+            for path in nameslist:  
+                if path == f'{path_start}{file_name}.yml': 
+                    with zip_ref.open(path) as file:
+                        content = file.read().decode('utf-8')
+                        yaml_dict = yaml.safe_load(content)
+                        
+            yaml_dicts.append(yaml_dict)
+    return yaml_dicts
+
 def get_eth_balance(w3: Web3, address, at_block='latest'):
     """
     Retrieves the ETH balance for a given address at a specified block.

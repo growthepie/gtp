@@ -11,7 +11,7 @@ from src.main_config import get_main_config, get_multi_config
 from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan
 from src.misc.glo_prep import Glo
 from src.db_connector import DbConnector
-from eim.funcs import read_yaml_file
+from eim.funcs import get_eim_yamls
 
 import warnings
 
@@ -39,13 +39,9 @@ class JSONCreation():
         self.multi_config = get_multi_config(self.db_connector)
         self.latest_eth_price = self.db_connector.get_last_price_usd('ethereum')
 
-        if sys_user == 'ubuntu':
-            self.eth_exported_entities = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_exported_entities.yml')
-            self.ethereum_events = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/ethereum_events.yml')
-        else:
-            self.eth_exported_entities = read_yaml_file('eim/eth_exported_entities.yml')
-            self.ethereum_events = read_yaml_file('eim/ethereum_events.yml')
-
+        eim_yamls = get_eim_yamls(['eth_exported_entities', 'ethereum_events'])
+        self.eth_exported_entities = eim_yamls[0]
+        self.ethereum_events = eim_yamls[1]
 
         ## Decimals: only relevant if value isn't aggregated
         ## When aggregated (starting >1k), we always show 2 decimals

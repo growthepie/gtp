@@ -1,13 +1,11 @@
 import pandas as pd
 from web3 import Web3
 from datetime import datetime
-import getpass
-sys_user = getpass.getuser()
 from web3.middleware import geth_poa_middleware
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
-from eim.funcs import get_block_numbers, read_yaml_file, get_eth_balance, get_erc20_balance_ethereum, call_contract_function
+from eim.funcs import get_block_numbers, get_eim_yamls, get_eth_balance, get_erc20_balance_ethereum, call_contract_function
 
 class AdapterEthExported(AbstractAdapter):
     """
@@ -18,15 +16,10 @@ class AdapterEthExported(AbstractAdapter):
         super().__init__("ETH exported", adapter_params, db_connector)
         rpc_url = 'https://mainnet.gateway.tenderly.co' #TODO: get from db
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
-
-        if sys_user == 'ubuntu':
-            self.eth_derivatives = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_derivatives.yml')
-            self.ethereum_token_addresses = self.eth_derivatives.keys()
-            self.eth_exported_entities = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_exported_entities.yml')
-        else:
-            self.eth_derivatives = read_yaml_file('eim/eth_derivatives.yml')
-            self.ethereum_token_addresses = self.eth_derivatives.keys()
-            self.eth_exported_entities = read_yaml_file('eim/eth_exported_entities.yml')
+        eim_yamls = get_eim_yamls(['eth_derivatives', 'eth_exported_entities'])
+        self.eth_derivatives = eim_yamls[0]
+        self.ethereum_token_addresses = self.eth_derivatives.keys()
+        self.eth_exported_entities = eim_yamls[1]
         
         print_init(self.name, self.adapter_params)
 

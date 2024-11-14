@@ -1,13 +1,9 @@
 import pandas as pd
 from web3 import Web3
-from datetime import datetime
-import getpass
-sys_user = getpass.getuser()
-
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
-from eim.funcs import read_yaml_file, get_eth_balance, get_erc20_balance_ethereum, call_contract_function
+from eim.funcs import get_eim_yamls, get_eth_balance, get_erc20_balance_ethereum
 
 class AdapterEthHolders(AbstractAdapter):
     """
@@ -16,12 +12,10 @@ class AdapterEthHolders(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("ETH holders", adapter_params, db_connector)
-        if sys_user == 'ubuntu':
-            self.eth_derivatives = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_derivatives.yml')
-            self.eth_holders = read_yaml_file(f'/home/{sys_user}/gtp/backend/eim/eth_holders.yml')
-        else:
-            self.eth_derivatives = read_yaml_file('eim/eth_derivatives.yml')
-            self.eth_holders = read_yaml_file('eim/eth_holders.yml')
+        eim_yamls = get_eim_yamls(['eth_derivatives', 'eth_holders'])
+        self.eth_derivatives = eim_yamls[0]
+        self.ethereum_token_addresses = self.eth_derivatives.keys()
+        self.eth_exported_entities = eim_yamls[1]
 
         self.assets = ['ETH', 'stETH', 'wETH', 'wstETH', 'mETH']
         

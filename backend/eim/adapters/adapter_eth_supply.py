@@ -2,7 +2,7 @@ import pandas as pd
 from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.misc.helper_functions import api_get_call, upsert_to_kpis
+from src.misc.helper_functions import api_get_call
 from src.misc.helper_functions import print_init, print_load, print_extract
 
 
