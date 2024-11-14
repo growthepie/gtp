@@ -122,6 +122,16 @@ def etl():
 
         json_creator.create_glo_json()
 
+    @task()
+    def run_create_eim():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        df = json_creator.get_data_eim()
+
+        json_creator.create_eth_exported_json(df)
+        json_creator.create_eth_supply_json(df)
+        json_creator.create_eth_holders_json()
+
     # Main
     run_create_master()    
     run_create_chain_details()
