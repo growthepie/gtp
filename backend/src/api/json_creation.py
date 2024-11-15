@@ -2294,19 +2294,20 @@ class JSONCreation():
         }
 
         for entity in self.eth_exported_entities:
-            mk_list = self.generate_daily_list(df, metric, entity, metric_type='eim', start_date='2021-01-01')
-            mk_list_int = mk_list[0]
-            mk_list_columns = mk_list[1]
+            if self.eth_exported_entities[entity]['type'] in ['Layer 2', 'Layer 1', 'Sidechain', 'total']:
+                mk_list = self.generate_daily_list(df, metric, entity, metric_type='eim', start_date='2021-01-01')
+                mk_list_int = mk_list[0]
+                mk_list_columns = mk_list[1]
 
-            entity_dict[entity] = {
-                'changes': self.create_changes_dict(df, metric, entity, metric_type='eim'),
-                'daily': {
-                    'types' : mk_list_columns,
-                    'data' : mk_list_int
-                },
-                'latest_usd': mk_list_int[-1][1],
-                'latest_eth': mk_list_int[-1][2],
-            }
+                entity_dict[entity] = {
+                    'changes': self.create_changes_dict(df, metric, entity, metric_type='eim'),
+                    'daily': {
+                        'types' : mk_list_columns,
+                        'data' : mk_list_int
+                    },
+                    'latest_usd': mk_list_int[-1][1],
+                    'latest_eth': mk_list_int[-1][2],
+                }
 
         #sort entity_dict by latest value desc
         entity_dict = dict(sorted(entity_dict.items(), key=lambda item: item[1]['latest_usd'], reverse=True))
