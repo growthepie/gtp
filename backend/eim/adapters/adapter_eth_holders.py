@@ -107,9 +107,6 @@ class AdapterEthHolders(AbstractAdapter):
                     print(f"..processing asset: {asset}")
                     new_df_entries = []
                     df = df_blocknumbers[df_blocknumbers['origin_key'] == chain].copy()
-                    df.drop(columns=['origin_key'], inplace=True) 
-                    df['holder_key'] = holder
-                    df['asset'] = asset.lower()
                     
                     if asset != 'ETH':
                         if chain == 'ethereum':
@@ -143,7 +140,7 @@ class AdapterEthHolders(AbstractAdapter):
                                     break
                     
                         #df.loc[i, 'value'] = balance
-                        new_df_entries.append({'holder_key': holder, 'asset': asset.lower(), 'date': date, 'value': balance})
+                        new_df_entries.append({'holder_key': holder, 'asset': asset.lower(), 'date': date, 'value': balance, 'chain': chain})
 
                         if not contract_deployed:
                             print(f"....contract for {asset} not deployed at block {block} ({date}). Stop processing.")
@@ -157,7 +154,10 @@ class AdapterEthHolders(AbstractAdapter):
         df_main['metric_key'] = 'balance_' + df_main['asset'].astype(str)
 
         # drop block column
-        df_main.drop(columns=['asset'], inplace=True)
+        df_main.drop(columns=['asset', 'chain'], inplace=True, errors='ignore')
+
+        ## group by holder_key, date, metric_key and sum value - why? because we aggregate for multiple chains
+        df_main = df_main.groupby(['holder_key', 'date', 'metric_key']).sum().reset_index()
 
         ## TODO: actually pull natively staked ETH data
         native_staked_eth = [
