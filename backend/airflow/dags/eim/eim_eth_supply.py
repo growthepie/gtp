@@ -22,7 +22,7 @@ from eim.adapters.adapter_eth_supply import AdapterEthSupply
     description='Load ETH supply data via ultrasound.money API.',
     tags=['eim', 'daily'],
     start_date=datetime(2024,10,30),
-    schedule='38 02 * * *'
+    schedule='38 03 * * *'
 )
 
 def run():

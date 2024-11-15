@@ -23,7 +23,7 @@ from eim.adapters.adapter_eth_holders import AdapterEthHolders
     description='Load ETH locked on bridges as well as derivative prices.',
     tags=['eim', 'daily'],
     start_date=datetime(2024,10,30),
-    schedule='35 02 * * *'
+    schedule='35 03 * * *'
 )
 
 def run():
