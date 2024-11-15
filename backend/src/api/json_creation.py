@@ -2370,8 +2370,11 @@ class JSONCreation():
         ## sort df by eth_equivalent_balance_eth desc
         df = df.sort_values(by='eth_equivalent_balance_eth', ascending=False)
 
+        ## rename holding_type column to tracking
+        df = df.rename(columns={'holding_type': 'tracking_type'})
+
         ## order columns
-        df = df[["holder_key", "name", "type", "eth_equivalent_balance_usd", "eth_equivalent_balance_eth"]]
+        df = df[["holder_key", "name", "type", "tracking_type", "eth_equivalent_balance_usd", "eth_equivalent_balance_eth"]]
         holders_dict = {
             'data': {
                 'sort': {

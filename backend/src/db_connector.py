@@ -246,12 +246,13 @@ class DbConnector:
                                 holder_key, 
                                 name, 
                                 type, 
+                                holding_type,
                                 SUM(CASE WHEN metric_key = 'eth_equivalent_balance_eth' THEN value END) AS eth_equivalent_balance_eth,
                                 SUM(CASE WHEN metric_key = 'eth_equivalent_balance_usd' THEN value END) AS eth_equivalent_balance_usd
                         FROM latest_data
                         LEFT JOIN eim_holders USING (holder_key)
                         WHERE rn = 1
-                        GROUP BY holder_key, name, type;
+                        GROUP BY 1,2,3,4
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df       
