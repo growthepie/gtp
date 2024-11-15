@@ -1,5 +1,6 @@
 import pandas as pd
 from web3 import Web3
+from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
@@ -157,6 +158,20 @@ class AdapterEthHolders(AbstractAdapter):
 
         # drop block column
         df_main.drop(columns=['asset'], inplace=True)
+
+        ## TODO: actually pull natively staked ETH data
+        native_staked_eth = [
+            {
+                'holder_key': 'golem',
+                'metric_key': 'balance_nativestakedeth',
+                'value': 100320.00
+            }
+        ]
+
+        df_native = pd.DataFrame(native_staked_eth)
+        df_native['date'] = datetime.now().date()
+
+        df_main = pd.concat([df_main, df_native])
 
         ## remove 0s, duplicates, set index
         df_main = df_main[df_main['value'] != 0]

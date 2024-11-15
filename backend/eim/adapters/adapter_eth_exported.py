@@ -177,7 +177,7 @@ class AdapterEthExported(AbstractAdapter):
             start_date = None
             fixed = self.eth_derivatives[asset]['fixed'] if 'fixed' in self.eth_derivatives[asset] else False
 
-            if asset != 'ETH':
+            if asset not in ['ETH', 'nativeStakedETH']:
                 if 'price_contract' in self.eth_derivatives[asset]['ethereum']:
                     token_contract = self.eth_derivatives[asset]['ethereum']['price_contract']
                     token_abi = self.eth_derivatives[asset]['ethereum']['price_abi']  
