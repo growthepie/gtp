@@ -150,4 +150,6 @@ def etl():
     ## Misc
     run_create_glo()
     run_create_fundamentals()
+
+    run_create_eim()
 etl()
