@@ -152,6 +152,7 @@ class AdapterEthExported(AbstractAdapter):
         ## remove 0s, duplicates, set index
         df_main = df_main[df_main['value'] != 0]
         df_main.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
+        df_main = df_main.dropna()
         df_main.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
         return df_main
     
