@@ -16,7 +16,7 @@ from eim.adapters.adapter_eth_holders import AdapterEthHolders
         'owner' : 'mseidl',
         'retries' : 5,
         'email_on_failure': False,
-        'retry_delay' : timedelta(minutes=10),
+        'retry_delay' : timedelta(minutes=1),
         'on_failure_callback': alert_via_webhook
     },
     dag_id='eim_eth_exported',
