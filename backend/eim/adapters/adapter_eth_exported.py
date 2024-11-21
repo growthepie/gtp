@@ -14,7 +14,7 @@ class AdapterEthExported(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("ETH exported", adapter_params, db_connector)
-        rpc_url = 'https://mainnet.gateway.tenderly.co' #TODO: get from db
+        rpc_url = self.db_connector.get_special_use_rpc('ethereum')
         self.w3 = Web3(Web3.HTTPProvider(rpc_url))
         eim_yamls = get_eim_yamls(['eth_derivatives', 'eth_exported_entities'])
         self.eth_derivatives = eim_yamls[0]
