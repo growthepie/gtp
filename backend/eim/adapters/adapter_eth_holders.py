@@ -4,7 +4,7 @@ from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
-from eim.funcs import get_eim_yamls, get_eth_balance, get_erc20_balance_ethereum
+from eim.funcs import get_eim_yamls, get_eth_balance, get_erc20_balance_ethereum, get_validator_balance
 
 class AdapterEthHolders(AbstractAdapter):
     """
@@ -111,7 +111,9 @@ class AdapterEthHolders(AbstractAdapter):
                     if asset != 'ETH':
                         if chain == 'ethereum':
                             token_contract = self.eth_derivatives[asset]['ethereum']['contract']
-                            token_abi = self.eth_derivatives[asset]['ethereum']['abi']  
+                            token_abi = self.eth_derivatives[asset]['ethereum']['abi']
+                        elif chain == 'beacon': # natively staked assests are implemented below
+                            pass
                         else:
                             print(f"....asset {asset} not YET supported on chain {chain}.")
                             ## TODO: add non ETH support for other chains (add contracts to eth_derivatives.yml)
@@ -159,14 +161,24 @@ class AdapterEthHolders(AbstractAdapter):
         ## group by holder_key, date, metric_key and sum value - why? because we aggregate for multiple chains
         df_main = df_main.groupby(['holder_key', 'date', 'metric_key']).sum().reset_index()
 
-        ## TODO: actually pull natively staked ETH data
-        native_staked_eth = [
-            {
-                'holder_key': 'golem',
-                'metric_key': 'balance_nativestakedeth',
-                'value': 100320.00
-            }
-        ]
+        ## pull natively staked ETH data (historical data not possible as of now)
+        native_staked_eth = []
+        beacon_chain_eth_holders = [holder for holder in self.eth_holders if 'chains' in self.eth_holders[holder] and 'beacon' in self.eth_holders[holder]['chains']]
+        for entity in beacon_chain_eth_holders:
+            print(entity)
+            if 'validator_ids' in self.eth_holders[entity]['chains']['beacon']:
+                try:
+                    balance = get_validator_balance(self.eth_holders[entity]['chains']['beacon']['validator_ids']) / 10**9 
+                except:
+                    balance = None
+                    print('Error, no ETH validator balance found for: ' + entity)
+                native_staked_eth.append({
+                        'holder_key': entity,
+                        'metric_key': 'balance_nativestakedeth',
+                        'value': balance
+                    })
+            else:
+                print('Error, no validator_ids found for: ' + entity)
 
         df_native = pd.DataFrame(native_staked_eth)
         df_native['date'] = datetime.now().date()
