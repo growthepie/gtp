@@ -125,7 +125,7 @@ class AdapterCrossCheck(AbstractAdapter):
             FROM fact_kpis 
             WHERE metric_key in ('txcount_raw', 'txcount_explorer')
             and date < date_trunc('day', NOW()) 
-            and date >= date_trunc('day',now()) - interval '7 days' 
+            and date >= date_trunc('day',now()) - interval '3 days' 
             and origin_key in ('"""+ "', '".join(origin_keys) + """')
             group by 1
         )
@@ -143,8 +143,8 @@ class AdapterCrossCheck(AbstractAdapter):
             if row['origin_key'] == 'rhino':
                 threshold = 0.6
             else:
-                threshold = 0.05
+                threshold = 0.03 ## max 3% discrepancy
 
             if row['diff_percent'] > threshold:
-                send_discord_message(f"txcount discrepancy in last 7 days for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])} tx)", self.webhook_url)
+                send_discord_message(f"txcount discrepancy in last 3 days for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])} tx)", self.webhook_url)
                 print(f"txcount discrepancy for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])})")
