@@ -95,62 +95,88 @@ class AdapterEthHolders(AbstractAdapter):
         ## iterate through all holders and get balances for each asset and address
         print(f"Entities to process: {holders_list}")
         for holder in holders_list:
+            df_native = None
             print(f"Processing {holder}")
             # iterating over all assets
 
-            for chain in self.eth_holders[holder]['chains']:                    
-                rpc_url = self.db_connector.get_special_use_rpc(chain)
-                w3 = Web3(Web3.HTTPProvider(rpc_url))        
-                print(f"..processing chain: {chain}. Connecting to {rpc_url}")
+            for chain in self.eth_holders[holder]['chains']:    
+                print(f"..processing chain: {chain}.")                
+                if chain == 'beacon':
+                    ## pull natively staked ETH data 
+                    # TODO: integrate historical data
+                    print(f"..processing natively staked ETH for {holder}.")
+                    native_staked_eth = []
+                    if 'validator_ids' in self.eth_holders[holder]['chains']['beacon']:
+                        try:
+                            balance = get_validator_balance(self.eth_holders[holder]['chains']['beacon']['validator_ids']) / 10**9 
+                        except:
+                            balance = None
+                            print('Error, no ETH validator balance found for: ' + holder)
+                        native_staked_eth.append({
+                                'holder_key': holder,
+                                'asset': 'nativestakedeth',
+                                'value': balance
+                            })
+                    else:
+                        print('Error, no validator_ids found for: ' + holder)
 
-                for asset in self.assets:
-                    print(f"..processing asset: {asset}")
-                    new_df_entries = []
-                    df = df_blocknumbers[df_blocknumbers['origin_key'] == chain].copy()
-                    
-                    if asset != 'ETH':
-                        if chain == 'ethereum':
-                            token_contract = self.eth_derivatives[asset]['ethereum']['contract']
-                            token_abi = self.eth_derivatives[asset]['ethereum']['abi']
-                        elif chain == 'beacon': # natively staked assests are implemented below
-                            pass
-                        else:
-                            print(f"....asset {asset} not YET supported on chain {chain}.")
-                            ## TODO: add non ETH support for other chains (add contracts to eth_derivatives.yml)
-                            continue
+                    df_native = pd.DataFrame(native_staked_eth)
+                    df_native['date'] = datetime.now().date()        
 
-                    # iterating over each date and each contract
-                    contract_deployed = True
-                    for i in range(len(df)-1, -1, -1):
-                        date = df['date'].iloc[i]
-                        block = df['block'].iloc[i]
-                        balance = 0
-                        print(f"...retrieving balance for {asset} at block {block} ({date})")    
+                else:
+                    rpc_url = self.db_connector.get_special_use_rpc(chain)
+                    w3 = Web3(Web3.HTTPProvider(rpc_url))   
+                    print(f"..connected to RPC: {rpc_url}")                     
 
-                        for address_entry in self.eth_holders[holder]['chains'][chain]:
-                            address = address_entry['address']                
-                            
-                            print(f"....processing address: {address}")
-                            if asset == 'ETH':
-                                balance += get_eth_balance(w3, address, int(block))
+                    for asset in self.assets:
+                        print(f"..processing asset: {asset}")
+                        new_df_entries = []
+                        df = df_blocknumbers[df_blocknumbers['origin_key'] == chain].copy()
+                        
+                        if asset != 'ETH':
+                            if chain == 'ethereum':
+                                token_contract = self.eth_derivatives[asset]['ethereum']['contract']
+                                token_abi = self.eth_derivatives[asset]['ethereum']['abi']
                             else:
-                                bal_new = get_erc20_balance_ethereum(w3, token_contract, token_abi, address, int(block))
-                                if bal_new is not None:
-                                    balance += bal_new
+                                print(f"....asset {asset} not YET supported on chain {chain}.")
+                                ## TODO: add non ETH support for other chains (add contracts to eth_derivatives.yml)
+                                continue
+
+                        # iterating over each date and each contract
+                        contract_deployed = True
+                        for i in range(len(df)-1, -1, -1):
+                            date = df['date'].iloc[i]
+                            block = df['block'].iloc[i]
+                            balance = 0
+                            print(f"...retrieving balance for {asset} at block {block} ({date})")    
+
+                            for address_entry in self.eth_holders[holder]['chains'][chain]:
+                                address = address_entry['address']                
+                                
+                                print(f"....processing address: {address}")
+                                if asset == 'ETH':
+                                    balance += get_eth_balance(w3, address, int(block))
                                 else:
-                                    contract_deployed = False
-                                    break
-                    
-                        #df.loc[i, 'value'] = balance
-                        new_df_entries.append({'holder_key': holder, 'asset': asset.lower(), 'date': date, 'value': balance, 'chain': chain})
+                                    bal_new = get_erc20_balance_ethereum(w3, token_contract, token_abi, address, int(block))
+                                    if bal_new is not None:
+                                        balance += bal_new
+                                    else:
+                                        contract_deployed = False
+                                        break
+                        
+                            #df.loc[i, 'value'] = balance
+                            new_df_entries.append({'holder_key': holder, 'asset': asset.lower(), 'date': date, 'value': balance, 'chain': chain})
 
-                        if not contract_deployed:
-                            print(f"....contract for {asset} not deployed at block {block} ({date}). Stop processing.")
-                            break
+                            if not contract_deployed:
+                                print(f"....contract for {asset} not deployed at block {block} ({date}). Stop processing.")
+                                break
 
-                    if len(new_df_entries) > 0:
-                        df_new = pd.DataFrame(new_df_entries)
-                        df_main = pd.concat([df_main, df_new])
+                        if len(new_df_entries) > 0:
+                            df_new = pd.DataFrame(new_df_entries)
+                            df_main = pd.concat([df_main, df_new])
+        
+            if df_native is not None:
+                df_main = pd.concat([df_main, df_native])
 
         # create metric_key column based on concatenated 'eth_exported' and 'asset'
         df_main['metric_key'] = 'balance_' + df_main['asset'].astype(str)
@@ -160,30 +186,6 @@ class AdapterEthHolders(AbstractAdapter):
 
         ## group by holder_key, date, metric_key and sum value - why? because we aggregate for multiple chains
         df_main = df_main.groupby(['holder_key', 'date', 'metric_key']).sum().reset_index()
-
-        ## pull natively staked ETH data (historical data not possible as of now)
-        native_staked_eth = []
-        beacon_chain_eth_holders = [holder for holder in self.eth_holders if 'chains' in self.eth_holders[holder] and 'beacon' in self.eth_holders[holder]['chains']]
-        for entity in beacon_chain_eth_holders:
-            print(entity)
-            if 'validator_ids' in self.eth_holders[entity]['chains']['beacon']:
-                try:
-                    balance = get_validator_balance(self.eth_holders[entity]['chains']['beacon']['validator_ids']) / 10**9 
-                except:
-                    balance = None
-                    print('Error, no ETH validator balance found for: ' + entity)
-                native_staked_eth.append({
-                        'holder_key': entity,
-                        'metric_key': 'balance_nativestakedeth',
-                        'value': balance
-                    })
-            else:
-                print('Error, no validator_ids found for: ' + entity)
-
-        df_native = pd.DataFrame(native_staked_eth)
-        df_native['date'] = datetime.now().date()
-
-        df_main = pd.concat([df_main, df_native])
 
         ## remove 0s, duplicates, set index
         df_main = df_main[df_main['value'] != 0]
