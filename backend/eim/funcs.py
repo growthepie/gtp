@@ -118,6 +118,31 @@ def get_erc20_balance_ethereum(w3: Web3, token_contract: str, token_abi: dict, a
     
     return result / 10**18
 
+def get_validator_balance(validator_ids: list, slot='head'):
+    """
+    Retrieves the validator balances for a list of validator IDs at a specific slot.
+
+    :param validator_ids: List of validator IDs to retrieve balances.
+    :param slot: Slot number to retrieve the balances (default is 'head').
+    :return: Total balance of the validators in Gwei.
+    """
+    url = f'https://ethereum-beacon-api.publicnode.com/eth/v1/beacon/states/{slot}/validators'
+    total_balance = 0
+
+    for i in range(0, len(validator_ids), 100):
+        batch = validator_ids[i:i+100]
+        params = {'id': ','.join(map(str, batch))}
+        
+        response = requests.get(url, params=params)
+        response.raise_for_status()
+        data = response.json()
+        
+        # Extract and sum up balances
+        balances = [int(validator['balance']) for validator in data['data']]
+        total_balance += sum(balances)
+
+    return total_balance
+
 def get_first_block_of_day(w3: Web3, target_date: datetime.date):
     """
     Finds the first block of a given day using binary search based on the timestamp.
