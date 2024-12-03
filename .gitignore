@@ -21,7 +21,7 @@ airflow/git_version
 airflow/logs/
 airflow/www/static/coverage/
 airflow/www/*.log
-/logs/
+backend/airflow/logs/
 airflow-webserver.pid
 standalone_admin_password.txt
 warnings.txt
