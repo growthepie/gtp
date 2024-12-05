@@ -340,6 +340,9 @@ class AdapterStarknet(AbstractAdapterRaw):
             l1_gas_price_hex = full_block_data.get('l1_gas_price', {}).get('price_in_wei', None)
             l1_gas_price = hex_to_int(l1_gas_price_hex) / 1e18 if l1_gas_price_hex else 0
 
+            l1_data_gas_price_hex = full_block_data.get('l1_data_gas_price', {}).get('price_in_wei', None)
+            l1_data_gas_price = hex_to_int(l1_data_gas_price_hex) / 1e18 if l1_data_gas_price_hex else 0
+
             max_fee_hex = tx.get('max_fee', None)
             max_fee = hex_to_int(max_fee_hex) / 1e18 if max_fee_hex else 0
 
@@ -348,6 +351,33 @@ class AdapterStarknet(AbstractAdapterRaw):
             
             raw_tx_fee = actual_fee                      
 
+            # Parse execution resources
+            execution_resources = tx.get('execution_resources', {})
+            l1_gas = execution_resources.get('data_availability', {}).get('l1_gas', 0)
+            l1_data_gas = execution_resources.get('data_availability', {}).get('l1_data_gas', 0)
+
+            # Determine the DA mode and corresponding gas
+            l1_da_mode = full_block_data.get('l1_da_mode', 'CALLDATA')
+
+            if l1_da_mode == 'CALLDATA':
+                data_gas_consumed = l1_gas
+                data_gas_price = l1_gas_price
+            elif l1_da_mode == 'BLOB':
+                data_gas_consumed = l1_data_gas
+                data_gas_price = l1_data_gas_price
+            else:
+                data_gas_consumed = 0
+                data_gas_price = 0
+
+            # Calculate gas_used based on both old and new ways
+            if l1_da_mode in ['CALLDATA', 'BLOB']:
+                # (Starknet v0.13.3+)
+                computation_gas_price = l1_gas_price
+                gas_used = (actual_fee - (data_gas_consumed * data_gas_price)) / computation_gas_price if computation_gas_price > 0 else 0
+            else:
+                gas_used = actual_fee / l1_gas_price if l1_gas_price > 0 else 0
+
+            # Adjust actual_fee for STRK if applicable
             if actual_fee > 0:
                 if from_address == "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d": ## STRK
                     gas_token = 'STRK'
@@ -359,8 +389,7 @@ class AdapterStarknet(AbstractAdapterRaw):
             else:
                 print(f"Skipping transaction with zero actual_fee: {tx['transaction_hash']}")
 
-            gas_used = actual_fee / l1_gas_price if l1_gas_price != 0 else 0
-                
+            # Append transaction data
             tx_data = {
                 'block_number': full_block_data['block_number'],
                 'block_timestamp': pd.to_datetime(full_block_data['timestamp'], unit='s'),

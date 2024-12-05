@@ -52,7 +52,7 @@ def gtp_ai():
         analytics.fetch_json_data(url, local_filename)
         print("Data fetched successfully! Data saved to:", local_filename)
 
-        metrics = ["daa", "txcount", "market_cap_usd", "gas_per_second", "tvl"]
+        metrics = ["daa", "txcount", "market_cap_usd", "gas_per_second", "tvl", "stables_mcap"]
         print(f"Filtering data for metrics: {metrics}...")
         filtered_data = analytics.filter_data(file_path=local_filename, metrics=metrics)
         print(f"Data filtered successfully! Filtered data length: {len(filtered_data)}")
