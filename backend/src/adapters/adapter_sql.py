@@ -534,7 +534,7 @@ class AdapterSQL(AbstractAdapter):
                             if origin_key != 'starknet':
                                 filter_string = 'AND empty_input = TRUE'
                             else:
-                                filter_string = 'AND gas_used = 23'
+                                filter_string = 'AND gas_used > 20 and gas_used < 30'
 
                             print(f"... processing txcosts_median_native for {origin_key} and {granularity} granularity")  
                             if additional_cte != '':
