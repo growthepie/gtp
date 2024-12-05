@@ -2002,13 +2002,10 @@ class JSONCreation():
         }
 
         economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=365)
-
         economics_dict['data']['all_l2s']['metrics']['costs'] = {
             'costs_l1': self.generate_all_l2s_metric_dict(df, 'costs_l1', rolling_avg=False, economics_api=True, days=365),
             'costs_blobs': self.generate_all_l2s_metric_dict(df, 'costs_blobs', rolling_avg=False, economics_api=True, days=365)
-            
         }
-
         economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=365)
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
@@ -2016,7 +2013,7 @@ class JSONCreation():
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True]
         df = df.loc[(df.origin_key.isin(chain_keys))]
         timeframes = [1,7,30,90,180,365,'max']
-        
+
         # iterate over each chain and generate table and chart data
         for origin_key in chain_keys:
             economics_dict['data']['chain_breakdown'][origin_key] = {}
@@ -2025,9 +2022,9 @@ class JSONCreation():
                 timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
                 days = timeframe if timeframe != 'max' else 2000
 
-                revenue = self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)
-                profit = self.aggregate_metric(df, origin_key, 'profit_eth', days)
-                profit_margin = profit / revenue if revenue != 0 else 0.0
+                revenue_eth = self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)
+                profit_eth = self.aggregate_metric(df, origin_key, 'profit_eth', days)
+                profit_margin = profit_eth / revenue_eth if revenue_eth != 0 else 0.0
 
                 if profit_margin > 1:
                     profit_margin = 1
@@ -2096,6 +2093,54 @@ class JSONCreation():
                     'types' : mk_list_columns_monthly,
                     'data' : mk_list_int_monthly
                 }
+        
+        ## Calculate and add the total revenue, costs, profit, profit margin, and blob size for all chains combined for each timeframe
+        economics_dict['data']['chain_breakdown']['totals'] = {}
+        for timeframe in timeframes:
+            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max' 
+
+            # Initialize variables to accumulate total costs, revenue, and blob size for all chains over the specified timeframe
+            total_costs_usd = 0
+            total_costs_eth = 0
+            total_revenue_usd = 0
+            total_revenue_eth = 0
+            total_blob_size = 0
+            for key in economics_dict['data']['chain_breakdown']:
+                if key != 'totals':
+                    total_costs_usd += economics_dict['data']['chain_breakdown'][key][timeframe_key]['costs']['total'][0]
+                    total_costs_eth += economics_dict['data']['chain_breakdown'][key][timeframe_key]['costs']['total'][1]
+                    total_revenue_usd += economics_dict['data']['chain_breakdown'][key][timeframe_key]['revenue']['total'][0]
+                    total_revenue_eth += economics_dict['data']['chain_breakdown'][key][timeframe_key]['revenue']['total'][1]
+                    total_blob_size += economics_dict['data']['chain_breakdown'][key][timeframe_key]['size']['total'][0]
+
+            total_profit_usd = total_revenue_usd - total_costs_usd
+            total_profit_eth = total_revenue_eth - total_costs_eth
+            total_profit_margin = total_profit_eth / total_revenue_eth if total_revenue_eth != 0 else 0.0
+            if total_profit_margin > 1:
+                total_profit_margin = 1                
+
+            economics_dict['data']['chain_breakdown']['totals'][timeframe_key] = {
+                    "revenue": {
+                        "types": ["usd", "eth"],
+                        "total": [total_revenue_usd, total_revenue_eth]
+                    },		
+                    "costs": {
+                        "types": ["usd", "eth"],
+                        "total": [total_costs_usd, total_costs_eth],
+                    },
+                    "profit": {
+                        "types": ["usd", "eth"],
+                        "total": [total_profit_usd, total_profit_eth]
+                    },	
+                    "profit_margin": {
+                        "types": ["percentage"],
+                        "total": [total_profit_margin]
+                    },
+                    "size": {
+                        "types": ["bytes"],
+                        "total": [total_blob_size]
+                    }
+                }
 
         economics_dict = fix_dict_nan(economics_dict, 'economics')
 
@@ -2104,6 +2149,189 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/economics', economics_dict, self.cf_distribution_id)
         print(f'DONE -- economics export')
+
+    def create_da_overview_json(self, df):
+        ## initialize da_dict with all_da and chain_breakdown
+        da_dict = {
+            "data": {
+                "all_da" : {
+                    "da_id": "all_da",
+                    "da_name": "All DAs",
+                    "metrics": {
+                        "fees_paid": {},
+                        "data_posted": {},
+                    }
+                },
+                "chain_breakdown": {}
+            }
+        }
+
+        ## fill all_da with daily data
+        da_list = ['da_ethereum_blobs', 'da_celestia']
+        metrics_list = ['fees_paid', 'data_posted']
+        ## data_posted, fees_paid
+        for da in da_list:
+            for metric in metrics_list:
+                mk_list = self.generate_daily_list(df, metric, da, metric_type='da')
+                mk_list_int = mk_list[0]
+                mk_list_columns = mk_list[1]
+
+                da_dict['data']['all_da']['metrics'][metric][da] = {
+                    'metric_name': self.da_layers[da]['name'],
+                    'source': [],
+                    'avg': self.da_metrics[metric]['avg'],
+                    'daily': {
+                        'types' : mk_list_columns,
+                        'data' : mk_list_int
+                    }
+                }
+
+        ## TODO: add top DA consumers - how to get this data?
+        ## we anyways need DA consumer breakdown
+        ## add daily data for all DAs to our database.... aggregating over the them will allow us to get the top consumers
+        ## Celestia based on our DB, Blobs based on Dune?
+
+        # # filter df for all_da (all chains except chains that aren't included in the API)
+        # # chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
+        # chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True]
+        # df = df.loc[(df.origin_key.isin(chain_keys))]
+        # timeframes = [1,7,30,90,180,365,'max']
+
+        # # iterate over each chain and generate table and chart data
+        # for origin_key in chain_keys:
+        #     da_dict['data']['chain_breakdown'][origin_key] = {}
+        #     # get data for each timeframe (for table aggregates)
+        #     for timeframe in timeframes:
+        #         timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
+        #         days = timeframe if timeframe != 'max' else 2000
+
+        #         revenue_eth = self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)
+        #         profit_eth = self.aggregate_metric(df, origin_key, 'profit_eth', days)
+        #         profit_margin = profit_eth / revenue_eth if revenue_eth != 0 else 0.0
+
+        #         if profit_margin > 1:
+        #             profit_margin = 1
+
+        #         da_dict['data']['chain_breakdown'][origin_key][timeframe_key] = {
+        #             "revenue": {
+        #                 "types": ["usd", "eth"],
+        #                 "total": [self.aggregate_metric(df, origin_key, 'fees_paid_usd', days), self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)]
+        #             },		
+        #             "costs": {
+        #                 "types": ["usd", "eth"],
+        #                 "total": [self.aggregate_metric(df, origin_key, 'costs_total_usd', days), self.aggregate_metric(df, origin_key, 'costs_total_eth', days)],
+        #                 "costs_l1": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], 
+        #                 "costs_blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)],
+        #             },
+        #             "profit": {
+        #                 "types": ["usd", "eth"],
+        #                 "total": [self.aggregate_metric(df, origin_key, 'profit_usd', days), self.aggregate_metric(df, origin_key, 'profit_eth', days)]
+        #             },	
+        #             "profit_margin": {
+        #                 "types": ["percentage"],
+        #                 "total": [profit_margin]
+        #             },
+        #             "size": {
+        #                 "types": ["bytes"],
+        #                 "total": [self.aggregate_metric(df, origin_key, 'blob_size_bytes', days)]
+        #             }
+        #         }
+
+        #     econ_metrics = ['fees', 'costs', 'profit']
+        #     ## determine the min date for all metric_keys of econ_metrics in df
+        #     min_date_fees = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['fees']['metric_keys']))]['date'].min()
+        #     min_date_costs = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['costs']['metric_keys']))]['date'].min()
+        #     min_date_profit = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['profit']['metric_keys']))]['date'].min()
+        #     start_date = max(min_date_fees, min_date_costs, min_date_profit)
+
+        #     metric_to_key = {
+        #             'fees': 'revenue',
+        #             'costs': 'costs',
+        #             'profit': 'profit'
+        #         }
+            
+        #     ## add timeseries data for each chain
+        #     da_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
+        #     da_dict['data']['chain_breakdown'][origin_key]['monthly'] = {}
+
+        #     for metric in econ_metrics:
+        #         key = metric_to_key.get(metric)
+
+        #         ## Fill daily values
+        #         mk_list = self.generate_daily_list(df, metric, origin_key, start_date)
+        #         mk_list_int = mk_list[0]
+        #         mk_list_columns = mk_list[1]                
+
+        #         da_dict['data']['chain_breakdown'][origin_key]['daily'][key] = {
+        #             'types' : mk_list_columns,
+        #             'data' : mk_list_int
+        #         }
+
+        #         ## Fill monthly values
+        #         mk_list_monthly = self.generate_monthly_list(df, metric, origin_key, start_date)
+        #         mk_list_int_monthly = mk_list_monthly[0]
+        #         mk_list_columns_monthly = mk_list_monthly[1]
+
+        #         da_dict['data']['chain_breakdown'][origin_key]['monthly'][key] = {
+        #             'types' : mk_list_columns_monthly,
+        #             'data' : mk_list_int_monthly
+        #         }
+        
+        # ## Calculate and add the total revenue, costs, profit, profit margin, and blob size for all chains combined for each timeframe
+        # da_dict['data']['chain_breakdown']['totals'] = {}
+        # for timeframe in timeframes:
+        #     timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max' 
+
+        #     # Initialize variables to accumulate total costs, revenue, and blob size for all chains over the specified timeframe
+        #     total_costs_usd = 0
+        #     total_costs_eth = 0
+        #     total_revenue_usd = 0
+        #     total_revenue_eth = 0
+        #     total_blob_size = 0
+        #     for key in da_dict['data']['chain_breakdown']:
+        #         if key != 'totals':
+        #             total_costs_usd += da_dict['data']['chain_breakdown'][key][timeframe_key]['costs']['total'][0]
+        #             total_costs_eth += da_dict['data']['chain_breakdown'][key][timeframe_key]['costs']['total'][1]
+        #             total_revenue_usd += da_dict['data']['chain_breakdown'][key][timeframe_key]['revenue']['total'][0]
+        #             total_revenue_eth += da_dict['data']['chain_breakdown'][key][timeframe_key]['revenue']['total'][1]
+        #             total_blob_size += da_dict['data']['chain_breakdown'][key][timeframe_key]['size']['total'][0]
+
+        #     total_profit_usd = total_revenue_usd - total_costs_usd
+        #     total_profit_eth = total_revenue_eth - total_costs_eth
+        #     total_profit_margin = total_profit_eth / total_revenue_eth if total_revenue_eth != 0 else 0.0
+        #     if total_profit_margin > 1:
+        #         total_profit_margin = 1                
+
+        #     da_dict['data']['chain_breakdown']['totals'][timeframe_key] = {
+        #             "revenue": {
+        #                 "types": ["usd", "eth"],
+        #                 "total": [total_revenue_usd, total_revenue_eth]
+        #             },		
+        #             "costs": {
+        #                 "types": ["usd", "eth"],
+        #                 "total": [total_costs_usd, total_costs_eth],
+        #             },
+        #             "profit": {
+        #                 "types": ["usd", "eth"],
+        #                 "total": [total_profit_usd, total_profit_eth]
+        #             },	
+        #             "profit_margin": {
+        #                 "types": ["percentage"],
+        #                 "total": [total_profit_margin]
+        #             },
+        #             "size": {
+        #                 "types": ["bytes"],
+        #                 "total": [total_blob_size]
+        #             }
+        #         }
+
+        da_dict = fix_dict_nan(da_dict, 'da_overview')
+
+        if self.s3_bucket == None:
+            self.save_to_json(da_dict, 'da_overview')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/da_overview', da_dict, self.cf_distribution_id)
+        print(f'DONE -- DA overview export')
 
     #######################################################################
     ### LABELS
