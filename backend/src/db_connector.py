@@ -1177,7 +1177,7 @@ class DbConnector:
                                 order by gas_fees_eth  desc
                                 ),
                                 
-                        top_contracts_main_category_and_origin_key as (
+                        top_contracts_main_category_and_origin_key_by_gas as (
                                 SELECT
                                         address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
                                 FROM (
@@ -1186,10 +1186,24 @@ class DbConnector:
                                                 t.*
                                         FROM top_contracts t) x
                                 WHERE x.r <= 20
+                                ),
+
+                        top_contracts_main_category_and_origin_key_by_txcount as (
+                                SELECT
+                                        address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
+                                FROM (
+                                        SELECT
+                                                ROW_NUMBER() OVER (PARTITION BY main_category_key, origin_key ORDER BY txcount desc) AS r,
+                                                t.*
+                                        FROM top_contracts t) x
+                                WHERE x.r <= 20
                                 )
                                 
                         select * from (select * from top_contracts order by gas_fees_eth desc limit {contract_limit}) a
-                        union select * from top_contracts_main_category_and_origin_key
+                        union 
+                        select * from top_contracts_main_category_and_origin_key_by_gas
+                        union 
+                        select * from top_contracts_main_category_and_origin_key_by_txcount
                 '''
                 # print(main_category)
                 # print(exec_string)
@@ -1343,7 +1357,7 @@ class DbConnector:
                                 order by gas_fees_eth desc
                                 ),
                                 
-                        top_contracts_category_and_origin_key as (
+                        top_contracts_category_and_origin_key_by_gas as (
                                 SELECT
                                         address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
                                 FROM (
@@ -1354,10 +1368,24 @@ class DbConnector:
                                                 top_contracts t) x
                                 WHERE
                                 x.r <= 20
+                                ),
+
+                        top_contracts_category_and_origin_key_by_txcount as (
+                                SELECT
+                                        address,origin_key,contract_name,project_name,sub_category_key,sub_category_name,main_category_key,main_category_name,gas_fees_eth,gas_fees_usd,txcount,daa
+                                FROM (
+                                        SELECT
+                                                ROW_NUMBER() OVER (PARTITION BY sub_category_key, origin_key ORDER BY txcount desc) AS r,
+                                                t.*
+                                        FROM
+                                                top_contracts t) x
+                                WHERE
+                                x.r <= 20
                                 )
                                 
                         select * from (select * from top_contracts order by gas_fees_eth desc limit 50) a
-                        union select * from top_contracts_category_and_origin_key
+                        union select * from top_contracts_category_and_origin_key_by_gas
+                        union select * from top_contracts_category_and_origin_key_by_txcount
                 '''
                 # print(main_category)
                 # print(exec_string)
