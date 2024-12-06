@@ -1,0 +1,20 @@
+{#
+    A query to calculate the median transaction fee over the last 'days' days.
+
+    metric: txcosts_median_eth
+
+    Parameters:
+    - origin_key: The name of the chain to identify the table.
+    - days: default = 7; The time interval (in days) to consider for the data extraction.
+#}
+
+{% set days = days | default(7) %}
+
+SELECT
+    date_trunc('day', "block_timestamp") AS day,
+    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS value
+FROM {{ origin_key }}_tx
+WHERE gas_price <> 0 
+    AND block_timestamp >= current_date - interval '{{ days }} days' 
+    AND block_timestamp < current_date
+GROUP BY 1;

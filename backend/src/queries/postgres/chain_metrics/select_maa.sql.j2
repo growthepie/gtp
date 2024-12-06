@@ -1,0 +1,21 @@
+{# 
+    A query to aggregate the count of unique active addresses per month over a specified time window.
+
+    metric_key = 'maa'
+
+    Parameters:
+    - origin_key: The key of the chain to filter the data by.
+    - days: default = 35; The length of the time window (in days) to look back from the current date. Default includes at least 2 months.
+#}
+
+{% set days = days | default(35) %}
+
+SELECT 
+    date_trunc('month', date) AS day,
+    hll_cardinality(hll_union_agg(hll_addresses))::int AS value
+FROM fact_active_addresses_hll
+WHERE
+    origin_key = '{{ origin_key }}'
+    AND date < date_trunc('day', current_date)
+    AND date >= date_trunc('month', current_date - interval '{{ days }} days')
+GROUP BY 1;
