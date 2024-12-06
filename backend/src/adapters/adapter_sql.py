@@ -6,6 +6,7 @@ from src.main_config import get_main_config
 from src.queries.sql_queries import sql_queries
 from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis, get_missing_days_blockspace, send_discord_message
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
+from jinja2 import Environment, FileSystemLoader
 
 ##ToDos: 
 # Add logs (query execution, execution fails, etc)
@@ -30,7 +31,7 @@ class AdapterSQL(AbstractAdapter):
     def extract(self, load_params:dict):
         ## Set variables
         load_type = load_params['load_type']
-        days = load_params['days']
+        days = load_params.get('days', None)
 
         currency_dependent = load_params.get('currency_dependent', None)
         metric_keys = load_params.get('metric_keys', None)
@@ -134,6 +135,15 @@ class AdapterSQL(AbstractAdapter):
             granularities = load_params.get('granularities', None)
             self.run_fees_queries(origin_keys, days, granularities, metric_keys)
             return None
+        
+        elif load_type == 'jinja':
+            jinja_queries = load_params.get('queries', None)
+            env = Environment(loader=FileSystemLoader('src/queries/postgres'))
+            for jinja_q in jinja_queries:
+                template = env.get_template(jinja_q)
+                rendered_sql = template.render()
+                print(f"...executing jinja query: {jinja_q}")
+                self.db_connector.engine.execute(rendered_sql)
 
         else:
             raise ValueError('load_type not supported')
@@ -534,7 +544,7 @@ class AdapterSQL(AbstractAdapter):
                             if origin_key != 'starknet':
                                 filter_string = 'AND empty_input = TRUE'
                             else:
-                                filter_string = 'AND gas_used > 20 and gas_used < 30'
+                                filter_string = 'AND gas_used > 20 and gas_used < 28'
 
                             print(f"... processing txcosts_median_native for {origin_key} and {granularity} granularity")  
                             if additional_cte != '':
