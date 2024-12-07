@@ -31,7 +31,7 @@ def etl():
         adapter_params = {}
         load_params = {
             'load_type' : 'active_addresses_agg',
-            'days' : 5, ## days as int or 'auto
+            'days' : 3, ## days as int or 'auto
         }
 
        # initialize adapter
