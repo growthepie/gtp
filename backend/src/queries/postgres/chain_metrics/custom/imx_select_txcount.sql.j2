@@ -1,0 +1,66 @@
+{#
+    A query to aggregate various transaction counts (deposits, mints, trades, transfers, withdrawals) 
+    on Immutable X over the last 'days' days.
+
+    Parameters:
+    - days: default = 7; The time interval (in days) to consider for the data extraction.
+#}
+
+{% set days = days | default(7) %}
+
+WITH 
+cte_imx_deposits AS (
+    SELECT 
+        date_trunc('day', "timestamp") AS day, COUNT(*) AS value, 'deposits' AS tx_type
+    FROM imx_deposits
+    WHERE timestamp < date_trunc('day', now())
+        AND timestamp >= date_trunc('day', now()) - interval '{{ days }} days'
+    GROUP BY 1
+),
+cte_imx_mints AS (
+    SELECT 
+        date_trunc('day', "timestamp") AS day, COUNT(*) AS value, 'mints' AS tx_type
+    FROM imx_mints
+    WHERE timestamp < date_trunc('day', now())
+        AND timestamp >= date_trunc('day', now()) - interval '{{ days }} days'
+    GROUP BY 1
+),
+cte_imx_trades AS (
+    SELECT 
+        date_trunc('day', "timestamp") AS day, COUNT(*) AS value, 'trades' AS tx_type
+    FROM imx_trades
+    WHERE timestamp < date_trunc('day', now())
+        AND timestamp >= date_trunc('day', now()) - interval '{{ days }} days'
+    GROUP BY 1
+),
+cte_imx_transfers AS (
+    SELECT 
+        date_trunc('day', "timestamp") AS day, COUNT(*) AS value, 'transfers' AS tx_type
+    FROM imx_transfers
+    WHERE timestamp < date_trunc('day', now())
+        AND timestamp >= date_trunc('day', now()) - interval '{{ days }} days'
+    GROUP BY 1
+),
+cte_imx_withdrawals AS (
+    SELECT 
+        date_trunc('day', "timestamp") AS day, COUNT(*) AS value, 'withdrawals' AS tx_type
+    FROM imx_withdrawals
+    WHERE timestamp < date_trunc('day', now())
+        AND timestamp >= date_trunc('day', now()) - interval '{{ days }} days'
+    GROUP BY 1
+),
+unioned as (
+    select * from cte_imx_deposits
+    union all
+    select * from cte_imx_mints
+    union all
+    select * from cte_imx_withdrawals
+    union all
+    select * from cte_imx_trades
+    union all
+    select * from cte_imx_transfers 
+)
+select 
+    day, SUM(value) as val 
+from unioned 
+group by 1

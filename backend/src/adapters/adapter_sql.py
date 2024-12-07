@@ -171,25 +171,17 @@ class AdapterSQL(AbstractAdapter):
         dfMain = pd.DataFrame()
         for query in queries_to_load:
             try:
+                ## TODO: are these really necessary? Can be defined in the query itself
                 if days == 'auto':
-                    if query.metric_key == 'user_base_weekly':
-                        day_val = 15
-                    elif query.origin_key == 'multi':
-                        day_val = 40
-                    elif query.metric_key in ['aa_last30d', 'aa_last7d', 'maa']:
-                        day_val = 5
-                    elif query.metric_key == 'cca':
-                        day_val = 0 ## no days needed
-                    else:
-                        day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
+                    pass ## just use the default days defined in the query
+                    # else:
+                    #     day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
                 else:
                     day_val = days
-                
-                if query.query_parameters is not None:
-                    query.update_query_parameters({'Days': day_val})
-                
-                # if query.metric_key in ['aa_last30d', 'aa_last7d']:
-                #     query.update_query_parameters({'Days_Start': days_start})
+                    query.query_parameters['days'] = day_val
+
+                query.sql = query.template.render(query.query_parameters)
+
                 
                 print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters}")
                 df = pd.read_sql(query.sql, self.db_connector.engine.connect())
@@ -203,7 +195,7 @@ class AdapterSQL(AbstractAdapter):
                     df['origin_key'] = query.origin_key
                 df.value.fillna(0, inplace=True)
 
-                print(f"Query loaded: {query.metric_key} {query.origin_key} with {day_val} days. DF shape: {df.shape}")
+                print(f"Query loaded: {query.metric_key} {query.origin_key} with {days} days. DF shape: {df.shape}")
 
                 if upsert == True:
                     df.set_index(['metric_key', 'origin_key', 'date'], inplace=True)

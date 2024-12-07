@@ -1,0 +1,45 @@
+{#
+    A query to calculate the median transaction cost (in ETH-equivalent terms) on chains with custom gas tokens.
+
+    metric_key = 'txcosts_median_eth'
+
+    Parameters:
+    - origin_key: The name of the chain to identify the custom gas token price feed.
+    - days: default = 7; The time interval (in days) to consider for the data extraction.
+#}
+
+{% set days = days | default(7) %}
+
+WITH token_price AS (
+    SELECT "date", value AS price_usd 
+    FROM fact_kpis
+    WHERE origin_key = '{{ origin_key }}'
+        AND metric_key = 'price_usd' 
+        AND "date" >= current_date - interval '{{ days }} days' 
+        AND "date" < current_date
+),
+eth_price AS (
+    SELECT "date", value AS price_usd 
+    FROM fact_kpis
+    WHERE origin_key = 'ethereum'
+        AND metric_key = 'price_usd' 
+        AND "date" >= current_date - interval '{{ days }} days' 
+        AND "date" < current_date
+),
+tx_median AS (
+    SELECT
+        date_trunc('day', "block_timestamp") AS day,
+        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
+    FROM public.mantle_tx
+    WHERE gas_price > 0 
+        AND block_timestamp >= current_date - interval '{{ days }} days' 
+        AND block_timestamp < current_date
+    GROUP BY 1
+)
+
+SELECT
+    tx.day,
+    tx.median_tx_fee * e.price_usd / eth.price_usd AS value
+FROM tx_median tx
+LEFT JOIN token_price e ON tx.day = e."date"
+LEFT JOIN eth_price eth ON tx.day = eth."date";
