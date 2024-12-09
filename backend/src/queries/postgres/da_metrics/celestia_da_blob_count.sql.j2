@@ -1,0 +1,20 @@
+{#
+    A query to count the number of blobs posted on Celestia over the last 'days' days.
+
+    metric: da_blob_count
+
+    Parameters:
+    - days: default = 7; The time interval (in days) to consider for data extraction.
+#}
+
+{% set days = days | default(7) %}
+
+SELECT 
+    date_trunc('day', block_timestamp) AS day, 
+    COUNT(*) AS value
+FROM public.celestia_tx
+WHERE 
+    block_timestamp >= current_date - interval '{{ days }} days' 
+    AND block_timestamp < current_date
+    AND blob_sizes IS NOT NULL
+GROUP BY 1;

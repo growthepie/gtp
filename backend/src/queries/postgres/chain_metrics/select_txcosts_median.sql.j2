@@ -1,5 +1,6 @@
 {#
     A query to calculate the median transaction fee over the last 'days' days.
+    If the origin_key is not 'starknet', we also filter out transactions with a gas_price of zero.
 
     metric: txcosts_median_eth
 
@@ -14,7 +15,10 @@ SELECT
     date_trunc('day', "block_timestamp") AS day,
     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS value
 FROM {{ origin_key }}_tx
-WHERE gas_price <> 0 
+WHERE 1=1
+{% if origin_key != 'starknet' %}
+    AND gas_price <> 0
+{% endif %}
     AND block_timestamp >= current_date - interval '{{ days }} days' 
     AND block_timestamp < current_date
 GROUP BY 1;
