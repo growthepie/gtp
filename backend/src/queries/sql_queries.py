@@ -1,6 +1,13 @@
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
+import sys
+import getpass
+sys_user = getpass.getuser()
+sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-env = Environment(loader=FileSystemLoader('src/queries/postgres'), undefined=StrictUndefined)
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
+if sys_user == 'ubuntu':
+        env = Environment(loader=FileSystemLoader(f'/home/{sys_user}/gtp/backend/src/queries/postgres'), undefined=StrictUndefined)
+else:
+        env = Environment(loader=FileSystemLoader('src/queries/postgres'), undefined=StrictUndefined)
 
 class SQLQuery():
     def __init__(self, jinja_path: str, metric_key: str, origin_key: str, query_parameters: dict = None, currency_dependent:bool = True):
