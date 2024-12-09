@@ -61,6 +61,7 @@ SELECT
 	da_consumer_id,
 	'blob_fee_eth' AS metric_key,
     SUM( price_eth/1e6 * tx_fee * ( blob_size::FLOAT/tx_blob_size::FLOAT * tx_variable_cost_perc + 1/tx_blob_count::FLOAT * tx_fixed_cost_perc ) ) AS value -- fee share, split using fixed and variable cost
+    --, count(*) -- for debugging
 FROM celestia_blobs cb
 LEFT JOIN tia_price p ON date_trunc('hour', cb.block_timestamp) = p."timestamp"
 GROUP BY 1,2,3,4
