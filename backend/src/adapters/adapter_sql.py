@@ -1,12 +1,16 @@
 import os
+import sys
+import getpass
+sys_user = getpass.getuser()
+sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
 from src.queries.sql_queries import sql_queries
-from src.misc.helper_functions import upsert_to_kpis, get_missing_days_kpis, get_missing_days_blockspace, send_discord_message
+from src.misc.helper_functions import upsert_to_kpis, get_missing_days_blockspace, send_discord_message
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 ##ToDos: 
 # Add logs (query execution, execution fails, etc)
@@ -138,7 +142,11 @@ class AdapterSQL(AbstractAdapter):
         
         elif load_type == 'jinja':
             jinja_queries = load_params.get('queries', None)
-            env = Environment(loader=FileSystemLoader('src/queries/postgres'))
+            if sys_user == 'ubuntu':
+                    env = Environment(loader=FileSystemLoader(f'/home/{sys_user}/gtp/backend/src/queries/postgres'), undefined=StrictUndefined)
+            else:
+                    env = Environment(loader=FileSystemLoader('src/queries/postgres'), undefined=StrictUndefined)
+
             for jinja_q in jinja_queries:
                 template = env.get_template(jinja_q)
                 rendered_sql = template.render()
