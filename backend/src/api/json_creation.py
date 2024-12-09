@@ -932,7 +932,7 @@ class JSONCreation():
             FROM public.fact_kpis kpi
             where kpi.origin_key in ({chains_string})
                 and kpi.metric_key in ({metrics_string})
-                and kpi."date" >= '2022-01-01'
+                and kpi."date" >= '2021-06-01'
                 and kpi."date" < date_trunc('day', now())
         """
 
