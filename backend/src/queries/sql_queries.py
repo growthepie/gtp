@@ -67,8 +67,12 @@ sql_queries = [
         ,*standard_evm_queries("redstone")
         ## Derive
         ,*standard_evm_queries("derive")
+        ,SQLQuery(metric_key = "celestia_blob_size_bytes", origin_key = "derive", jinja_path='chain_metrics/select_celestia_blob_size_bytes.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "celestia_blobs_eth", origin_key = "derive", jinja_path='chain_metrics/select_celestia_blobs.sql.j2')
         ## Orderly
         ,*standard_evm_queries("orderly")
+        ,SQLQuery(metric_key = "celestia_blob_size_bytes", origin_key = "orderly", jinja_path='chain_metrics/select_celestia_blob_size_bytes.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "celestia_blobs_eth", origin_key = "orderly", jinja_path='chain_metrics/select_celestia_blobs.sql.j2')
         ## Worldchain
         ,*standard_evm_queries("worldchain")
         
