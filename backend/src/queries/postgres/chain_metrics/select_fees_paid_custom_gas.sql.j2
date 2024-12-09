@@ -1,0 +1,45 @@
+{#
+    A query to calculate the fees paid for chain with custom gas token.
+
+
+    metric_key = 'fees_paid_eth'
+
+    Parameters:
+    - origin_key: The name of the chain to identify the custom gas token price feed.
+    - days: default = 7; The time interval (in days) to consider for the data extraction.
+#}
+
+{% set days = days | default(7) %}
+
+WITH token_price AS (
+    SELECT "date", value AS price_usd 
+    FROM fact_kpis
+    WHERE origin_key = '{{ origin_key }}'
+        AND metric_key = 'price_usd' 
+        AND "date" >= current_date - interval '{{ days }} days' 
+        AND "date" < current_date
+),
+eth_price AS (
+    SELECT "date", value AS price_usd 
+    FROM fact_kpis
+    WHERE origin_key = 'ethereum'
+        AND metric_key = 'price_usd' 
+        AND "date" >= current_date - interval '{{ days }} days' 
+        AND "date" < current_date
+),
+tx_filtered AS (
+    SELECT
+        date_trunc('day', "block_timestamp") AS day,
+        SUM(tx_fee) AS total_tx_fee
+    FROM {{ origin_key }}_tx
+    WHERE block_timestamp >= current_date - interval '{{ days }} days' 
+        AND block_timestamp < current_date
+    GROUP BY 1
+)
+
+SELECT
+    tx.day,
+    tx.total_tx_fee * e.price_usd / eth.price_usd AS value
+FROM tx_filtered tx
+LEFT JOIN token_price e ON tx.day = e."date"
+LEFT JOIN eth_price eth ON tx.day = eth."date";

@@ -1,0 +1,31 @@
+{#
+    A query to calculate the total Celestia DA fees (in ETH equivalent) over the last 'days' days.
+    It uses the hourly Celestia price in ETH from `fact_kpis_granular` to convert fees into ETH.
+
+    metric: da_fees_eth
+
+    Parameters:
+    - days: default = 7; The time interval (in days) to consider for the data extraction.
+#}
+
+{% set days = days | default(7) %}
+
+WITH tia_price AS (
+    SELECT "timestamp", value AS price_eth
+    FROM public.fact_kpis_granular
+    WHERE 
+        origin_key = 'celestia' 
+        AND metric_key = 'price_eth' 
+        AND granularity = 'hourly'
+        AND "timestamp" BETWEEN date_trunc('day', now()) - INTERVAL '{{ days }} days' 
+                           AND date_trunc('day', now())
+)
+SELECT 
+    date_trunc('day', block_timestamp) AS day, 
+    SUM(fee * price_eth)/1e6 AS value
+FROM celestia_tx tx
+LEFT JOIN tia_price p ON date_trunc('hour', tx.block_timestamp) = p."timestamp"
+WHERE blob_sizes IS NOT NULL
+    AND block_timestamp >= current_date - interval '{{ days }} days' 
+    AND block_timestamp < current_date
+GROUP BY 1;

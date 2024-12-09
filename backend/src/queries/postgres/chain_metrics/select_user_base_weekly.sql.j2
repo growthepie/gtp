@@ -1,0 +1,32 @@
+{#
+    Determining the unique number of users across chains.
+
+    metric_key = 'user_base_weekly'
+
+    Parameters:
+    - days: default = 9; The time interval (in days) to consider for data extraction. 
+#}
+
+{% set days = days | default(9) %}
+
+WITH chain_info AS (
+    SELECT 
+        DATE_TRUNC('week', date) AS day,
+        address,
+        CASE 
+            WHEN COUNT(DISTINCT origin_key) > 1 THEN 'multiple' 
+            ELSE MAX(origin_key) 
+        END AS origin_key
+    FROM fact_active_addresses
+    WHERE
+        date < DATE_TRUNC('week', NOW())
+        AND date >= DATE_TRUNC('week', NOW() - INTERVAL '{{ days }} days')
+        AND origin_key NOT IN ('starknet', 'ethereum')
+    GROUP BY 1, 2
+)
+SELECT
+    day,
+    origin_key,
+    COUNT(DISTINCT address) AS val
+FROM chain_info
+GROUP BY 1, 2;

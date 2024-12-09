@@ -1,0 +1,39 @@
+{#
+    A query to calculate the ETH-equivalent gas used per second on Mantle over the last 'days' days.
+    This involves adjusting Mantle gas usage with a token ratio (Mantle to Ethereum), 
+    computed hourly from price data, and then normalized to a daily rate.
+
+    Parameters:
+    - days: default = 7; The time interval (in days) to consider for the data extraction.
+#}
+
+{% set days = days | default(7) %}
+
+WITH ratio AS (
+    SELECT 
+        "timestamp", 
+        AVG(CASE WHEN origin_key = 'mantle' THEN value END) / AVG(CASE WHEN origin_key = 'ethereum' THEN value END) AS token_ratio
+    FROM public.fact_kpis_granular
+    WHERE 
+        metric_key = 'price_usd'
+        AND granularity = 'hourly'
+        AND "timestamp" > '2024-03-14'
+    GROUP BY 1
+),
+tmp AS (
+    SELECT  
+        date_trunc('hour', block_timestamp) AS hour,
+        SUM(gas_used * token_ratio) - SUM(l1_gas_used) AS l2_gas_used
+    FROM mantle_tx
+    LEFT JOIN ratio r ON r."timestamp" = date_trunc('hour', block_timestamp)
+    WHERE   
+        block_timestamp > date_trunc('day', now()) - INTERVAL '{{ days }} days' 
+        AND block_timestamp < date_trunc('day', now())
+        AND block_timestamp > '2024-03-14'
+    GROUP BY 1
+)
+SELECT 
+    date_trunc('day', "hour") AS day,
+    SUM(l2_gas_used) / (24*60*60) AS value
+FROM tmp t
+GROUP BY 1;

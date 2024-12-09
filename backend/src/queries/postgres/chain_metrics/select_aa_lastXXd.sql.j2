@@ -1,0 +1,29 @@
+{#
+    A query to aggregate the number of active addresses for arbitrum over a sliding window of 'timerange' days,
+    and then select the last 'days' days from that rolling aggregate.
+
+    metric_key = 'aa_last7d', 'aa_last30d'
+
+    Parameters:
+    - origin_key: The key of the chain to filter the data by.
+    - days: default = 7; The number of recent days to include in the final output.
+    - timerange: The length of the rolling window (in days) over which we aggregate addresses. Either 7 or 30.
+#}
+
+{% set days = days | default(7) %}
+
+WITH tmp AS (
+    SELECT 
+        date AS day, 
+        #hll_union_agg(hll_addresses) OVER window_range AS value
+    FROM fact_active_addresses_hll
+    WHERE origin_key = '{{ origin_key }}'
+        AND date > current_date - interval '{{ days }} days' - interval '{{ timerange }} days'
+        AND date < current_date
+    WINDOW window_range AS (ORDER BY date ASC ROWS {{ timerange }} - 1 PRECEDING)
+)
+SELECT 
+    day,
+    value::int AS value
+FROM tmp
+WHERE day >= current_date - interval '{{ days }} days';
