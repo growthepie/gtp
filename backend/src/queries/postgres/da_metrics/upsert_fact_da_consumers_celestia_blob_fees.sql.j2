@@ -4,7 +4,8 @@
     ### Summary:
     - Extracts `blob_sizes` and `namespaces` from JSON columns in `celestia_tx`.
     - Calculates blob-related fees using fixed and variable fee shares.
-    - Aggregates fees by date, data availability (DA) layer, and DA consumer ID.
+    - Aggregates fees by date, data availability (DA) layer and DA consumer ID.
+    - Converts fees into eth equivilant with hourly price granularity from `fact_kpis_granular`.
 
     ### Parameters:
     - days: default = 7; Specifies the lookback period in days. Injected dynamically using Jinja2 templating.
@@ -13,7 +14,18 @@
 
 INSERT INTO fact_da_consumers (date, da_layer, da_consumer_id, metric_key, value)
 
-with celestia_blob_transactions as (
+WITH tia_price AS (
+    SELECT "timestamp", value AS price_eth
+    FROM public.fact_kpis_granular
+    WHERE 
+        origin_key = 'celestia' 
+        AND metric_key = 'price_eth' 
+        AND granularity = 'hourly'
+        AND "timestamp" > date_trunc('day', now()) - interval '{{ days | default (7) }} days'
+        AND "timestamp" < date_trunc('day', now())
+),
+
+celestia_blob_transactions as (
 	SELECT
 	    block_timestamp,
 	    fee as tx_fee,
@@ -25,17 +37,17 @@ with celestia_blob_transactions as (
 	    jsonb_array_length(blob_sizes::jsonb) AS tx_blob_count -- total amount of blobs in the transaction
 	FROM celestia_tx
 	WHERE 
-	    block_timestamp > date_trunc('day', now()) - interval ''{{ days | default (7) }} days' days'  -- Dynamic time interval
+	    block_timestamp > date_trunc('day', now()) - interval '{{ days | default (7) }} days'
         AND block_timestamp < date_trunc('day', now())
         AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
 ), 
 
-celestia_blobs as (
+celestia_blobs AS (
 	SELECT 
 	    block_timestamp,
 	    tx_fee,
-	    (gas_used - 65000.0)/gas_used as tx_variable_cost_perc,
-    	65000.0/gas_used as tx_fixed_cost_perc, -- fixed gas cost per tx is 65000
+    	65000.0/gas_used AS tx_fixed_cost_perc, -- fixed gas cost per tx is 65000
+	    (gas_used - 65000.0)/gas_used AS tx_variable_cost_perc, -- the rest of the gas is caused due to data being posted
 	    tx_blob_count,
 	    tx_blob_size,
 	    jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_size,
@@ -43,13 +55,14 @@ celestia_blobs as (
 	FROM celestia_blob_transactions
 )
 
-select
+SELECT
 	date_trunc('day', block_timestamp) AS date,
-	'da_celestia' as da_layer,
+	'da_celestia' AS da_layer,
 	da_consumer_id,
-	'blob_fee_utia' as metric_key,
-    SUM( tx_fee * ( blob_size::FLOAT/tx_blob_size::FLOAT * tx_variable_cost_perc + 1/tx_blob_count::FLOAT * tx_fixed_cost_perc ) ) as value -- fee share, split using fixed and variable cost
-from celestia_blobs
+	'blob_fee_eth' AS metric_key,
+    SUM( price_eth/1e6 * tx_fee * ( blob_size::FLOAT/tx_blob_size::FLOAT * tx_variable_cost_perc + 1/tx_blob_count::FLOAT * tx_fixed_cost_perc ) ) AS value -- fee share, split using fixed and variable cost
+FROM celestia_blobs cb
+LEFT JOIN tia_price p ON date_trunc('hour', cb.block_timestamp) = p."timestamp"
 GROUP BY 1,2,3,4
 ORDER BY 1 DESC
 
