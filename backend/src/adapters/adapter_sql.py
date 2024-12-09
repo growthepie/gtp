@@ -152,6 +152,7 @@ class AdapterSQL(AbstractAdapter):
                 rendered_sql = template.render()
                 print(f"...executing jinja query: {jinja_q}")
                 self.db_connector.engine.execute(rendered_sql)
+                df = pd.DataFrame() ## dummy df, TODO: make it more clear what queries are fact_kpis and what are not
 
         else:
             raise ValueError('load_type not supported')
