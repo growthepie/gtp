@@ -4,10 +4,10 @@
     metric_key = 'user_base_weekly'
 
     Parameters:
-    - days: default = 15; The time interval (in days) to consider for data extraction. 
+    - days: default = 9; The time interval (in days) to consider for data extraction. 
 #}
 
-{% set days = days | default(15) %}
+{% set days = days | default(9) %}
 
 WITH chain_info AS (
     SELECT 

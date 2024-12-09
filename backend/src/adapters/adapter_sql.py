@@ -171,20 +171,16 @@ class AdapterSQL(AbstractAdapter):
         dfMain = pd.DataFrame()
         for query in queries_to_load:
             try:
-                ## TODO: are these really necessary? Can be defined in the query itself
                 if days == 'auto':
                     pass ## just use the default days defined in the query
-                    # else:
-                    #     day_val = get_missing_days_kpis(self.db_connector, metric_key= query.metric_key, origin_key=query.origin_key)
                 else:
                     day_val = days
                     query.query_parameters['days'] = day_val
 
-                query.sql = query.template.render(query.query_parameters)
-
-                
                 print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters}")
+                query.sql = query.template.render(query.query_parameters)
                 df = pd.read_sql(query.sql, self.db_connector.engine.connect())
+                
                 df['date'] = df['day'].apply(pd.to_datetime)
                 df['date'] = df['date'].dt.date
                 df.drop(['day'], axis=1, inplace=True)
