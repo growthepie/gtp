@@ -39,10 +39,10 @@ sql_queries = [
         
         # --- DA Layers ---
         # Celestia
-        ,SQLQuery(metric_key = "da_data_posted_bytes", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_data_posted_bytes.sql.sql.j2', currency_dependent = False)
-        ,SQLQuery(metric_key = "da_unique_blob_producers", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_unique_blob_producers.sql.sql.j2', currency_dependent = False)
-        ,SQLQuery(metric_key = "da_blob_count", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_blob_count.sql.sql.j2', currency_dependent = False)
-        ,SQLQuery(metric_key = "da_fees_eth", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_fees_eth.sql.sql.j2')
+        ,SQLQuery(metric_key = "da_data_posted_bytes", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_data_posted_bytes.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "da_unique_blob_producers", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_unique_blob_producers.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "da_blob_count", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_blob_count.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "da_fees_eth", origin_key = "da_celestia", jinja_path='da_metrics/celestia_da_fees_eth.sql.j2')
 
         # --- Layer 2s ---
         # Arbitrum Orbit
