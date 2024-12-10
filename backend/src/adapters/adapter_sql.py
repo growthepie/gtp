@@ -147,10 +147,15 @@ class AdapterSQL(AbstractAdapter):
             else:
                     env = Environment(loader=FileSystemLoader('src/queries/postgres'), undefined=StrictUndefined)
 
+            if days:
+                query_parameters = {'days': days}
+            else:
+                query_parameters = {}
+
             for jinja_q in jinja_queries:
                 template = env.get_template(jinja_q)
-                rendered_sql = template.render()
-                print(f"...executing jinja query: {jinja_q}")
+                rendered_sql = template.render(query_parameters)
+                print(f"...executing jinja query: {jinja_q} with params: {query_parameters}")
                 self.db_connector.engine.execute(rendered_sql)
                 df = pd.DataFrame() ## dummy df, TODO: make it more clear what queries are fact_kpis and what are not
 
