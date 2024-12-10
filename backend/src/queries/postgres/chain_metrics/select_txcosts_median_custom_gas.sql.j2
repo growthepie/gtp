@@ -30,7 +30,7 @@ tx_median AS (
     SELECT
         date_trunc('day', "block_timestamp") AS day,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee
-    FROM public.mantle_tx
+    FROM {{ origin_key }}_tx
     WHERE gas_price > 0 
         AND block_timestamp >= current_date - interval '{{ days }} days' 
         AND block_timestamp < current_date

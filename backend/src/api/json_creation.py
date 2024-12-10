@@ -2001,12 +2001,12 @@ class JSONCreation():
             }
         }
 
-        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=365)
+        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=720)
         economics_dict['data']['all_l2s']['metrics']['costs'] = {
-            'costs_l1': self.generate_all_l2s_metric_dict(df, 'costs_l1', rolling_avg=False, economics_api=True, days=365),
-            'costs_blobs': self.generate_all_l2s_metric_dict(df, 'costs_blobs', rolling_avg=False, economics_api=True, days=365)
+            'costs_l1': self.generate_all_l2s_metric_dict(df, 'costs_l1', rolling_avg=False, economics_api=True, days=720),
+            'costs_blobs': self.generate_all_l2s_metric_dict(df, 'costs_blobs', rolling_avg=False, economics_api=True, days=720)
         }
-        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=365)
+        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=720)
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         # chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
@@ -2638,7 +2638,7 @@ class JSONCreation():
         df = df.loc[df.date >= (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')]
 
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
-        df = df[df.metric_key.isin(self.metrics_list)]
+        df = df[df.metric_key.isin(self.metrics_list + ['aa_last7d'])]
 
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
@@ -2671,7 +2671,7 @@ class JSONCreation():
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
 
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
-        df = df[df.metric_key.isin(self.metrics_list)]
+        df = df[df.metric_key.isin(self.metrics_list + ['aa_last7d'])]
 
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
