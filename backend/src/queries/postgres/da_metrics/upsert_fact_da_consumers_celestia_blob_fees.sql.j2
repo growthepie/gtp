@@ -12,6 +12,8 @@
 
 #}
 
+{% set days = days | default(7) %}
+
 INSERT INTO fact_da_consumers (date, da_layer, da_consumer_id, metric_key, value)
 
 WITH tia_price AS (
@@ -21,7 +23,7 @@ WITH tia_price AS (
         origin_key = 'celestia' 
         AND metric_key = 'price_eth' 
         AND granularity = 'hourly'
-        AND "timestamp" > date_trunc('day', now()) - interval '{{ days | default (7) }} days'
+        AND "timestamp" > date_trunc('day', now()) - interval '{{ days }} days'
         AND "timestamp" < date_trunc('day', now())
 ),
 
@@ -37,7 +39,7 @@ celestia_blob_transactions as (
 	    jsonb_array_length(blob_sizes::jsonb) AS tx_blob_count -- total amount of blobs in the transaction
 	FROM celestia_tx
 	WHERE 
-	    block_timestamp > date_trunc('day', now()) - interval '{{ days | default (7) }} days'
+	    block_timestamp > date_trunc('day', now()) - interval '{{ days }} days'
         AND block_timestamp < date_trunc('day', now())
         AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
 ), 
