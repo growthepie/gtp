@@ -67,7 +67,7 @@ SELECT
 FROM celestia_blobs cb
 LEFT JOIN tia_price p ON date_trunc('hour', cb.block_timestamp) = p."timestamp"
 GROUP BY 1,2,3,4
-ORDER BY 1 DESC
+HAVING 5 > 0
 
 ON CONFLICT (date, da_layer, da_consumer_id, metric_key)  
 DO UPDATE SET 

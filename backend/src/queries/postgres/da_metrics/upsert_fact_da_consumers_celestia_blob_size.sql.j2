@@ -27,7 +27,6 @@ FROM (
         AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
 ) AS subquery
 GROUP BY 1,2,3,4
-ORDER BY 1 DESC
 
 ON CONFLICT (date, da_layer, da_consumer_id, metric_key)  
 DO UPDATE SET 
