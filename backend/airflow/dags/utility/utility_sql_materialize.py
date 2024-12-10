@@ -40,22 +40,22 @@ def etl():
         # extract
         ad.extract(load_params)
 
-    # def run_da_queries():
-    #     adapter_params = {}
-    #     load_params = {
-    #         'load_type' : 'jinja', ## usd_to_eth or metrics or blockspace
-    #         'queries' : ['da_metrics/upsert_fact_da_consumers_celestia_blob_size.sql.j2', 'da_metrics/upsert_fact_da_consumers_celestia_blob_fees.sql.j2'],
-    #     }
+    def run_da_queries():
+        adapter_params = {}
+        load_params = {
+            'load_type' : 'jinja', ## usd_to_eth or metrics or blockspace
+            'queries' : ['da_metrics/upsert_fact_da_consumers_celestia_blob_size.sql.j2', 'da_metrics/upsert_fact_da_consumers_celestia_blob_fees.sql.j2'],
+        }
 
-    #     # initialize adapter
-    #     db_connector = DbConnector()
-    #     ad = AdapterSQL(adapter_params, db_connector)
+        # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterSQL(adapter_params, db_connector)
 
-    #     # extract
-    #     ad.extract(load_params)
+        # extract
+        ad.extract(load_params)
 
     run_unique_senders()
-    # run_da_queries()
+    run_da_queries()
 etl()
 
 
