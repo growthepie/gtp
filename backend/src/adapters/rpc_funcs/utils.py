@@ -768,11 +768,12 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
 
             try:
                 db_connector.upsert_table(table_name, df_prep, if_exists='update')  # Use DbConnector for upserting data
+                rows_uploaded = df_prep.shape[0]
                 print(f"...data inserted for blocks {current_start} to {current_end} successfully. Uploaded rows: {df_prep.shape[0]}. RPC: {w3.get_rpc_url()}")
+                return rows_uploaded  # Return the number of rows uploaded
             except Exception as e:
                 print(f"ERROR: {rpc_url} - inserting data for blocks {current_start} to {current_end}: {e}")
                 raise e
-            break  # Break out of the loop on successful execution
 
         except Exception as e:
             print(f"ERROR: {rpc_url} - processing blocks {current_start} to {current_end}: {e}")
