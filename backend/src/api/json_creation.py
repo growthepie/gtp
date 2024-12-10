@@ -2638,7 +2638,7 @@ class JSONCreation():
         df = df.loc[df.date >= (datetime.now() - timedelta(days=365)).strftime('%Y-%m-%d')]
 
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
-        df = df[df.metric_key.isin(self.metrics_list)]
+        df = df[df.metric_key.isin(self.metrics_list + ['aa_last7d'])]
 
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
@@ -2671,7 +2671,7 @@ class JSONCreation():
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
 
         ## only keep metrics that are also in the metrics_list (based on metrics dict)
-        df = df[df.metric_key.isin(self.metrics_list)]
+        df = df[df.metric_key.isin(self.metrics_list + ['aa_last7d'])]
 
         ## transform date column to string with format YYYY-MM-DD
         df['date'] = df['date'].dt.strftime('%Y-%m-%d')
