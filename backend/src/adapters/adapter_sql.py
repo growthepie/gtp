@@ -7,7 +7,6 @@ import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
-from src.queries.sql_queries import sql_queries
 from src.misc.helper_functions import upsert_to_kpis, get_missing_days_blockspace, send_discord_message
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -102,6 +101,7 @@ class AdapterSQL(AbstractAdapter):
             df = self.db_connector.get_da_metrics_in_eth(days, origin_keys)
 
         elif load_type == 'metrics':        
+            from src.queries.sql_queries import sql_queries
             upsert = load_params.get('upsert', False)
             ## Prepare queries to load
             check_projects_to_load(sql_queries, origin_keys)

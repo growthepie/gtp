@@ -41,7 +41,8 @@ celestia_blob_transactions as (
 	WHERE 
 	    block_timestamp > date_trunc('day', now()) - interval '{{ days }} days'
         AND block_timestamp < date_trunc('day', now())
-        AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
+        AND blob_sizes IS NOT NULL
+		--AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
 ), 
 
 celestia_blobs AS (
@@ -67,7 +68,7 @@ SELECT
 FROM celestia_blobs cb
 LEFT JOIN tia_price p ON date_trunc('hour', cb.block_timestamp) = p."timestamp"
 GROUP BY 1,2,3,4
-HAVING 5 > 0
+HAVING 5 IS NOT NULL -- filter out null values
 
 ON CONFLICT (date, da_layer, da_consumer_id, metric_key)  
 DO UPDATE SET 
