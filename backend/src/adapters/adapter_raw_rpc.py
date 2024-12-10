@@ -26,6 +26,8 @@ class NodeAdapter(AbstractAdapterRaw):
         if not self.rpc_configs:
             raise ValueError("No RPC configurations provided.")
         
+        self.rpc_stats = {rpc_config['url']: {'rows_loaded': 0, 'time_per_block': []} for rpc_config in self.rpc_configs}
+
         self.active_rpcs = set()  # Keep track of active RPC configurations
 
         self.chain = adapter_params['chain']
@@ -60,7 +62,35 @@ class NodeAdapter(AbstractAdapterRaw):
         self.batch_size = load_params['batch_size']
         self.run(self.block_start, self.batch_size)
         print(f"FINISHED loading raw tx data for {self.chain}.")
-        
+
+    def update_rpc_stats(self, rpc_url, rows_loaded, time_taken):
+        """
+        Updates the statistics for a specific RPC URL.
+
+        Args:
+            rpc_url (str): The RPC URL to update stats for.
+            rows_loaded (int): Number of rows loaded during the process.
+            time_taken (float): Time taken to process the block range.
+        """
+        if rows_loaded is None:
+            rows_loaded = 0
+        if rpc_url in self.rpc_stats:
+            self.rpc_stats[rpc_url]['rows_loaded'] += rows_loaded
+            self.rpc_stats[rpc_url]['time_per_block'].append(time_taken)
+
+    def log_stats(self):
+        """
+        Logs the collected stats for each RPC.
+        """
+        print("===== RPC Statistics =====")
+        for rpc_url, stats in self.rpc_stats.items():
+            total_time = sum(stats['time_per_block'])
+            avg_time = total_time / len(stats['time_per_block']) if stats['time_per_block'] else 0
+            print(f"RPC URL: {rpc_url}")
+            print(f"  - Total Rows Loaded: {stats['rows_loaded']}")
+            print(f"  - Average Time Per Block Range: {avg_time:.2f} seconds")
+        print("==========================")
+
     def run(self, block_start, batch_size):
         """
         Runs the transaction extraction process, checking connections to the database and S3.
@@ -278,7 +308,26 @@ class NodeAdapter(AbstractAdapterRaw):
             try:
                 block_range = block_range_queue.get(timeout=5)
                 print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
-                fetch_and_process_range(block_range[0], block_range[1], self.chain, node_connection, self.table_name, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
+
+                # Start timing the processing
+                start_time = time.time()
+
+                # Fetch and process the block range
+                rows_loaded = fetch_and_process_range(
+                    block_range[0], block_range[1], self.chain, node_connection,
+                    self.table_name, self.s3_connection, self.bucket_name,
+                    self.db_connector, rpc_config['url']
+                )
+
+                # Calculate time taken for this block range
+                time_taken = time.time() - start_time
+
+                # Update RPC stats
+                self.update_rpc_stats(rpc_config['url'], rows_loaded, time_taken)
+
+                print(f"SUCCESS: Processed block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}. "
+                    f"Rows loaded: {rows_loaded}, Time taken: {time_taken:.2f}s")
+
             except Empty:
                 print("DONE: no more blocks to process. Worker is shutting down.")
                 return
