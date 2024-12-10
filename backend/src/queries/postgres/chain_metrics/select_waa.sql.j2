@@ -16,6 +16,6 @@ SELECT
 FROM fact_active_addresses_hll
 WHERE
     origin_key = '{{ origin_key }}'
-    AND date < date_trunc('day', current_date)
+    AND date < date_trunc('week', current_date)
     AND date >= date_trunc('week', current_date - interval '{{ days }} days')
 GROUP BY 1;
