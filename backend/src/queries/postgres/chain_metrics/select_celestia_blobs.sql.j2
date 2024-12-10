@@ -1,6 +1,6 @@
 {#
-    A query to compute the value (in ETH) of fees paid for Celestia blobs associated with the 'manta' chain 
-    over the last 'days' days. The query uses hourly Celestia ETH prices to convert fees into ETH terms.
+    A query to compute the value (in ETH) of fees paid for Celestia blobs associated with the {{ origin_key }} chain 
+    over the last {{ days }} days. The query uses hourly Celestia ETH prices to convert fees into ETH terms.
 
     Parameters:
     - origin_key: The key of the chain to filter the data by.
@@ -9,36 +9,18 @@
 
 {% set days = days | default(7) %}
 
-WITH tia_price AS (
-    SELECT "timestamp", value AS price_eth
-    FROM public.fact_kpis_granular
-    WHERE 
-        origin_key = 'celestia' 
-        AND metric_key = 'price_eth' 
-        AND granularity = 'hourly'
-        AND "timestamp" BETWEEN date_trunc('day', now()) - INTERVAL '{{ days }} days'
-                            AND date_trunc('day', now())
-)
 SELECT 
-    date_trunc('day', block_timestamp) AS day, 
-    SUM(fee * price_eth) / 1e6 AS value
-FROM (
-    SELECT 
-        tx_hash,
-        block_timestamp,
-        fee,
-        price_eth,
-        TRIM('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
-    FROM celestia_tx tx
-    LEFT JOIN tia_price p ON date_trunc('hour', tx.block_timestamp) = p."timestamp"
-    WHERE 
-        block_timestamp > date_trunc('day', now()) - INTERVAL '{{ days }} days'
-        AND block_timestamp < date_trunc('day', now())
-        AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
-) a
+	"date" AS day,
+	SUM(value) AS value -- in eth
+FROM public.fact_da_consumers a
 JOIN (
     SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
     FROM sys_chains
     WHERE origin_key = '{{ origin_key }}'
-) b ON a.namespace = b.namespace
-GROUP BY 1;
+) b ON a.da_consumer_id = b.namespace
+WHERE 
+    "date" >= current_date - interval '{{ days }} days' 
+    AND "date" < current_date
+    AND metric_key = 'blob_fee_eth'
+GROUP BY 1
+ORDER BY 1 DESC;

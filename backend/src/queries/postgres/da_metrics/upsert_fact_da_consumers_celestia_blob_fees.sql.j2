@@ -1,0 +1,74 @@
+{#
+    This query inserts or updates records in the `fact_da_consumers` table by calculating the total blob fees from the `celestia_tx` table.
+
+    ### Summary:
+    - Extracts `blob_sizes` and `namespaces` from JSON columns in `celestia_tx`.
+    - Calculates blob-related fees using fixed and variable fee shares.
+    - Aggregates fees by date, data availability (DA) layer and DA consumer ID.
+    - Converts fees into eth equivilant with hourly price granularity from `fact_kpis_granular`.
+
+    ### Parameters:
+    - days: default = 7; Specifies the lookback period in days. Injected dynamically using Jinja2 templating.
+
+#}
+
+{% set days = days | default(7) %}
+
+INSERT INTO fact_da_consumers (date, da_layer, da_consumer_id, metric_key, value)
+
+WITH tia_price AS (
+    SELECT "timestamp", value AS price_eth
+    FROM public.fact_kpis_granular
+    WHERE 
+        origin_key = 'celestia' 
+        AND metric_key = 'price_eth' 
+        AND granularity = 'hourly'
+        AND "timestamp" > date_trunc('day', now()) - interval '{{ days }} days'
+        AND "timestamp" < date_trunc('day', now())
+),
+
+celestia_blob_transactions as (
+	SELECT
+	    block_timestamp,
+	    fee as tx_fee,
+	    gas_used,
+	    blob_sizes,
+	    namespaces,
+	    (SELECT SUM(value::numeric)
+	     FROM jsonb_array_elements(blob_sizes::jsonb) AS value) AS tx_blob_size, -- total size of all blobs in the transaction
+	    jsonb_array_length(blob_sizes::jsonb) AS tx_blob_count -- total amount of blobs in the transaction
+	FROM celestia_tx
+	WHERE 
+	    block_timestamp > date_trunc('day', now()) - interval '{{ days }} days'
+        AND block_timestamp < date_trunc('day', now())
+        AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
+), 
+
+celestia_blobs AS (
+	SELECT 
+	    block_timestamp,
+	    tx_fee,
+    	65000.0/gas_used AS tx_fixed_cost_perc, -- fixed gas cost per tx is 65000
+	    (gas_used - 65000.0)/gas_used AS tx_variable_cost_perc, -- the rest of the gas is caused due to data being posted
+	    tx_blob_count,
+	    tx_blob_size,
+	    jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_size,
+	    trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS da_consumer_id
+	FROM celestia_blob_transactions
+)
+
+SELECT
+	date_trunc('day', block_timestamp) AS date,
+	'da_celestia' AS da_layer,
+	da_consumer_id,
+	'blob_fee_eth' AS metric_key,
+    SUM( price_eth/1e6 * tx_fee * ( blob_size::FLOAT/tx_blob_size::FLOAT * tx_variable_cost_perc + 1/tx_blob_count::FLOAT * tx_fixed_cost_perc ) ) AS value -- fee share, split using fixed and variable cost
+    --, count(*) -- for debugging
+FROM celestia_blobs cb
+LEFT JOIN tia_price p ON date_trunc('hour', cb.block_timestamp) = p."timestamp"
+GROUP BY 1,2,3,4
+ORDER BY 1 DESC
+
+ON CONFLICT (date, da_layer, da_consumer_id, metric_key)  
+DO UPDATE SET 
+    value = EXCLUDED.value;
