@@ -56,19 +56,23 @@ celestia_blobs AS (
 	    jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_size,
 	    trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS da_consumer_id
 	FROM celestia_blob_transactions
+),
+
+temp as (
+	SELECT
+		date_trunc('day', block_timestamp) AS date,
+		'da_celestia' AS da_layer,
+		da_consumer_id,
+		'blob_fee_eth' AS metric_key,
+		SUM( price_eth/1e6 * tx_fee * ( blob_size::FLOAT/tx_blob_size::FLOAT * tx_variable_cost_perc + 1/tx_blob_count::FLOAT * tx_fixed_cost_perc ) ) AS value -- fee share, split using fixed and variable cost
+		--, count(*) -- for debugging
+	FROM celestia_blobs cb
+	LEFT JOIN tia_price p ON date_trunc('hour', cb.block_timestamp) = p."timestamp"
+	GROUP BY 1,2,3,4
 )
 
-SELECT
-	date_trunc('day', block_timestamp) AS date,
-	'da_celestia' AS da_layer,
-	da_consumer_id,
-	'blob_fee_eth' AS metric_key,
-    SUM( price_eth/1e6 * tx_fee * ( blob_size::FLOAT/tx_blob_size::FLOAT * tx_variable_cost_perc + 1/tx_blob_count::FLOAT * tx_fixed_cost_perc ) ) AS value -- fee share, split using fixed and variable cost
-    --, count(*) -- for debugging
-FROM celestia_blobs cb
-LEFT JOIN tia_price p ON date_trunc('hour', cb.block_timestamp) = p."timestamp"
-GROUP BY 1,2,3,4
-HAVING 5 IS NOT NULL -- filter out null values
+SELECT * FROM temp
+WHERE value IS NOT NULL
 
 ON CONFLICT (date, da_layer, da_consumer_id, metric_key)  
 DO UPDATE SET 
