@@ -17,7 +17,7 @@ JOIN (
     SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
     FROM sys_chains
     WHERE origin_key = '{{ origin_key }}'
-) b ON a.da_consumer_id = b.namespace
+) b ON a.namespace = b.namespace
 WHERE 
     "date" >= current_date - interval '{{ days }} days' 
     AND "date" < current_date

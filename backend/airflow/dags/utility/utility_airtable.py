@@ -167,6 +167,10 @@ def etl():
 
     @task()
     def write_depreciated_owner_project(write_airtable_contracts:str):
+        import os
+        from pyairtable import Api
+        from src.db_connector import DbConnector
+        import src.misc.airtable_functions as at
         
         #initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")

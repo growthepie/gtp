@@ -1,14 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from eim.adapters.adapter_eth_supply import AdapterEthSupply
 
 @dag(
     default_args={
@@ -28,6 +25,9 @@ from eim.adapters.adapter_eth_supply import AdapterEthSupply
 def run():
     @task()
     def run_extract_eth_supply():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_supply import AdapterEthSupply
+
         adapter_params = {}
         load_params = {
             'load_type' : 'extract_eth_supply',
@@ -43,6 +43,9 @@ def run():
 
     @task()
     def run_supply_in_usd(x):
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_supply import AdapterEthSupply
+
         adapter_params = {}
         load_params = {
             'load_type' : 'supply_in_usd',
@@ -59,6 +62,9 @@ def run():
 
     @task()
     def run_issuance_rate(x):
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_supply import AdapterEthSupply
+        
         adapter_params = {}
         load_params = {
             'load_type' : 'issuance_rate',

@@ -1,14 +1,14 @@
-from datetime import datetime,timedelta
-import getpass
-import os
-sys_user = getpass.getuser()
-
 import sys
+import getpass
+sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
-from src.db_connector import DbConnector
 from src.misc.airflow_utils import alert_via_webhook
+
+import os
+from src.db_connector import DbConnector
 from src.api.json_creation import JSONCreation
 from src.api.blockspace_json_creation import BlockspaceJSONCreation
 

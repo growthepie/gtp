@@ -1,13 +1,9 @@
-from datetime import datetime,timedelta
-import getpass
-import os
 import sys
-import dotenv
+import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
-dotenv.load_dotenv()
 
-from src.api.screenshots_to_s3 import run_screenshots
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
 
@@ -29,6 +25,9 @@ from src.misc.airflow_utils import alert_via_webhook
 def etl():
     @task()
     def run_screenshots_task():
+        import os
+        from src.api.screenshots_to_s3 import run_screenshots
+        
         run_screenshots(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), 'v1', sys_user)
     
     run_screenshots_task()

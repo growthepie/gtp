@@ -1,16 +1,12 @@
-from datetime import datetime,timedelta
-import getpass
-sys_user = getpass.getuser()
 
 import sys
+import getpass
+sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_dune import AdapterDune
-from src.misc.helper_functions import send_discord_message
 
 @dag(
     default_args={
@@ -30,6 +26,10 @@ from src.misc.helper_functions import send_discord_message
 def etl():
     @task()
     def run_aggregates():
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_dune import AdapterDune
+
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
         }
@@ -49,6 +49,10 @@ def etl():
 
     @task()
     def run_inscriptions():
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_dune import AdapterDune
+
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
         }
@@ -68,6 +72,10 @@ def etl():
 
     @task()
     def run_glo_holders():
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_dune import AdapterDune
+
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
         }
@@ -85,6 +93,11 @@ def etl():
 
     @task()
     def checks_rent_paid_v3_for_heartbeat():
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_dune import AdapterDune
+        from src.misc.helper_functions import send_discord_message
+        
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
         }

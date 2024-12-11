@@ -1,19 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import os
-from dotenv import load_dotenv
-load_dotenv() 
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-# import other packages
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_total_supply import AdapterTotalSupply
 
 @dag(
     default_args={
@@ -33,6 +25,10 @@ from src.adapters.adapter_total_supply import AdapterTotalSupply
 def etl():
     @task()
     def load_data():
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_total_supply import AdapterTotalSupply
+        
         adapter_params = {
             'etherscan_api' : os.getenv("ETHERSCAN_API")
         }
