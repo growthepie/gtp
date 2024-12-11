@@ -1,15 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_blockscout import AdapterBlockscout
 
 @dag(
     default_args={
@@ -29,6 +25,9 @@ from src.adapters.adapter_blockscout import AdapterBlockscout
 def etl():
     @task()
     def run_oss():
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_blockscout import AdapterBlockscout
+        
         adapter_params = {
         }
         load_params = {

@@ -1,18 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
-from pyairtable import Api
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.main_config import get_main_config
-import src.misc.airtable_functions as at
-from eth_utils import to_checksum_address
 
 
 @dag(
@@ -33,6 +26,11 @@ from eth_utils import to_checksum_address
 def etl():
     @task()
     def read_airtable_contracts():
+        import os
+        from pyairtable import Api
+        from src.db_connector import DbConnector
+        import src.misc.airtable_functions as at
+
         #initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
@@ -71,12 +69,19 @@ def etl():
 
     @task()
     def run_refresh_materialized_view(read_airtable_contracts:str):
+        from src.db_connector import DbConnector
+
         # refresh the materialized view for OLI tags, so not the same contracts are shown in the airtable
         db_connector = DbConnector()
         db_connector.refresh_materialized_view('vw_oli_labels_materialized')
 
     @task()
     def oss_projects(run_refresh_materialized_view:str):
+        import os
+        from pyairtable import Api
+        from src.db_connector import DbConnector
+        import src.misc.airtable_functions as at
+
         #initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
@@ -95,8 +100,14 @@ def etl():
 
     @task()
     def write_airtable_contracts(oss_projects:str):
-        #initialize Airtable instance
+        import os
         import pandas as pd
+        from pyairtable import Api
+        from src.db_connector import DbConnector
+        from src.main_config import get_main_config
+        import src.misc.airtable_functions as at
+        from eth_utils import to_checksum_address
+
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
         api = Api(AIRTABLE_API_KEY)

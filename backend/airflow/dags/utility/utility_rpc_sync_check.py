@@ -3,10 +3,10 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-from datetime import datetime, timedelta
 from airflow.decorators import dag, task
+from datetime import datetime, timedelta
 from src.misc.airflow_utils import alert_via_webhook
-from src.adapters.rpc_funcs.rpc_sync_checker import sync_check
+
 
 @dag(
     default_args={
@@ -26,6 +26,7 @@ from src.adapters.rpc_funcs.rpc_sync_checker import sync_check
 def blockchain_sync_dag():
     @task
     def sync_checker():
+        from src.adapters.rpc_funcs.rpc_sync_checker import sync_check
         sync_check()
 
     sync_checker()

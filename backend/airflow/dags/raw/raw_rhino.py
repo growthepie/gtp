@@ -3,11 +3,9 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
-from datetime import datetime, timedelta
+
 from airflow.decorators import dag, task
-from src.adapters.adapter_raw_rhino import AdapterRhino
-from src.db_connector import DbConnector
+from datetime import datetime, timedelta
 from src.misc.airflow_utils import alert_via_webhook
 
 @dag(
@@ -28,6 +26,10 @@ from src.misc.airflow_utils import alert_via_webhook
 def adapter_rhino_tx_loader():
     @task(execution_timeout=timedelta(minutes=45))
     def run_rhino():
+        import os
+        from src.adapters.adapter_raw_rhino import AdapterRhino
+        from src.db_connector import DbConnector
+
         adapter_params = {
             'chain': 'rhino',
             'json_endpoint': os.getenv("RHINO_JSON"),
