@@ -1,14 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_starknet_proof import AdapterStarknetProof
 
 @dag(
     default_args={
@@ -28,8 +25,10 @@ from src.adapters.adapter_starknet_proof import AdapterStarknetProof
 def etl():
     @task()
     def run_tvl():
-        adapter_params = {
-        }
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_starknet_proof import AdapterStarknetProof
+
+        adapter_params = {}
         load_params = {
             'days' : 7,
         }

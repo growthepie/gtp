@@ -5,13 +5,10 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
-from src.adapters.adapter_raw_rpc import NodeAdapter
-from src.db_connector import DbConnector
-from src.adapters.rpc_funcs.utils import Web3CC, get_chain_config
 from src.misc.airflow_utils import alert_via_webhook
-from src.adapters.rpc_funcs.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
-from src.main_config import get_main_config
 
+from src.db_connector import DbConnector
+from src.main_config import get_main_config
 ## DAG Configuration Variables
 # batch_size: Number of blocks to process in a single task run
 # config: Environment variable containing the RPC node configuration
@@ -42,6 +39,11 @@ chain_settings = {
     schedule_interval='20 11 * * *'
 )
 def backfiller_dag():
+    from src.adapters.adapter_raw_rpc import NodeAdapter
+    from src.adapters.rpc_funcs.utils import Web3CC, get_chain_config
+    from src.adapters.rpc_funcs.funcs_backfill import date_to_unix_timestamp, find_first_block_of_day, find_last_block_of_day
+    
+
     for chain, settings in chain_settings.items():
         @task(task_id=f'new_backfill_{chain}', execution_timeout=timedelta(minutes=90))
         def run_backfill_task(chain_name, db_connector, start_date, end_date, batch_size):

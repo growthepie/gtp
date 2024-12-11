@@ -1,14 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_coingecko import AdapterCoingecko
 
 @dag(
     default_args={
@@ -28,8 +25,10 @@ from src.adapters.adapter_coingecko import AdapterCoingecko
 def etl():
     @task()
     def run_market_chart():
-        adapter_params = {
-        }
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_coingecko import AdapterCoingecko
+
+        adapter_params = {}
         load_params = {
             'load_type' : 'project',
             'metric_keys' : ['price', 'volume', 'market_cap'],
@@ -48,23 +47,25 @@ def etl():
 
     @task()
     def run_direct():
-            adapter_params = {
-            }
-            load_params = {
-                'load_type' : 'direct',
-                'metric_keys' : ['price', 'volume', 'market_cap'],
-                'coingecko_ids' : ['glo-dollar'],
-                'days' : 'auto', # auto, max, or a number (as string)
-                'vs_currencies' : ['usd', 'eth']
-            }
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_coingecko import AdapterCoingecko
+        
+        adapter_params = {}
+        load_params = {
+            'load_type' : 'direct',
+            'metric_keys' : ['price', 'volume', 'market_cap'],
+            'coingecko_ids' : ['glo-dollar'],
+            'days' : 'auto', # auto, max, or a number (as string)
+            'vs_currencies' : ['usd', 'eth']
+        }
 
-            # initialize adapter
-            db_connector = DbConnector()
-            ad = AdapterCoingecko(adapter_params, db_connector)
-            # extract
-            df = ad.extract(load_params)
-            # load
-            ad.load(df)
+        # initialize adapter
+        db_connector = DbConnector()
+        ad = AdapterCoingecko(adapter_params, db_connector)
+        # extract
+        df = ad.extract(load_params)
+        # load
+        ad.load(df)
     
     run_market_chart()
     run_direct()

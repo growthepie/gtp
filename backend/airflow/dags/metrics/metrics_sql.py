@@ -1,14 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_sql import AdapterSQL
 
 @dag(
     default_args={
@@ -28,6 +25,9 @@ from src.adapters.adapter_sql import AdapterSQL
 def etl():
     @task()
     def run_metrics_dependent():
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         adapter_params = {
         }
         load_params = {
@@ -49,6 +49,9 @@ def etl():
 
     @task()
     def run_metrics_independent():
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         adapter_params = {
         }
         load_params = {
@@ -70,6 +73,9 @@ def etl():
 
     @task()
     def run_economics(run_metrics:str):
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         adapter_params = {
         }
         load_params = {
@@ -89,6 +95,9 @@ def etl():
 
     @task()
     def run_da_metrics(run_economics:str):
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         adapter_params = {
         }
         load_params = {
@@ -108,6 +117,9 @@ def etl():
 
     @task()
     def run_fdv(run_da_metrics:str):
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         adapter_params = {
         }
         load_params = {
@@ -127,6 +139,9 @@ def etl():
 
     @task()
     def run_usd_to_eth(run_fdv:str):
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         adapter_params = {
         }
         load_params = {
@@ -146,6 +161,9 @@ def etl():
 
     @task()
     def run_eth_to_usd(run_usd_to_eth:str):
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         adapter_params = {
         }
         load_params = {
@@ -165,6 +183,9 @@ def etl():
 
     @task()
     def run_blockspace():
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
+
         db_connector = DbConnector()
 
         adapter_params = {

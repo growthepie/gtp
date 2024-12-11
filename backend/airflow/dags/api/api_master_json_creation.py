@@ -1,15 +1,11 @@
-from datetime import datetime,timedelta
-import getpass
-import os
-sys_user = getpass.getuser()
-
 import sys
+import getpass
+sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
-from src.db_connector import DbConnector
 from src.misc.airflow_utils import alert_via_webhook
-from src.api.json_creation import JSONCreation
 
 @dag(
     default_args={
@@ -30,6 +26,9 @@ from src.api.json_creation import JSONCreation
 def json_creation():
     @task()
     def run_create_master(**kwargs):
+        import os
+        from src.db_connector import DbConnector
+        from src.api.json_creation import JSONCreation
         # Get the api_version from DAG parameters
         api_version = kwargs['params'].get('api_version', 'v1')
 

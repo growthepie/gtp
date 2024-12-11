@@ -3,13 +3,9 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
 from datetime import datetime, timedelta
-from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-from src.adapters.adapter_raw_celestia import AdapterCelestia
-from src.adapters.rpc_funcs.utils import get_chain_config
 
 @dag(
     default_args={
@@ -29,6 +25,11 @@ from src.adapters.rpc_funcs.utils import get_chain_config
 def backfill_tia():
     @task(execution_timeout=timedelta(minutes=30))
     def run_backfill_tia():
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_raw_celestia import AdapterCelestia
+        from src.adapters.rpc_funcs.utils import get_chain_config
+        
         adapter_params = {
             'chain': 'celestia',
             'rpc_url': os.getenv("TIA_RPC"),

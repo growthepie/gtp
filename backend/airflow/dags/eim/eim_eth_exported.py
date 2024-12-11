@@ -1,15 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from eim.adapters.adapter_eth_exported import AdapterEthExported
-from eim.adapters.adapter_eth_holders import AdapterEthHolders
 
 @dag(
     default_args={
@@ -29,6 +25,9 @@ from eim.adapters.adapter_eth_holders import AdapterEthHolders
 def run():
     @task()
     def run_first_block_of_day():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_exported import AdapterEthExported
+
         adapter_params = {}
         load_params = {
             'load_type' : 'first_block_of_day',
@@ -45,6 +44,9 @@ def run():
 
     @task()
     def run_bridge_balances():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_exported import AdapterEthExported
+
         adapter_params = {}
         load_params = {
             'load_type' : 'bridge_balances',
@@ -63,6 +65,9 @@ def run():
 
     @task()
     def run_conversion_rates():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_exported import AdapterEthExported
+
         adapter_params = {}
         load_params = {
             'load_type' : 'conversion_rates',
@@ -81,6 +86,9 @@ def run():
 
     @task()
     def run_exported_eth_equivalent():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_exported import AdapterEthExported
+
         adapter_params = {}
         load_params = {
             'load_type' : 'eth_equivalent',
@@ -97,6 +105,9 @@ def run():
 
     @task()
     def run_exported_in_usd():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_exported import AdapterEthExported
+
         adapter_params = {}
         load_params = {
             'load_type' : 'eth_equivalent_in_usd',
@@ -115,6 +126,9 @@ def run():
     ## Holder tasks
     @task() ## no dependencies
     def run_get_holders():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_holders import AdapterEthHolders
+
         db_connector = DbConnector()
 
         adapter_params = {}
@@ -131,6 +145,9 @@ def run():
 
     @task() 
     def run_offchain_balances():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_holders import AdapterEthHolders
+
         db_connector = DbConnector()
 
         adapter_params = {}
@@ -146,6 +163,9 @@ def run():
 
     @task() ## after run_first_block_of_day
     def run_onchain_balances():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_holders import AdapterEthHolders
+
         db_connector = DbConnector()
 
         adapter_params = {}
@@ -162,6 +182,9 @@ def run():
 
     @task() ## after run_first_block_of_day
     def run_holders_eth_equivalent():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_holders import AdapterEthHolders
+
         db_connector = DbConnector()
 
         adapter_params = {}
@@ -178,6 +201,9 @@ def run():
 
     @task() ## after run_first_block_of_day
     def run_holders_in_usd():
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_holders import AdapterEthHolders
+        
         db_connector = DbConnector()
 
         adapter_params = {}
