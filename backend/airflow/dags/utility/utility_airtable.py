@@ -36,7 +36,7 @@ def etl():
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
         api = Api(AIRTABLE_API_KEY)
 
-        # read current airtable
+        # read current airtable labels
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
         df = at.read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table)
         if df is None:
@@ -66,6 +66,12 @@ def etl():
 
             db_connector.upsert_table('oli_tag_mapping', df)
             print(f"Uploaded {len(df)} labels to the database")
+        
+        # read owner_project update table
+        table = api.table(AIRTABLE_BASE_ID, 'Remap Owner Project')
+        df = at.read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table)
+        for i, row in df.iterrows():
+            db_connector.update_owner_projects(row['old_owner_project'], row['owner_project'])
 
     @task()
     def run_refresh_materialized_view(read_airtable_contracts:str):
@@ -120,12 +126,10 @@ def etl():
         at.clear_all_airtable(table)
         
         # get top unlabelled contracts, short and long term and also inactive contracts
-        df0 = db_connector.get_unlabelled_contracts('16', '720') # top 16 contracts per chain from last 720 days
-        df1 = db_connector.get_unlabelled_contracts('16', '365') # top 16 contracts per chain from last year
-        df2 = db_connector.get_unlabelled_contracts('16', '7') # top 16 contracts per chain from last week
-        df3 = db_connector.get_inactive_contracts() # inactive contracts
-        df3['internal_description'] = 'project ' + df3['old_owner_project'] + ' needs to be remapped'
-        df3 = df3.drop(columns=['old_owner_project'])
+        df0 = db_connector.get_unlabelled_contracts('20', '720') # top 20 contracts per chain from last 720 days
+        df1 = db_connector.get_unlabelled_contracts('20', '180') # top 20 contracts per chain from last 3 months
+        df2 = db_connector.get_unlabelled_contracts('20', '30') # top 20 contracts per chain from last month
+        df3 = db_connector.get_unlabelled_contracts('20', '7') # top 20 contracts per chain from last week
         
         # merge the all dataframes & reset index
         df = pd.concat([df0, df1, df2, df3])
@@ -161,7 +165,28 @@ def etl():
         # write to airtable
         at.push_to_airtable(table, df)
 
+    @task()
+    def write_depreciated_owner_project(write_airtable_contracts:str):
+        
+        #initialize Airtable instance
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+
+        # clear the whole table
+        table = api.table(AIRTABLE_BASE_ID, 'Remap Owner Project')
+        at.clear_all_airtable(table)
+
+        # db connection
+        db_connector = DbConnector()
+
+        # fill table with new data
+        df = db_connector.get_inactive_contracts()
+        df = df[['old_owner_project']]
+        df = df['old_owner_project'].value_counts().reset_index()
+        at.push_to_airtable(table, df)
+
     # order the tasks
-    write_airtable_contracts(oss_projects(run_refresh_materialized_view(read_airtable_contracts())))
+    write_depreciated_owner_project(write_airtable_contracts(oss_projects(run_refresh_materialized_view(read_airtable_contracts()))))
 
 etl()

@@ -1559,6 +1559,22 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 df['day range'] = int(days)
                 return df
+        
+        ## This function is used for our Airtable - it updates old owner_projects with new one set in the Remap Owner Project table
+        def update_owner_projects(self, old_owner_project, new_owner_project):
+                exec_string = f'''
+                        UPDATE 
+                                public.oli_tag_mapping
+                        SET 
+                                value = '{new_owner_project}', 
+                                "source" = 'orbal', 
+                                added_on = CURRENT_TIMESTAMP
+                        WHERE 
+                                tag_id = 'owner_project'
+                                AND value = '{old_owner_project}';
+                '''
+                self.engine.execute(exec_string)
+                print(f"Updated owner_project: {old_owner_project} to {new_owner_project} in oli_tag_mapping")
 
         # function to return the most used contracts by chain (used for blockscout adapter)
         def get_most_used_contracts(self, number_of_contracts, origin_key, days):
