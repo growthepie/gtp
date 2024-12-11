@@ -1,14 +1,12 @@
-from datetime import datetime,timedelta
-import getpass
-sys_user = getpass.getuser()
 
 import sys
+import getpass
+sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_cross_check import AdapterCrossCheck
 
 @dag(
     default_args={
@@ -28,8 +26,10 @@ from src.adapters.adapter_cross_check import AdapterCrossCheck
 def etl():
     @task()
     def run_explorers():
-        adapter_params = {
-        }
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_cross_check import AdapterCrossCheck
+
+        adapter_params = {}
 
         load_params = {
             'origin_keys' : None,

@@ -4,12 +4,7 @@ import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-from dotenv import load_dotenv
-load_dotenv()
-
 from datetime import datetime, timedelta
-from src.misc.gtp_analyst import GTPAnalyst, convert_timestamps
-import pandas as pd
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 from pendulum import timezone
@@ -35,6 +30,13 @@ CET = timezone("Europe/Paris")
 def gtp_ai():
     @task(execution_timeout=timedelta(minutes=45))
     def run_ai():
+        from dotenv import load_dotenv
+        load_dotenv()
+
+        
+        from src.misc.gtp_analyst import GTPAnalyst, convert_timestamps
+        import pandas as pd
+
         # Load from environment variables
         print("Loading environment variables...")
         url = os.getenv("GTP_URL")

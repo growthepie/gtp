@@ -1,16 +1,12 @@
-from datetime import datetime,timedelta
-import getpass
-sys_user = getpass.getuser()
 
 import sys
+import getpass
+sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
-import polars as pl
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.misc.helper_functions import upload_polars_df_to_s3
-from src.db_connector import DbConnector
 
 @dag(
     default_args={
@@ -30,6 +26,11 @@ from src.db_connector import DbConnector
 def backup():
     @task()
     def run_backup_tables():
+        import os
+        import polars as pl
+        from src.misc.helper_functions import upload_polars_df_to_s3
+        from src.db_connector import DbConnector
+
         db_connector = DbConnector()
         tables = ['fact_kpis', 'sys_chains', 'sys_rpc_config', 'oli_tag_mapping', 'oli_oss_directory']
         #tables = ['fact_kpis', 'sys_chains', 'sys_rpc_config', 'oli_oss_directory']

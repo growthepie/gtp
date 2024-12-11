@@ -1,16 +1,11 @@
-from datetime import datetime,timedelta
-import getpass
-import dotenv
-sys_user = getpass.getuser()
-
 import sys
+import getpass
+sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
-import os
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.misc.octant_v2 import OctantV2
 
 @dag(
     default_args={
@@ -30,6 +25,11 @@ from src.misc.octant_v2 import OctantV2
 def run_dag():
     @task()
     def run_octant_v2():      
+        import os
+        import dotenv
+        from src.db_connector import DbConnector
+        from src.misc.octant_v2 import OctantV2
+
         dotenv.load_dotenv()
         api_version = "v1"
         db_connector = DbConnector(db_name="fun")

@@ -4,9 +4,6 @@ sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from datetime import datetime, timedelta
-from src.adapters.adapter_raw_rpc import NodeAdapter
-from src.adapters.rpc_funcs.utils import MaxWaitTimeExceededException, get_chain_config
-from src.db_connector import DbConnector
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 
@@ -28,6 +25,9 @@ from src.misc.airflow_utils import alert_via_webhook
 def adapter_rpc():
     @task(execution_timeout=timedelta(minutes=45))
     def run_mantle():
+        from src.adapters.adapter_raw_rpc import NodeAdapter
+        from src.adapters.rpc_funcs.utils import MaxWaitTimeExceededException, get_chain_config
+        from src.db_connector import DbConnector
 
         # Initialize DbConnector
         db_connector = DbConnector()

@@ -1,16 +1,11 @@
-import getpass
 import sys
-
-# Add the user's directory to the system path
+import getpass
 sys_user = getpass.getuser()
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.contract_loader import ContractLoader
-from src.main_config import get_main_config
 
 # Define the DAG and task using decorators
 @dag(
@@ -31,6 +26,10 @@ from src.main_config import get_main_config
 def load_metadata():
     @task()
     def run_contract_loader():
+        from src.db_connector import DbConnector
+        from src.adapters.contract_loader import ContractLoader
+        from src.main_config import get_main_config
+        
         db_connector = DbConnector()
         main_conf = get_main_config(db_connector)
         days = 5

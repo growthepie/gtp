@@ -1,14 +1,11 @@
-from datetime import datetime,timedelta
+import sys
 import getpass
 sys_user = getpass.getuser()
-
-import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
+from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
-from src.db_connector import DbConnector
-from src.adapters.adapter_sql import AdapterSQL
 
 @dag(
     default_args={
@@ -28,6 +25,8 @@ from src.adapters.adapter_sql import AdapterSQL
 def etl():
     @task()
     def run_unique_senders():
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
         adapter_params = {}
         load_params = {
             'load_type' : 'active_addresses_agg',
@@ -40,7 +39,10 @@ def etl():
         # extract
         ad.extract(load_params)
 
+    @task()
     def run_da_queries():
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_sql import AdapterSQL
         adapter_params = {}
         load_params = {
             'load_type' : 'jinja', ## usd_to_eth or metrics or blockspace

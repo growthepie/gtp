@@ -2186,6 +2186,16 @@ class JSONCreation():
                     }
                 }
 
+        timeframes = [1,7,30,90,180,365,'max']
+        for timeframe in timeframes:
+            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'  
+            da_dict['data']['all_da']['top_da_consumers'][timeframe_key] = {
+                'types': ['da_consumer_key', 'data_posted'],
+                'data': [
+                    
+                ]
+            }
+
         ## TODO: add top DA consumers - how to get this data?
         ## we anyways need DA consumer breakdown
         ## add daily data for all DAs to our database.... aggregating over the them will allow us to get the top consumers
