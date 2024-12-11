@@ -117,3 +117,38 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
     df['address'] = df['address'].apply(lambda x: x.replace('0x', '\\x'))
 
     return df
+
+# get labelled items from Remap Owner Project table as a df
+def read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table):
+
+    # get all records from airtable
+    df = read_airtable(table)
+
+    # check if table is empty
+    if df.empty:
+        print('no owner projects currently need remapping.')
+        return
+
+    # check if all the required_columns have at least one filled out field
+    required_columns = ['old_owner_project', 'owner_project']
+    if not all(col in df.columns for col in required_columns):
+        print('no depreciated owner projects were remapped today.')
+        return
+    
+    # owner_project is a list with 1 element, so we extract the element at index 0
+    df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])
+
+     # convert column ids to text for owner_project (e.g. recgawzTCg3ALuSR2 -> uniswap)
+    if len(df[df["owner_project"].notna()]) > 0:
+        df_owner_projects = read_airtable(api.table(AIRTABLE_BASE_ID, 'OSS Projects'))
+        df_owner_projects = df_owner_projects[['id', 'Name']]
+        df_owner_projects.set_index('id', inplace=True)
+        df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: df_owner_projects.loc[x]['Name'])
+
+    # drop all columns that are not needed
+    df = df[required_columns]
+
+    # drop all rows that have only one column filled out
+    df = df.dropna()
+
+    return df
