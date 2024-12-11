@@ -141,6 +141,12 @@ def etl():
         # checksum the addresses
         df['address'] = df['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
 
+        # remove all duplicates that are still in the airtable due to temp_owner_project
+        df_remove = at.read_airtable(table)
+        df_remove = df_remove[['address', 'origin_key']]
+        df = df.merge(df_remove, on=['address', 'origin_key'], how='left', indicator=True)
+        df = df[df['_merge'] == 'left_only'].drop(columns=['_merge'])
+
         # add block explorer urls
         block_explorer_mapping = [chain for chain in main_config if chain.block_explorers is not None]
         for i, row in df.iterrows():
