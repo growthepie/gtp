@@ -12,6 +12,7 @@ from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf
 from src.misc.glo_prep import Glo
 from src.db_connector import DbConnector
 from eim.funcs import get_eim_yamls
+from src.misc.jinja_helper import execute_jinja_query
 
 import warnings
 
@@ -2150,6 +2151,18 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/economics', economics_dict, self.cf_distribution_id)
         print(f'DONE -- economics export')
 
+    def run_top_da_consumers(self, days, da_layer, limit=5):
+        if days == 'max':
+            days = 2000
+
+        query_parameters = {
+            "days": days,
+            "da_layer": da_layer,
+            "limit": limit
+        }
+        df = execute_jinja_query(self.db_connector, "da_metrics/top_da_consumers.sql.j2", query_parameters, return_df=True)
+        return df.values.tolist()
+
     def create_da_overview_json(self, df):
         ## initialize da_dict with all_da and chain_breakdown
         da_dict = {
@@ -2162,7 +2175,7 @@ class JSONCreation():
                         "data_posted": {},
                     }
                 },
-                "chain_breakdown": {}
+                "da_breakdown": {}
             }
         }
 
@@ -2186,24 +2199,18 @@ class JSONCreation():
                     }
                 }
 
+        ## TODO: add top DA consumers for blobs
+        ## Blobs based on Dune?
         timeframes = [1,7,30,90,180,365,'max']
+        da_dict['data']['all_da']['top_da_consumers'] = {}
         for timeframe in timeframes:
             timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'  
             da_dict['data']['all_da']['top_da_consumers'][timeframe_key] = {
-                'types': ['da_consumer_key', 'data_posted'],
-                'data': [
-                    
-                ]
+                'types': ['da_consumer_key', 'name', 'da_layer', 'origin_key', 'data_posted'],
+                'data': self.run_top_da_consumers(timeframe, da_layer='all')
             }
 
-        ## TODO: add top DA consumers - how to get this data?
-        ## we anyways need DA consumer breakdown
-        ## add daily data for all DAs to our database.... aggregating over the them will allow us to get the top consumers
-        ## Celestia based on our DB, Blobs based on Dune?
-
-        # # filter df for all_da (all chains except chains that aren't included in the API)
-        # # chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
-        # chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True]
+        da_keys = ['da_ethereum_blobs', 'da_celestia']
         # df = df.loc[(df.origin_key.isin(chain_keys))]
         # timeframes = [1,7,30,90,180,365,'max']
 

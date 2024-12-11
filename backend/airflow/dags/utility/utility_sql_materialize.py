@@ -56,8 +56,42 @@ def etl():
         # extract
         ad.extract(load_params)
 
+    @task()
+    def run_da_mapping():
+        import yaml
+        import pandas as pd
+        from src.db_connector import DbConnector
+
+        ## read file src/da_mapping.yml into dict
+        if sys_user == 'ubuntu':
+                with open(f'/home/{sys_user}/gtp/backend/src/da_mapping.yml', 'r') as file:
+                    da_mapping = yaml.safe_load(file)
+        else:
+                with open('src/da_mapping.yml', 'r') as file:
+                    da_mapping = yaml.safe_load(file)
+            
+        # Flatten the nested dictionary and extract relevant fields
+        rows = []
+        for da_layer, da_keys in da_mapping.items():
+            for da_key, details in da_keys.items():
+                rows.append({
+                    'da_layer': da_layer,
+                    'da_consumer_key': da_key,
+                    'gtp_origin_key': details.get('gtp_origin_key', None),
+                    'name': details.get('name', None),
+                    'namespace': details.get('namespace', None),
+                })
+
+        # Create the DataFrame
+        df = pd.DataFrame(rows)
+        df.set_index(['da_layer', 'da_consumer_key'], inplace=True)
+
+        db_connector = DbConnector()
+        db_connector.upsert_table('sys_da_mapping', df)
+
     run_unique_senders()
     run_da_queries()
+    run_da_mapping()
 etl()
 
 
