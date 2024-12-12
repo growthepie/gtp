@@ -40,7 +40,7 @@ def etl():
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
         df = at.read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table)
         if df is None:
-            print("Nothing to upload")
+            print("No new labels detected")
         else:
             # initialize db connection
             db_connector = DbConnector()
@@ -70,8 +70,11 @@ def etl():
         # read owner_project update table
         table = api.table(AIRTABLE_BASE_ID, 'Remap Owner Project')
         df = at.read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table)
-        for i, row in df.iterrows():
-            db_connector.update_owner_projects(row['old_owner_project'], row['owner_project'])
+        if df is None:
+            print("Nothing detected to remap")
+        else:
+            for i, row in df.iterrows():
+                db_connector.update_owner_projects(row['old_owner_project'], row['owner_project'])
 
     @task()
     def run_refresh_materialized_view(read_airtable_contracts:str):
