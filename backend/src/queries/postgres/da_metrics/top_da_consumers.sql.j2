@@ -1,0 +1,31 @@
+{#
+    A query to sum the data posted (blob_size_bytes) by DA consumers over a certain time interval.
+
+    Parameters:
+    - days: default = 30; The time interval (in days) to consider for data extraction.
+    - da_layer: The DA layer to consider for data extraction. Can also be 'all' to consider all DA layers.
+    - limit: default = 10; The maximum number of rows to return.
+#}
+
+{% set days = days | default(7) %}
+{% set da_layer = da_layer | default('all') %}
+{% set limit = limit | default(10) %}
+
+SELECT 
+    COALESCE(map.da_consumer_key, f.namespace) AS da_consumer_key, 
+    map.name, 
+    f.da_layer, 
+    map.gtp_origin_key,  
+    SUM(value) AS data_posted
+FROM public.fact_da_consumers f
+LEFT JOIN sys_da_mapping map ON f."namespace" = map."namespace" 
+WHERE f.metric_key = 'blob_size_bytes'
+    AND "date" >= current_date - INTERVAL '{{ days }} days' 
+    AND "date" < current_date
+    -- if da_layer is specified, filter by it
+    {% if da_layer != 'all' %}
+        AND f.da_layer = '{{ da_layer }}'
+    {% endif %}
+GROUP BY 1,2,3,4
+ORDER BY 5 DESC
+LIMIT {{ limit | default(10) }};

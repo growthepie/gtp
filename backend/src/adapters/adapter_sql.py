@@ -141,16 +141,16 @@ class AdapterSQL(AbstractAdapter):
             return None
         
         elif load_type == 'jinja':
+            if days:
+                query_parameters = {'days': days}
+            else:
+                query_parameters = {}
+
             jinja_queries = load_params.get('queries', None)
             if sys_user == 'ubuntu':
                     env = Environment(loader=FileSystemLoader(f'/home/{sys_user}/gtp/backend/src/queries/postgres'), undefined=StrictUndefined)
             else:
                     env = Environment(loader=FileSystemLoader('src/queries/postgres'), undefined=StrictUndefined)
-
-            if days:
-                query_parameters = {'days': days}
-            else:
-                query_parameters = {}
 
             for jinja_q in jinja_queries:
                 template = env.get_template(jinja_q)
