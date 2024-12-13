@@ -80,15 +80,24 @@ class NodeAdapter(AbstractAdapterRaw):
 
     def log_stats(self):
         """
-        Logs the collected stats for each RPC.
+        Logs the collected stats for each RPC, including the number of workers and TPS (transactions per second).
         """
         print("===== RPC Statistics =====")
         for rpc_url, stats in self.rpc_stats.items():
+            # Retrieve the number of workers from rpc_configs
+            workers = next((rpc['workers'] for rpc in self.rpc_configs if rpc['url'] == rpc_url), None)
+            
+            # Calculate total time and TPS
             total_time = sum(stats['time_per_block'])
             avg_time = total_time / len(stats['time_per_block']) if stats['time_per_block'] else 0
+            tps = stats['rows_loaded'] / total_time if total_time > 0 else 0
+            
+            # Log the stats
             print(f"RPC URL: {rpc_url}")
             print(f"  - Total Rows Loaded: {stats['rows_loaded']}")
             print(f"  - Average Time Per Block Range: {avg_time:.2f} seconds")
+            print(f"  - Number of Workers: {workers}")
+            print(f"  - Transactions Per Second (TPS): {tps:.2f}")
         print("==========================")
 
     def run(self, block_start, batch_size):

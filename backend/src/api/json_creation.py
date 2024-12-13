@@ -2151,7 +2151,8 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/economics', economics_dict, self.cf_distribution_id)
         print(f'DONE -- economics export')
 
-    def run_top_da_consumers(self, days, da_layer, limit=5):
+    ## This function is used to generate the top da consumers for blobs (top chart DA overview page)
+    def get_top_da_consumers(self, days, da_layer, limit=5):
         if days == 'max':
             days = 2000
 
@@ -2160,8 +2161,22 @@ class JSONCreation():
             "da_layer": da_layer,
             "limit": limit
         }
-        df = execute_jinja_query(self.db_connector, "da_metrics/top_da_consumers.sql.j2", query_parameters, return_df=True)
+        df = execute_jinja_query(self.db_connector, "da_metrics/select_top_da_consumers.sql.j2", query_parameters, return_df=True)
         return df.values.tolist()
+
+    ## This function is used to generate the da consumers for blobs (DA specific pie chart)
+    def get_da_consumers_incl_others(self, days, da_layer, limit=8):
+        if days == 'max':
+            days = 2000
+
+        query_parameters = {
+            "days": days,
+            "da_layer": da_layer,
+            "limit": limit
+        }
+        df = execute_jinja_query(self.db_connector, "da_metrics/select_da_consumers_incl_others.sql.j2", query_parameters, return_df=True)
+        return df.values.tolist()
+
 
     def create_da_overview_json(self, df):
         ## initialize da_dict with all_da and chain_breakdown
@@ -2207,93 +2222,90 @@ class JSONCreation():
             timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'  
             da_dict['data']['all_da']['top_da_consumers'][timeframe_key] = {
                 'types': ['da_consumer_key', 'name', 'da_layer', 'origin_key', 'data_posted'],
-                'data': self.run_top_da_consumers(timeframe, da_layer='all')
+                'data': self.get_top_da_consumers(timeframe, da_layer='all')
             }
 
         da_keys = ['da_ethereum_blobs', 'da_celestia']
-        # df = df.loc[(df.origin_key.isin(chain_keys))]
-        # timeframes = [1,7,30,90,180,365,'max']
+        df = df.loc[(df.origin_key.isin(da_keys))]
+        timeframes = [1,7,30,90,365,'max']
 
-        # # iterate over each chain and generate table and chart data
-        # for origin_key in chain_keys:
-        #     da_dict['data']['chain_breakdown'][origin_key] = {}
-        #     # get data for each timeframe (for table aggregates)
-        #     for timeframe in timeframes:
-        #         timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
-        #         days = timeframe if timeframe != 'max' else 2000
+        # iterate over each da_layer and generate table and chart data
+        for origin_key in da_keys:
+            da_dict['data']['da_breakdown'][origin_key] = {}
+            # get data for each timeframe (for table aggregates)
+            for timeframe in timeframes:
+                timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
+                days = timeframe if timeframe != 'max' else 2000
 
-        #         revenue_eth = self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)
-        #         profit_eth = self.aggregate_metric(df, origin_key, 'profit_eth', days)
-        #         profit_margin = profit_eth / revenue_eth if revenue_eth != 0 else 0.0
+                fees_eth = self.aggregate_metric(df, origin_key, 'da_fees_eth', days)
+                fees_usd = self.aggregate_metric(df, origin_key, 'da_fees_usd', days)
+                data_posted = self.aggregate_metric(df, origin_key, 'da_data_posted_bytes', days)
+                fees_per_mb_eth = fees_eth / data_posted / 1024 / 1024 if data_posted != 0 else 0.0
+                fees_per_mb_usd = fees_usd / data_posted / 1024 / 1024 if data_posted != 0 else 0.0
 
-        #         if profit_margin > 1:
-        #             profit_margin = 1
+                da_consumers = 7 # TODO: real value
+                da_consumers_list = ['arbitrum', 'optimism', 'eclipse'] # TODO: real value
 
-        #         da_dict['data']['chain_breakdown'][origin_key][timeframe_key] = {
-        #             "revenue": {
-        #                 "types": ["usd", "eth"],
-        #                 "total": [self.aggregate_metric(df, origin_key, 'fees_paid_usd', days), self.aggregate_metric(df, origin_key, 'fees_paid_eth', days)]
-        #             },		
-        #             "costs": {
-        #                 "types": ["usd", "eth"],
-        #                 "total": [self.aggregate_metric(df, origin_key, 'costs_total_usd', days), self.aggregate_metric(df, origin_key, 'costs_total_eth', days)],
-        #                 "costs_l1": [self.aggregate_metric(df, origin_key, 'costs_l1_usd', days), self.aggregate_metric(df, origin_key, 'costs_l1_eth', days)], 
-        #                 "costs_blobs": [self.aggregate_metric(df, origin_key, 'costs_blobs_usd', days), self.aggregate_metric(df, origin_key, 'costs_blobs_eth', days)],
-        #             },
-        #             "profit": {
-        #                 "types": ["usd", "eth"],
-        #                 "total": [self.aggregate_metric(df, origin_key, 'profit_usd', days), self.aggregate_metric(df, origin_key, 'profit_eth', days)]
-        #             },	
-        #             "profit_margin": {
-        #                 "types": ["percentage"],
-        #                 "total": [profit_margin]
-        #             },
-        #             "size": {
-        #                 "types": ["bytes"],
-        #                 "total": [self.aggregate_metric(df, origin_key, 'blob_size_bytes', days)]
-        #             }
-        #         }
+                fixed_params = {
+                    'block_time': "12s",
+                    'blob_size': "2 MiB",
+                    'l2beat_risk': "https://l2beat.com/data-availability/projects/celestia/no-bridge",
+                }
 
-        #     econ_metrics = ['fees', 'costs', 'profit']
-        #     ## determine the min date for all metric_keys of econ_metrics in df
-        #     min_date_fees = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['fees']['metric_keys']))]['date'].min()
-        #     min_date_costs = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['costs']['metric_keys']))]['date'].min()
-        #     min_date_profit = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.metrics['profit']['metric_keys']))]['date'].min()
-        #     start_date = max(min_date_fees, min_date_costs, min_date_profit)
+                da_dict['data']['da_breakdown'][origin_key][timeframe_key] = {
+                    "fees": {
+                        "types": ["usd", "eth"],
+                        "total": [fees_usd, fees_eth]
+                    },		
+                    "size": {
+                        "types": ["bytes"],
+                        "total": [data_posted]
+                    },
+                    "fees_per_mb": {
+                        "types": ["usd", "eth"],
+                        "total": [fees_per_mb_usd, fees_per_mb_eth]
+                    },	
+                    "da_consumers": {
+                        "types": ["count", "chains"],
+                        "total": [da_consumers, da_consumers_list]
+                    },
+                    "fixed_params": fixed_params,
+                    "da_consumer_chart": {
+                        'types': ['da_consumer_key', 'name', 'da_layer', 'origin_key', 'data_posted'],
+                        'data': self.get_da_consumers_incl_others(timeframe, da_layer=origin_key, limit=8)
+                    }
+                }
 
-        #     metric_to_key = {
-        #             'fees': 'revenue',
-        #             'costs': 'costs',
-        #             'profit': 'profit'
-        #         }
+            ## TODO: we have to break this down by top 8 da consumers
+            # metric = 'data_posted'
+            # ## determine the min date for all metric_keys of econ_metrics in df
+            # min_date_data_posted = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.da_metrics[metric]['metric_keys']))]['date'].min()
+            # start_date = max(min_date_data_posted)
             
-        #     ## add timeseries data for each chain
-        #     da_dict['data']['chain_breakdown'][origin_key]['daily'] = {}
-        #     da_dict['data']['chain_breakdown'][origin_key]['monthly'] = {}
+            # ## add timeseries data for each chain
+            # da_dict['data']['da_breakdown'][origin_key]['daily'] = {}
+            # da_dict['data']['da_breakdown'][origin_key]['monthly'] = {}
 
-        #     for metric in econ_metrics:
-        #         key = metric_to_key.get(metric)
+            # ## Fill daily values
+            # mk_list = self.generate_daily_list(df, metric, origin_key, start_date, metric_type='da')
+            # mk_list_int = mk_list[0]
+            # mk_list_columns = mk_list[1]                
 
-        #         ## Fill daily values
-        #         mk_list = self.generate_daily_list(df, metric, origin_key, start_date)
-        #         mk_list_int = mk_list[0]
-        #         mk_list_columns = mk_list[1]                
+            # da_dict['data']['da_breakdown'][origin_key]['daily'][metric] = {
+            #     'types' : mk_list_columns,
+            #     'data' : mk_list_int
+            # }
 
-        #         da_dict['data']['chain_breakdown'][origin_key]['daily'][key] = {
-        #             'types' : mk_list_columns,
-        #             'data' : mk_list_int
-        #         }
+            # ## Fill monthly values
+            # mk_list_monthly = self.generate_monthly_list(df, metric, origin_key, start_date, )
+            # mk_list_int_monthly = mk_list_monthly[0]
+            # mk_list_columns_monthly = mk_list_monthly[1]
 
-        #         ## Fill monthly values
-        #         mk_list_monthly = self.generate_monthly_list(df, metric, origin_key, start_date)
-        #         mk_list_int_monthly = mk_list_monthly[0]
-        #         mk_list_columns_monthly = mk_list_monthly[1]
-
-        #         da_dict['data']['chain_breakdown'][origin_key]['monthly'][key] = {
-        #             'types' : mk_list_columns_monthly,
-        #             'data' : mk_list_int_monthly
-        #         }
-        
+            # da_dict['data']['da_breakdown'][origin_key]['monthly'][metric] = {
+            #     'types' : mk_list_columns_monthly,
+            #     'data' : mk_list_int_monthly
+            # }
+    
         # ## Calculate and add the total revenue, costs, profit, profit margin, and blob size for all chains combined for each timeframe
         # da_dict['data']['chain_breakdown']['totals'] = {}
         # for timeframe in timeframes:
