@@ -123,7 +123,7 @@ class AdapterL2Beat(AbstractAdapter):
             print(f'...loading stage info for {origin_key} with l2beat_id: {l2beat_id}') 
             stage = response['data']['projects'][l2beat_id]['stage']
 
-            if stage == 'NotApplicable':
+            if stage in ['NotApplicable', 'Not applicable']:
                 stage = 'NA'
                 
             # Compare with the existing stage in the main_config
