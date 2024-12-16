@@ -2161,7 +2161,7 @@ class JSONCreation():
             "da_layer": da_layer,
             "limit": limit
         }
-        df = execute_jinja_query(self.db_connector, "da_metrics/select_top_da_consumers.sql.j2", query_parameters, return_df=True)
+        df = execute_jinja_query(self.db_connector, "api/select_top_da_consumers.sql.j2", query_parameters, return_df=True)
         return df.values.tolist()
 
     ## This function is used to generate the da consumers for blobs (DA specific pie chart)
@@ -2174,7 +2174,7 @@ class JSONCreation():
             "da_layer": da_layer,
             "limit": limit
         }
-        df = execute_jinja_query(self.db_connector, "da_metrics/select_da_consumers_incl_others.sql.j2", query_parameters, return_df=True)
+        df = execute_jinja_query(self.db_connector, "api/select_top_da_consumers_incl_others.sql.j2", query_parameters, return_df=True)
         return df.values.tolist()
 
 
@@ -2214,8 +2214,6 @@ class JSONCreation():
                     }
                 }
 
-        ## TODO: add top DA consumers for blobs
-        ## Blobs based on Dune?
         timeframes = [1,7,30,90,180,365,'max']
         da_dict['data']['all_da']['top_da_consumers'] = {}
         for timeframe in timeframes:
@@ -2276,7 +2274,9 @@ class JSONCreation():
                     }
                 }
 
-            ## TODO: we have to break this down by top 8 da consumers
+            ## TODO: get data posted by da_consumers (top 8 and others over time)
+            ## how to define top8? use the current (1d) top 8
+
             # metric = 'data_posted'
             # ## determine the min date for all metric_keys of econ_metrics in df
             # min_date_data_posted = df.loc[(df.origin_key == origin_key) & (df.metric_key.isin(self.da_metrics[metric]['metric_keys']))]['date'].min()
@@ -2306,53 +2306,40 @@ class JSONCreation():
             #     'data' : mk_list_int_monthly
             # }
     
-        # ## Calculate and add the total revenue, costs, profit, profit margin, and blob size for all chains combined for each timeframe
-        # da_dict['data']['chain_breakdown']['totals'] = {}
-        # for timeframe in timeframes:
-        #     timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max' 
+        ## Calculate and add the total data posted, fees paid, fees/mb for all da layers combined for each timeframe
+        da_dict['data']['da_breakdown']['totals'] = {}
+        for timeframe in timeframes:
+            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max' 
 
-        #     # Initialize variables to accumulate total costs, revenue, and blob size for all chains over the specified timeframe
-        #     total_costs_usd = 0
-        #     total_costs_eth = 0
-        #     total_revenue_usd = 0
-        #     total_revenue_eth = 0
-        #     total_blob_size = 0
-        #     for key in da_dict['data']['chain_breakdown']:
-        #         if key != 'totals':
-        #             total_costs_usd += da_dict['data']['chain_breakdown'][key][timeframe_key]['costs']['total'][0]
-        #             total_costs_eth += da_dict['data']['chain_breakdown'][key][timeframe_key]['costs']['total'][1]
-        #             total_revenue_usd += da_dict['data']['chain_breakdown'][key][timeframe_key]['revenue']['total'][0]
-        #             total_revenue_eth += da_dict['data']['chain_breakdown'][key][timeframe_key]['revenue']['total'][1]
-        #             total_blob_size += da_dict['data']['chain_breakdown'][key][timeframe_key]['size']['total'][0]
+            # Initialize variables to accumulate total costs, revenue, and blob size for all chains over the specified timeframe
+            total_fees_eth = 0
+            total_fees_usd = 0
+            total_data_posted = 0
 
-        #     total_profit_usd = total_revenue_usd - total_costs_usd
-        #     total_profit_eth = total_revenue_eth - total_costs_eth
-        #     total_profit_margin = total_profit_eth / total_revenue_eth if total_revenue_eth != 0 else 0.0
-        #     if total_profit_margin > 1:
-        #         total_profit_margin = 1                
+            for key in da_dict['data']['da_breakdown']:
+                if key != 'totals':
+                    total_fees_usd += da_dict['data']['da_breakdown'][key][timeframe_key]['fees']['total'][0]
+                    total_fees_eth += da_dict['data']['da_breakdown'][key][timeframe_key]['fees']['total'][1]
+                    total_data_posted += da_dict['data']['da_breakdown'][key][timeframe_key]['size']['total'][0]
 
-        #     da_dict['data']['chain_breakdown']['totals'][timeframe_key] = {
-        #             "revenue": {
-        #                 "types": ["usd", "eth"],
-        #                 "total": [total_revenue_usd, total_revenue_eth]
-        #             },		
-        #             "costs": {
-        #                 "types": ["usd", "eth"],
-        #                 "total": [total_costs_usd, total_costs_eth],
-        #             },
-        #             "profit": {
-        #                 "types": ["usd", "eth"],
-        #                 "total": [total_profit_usd, total_profit_eth]
-        #             },	
-        #             "profit_margin": {
-        #                 "types": ["percentage"],
-        #                 "total": [total_profit_margin]
-        #             },
-        #             "size": {
-        #                 "types": ["bytes"],
-        #                 "total": [total_blob_size]
-        #             }
-        #         }
+
+            total_data_per_mb_usd = total_fees_usd / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0
+            total_data_per_mb_eth = total_fees_eth / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0           
+
+            da_dict['data']['da_breakdown']['totals'][timeframe_key] = {
+                "fees": {
+                    "types": ["usd", "eth"],
+                    "total": [total_fees_usd, total_fees_eth]
+                },		
+                "size": {
+                    "types": ["bytes"],
+                    "total": [total_data_posted]
+                },
+                "fees_per_mb": {
+                    "types": ["usd", "eth"],
+                    "total": [total_data_per_mb_usd, total_data_per_mb_eth],
+                }
+            }
 
         da_dict = fix_dict_nan(da_dict, 'da_overview')
 

@@ -15,7 +15,7 @@ WITH RankedData AS (
     FROM public.fact_da_consumers f
     LEFT JOIN sys_da_mapping map ON f."namespace" = map."namespace" 
     WHERE f.metric_key = 'blob_size_bytes'
-        AND "date" >= current_date - INTERVAL '30 days' 
+        AND "date" >= current_date - INTERVAL '{{ days }} days' 
         AND "date" < current_date
         -- if da_layer is specified, filter by it
         {% if da_layer != 'all' %}
