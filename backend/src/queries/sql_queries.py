@@ -44,6 +44,7 @@ sql_queries = [
         ,SQLQuery(metric_key = "maa", origin_key = "ethereum", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "ethereum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "ethereum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
+        ,SQLQuery(metric_key = "cca", origin_key = "ethereum", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
         
         # --- DA Layers ---
         # Celestia
