@@ -16,8 +16,8 @@ WITH step_1 AS (
         #hll_union_agg(CASE WHEN origin_key <> '{{ origin_key }}' THEN hll_addresses END) AS other_chains
     FROM fact_active_addresses_hll
     WHERE 
-        origin_key NOT IN ('ethereum', 'starknet')
-        AND "date" BETWEEN current_date - INTERVAL '7 days' AND current_date
+        --origin_key NOT IN ('ethereum', 'starknet')
+        "date" BETWEEN current_date - INTERVAL '7 days' AND current_date
     ORDER BY 1 DESC
 )
 SELECT 
