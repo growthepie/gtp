@@ -71,6 +71,7 @@ def etl():
         df = json_creator.get_all_data()
 
         json_creator.create_da_overview_json(df)
+        json_creator.create_da_timeseries_json()
 
     @task()
     def run_create_master():
