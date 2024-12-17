@@ -18,7 +18,7 @@ class SQLQuery():
         self.query_parameters['origin_key'] = origin_key
         self.currency_dependent = currency_dependent ## if false, the query can in parellel to the currency queries 
 
-def standard_evm_queries(origin_key: str):
+def standard_evm_queries(origin_key: str): ## op-stack and others
      return [
                 SQLQuery(metric_key = "txcount_raw", origin_key = origin_key, jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_price"}, currency_dependent = False)
                 ,SQLQuery(metric_key = "txcount", origin_key = origin_key, jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_price"}, currency_dependent = False)
@@ -82,6 +82,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "celestia_blobs_eth", origin_key = "orderly", jinja_path='chain_metrics/select_celestia_blobs.sql.j2')
         ## Worldchain
         ,*standard_evm_queries("worldchain")
+        ## Mint
+        ,*standard_evm_queries("mint")
         
         # Elastic Chain
         ## ZKsync Era

@@ -1,0 +1,51 @@
+
+
+{% set days = days | default(7) %}
+{% set da_layer = da_layer | default('all') %}
+{% set limit = limit | default(10) %}
+
+WITH RankedData AS (
+    SELECT 
+        COALESCE(map.da_consumer_key, f.namespace) AS da_consumer_key, 
+        map.name, 
+        f.da_layer, 
+        map.gtp_origin_key,  
+        SUM(value) AS data_posted,
+        RANK() OVER (ORDER BY SUM(value) DESC) AS rank
+    FROM public.fact_da_consumers f
+    LEFT JOIN sys_da_mapping map ON f."namespace" = map."namespace" 
+    WHERE f.metric_key = 'blob_size_bytes'
+        AND "date" >= current_date - INTERVAL '30 days' 
+        AND "date" < current_date
+        -- if da_layer is specified, filter by it
+        {% if da_layer != 'all' %}
+            AND f.da_layer = '{{ da_layer }}'
+        {% endif %}
+    GROUP BY 1,2,3,4
+),
+TopWithTotals AS (
+    SELECT
+        da_consumer_key,
+        name,
+        da_layer,
+        gtp_origin_key,
+        data_posted
+    FROM RankedData
+    WHERE rank <= {{ limit }}
+    UNION ALL
+    SELECT
+        'others' AS da_consumer_key,
+        'Others' AS name,
+        NULL AS da_layer,
+        NULL AS gtp_origin_key,
+        SUM(data_posted) AS data_posted
+    FROM RankedData
+    WHERE rank > {{ limit }}
+)
+SELECT 
+    da_consumer_key,
+    name,
+    da_layer,
+    gtp_origin_key,
+    data_posted
+FROM TopWithTotals
