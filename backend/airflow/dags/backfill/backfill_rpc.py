@@ -6,16 +6,16 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
-
 from src.db_connector import DbConnector
+db_connector = DbConnector()
 from src.main_config import get_main_config
 ## DAG Configuration Variables
 # batch_size: Number of blocks to process in a single task run
 # config: Environment variable containing the RPC node configuration
 # backfiller_on: Whether the chain is backfiller_on and should be backfilled
 
-db_connector = DbConnector()
-main_conf = get_main_config(db_connector)
+
+main_conf = get_main_config()
 
 chain_settings = {
     chain.origin_key: {

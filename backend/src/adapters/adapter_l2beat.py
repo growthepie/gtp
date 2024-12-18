@@ -27,7 +27,7 @@ class AdapterL2Beat(AbstractAdapter):
         origin_keys:list - the projects that this metric should be loaded for. If None, all available projects will be loaded
     """
     def extract(self, load_params:dict):
-        main_conf = get_main_config(self.db_connector)
+        main_conf = get_main_config()
 
         ## Set variables
         origin_keys = load_params['origin_keys']
@@ -112,7 +112,7 @@ class AdapterL2Beat(AbstractAdapter):
         response = api_get_call(url)
 
         # Get current main_config to compare against new L2Beat values
-        current_config = get_main_config(self.db_connector)
+        current_config = get_main_config()
 
         for chain in projects_to_load:
             origin_key = chain.origin_key

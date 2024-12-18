@@ -32,11 +32,10 @@ def json_creation():
         from src.misc.helper_functions import upload_file_to_cf_s3
 
         db_connector = DbConnector()
-        main_conf = get_main_config(db_connector)
         api_version = "v1"
 
         ## Upload new main_conf to S3
-        main_conf = get_main_config(db_connector)
+        main_conf = get_main_config(db_connector=db_connector, source='github')
         with open("main_conf.pkl", "wb") as file:
             pickle.dump(main_conf, file)
 

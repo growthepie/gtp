@@ -124,7 +124,7 @@ def etl():
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
-        main_config = get_main_config(db_connector)
+        main_config = get_main_config()
 
         at.clear_all_airtable(table)
         

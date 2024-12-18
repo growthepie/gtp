@@ -36,8 +36,8 @@ class JSONCreation():
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
-        self.main_config = get_main_config(self.db_connector)
-        self.multi_config = get_multi_config(self.db_connector)
+        self.main_config = get_main_config()
+        self.multi_config = get_multi_config()
         self.latest_eth_price = self.db_connector.get_last_price_usd('ethereum')
 
         eim_yamls = get_eim_yamls(['eth_exported_entities', 'ethereum_events'])

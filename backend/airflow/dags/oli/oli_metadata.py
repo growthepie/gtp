@@ -29,9 +29,9 @@ def load_metadata():
         from src.db_connector import DbConnector
         from src.adapters.contract_loader import ContractLoader
         from src.main_config import get_main_config
-        
+
         db_connector = DbConnector()
-        main_conf = get_main_config(db_connector)
+        main_conf = get_main_config()
         days = 5
 
         for adapter in [chain for chain in main_conf if chain.runs_contract_metadata == True]:
