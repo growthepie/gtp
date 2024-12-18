@@ -665,7 +665,7 @@ class JSONCreation():
         df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(chains_list_metric))]
 
         ## filter out ethereum
-        df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
+        # df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
 
         ## assign rank based on order (descending order if metric_key is not 'txcosts')
         if metric_id != 'txcosts':
@@ -1283,7 +1283,7 @@ class JSONCreation():
         chains_dict = {}
         all_users = self.get_aa_last7d(df, 'all')
         for chain in self.main_config:
-            if chain.api_in_main == True and chain.origin_key != 'ethereum':
+            if chain.api_in_main == True:
                 ranking_dict = {}
                 for metric in self.metrics:
                     if self.metrics[metric]['ranking_landing']:
@@ -1609,13 +1609,33 @@ class JSONCreation():
                     "symbol": "-",
                     "metrics": {}
                 },
+                "ethereum": {
+                    "chain_id": "ethereum",
+                    "chain_name": "Ethereum",
+                    "symbol": "ETH",
+                    "metrics": {}
+                },
                 "top_contracts": {
                 }
             }
         }
-
+        
+        start_date = datetime.now() - timedelta(days=720)
+        start_date = start_date.replace(tzinfo=timezone.utc)  
         for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
             landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
+
+            if metric_id != 'rent_paid':
+                eth_values, eth_types = self.generate_daily_list(df, metric_id, 'ethereum', start_date=start_date)
+                landing_dict['data']['ethereum']['metrics'][metric_id] = {
+                    "metric_name": self.metrics[metric_id]['name'],
+                    "source": [],
+                    "avg": "true",
+                    "daily": {
+                        "types": eth_types,
+                        "data": eth_values
+                    }
+                }
 
          ## put all origin_keys from main_config in a list where in_api is True
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
