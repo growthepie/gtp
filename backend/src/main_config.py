@@ -88,7 +88,6 @@ def get_main_config_dict(db_connector:DbConnector):
     # Get the repository
     repo_url = "https://github.com/growthepie/chain-registry/tree/main/"
     _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
-    path = '/'.join(path)
 
     # Download oss-directory as ZIP file
     zip_url = f"https://github.com/{owner}/{repo_name}/archive/{branch}.zip"
@@ -98,14 +97,17 @@ def get_main_config_dict(db_connector:DbConnector):
     main_config_dict = []
 
     with zipfile.ZipFile(zip_content) as zip_ref:
+        root_path = 'chain-registry-main/chains/'
         nameslist = zip_ref.namelist()
+        nameslist = [name for name in nameslist if name.startswith(root_path)]
+
         ## only exact folders from nameslist
-        chains = [name.split('/')[1] for name in nameslist if name.endswith('/')]
+        chains = [name.split('/')[2] for name in nameslist if name.endswith('/')]
         chains = [chain for chain in chains if chain]
 
         for chain in chains:      
             chain_data = {}
-            path = f"chain-registry-main/{chain}"
+            path = f"{root_path}{chain}"
 
             main_path = f"{path}/main.json"
             logo_path = f"{path}/logo.json"
