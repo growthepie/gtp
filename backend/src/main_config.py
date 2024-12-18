@@ -84,7 +84,7 @@ class MainConfig(BaseModel):
 #     main_conf_dict = db_connector.get_main_config_dict()
 #     return [MainConfig(**data) for data in main_conf_dict]
 
-def get_main_config_dict():
+def get_main_config_dict(db_connector:DbConnector):
     # Get the repository
     repo_url = "https://github.com/growthepie/gtp-dna/tree/main/"
     _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
