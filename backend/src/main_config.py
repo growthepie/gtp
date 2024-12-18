@@ -84,12 +84,12 @@ class MainConfig(BaseModel):
 #     main_conf_dict = db_connector.get_main_config_dict()
 #     return [MainConfig(**data) for data in main_conf_dict]
 
-def get_main_config_dict(db_connector:DbConnector):
+def get_main_config_dict():
     # Get the repository
     repo_url = "https://github.com/growthepie/gtp-dna/tree/main/"
     _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
 
-    # Download oss-directory as ZIP file
+    # Download directory as ZIP file
     zip_url = f"https://github.com/{owner}/{repo_name}/archive/{branch}.zip"
     response = requests.get(zip_url)
     zip_content = io.BytesIO(response.content)
@@ -131,7 +131,6 @@ def get_main_config_dict(db_connector:DbConnector):
                         content = json.loads(content)
                         chain_data["circulating_supply_token_abi"] = content
 
-                ##chain_data['l2beat_stage'] = db_connector.get_stage(chain)
                 main_config_dict.append(chain_data)
 
     return main_config_dict
