@@ -388,6 +388,16 @@ def empty_cloudfront_cache(distrubution_id, path):
         #print("Invalidation created successfully with Id: " + invalidation_id)
         return invalidation_id
 
+def upload_file_to_cf_s3(bucket, path_name, local_path, cf_distribution_id):
+    # Initialize S3 client
+    s3 = boto3.client("s3")
+    # Upload the pickle file to S3
+    s3.upload_file(local_path, bucket, path_name)
+
+    print(f'..uploaded to {path_name}')
+    empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.json')
+
+
 def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id):
     # Convert Dictionary to JSON String
     details_json = json.dumps(details_dict)
