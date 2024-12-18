@@ -2198,11 +2198,11 @@ class JSONCreation():
             }
         }
 
-        ## fill all_da with daily data
-        da_list = ['da_ethereum_blobs', 'da_celestia']
+        ## TOP Area Charts
+        # fill all_da with daily data 
         metrics_list = ['fees_paid', 'data_posted']
         ## data_posted, fees_paid
-        for da in da_list:
+        for da in self.da_layer_overview:
             for metric in metrics_list:
                 mk_list = self.generate_daily_list(df, metric, da, metric_type='da')
                 mk_list_int = mk_list[0]
@@ -2217,7 +2217,8 @@ class JSONCreation():
                         'data' : mk_list_int
                     }
                 }
-
+        
+        ## TOP DA Consumers chart
         timeframes = [1,7,30,90,180,365,'max']
         da_dict['data']['all_da']['top_da_consumers'] = {}
         for timeframe in timeframes:
@@ -2230,6 +2231,7 @@ class JSONCreation():
         df = df.loc[(df.origin_key.isin(self.da_layer_overview))]
         timeframes = [1,7,30,90,365,'max']
 
+        ## TABLE and PIE CHARTS for each DA Layer
         # iterate over each da_layer and generate table and chart data
         for origin_key in self.da_layer_overview:
             da_dict['data']['da_breakdown'][origin_key] = {}
@@ -2240,14 +2242,14 @@ class JSONCreation():
 
                 fees_eth = self.aggregate_metric(df, origin_key, 'da_fees_eth', days)
                 fees_usd = self.aggregate_metric(df, origin_key, 'da_fees_usd', days)
-                data_posted = self.aggregate_metric(df, origin_key, 'da_data_posted_bytes', days)
-                fees_per_mb_eth = fees_eth / data_posted / 1024 / 1024 if data_posted != 0 else 0.0
-                fees_per_mb_usd = fees_usd / data_posted / 1024 / 1024 if data_posted != 0 else 0.0
+                data_posted = self.aggregate_metric(df, origin_key, 'da_data_posted_bytes', days) * 1024 * 1024 * 1024 # convert from GB to bytes
+                fees_per_mb_eth = fees_eth / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
+                fees_per_mb_usd = fees_usd / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
 
                 da_consumers = 7 # TODO: real value
                 da_consumers_list = ['arbitrum', 'optimism', 'eclipse'] # TODO: real value
 
-                fixed_params = {
+                fixed_params = { # TODO: real values
                     'block_time': "12s",
                     'blob_size': "2 MiB",
                     'l2beat_risk': "https://l2beat.com/data-availability/projects/celestia/no-bridge",
@@ -2292,7 +2294,6 @@ class JSONCreation():
                     total_fees_usd += da_dict['data']['da_breakdown'][key][timeframe_key]['fees']['total'][0]
                     total_fees_eth += da_dict['data']['da_breakdown'][key][timeframe_key]['fees']['total'][1]
                     total_data_posted += da_dict['data']['da_breakdown'][key][timeframe_key]['size']['total'][0]
-
 
             total_data_per_mb_usd = total_fees_usd / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0
             total_data_per_mb_eth = total_fees_eth / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0           
