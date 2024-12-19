@@ -1,0 +1,20 @@
+{#
+    A query to get the list of top DA consumers that have a name assigned (map to our mapping) and posted over 100MB of data during their lifetime
+
+    Parameters:
+    - da_layer: The DA layer to consider for data extraction.
+#}
+
+{% set da_layer = da_layer %}
+
+SELECT 
+    map.name, 
+    map.gtp_origin_key,  
+    SUM(value) AS data_posted
+FROM public.fact_da_consumers f
+INNER JOIN sys_da_mapping map ON lower(f."namespace") = lower(map."namespace") 
+WHERE f.metric_key = 'blob_size_bytes'
+    AND f.da_layer = '{{ da_layer }}'
+GROUP BY 1,2
+having SUM(value) > 0.1 * 1024 * 1024 * 1024 --at least 100MB of data posted
+order by 3 desc

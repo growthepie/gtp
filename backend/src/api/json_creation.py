@@ -2234,6 +2234,15 @@ class JSONCreation():
         ## TABLE and PIE CHARTS for each DA Layer
         # iterate over each da_layer and generate table and chart data
         for origin_key in self.da_layer_overview:
+            ## calc number of DA consumers and generate list
+            query_parameters = {'da_layer': origin_key}
+            df_da_consumers = execute_jinja_query(self.db_connector, "api/select_top_da_consumers_list.sql.j2", query_parameters, return_df=True)
+            da_consumers_count = df_da_consumers.shape[0]
+            da_consumers_dict = {
+                                    "types": df_da_consumers[['name', 'gtp_origin_key']].columns.tolist(),
+                                    "values": df_da_consumers[['name', 'gtp_origin_key']].values.tolist()
+                                }
+
             da_dict['data']['da_breakdown'][origin_key] = {}
             # get data for each timeframe (for table aggregates)
             for timeframe in timeframes:
@@ -2245,9 +2254,6 @@ class JSONCreation():
                 data_posted = self.aggregate_metric(df, origin_key, 'da_data_posted_bytes', days) * 1024 * 1024 * 1024 # convert from GB to bytes
                 fees_per_mb_eth = fees_eth / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
                 fees_per_mb_usd = fees_usd / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
-
-                da_consumers = 7 # TODO: real value
-                da_consumers_list = ['arbitrum', 'optimism', 'eclipse'] # TODO: real value
 
                 fixed_params = { # TODO: real values
                     'block_time': "12s",
@@ -2269,8 +2275,8 @@ class JSONCreation():
                         "total": [fees_per_mb_usd, fees_per_mb_eth]
                     },	
                     "da_consumers": {
-                        "types": ["count", "chains"],
-                        "total": [da_consumers, da_consumers_list]
+                        "count": da_consumers_count,
+                        "chains": da_consumers_dict
                     },
                     "fixed_params": fixed_params,
                     "da_consumer_chart": {
