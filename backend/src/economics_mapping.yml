@@ -266,3 +266,473 @@ manta:
   celestia:
     - namespace: AAAAAAAAAAAAAAAAAAAAAAAAAIZiad33fbxA7Z0=
       comment: "blob producer"
+
+derive:
+  L1:
+    - from_address: 0x14e4E97bDc195d399Ad8E7FC14451C279FE04c8e
+      to_address: 0x5f7f7f6DB967F0ef10BdA0678964DBA185d16c50
+      method: null
+      comment: "Sequencer, Commit blob hash"
+    - from_address: null
+      to_address: 0x1145E7848c8B64c6cab86Fd6D378733385c5C3Ba
+      method: 0x9aaab648
+      comment: "OutputOracle, proposeL2Output"
+
+orderly:
+  L1:
+    - from_address: 0xf8dB8Aba597fF36cCD16fECfbb1B816B3236E9b8
+      to_address: 0x08aA34cC843CeEBcC88A627F18430294aA9780be
+      method: null
+      comment: "Sequencer, Commit blob hash"
+    - from_address: null
+      to_address: 0x5e76821C3c1AbB9fD6E310224804556C61D860e0
+      method: 0x9aaab648
+      comment: "OutputOracle, proposeL2Output"
+
+metis:
+  L1:
+    - from_address: 0x1A9da0aedA630dDf2748a453BF6d92560762D914
+      to_address: 0xFf00000000000000000000000000000000001088
+      method: null
+      comment: "Hashes to data blobs (first used 2024-03-15)"
+    - from_address: null
+      to_address: 0x6a1db7d799fba381f2a518ca859ed30cb8e1d41a
+      method: 0xa8cda37b
+      comment: "appendSequencerBatchByChainId (first used 2022-04-12, last used 2024-03-15)"
+    - from_address: null
+      to_address: 0x56a76bcc92361f6df8d75476fed8843edc70e1c9
+      method: 0xa8cda37b
+      comment: "appendSequencerBatchByChainId (first used 2021-11-18, last used 2022-04-12)"
+    - from_address: null
+      to_address: 0xf209815e595cdf3ed0aaf9665b1772e608ab9380
+      method: 0xd710083f
+      comment: "appendStateBatchByChainId (first used 2021-11-18, last used 2024-03-15)"
+    - from_address: null
+      to_address: 0xA2FaAAC9120c1Ff75814F0c6DdB119496a12eEA6
+      method: 0xd710083f
+      comment: "appendStateBatchByChainId (first used 2024-03-21)"
+
+redstone:
+  L1:
+    - from_address: null
+      to_address: 0x97A2dA87d3439b172e6DD027220e01c9Cb565B80
+      method: 0x7ae929d9
+      comment: "resolve offchain DA dispute"
+    - from_address: 0xA31cb9Bc414601171D4537580f98F66C03aECd43
+      to_address: 0xff00000000000000000000000000000000000690
+      method: null
+      comment: "central actor allowed to commit DA hashes on L1"
+    - from_address: null
+      to_address: 0x97A2dA87d3439b172e6DD027220e01c9Cb565B80
+      method: 0xa03aafbf
+      comment: "challenge offchain DA"
+    - from_address: null
+      to_address: 0xa426A052f657AEEefc298b3B5c35a470e4739d69
+      method: 0x9aaab648
+      comment: "OutputOracle, proposeL2Output"
+
+worldchain:
+  L1:
+    - from_address: null
+      to_address: 0x19A6d1E9034596196295CF148509796978343c5D
+      method: 0x9aaab648
+      comment: "proposeL2Output (first used 2024-06-26)"
+    - from_address: 0xdBBE3D8c2d2b22A2611c5A94A9a12C2fCD49Eb29
+      to_address: 0xff00000000000000000000000000000000000480
+      method: null
+      comment: "Commit Blob (Type 3, EIP4844 tx) (first used)"
+  beacon:
+    - from_address: 0xdBBE3D8c2d2b22A2611c5A94A9a12C2fCD49Eb29
+      to_address: 0xff00000000000000000000000000000000000480
+      method: null
+      comment: "blob producer (first used 2024-06-26)"
+
+lisk:
+  L1:
+    - from_address: null
+      to_address: 0x113cB99283AF242Da0A0C54347667edF531Aa7d6
+      method: 0x9aaab648
+      comment: "proposeL2Output (first used 2024-05-03)"
+    - from_address: 0xa6ea2f3299b63c53143c993d2d5e60a69cd6fe24
+      to_address: 0xFf00000000000000000000000000000000001135
+      method: null
+      comment: "Commit Blob (Type 3, EIP4844 tx) (first used 2024-05-03)"
+  beacon:
+    - from_address: 0xa6ea2f3299b63c53143c993d2d5e60a69cd6fe24
+      to_address: 0xFf00000000000000000000000000000000001135
+      method: null
+      comment: "blob producer (first used 2024-05-03)"
+
+imx:
+  L1:
+    - from_address: null
+      to_address: 0x16BA0f221664A5189cf2C1a7AF0d3AbFc70aA295
+      method: 0x504f7f6f
+      comment: "contract verifying data availability claim from DAC Members"
+    - from_address: null
+      to_address: 0x5FDCCA53617f4d2b9134B29090C87D01058e27e9
+      method: 0x538f9406
+      comment: "updateState"
+
+linea:
+  L1:
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0x4165d6dd
+      comment: "finalizeBlocks (first used 2023-07-13, last used 2024-02-13)"
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0x7a776315
+      comment: "submitData, Alpha v2 Release (first used 2024-02-13, last used 2024-03-25)"
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0x2d3c12e5
+      comment: "submitBlobData (first used 2024-03-26, last used 2024-06-04)"
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0x42fbe842
+      comment: "submitBlobs (first used 2024-06-05, last used 2024-16-12)"
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0x99467a35
+      comment: "submitBlobs (first used 2024-16-12)"
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0xd630280f
+      comment: "finalizeCompressedBlocksWithProof, Alpha v2 Release (first used 2024-02-13, last used 2024-06-04)"
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0xabffac32
+      comment: "finalizeBlocksWithProof (first used 2024-06-05, last used 2024-16-12)"
+    - from_address: null
+      to_address: 0xd19d4B5d358258f05D7B411E21A1460D11B0876F
+      method: 0x5603c65f
+      comment: "finalizeBlocks (first used 2024-16-12)"
+  beacon:
+    - from_address: 0xa9268341831eFa4937537bc3e9EB36DbecE83C7e
+      to_address: null
+      method: null
+      comment: "blob producer (first used 2024-03-26, last used 2024-10-18)"
+    - from_address: 0x46d2f319fd42165d4318f099e143dea8124e9e3e
+      to_address: null
+      method: null
+      comment: "blob producer (first used 2024-10-21)"
+
+loopring:
+  L1:
+    - from_address: null
+      to_address: 0x153CdDD727e407Cb951f728F24bEB9A5FaaA8512
+      method: 0xdcb2aa31
+      comment: "submitBlocksWithCallbacks (proof is verified immediately)"
+
+mantle:
+  L1:
+    - from_address: null
+      to_address: 0x50Fa427235C7C8cAA4A0C21b5009f5a0d015B23A
+      method: 0x5e4a3056
+      comment: "storeData (DA-v1, first use 2023-07-04, last use 2024-03-15)"
+    - from_address: null
+      to_address: 0x50Fa427235C7C8cAA4A0C21b5009f5a0d015B23A
+      method: 0x4618ed87
+      comment: "confirmData (DA-v1, first use 2023-07-04, last use 2024-03-15)"
+    - from_address: null
+      to_address: 0x5BD63a7ECc13b955C4F57e3F12A64c10263C14c1
+      method: 0x58942e73
+      comment: "confirmDataStore (DA-v2, used since 2024-03-15)"
+    - from_address: null
+      to_address: 0x5BD63a7ECc13b955C4F57e3F12A64c10263C14c1
+      method: 0xdcf49ea7
+      comment: "initDataStore (DA-v2, used since 2024-03-15)"
+    - from_address: null
+      to_address: 0xD1328C9167e0693B689b5aa5a024379d4e437858
+      method: 0x49cd3004
+      comment: "createAssertionWithStateBatch (first use 2023-07-04, last use 2024-03-15)"
+    - from_address: null
+      to_address: 0x31d543e7BE1dA6eFDc2206Ef7822879045B9f481
+      method: 0x9aaab648
+      comment: "L2OutputOracle, proposeL2Output (used since 2024-03-15)"
+
+polygon_zkevm:
+  L1:
+    - from_address: null
+      to_address: 0x5132a183e9f3cb7c848b0aac5ae0c4f0491b7ab2
+      method: 0x5e9145c9
+      comment: "sequenceBatches (first used 2023-03-24, last used 2024-02-13)"
+    - from_address: null
+      to_address: 0x519E42c24163192Dca44CD3fBDCEBF6be9130987
+      method: 0xecef3f99
+      comment: "sequenceBatches (first used 2024-02-13, last used 2024-03-14)"
+    - from_address: null
+      to_address: 0x519E42c24163192Dca44CD3fBDCEBF6be9130987
+      method: 0xdef57e54
+      comment: "sequenceBatches (first used 2024-03-14)"
+    - from_address: null
+      to_address: 0x5132a183e9f3cb7c848b0aac5ae0c4f0491b7ab2
+      method: 0xa50a164b
+      comment: "verifyBatchesTrustedAggregator (first used 2023-03-24, last used 2023-09-20)"
+    - from_address: null
+      to_address: 0x5132a183e9f3cb7c848b0aac5ae0c4f0491b7ab2
+      method: 0x2b0006fa
+      comment: "verifyBatchesTrustedAggregator (first used 2023-09-20, last used 2024-02-13)"
+    - from_address: null
+      to_address: 0x5132a183e9f3cb7c848b0aac5ae0c4f0491b7ab2
+      method: 0x1489ed10
+      comment: "verifyBatchesTrustedAggregator (first used 2024-02-13, last used 2024-08-27)"
+
+scroll:
+  L1:
+    - from_address: null
+      to_address: 0x987e300fDfb06093859358522a79098848C33852
+      method: 0xd99bc80e
+      comment: "L2 price oracle, setL2BaseFee (first used 2023-10-10, last used 2024-02-21)"
+    - from_address: null
+      to_address: 0x0d7E906BD9cAFa154b048cFa766Cc1E54E39AF9B
+      method: 0xd99bc80e
+      comment: "L2 price oracle, setL2BaseFee (first used 2024-02-22)"
+    - from_address: null
+      to_address: 0xa13BAF47339d63B743e7Da8741db5456DAc1E556
+      method: 0x1325aca0
+      comment: "commitBatch (first used 2023-10-10, deprecated)"
+    - from_address: null
+      to_address: 0xa13BAF47339d63B743e7Da8741db5456DAc1E556
+      method: 0x86b053a9
+      comment: "commitBatchWithBlobProof (first used 2024-08-21)"
+    - from_address: null
+      to_address: 0xa13BAF47339d63B743e7Da8741db5456DAc1E556
+      method: 0x31fa742d
+      comment: "finalizeBatchWithProof (first used 2023-10-10, last used 2024-04-29)"
+    - from_address: null
+      to_address: 0xa13BAF47339d63B743e7Da8741db5456DAc1E556
+      method: 0x00b0f4d7
+      comment: "finalizeBatchWithProof4844 (first used 2024-04-29, last used 2024-08-21)"
+    - from_address: null
+      to_address: 0xa13BAF47339d63B743e7Da8741db5456DAc1E556
+      method: 0x4f099e3d
+      comment: "finalizeBundleWithProof (first used 2024-08-21)"
+  beacon:
+    - from_address: 0xcf2898225ed05be911d3709d9417e86e0b4cfc8f
+      to_address: null
+      method: null
+      comment: "blob producer"
+
+starknet:
+  L1:
+    - from_address: null
+      to_address: 0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4
+      method: 0x507ee528
+      comment: "updateStateKzgDA (first used 2024-08-28)"
+    - from_address: null
+      to_address: 0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4
+      method: 0xb72d42a1
+      comment: "updateStateKzgDA (first used 2024-03-13, last used 2024-08-28)"
+    - from_address: null
+      to_address: 0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4
+      method: 0x77552641
+      comment: "updateState (first used 2022-01-26, last used 2024-03-13)"
+    - from_address: null
+      to_address: 0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4
+      method: 0x13f4a5b6
+      comment: "updateState (first used 2021-11-16, last used 2022-01-26)"
+  beacon:
+    - from_address: 0x2c169dfe5fbba12957bdd0ba47d9cedbfe260ca7
+      to_address: null
+      method: null
+      comment: "blob producer"
+
+zksync_era:
+  L1:
+    - from_address: null
+      to_address: 0x3dB52cE065f728011Ac6732222270b3F2360d919
+      method: 0x0c4dd810
+      comment: "commitBlocks (first used 2023-03-24, last used 2023-12-04)"
+    - from_address: null
+      to_address: 0xa0425d71cB1D6fb80E65a5361a04096E0672De03
+      method: 0x701f58c5
+      comment: "commitBatches (first used 2023-12-04, last used 2024-03-11)"
+    - from_address: null
+      to_address: 0xa8CB082A5a689E0d594d7da1E2d72A3D63aDc1bD
+      method: 0x701f58c5
+      comment: "commitBatches (first used 2024-03-11, last used 2024-06-06)"
+    - from_address: null
+      to_address: 0x5D8ba173Dc6C3c90C8f7C04C9288BeF5FDbAd06E
+      method: 0x6edd4f12
+      comment: "commitBatchesSharedBridge (first used 2024-06-06)"
+    - from_address: null
+      to_address: 0x3dB52cE065f728011Ac6732222270b3F2360d919
+      method: 0x7739cbe7
+      comment: "proveBlocks (first used 2023-03-24, last used 2023-12-04)"
+    - from_address: null
+      to_address: 0x3dB52cE065f728011Ac6732222270b3F2360d919
+      method: 0xce9dcf16
+      comment: "executeBlocks (first used 2023-03-25, last used 2023-12-04)"
+    - from_address: null
+      to_address: 0xa0425d71cB1D6fb80E65a5361a04096E0672De03
+      method: 0x7f61885c
+      comment: "proveBatches (first used 2023-12-04, last used 2024-03-11)"
+    - from_address: null
+      to_address: 0xa0425d71cB1D6fb80E65a5361a04096E0672De03
+      method: 0xc3d93e7c
+      comment: "executeBatches (first used 2023-12-04, last used 2024-03-11)"
+    - from_address: null
+      to_address: 0xa8CB082A5a689E0d594d7da1E2d72A3D63aDc1bD
+      method: 0x7f61885c
+      comment: "proveBatches (first used 2024-03-11, last used 2024-06-06)"
+    - from_address: null
+      to_address: 0xa8CB082A5a689E0d594d7da1E2d72A3D63aDc1bD
+      method: 0xc3d93e7c
+      comment: "executeBatches (first used 2024-03-11, last used 2024-06-06)"
+    - from_address: null
+      to_address: 0x5D8ba173Dc6C3c90C8f7C04C9288BeF5FDbAd06E
+      method: 0xc37533bb
+      comment: "proveBatchesSharedBridge (first used 2024-06-06)"
+    - from_address: null
+      to_address: 0x5D8ba173Dc6C3c90C8f7C04C9288BeF5FDbAd06E
+      method: 0x6f497ac6
+      comment: "executeBatchesSharedBridge (first used 2024-06-06)"
+  beacon:
+    - from_address: 0x0d3250c3d5facb74ac15834096397a3ef790ec99
+      to_address: null
+      method: null
+      comment: "blob producer"
+
+taiko:
+  L1:
+    - from_address: null
+      to_address: 0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a
+      method: 0xef16e845
+      comment: "proposeBlock (first used 2024-05-25, last used 2024-11-07)"
+    - from_address: null
+      to_address: 0x68d30f47F19c07bCCEf4Ac7FAE2Dc12FCa3e0dC9
+      method: 0xef16e845
+      comment: "proposeBlock (first used 2024-06-08, last used 2024-11-07)"
+    - from_address: null
+      to_address: 0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a
+      method: 0x648885fb
+      comment: "proposeBlock v2 (first used 2024-11-07, deprecated)"
+    - from_address: null
+      to_address: 0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a
+      method: 0x0c8f4a10
+      comment: "proposeBlock v2 (first used 2024-11-07)"
+    - from_address: null
+      to_address: 0x68d30f47F19c07bCCEf4Ac7FAE2Dc12FCa3e0dC9
+      method: 0x648885fb
+      comment: "proposeBlock v2 (first used 2024-11-07, deprecated)"
+    - from_address: null
+      to_address: 0x68d30f47F19c07bCCEf4Ac7FAE2Dc12FCa3e0dC9
+      method: 0x0c8f4a10
+      comment: "proposeBlock v2 (first used 2024-11-07, deprecated)"
+    - from_address: null
+      to_address: 0x68d30f47F19c07bCCEf4Ac7FAE2Dc12FCa3e0dC9
+      method: 0x10d008bd
+      comment: "proveBlock by Prover by taiko (first used 2024-05-25)"
+    - from_address: null
+      to_address: 0xa01d464ca3982DAa97B19fa7F8a232eB11A9DDb3
+      method: 0x10d008bd
+      comment: "proveBlock by Contester by taiko (first used 2024-06-07, address deprecated)"
+    - from_address: null
+      to_address: 0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a
+      method: 0x10d008bd
+      comment: "proveBlock by 3rd parties (first used 2024-06-08)"
+    - from_address: null
+      to_address: 0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a
+      method: 0xc3daab96
+      comment: "withdrawBond by 3rd parties (first used 2024-07-14)"
+    - from_address: null
+      to_address: 0x68d30f47F19c07bCCEf4Ac7FAE2Dc12FCa3e0dC9
+      method: 0x440b6e18
+      comment: "proveBlock v2 by Prover by taiko (first used 2024-11-07)"
+    - from_address: null
+      to_address: 0xa01d464ca3982DAa97B19fa7F8a232eB11A9DDb3
+      method: 0x440b6e18
+      comment: "proveBlock v2 by Contester by taiko (first used 2024-11-07, address deprecated)"
+    - from_address: null
+      to_address: 0x06a9Ab27c7e2255df1815E6CC0168d7755Feb19a
+      method: 0x440b6e18
+      comment: "proveBlock v2 by 3rd parties (first used 2024-11-07)"
+  beacon:
+    - from_address: null
+      to_address: null
+      method: 0xef16e845
+      comment: "all blob producer including self deployed contracts (first used 2024-05-25, deprecated)"
+    - from_address: null
+      to_address: null
+      method: 0x648885fb
+      comment: "all blob producer including self deployed contracts v2 (first used 2024-11-07, deprecated)"
+    - from_address: null
+      to_address: null
+      method: 0x0c8f4a10
+      comment: "all blob producer including self deployed contracts v2 (first used 2024-11-07)"
+
+rhino:
+  L1:
+    - from_address: null
+      to_address: 0xc3a5b823b3c7e5f5a7da674b50e7c95993330ddd
+      method: 0x504f7f6f
+      comment: "verifyAvailabilityProof, verifying DAC (first used 2020-05-31, last used 2020-12-02)"
+    - from_address: null
+      to_address: 0x28780349a33eee56bb92241baab8095449e24306
+      method: 0x504f7f6f
+      comment: "verifyAvailabilityProof, verifying DAC (first used 2020-12-02)"
+    - from_address: null
+      to_address: 0x5d22045daceab03b158031ecb7d9d06fad24609b
+      method: 0x538f9406
+      comment: "updateState (first used 2020-05-31)"
+
+fraxtal:
+  L1:
+    - from_address: 0x6017f75108f251a488B045A7ce2a7C15b179d1f2
+      to_address: 0xfF000000000000000000000000000000000420fC
+      method: null
+      comment: "hashes to offchain DA (first used 2024-02-01)"
+    - from_address: null
+      to_address: 0x66CC916Ed5C6C2FA97014f7D1cD141528Ae171e4
+      method: 0x9aaab648
+      comment: "proposeL2Output (first used 2024-02-01)"
+
+kroma:
+  L1:
+    - from_address: null
+      to_address: 0x180c77aE51a9c505a43A2C7D81f8CE70cacb93A6
+      method: 0x5a045f78
+      comment: "submitL2Output (first used 2023-09-05)"
+    - from_address: 0x41b8cD6791De4D8f9E0eaF7861aC506822AdcE12
+      to_address: 0xfF00000000000000000000000000000000000255
+      method: null
+      comment: "0x (first used 2023-09-05)"
+  beacon:
+    - from_address: 0x41b8cD6791De4D8f9E0eaF7861aC506822AdcE12
+      to_address: null
+      method: null
+      comment: "0x blob producer"
+
+mint:
+  L1:
+    - from_address: null
+      to_address: 0xB751A613f2Db932c6cdeF5048E6D2af05F9B98ED
+      method: 0x9aaab648
+      comment: "proposeL2Output (first used 2024-05-14)"
+    - from_address: 0x68bdFecE01535090c8f3C27ec3b1AE97E83fA4aA
+      to_address: 0x4e31448a098393727b786e25B54E59DcA1b77FE1
+      method: null
+      comment: "0x (first used 2024-05-13)"
+  beacon:
+    - from_address: 0x68bdFecE01535090c8f3C27ec3b1AE97E83fA4aA
+      to_address: 0x4e31448a098393727b786e25B54E59DcA1b77FE1
+      method: null
+      comment: "0x (first used 2024-05-13)"
+
+fuel:
+  L1:
+    - from_address: null
+      to_address: 0xf3D20Db1D16A4D0ad2f280A5e594FF3c7790f130
+      method: 0xe900ead8
+      comment: "commit (first used 2024-08-30)"
+    - from_address: 0xEA0337EFC12e98AB118948dA570C07691E8E4b37
+      to_address: 0xEA0337EFC12e98AB118948dA570C07691E8E4b37
+      method: null
+      comment: "0x (first used 2024-08-30)"
+  beacon:
+    - from_address: null
+      to_address: 0xEA0337EFC12e98AB118948dA570C07691E8E4b37
+      method: null
+      comment: "0x (first used 2024-08-30)"
