@@ -57,6 +57,8 @@ def adapter_rpc():
         except MaxWaitTimeExceededException as e:
             print(f"Extraction stopped due to maximum wait time being exceeded: {e}")
             raise e
+        finally:
+            adapter.log_stats()
 
     run_gravity()
 adapter_rpc()
