@@ -17,7 +17,7 @@ from src.main_config import get_main_config
 db_connector = DbConnector()
 adapter_params = {}
 ad = AdapterSQL(adapter_params, db_connector)
-main_conf = get_main_config(db_connector)
+main_conf = get_main_config()
 
 def create_aggregate_metrics_task(origin_key):
     @task(task_id=f'agg_fees_metrics_{origin_key}')

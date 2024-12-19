@@ -18,7 +18,7 @@ class AdapterCoingecko(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Coingecko", adapter_params, db_connector)
         self.base_url = 'https://api.coingecko.com/api/v3/coins/'
-        main_conf = get_main_config(db_connector)
+        main_conf = get_main_config()
         self.projects = [chain for chain in main_conf if chain.aliases_coingecko is not None]
         print_init(self.name, self.adapter_params)
 

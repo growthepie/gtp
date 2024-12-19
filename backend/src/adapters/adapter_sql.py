@@ -21,7 +21,7 @@ class AdapterSQL(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("SQL Aggregation", adapter_params, db_connector)
         self.discord_webhook = os.getenv('DISCORD_ALERTS')
-        self.main_config = get_main_config(self.db_connector)
+        self.main_config = get_main_config()
         print_init(self.name, self.adapter_params)
 
     """

@@ -14,8 +14,8 @@ class BlockspaceJSONCreation():
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
-        self.main_conf = get_main_config(self.db_connector)
-        self.all_l2_config = get_all_l2_config(self.db_connector)
+        self.main_conf = get_main_config()
+        self.all_l2_config = get_all_l2_config()
     
     def get_blockspace_overview_daily_data(self, chain_keys):
         where_origin_key = f"AND bs_scl.origin_key = '{chain_keys[0]}'" if len(chain_keys) == 1 else "AND bs_scl.origin_key IN ('" + "','".join(chain_keys) + "')"

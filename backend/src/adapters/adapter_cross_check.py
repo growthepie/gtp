@@ -19,7 +19,7 @@ class AdapterCrossCheck(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Cross-Check", adapter_params, db_connector)
-        main_conf = get_main_config(db_connector)
+        main_conf = get_main_config()
         self.projects = [chain for chain in main_conf if chain.cross_check_type is not None]
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
