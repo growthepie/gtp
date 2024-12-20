@@ -2344,7 +2344,7 @@ class JSONCreation():
             }
             df = execute_jinja_query(self.db_connector, "api/select_da_consumers_incl_others_over_time.sql.j2", query_parameters, return_df=True)
             df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
-            df.sort_values(by=['date'], inplace=True, ascending=False)
+            df.sort_values(by=['date'], inplace=True, ascending=True)
             df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
             df = df.drop(columns=['date'])
 
