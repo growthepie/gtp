@@ -52,7 +52,7 @@ def json_creation():
 
         ## Upload new main_conf to S3
         da_conf = get_da_config(source='github')
-        with open("main_conf.pkl", "wb") as file:
+        with open("da_conf.pkl", "wb") as file:
             pickle.dump(da_conf, file)
 
         upload_file_to_cf_s3(os.getenv("S3_CF_BUCKET"), f"{api_version}/da_conf.pkl", "da_conf.pkl", os.getenv("CF_DISTRIBUTION_ID"))
