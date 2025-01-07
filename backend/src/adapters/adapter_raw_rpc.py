@@ -1,10 +1,11 @@
 import time
 
 from src.adapters.abstract_adapters import AbstractAdapterRaw
-from src.adapters.rpc_funcs.funcs_backfill import check_and_record_missing_block_ranges
+from src.adapters.rpc_funcs.funcs_backfill import check_and_record_missing_block_ranges, find_first_block_of_day, find_last_block_of_day, date_to_unix_timestamp
 from queue import Queue, Empty
 from threading import Thread, Lock
 from src.adapters.rpc_funcs.utils import Web3CC, connect_to_s3, check_db_connection, check_s3_connection, get_latest_block, connect_to_node, fetch_and_process_range
+from datetime import datetime
 
 
 class NodeAdapter(AbstractAdapterRaw):
@@ -419,3 +420,49 @@ class NodeAdapter(AbstractAdapterRaw):
             for start, end in filtered_ranges:
                 print(f"{start}-{end}")
             self.process_missing_blocks(filtered_ranges, batch_size)
+            
+    def backfill_date_range(self, start_date, end_date, batch_size):
+        """
+        Backfills data for a specified date range without checking for missing blocks.
+
+        Args:
+            start_date (str): The start date for backfill in the format 'YYYY-MM-DD'.
+            end_date (str): The end date for backfill in the format 'YYYY-MM-DD'.
+            batch_size (int): Number of blocks to process per batch.
+
+        Raises:
+            ValueError: If the date range is invalid or blocks cannot be found.
+        """
+        # Parse and validate dates
+        try:
+            start_date_obj = datetime.strptime(start_date, "%Y-%m-%d")
+            end_date_obj = datetime.strptime(end_date, "%Y-%m-%d")
+        except ValueError as e:
+            raise ValueError(f"Invalid date format: {e}")
+
+        if start_date_obj > end_date_obj:
+            raise ValueError("Start date must be earlier than end date.")
+
+        # Convert dates to Unix timestamps
+        start_timestamp = date_to_unix_timestamp(
+            start_date_obj.year, start_date_obj.month, start_date_obj.day
+        )
+        end_timestamp = date_to_unix_timestamp(
+            end_date_obj.year, end_date_obj.month, end_date_obj.day
+        )
+
+        # Find the first and last blocks for the given date range
+        print(f"Finding blocks for date range: {start_date} to {end_date}...")
+        start_block = find_first_block_of_day(self.w3, start_timestamp)
+        end_block = find_last_block_of_day(self.w3, end_timestamp)
+
+        print(f"Start block: {start_block}, End block: {end_block}")
+
+        if start_block > end_block:
+            raise ValueError("No blocks found in the specified date range.")
+
+        # Enqueue block ranges and process
+        block_range_queue = Queue()
+        self.enqueue_block_ranges(start_block, end_block, batch_size, block_range_queue)
+        print(f"Enqueued {block_range_queue.qsize()} block ranges for backfill.")
+        self.manage_threads(block_range_queue)

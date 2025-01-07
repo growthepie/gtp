@@ -88,6 +88,9 @@ class Glo:
 
         ## Final touches and then merge with holders data
         df = df.drop_duplicates(subset=['org', 'address'])
+        ## drop all rows where address is None
+        df = df.dropna(subset=['address'])
+
         df = df[df['address'].str.startswith('0x')]
         df['address'] = df['address'].str.lower()
         print(f"..resolved ENS addresses")
