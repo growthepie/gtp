@@ -38,7 +38,10 @@ def backup():
 
         for table_name in tables:
             print(f'...loading {table_name}')
-            exec_string = f'select * from {table_name}'
+            if table_name == 'oli_tag_mapping':
+                exec_string = f"""select * from oli_tag_mapping where added_on >= current_date - interval '90 days' """
+            else:
+                exec_string = f'select * from {table_name}'
 
             df = pl.read_database_uri(query=exec_string, uri=db_connector.uri)
 
