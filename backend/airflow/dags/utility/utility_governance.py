@@ -3,6 +3,9 @@ import getpass
 import os
 sys_user = getpass.getuser()
 
+import dotenv
+dotenv.load_dotenv()
+
 import sys
 sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from airflow.decorators import dag, task 
