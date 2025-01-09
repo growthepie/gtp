@@ -30,5 +30,5 @@ dune_queries = [
     ,QueryBase(name="glo_holders", query_id=3732844) ## top 20 glo holders
 
     ## Checks
-    ,QueryBase(name="checks-rent-paid-v3", query_id=4037780) ## checks if rent paid v3 functions changed and sends alert if so
+    ,QueryBase(name="check-for-depreciated-L2-trx", query_id=4544157) ## checks if any of the L2s switch function type or sequencer addresses and alerts in discord if so
 ]

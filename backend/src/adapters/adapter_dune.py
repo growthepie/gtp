@@ -58,9 +58,9 @@ class AdapterDune(AbstractAdapter):
             df = self.extract_glo_holders(self.queries_to_load)
             print_extract(self.name, load_params, df.shape)
             return df
-        elif self.load_type == 'checks-rent-paid-v3':
-            self.queries_to_load = [x for x in dune_queries if x.name == 'checks-rent-paid-v3']
-            df = self.extract_checks_rent_paid_v3(self.queries_to_load)
+        elif self.load_type == 'check-for-depreciated-L2-trx':
+            self.queries_to_load = [x for x in dune_queries if x.name == 'check-for-depreciated-L2-trx']
+            df = self.extract_check(self.queries_to_load)
             print_extract(self.name, load_params, df.shape)
             return df
         else:
@@ -159,7 +159,7 @@ class AdapterDune(AbstractAdapter):
         df.set_index(['address', 'date'], inplace=True)
         return df
     
-    def extract_checks_rent_paid_v3(self, query):
+    def extract_check(self, query):
         print(f"...start loading {query[0].name} with query_id: {query[0].query_id}")
         df = self.client.refresh_into_dataframe(query[0])
         print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
