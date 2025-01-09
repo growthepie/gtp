@@ -621,6 +621,10 @@ class JSONCreation():
         chains_list_metric = [chain.origin_key for chain in self.main_config if metric_id not in chain.api_exclude_metrics]
         df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(chains_list_metric))]
 
+        ## if not dev api endpoint, filter out chains that are not on prod
+        if self.api_version != 'dev':
+            df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(self.chains_list_in_api_prod))]
+
         ## filter out ethereum
         df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
 
