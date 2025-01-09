@@ -36,7 +36,7 @@ def etl():
         load_params = {
             'query_names' : None,
             'days' : 'auto',
-            'load_type' : 'metrics'
+            'load_type' : 'fact_kpis'
         }
 
        # initialize adapter
@@ -102,7 +102,7 @@ def etl():
             'api_key' : os.getenv("DUNE_API")
         }
         load_params = {
-            'load_type' : 'check-for-depreciated-L2-trx'
+            'load_type' : 'fact_da_consumers'
         }
         db_connector = DbConnector()
         ad = AdapterDune(adapter_params, db_connector)
