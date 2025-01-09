@@ -50,7 +50,7 @@ class AdapterDune(AbstractAdapter):
             return df
         elif self.load_type == 'fact_da_consumers':
             self.queries_to_load = [x for x in dune_queries if x.name == 'API: fact_da_consumers']
-            df = self.extract_data(self.queries_to_load, days)
+            df = self.extract_fact_da_consumers(self.queries_to_load, days)
             print_extract(self.name, load_params, df.shape)
             return df
         elif self.load_type == 'inscriptions':
@@ -133,6 +133,28 @@ class AdapterDune(AbstractAdapter):
             time.sleep(1)
 
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+        return dfMain
+    
+    def extract_fact_da_consumers(self, queries_to_load, days):
+        dfMain = pd.DataFrame()
+
+        for query in queries_to_load:
+            if days == 'auto':
+                day_val = 5
+            else:
+                day_val = days
+
+            query.params = [QueryParameter.text_type(name="days", value=str(day_val))]
+
+            print(f"...start loading {query.name} with query_id: {query.query_id} and params: {query.params}")
+            df = self.client.refresh_into_dataframe(query)
+            print(f"...finished loading {query.name}. Loaded {df.shape[0]} rows")
+            
+            dfMain = pd.concat([dfMain,df])
+            time.sleep(1)
+
+        dfMain = dfMain.set_index(['date', 'da_layer', 'namespace', 'metric_key'])
+
         return dfMain
     
     def extract_inscriptions(self, query, days):

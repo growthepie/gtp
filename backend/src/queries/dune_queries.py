@@ -26,7 +26,7 @@ dune_queries = [
     ,QueryBase(name="API: fact_da_consumers", query_id=4539475, params=[QueryParameter.text_type(name="days", value="7")])
 
     ## Others
-    #,QueryBase(name="inscriptions", query_id=3346613, params=[QueryParameter.text_type(name="days", value="1000")]) ## Load inscription addresses and store in inscription_addresses table
+    ,QueryBase(name="inscriptions", query_id=3346613, params=[QueryParameter.text_type(name="days", value="1000")]) ## Load inscription addresses and store in inscription_addresses table
     ,QueryBase(name="glo_holders", query_id=3732844) ## top 20 glo holders
 
     ## Checks
