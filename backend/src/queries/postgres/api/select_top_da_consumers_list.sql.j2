@@ -12,7 +12,7 @@ SELECT
     map.gtp_origin_key,  
     SUM(value) AS data_posted
 FROM public.fact_da_consumers f
-INNER JOIN sys_da_mapping map ON lower(f."namespace") = lower(map."namespace") 
+INNER JOIN sys_economics_mapping map ON lower(f."namespace") = lower(map."namespace") 
 WHERE f.metric_key = 'blob_size_bytes'
     AND f.da_layer = '{{ da_layer }}'
 GROUP BY 1,2
