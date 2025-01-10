@@ -46,29 +46,6 @@ def etl():
         df = ad.extract(load_params)
         # load
         ad.load(df)
-    
-    @task()
-    def run_fact_da_consumers():
-        import os
-        from src.db_connector import DbConnector
-        from src.adapters.adapter_dune import AdapterDune
-
-        adapter_params = {
-            'api_key' : os.getenv("DUNE_API")
-        }
-        load_params = {
-            'query_names' : None,
-            'days' : 'auto',
-            'load_type' : 'fact_da_consumers'
-        }
-
-        # initialize adapter
-        db_connector = DbConnector()
-        ad = AdapterDune(adapter_params, db_connector)
-        # extract
-        df = ad.extract(load_params)
-        # load
-        ad.load(df)
 
     @task()
     def run_inscriptions():
