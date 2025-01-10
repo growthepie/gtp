@@ -184,7 +184,6 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "starknet", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
         ,SQLQuery(metric_key = "user_base_weekly", origin_key = "starknet", jinja_path='chain_metrics/select_waa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", jinja_path='chain_metrics/select_fees_paid.sql.j2')
-        ,SQLQuery(metric_key = "rent_paid_eth", origin_key = "starknet", jinja_path='chain_metrics/custom/starknet_rent_paid_eth.sql.j2')
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", jinja_path='chain_metrics/select_txcosts_median.sql.j2')
 
 

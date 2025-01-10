@@ -13,14 +13,11 @@ SELECT
 	"date" AS day,
 	SUM(value) AS value -- in bytes
 FROM public.fact_da_consumers a
-JOIN (
-    SELECT json_array_elements_text(da_mapping->'celestia') AS namespace
-    FROM sys_chains
-    WHERE origin_key = '{{ origin_key }}'
-) b ON a.namespace = b.namespace
+LEFT JOIN sys_economics_mapping map ON lower(a."namespace") = lower(map."namespace")
 WHERE 
     "date" >= current_date - interval '{{ days }} days' 
     AND "date" < current_date
     AND metric_key = 'blob_size_bytes'
+    and map.gtp_origin_key = '{{ origin_key }}'
 GROUP BY 1
 ORDER BY 1 DESC;
