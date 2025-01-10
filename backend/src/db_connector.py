@@ -263,7 +263,7 @@ class DbConnector:
                         ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
                 
                 if incl_profit:
-                        profit_string = ",SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'costs_l1_raw_eth', 'l1_settlement_custom_eth') THEN value END) AS profit_eth"
+                        profit_string = ",SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'cost_l1_raw_eth', 'l1_settlement_custom_eth') THEN value END) AS profit_eth"
                 else:
                         profit_string = ''
 
@@ -274,13 +274,13 @@ class DbConnector:
                                 ,SUM(CASE WHEN metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes') THEN value END) AS blob_size_bytes
 
                                 ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth') THEN value END) AS costs_blobs_eth
-                                ,SUM(CASE WHEN metric_key in ('costs_l1_raw_eth', 'l1_settlement_custom_eth') THEN value END) AS costs_l1_eth
-                                ,SUM(CASE WHEN metric_key in ('costs_l1_raw_eth', 'ethereum_blobs_eth') THEN value END) AS rent_paid_eth
+                                ,SUM(CASE WHEN metric_key in ('cost_l1_raw_eth', 'l1_settlement_custom_eth') THEN value END) AS costs_l1_eth
+                                ,SUM(CASE WHEN metric_key in ('cost_l1_raw_eth', 'ethereum_blobs_eth') THEN value END) AS rent_paid_eth
 
-                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'costs_l1_raw_eth') THEN value END) AS costs_total_eth
+                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'cost_l1_raw_eth') THEN value END) AS costs_total_eth
                                 {profit_string}
                         FROM fact_kpis tkd
-                        WHERE metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes', 'celestia_blobs_eth', 'ethereum_blobs_eth', 'costs_l1_raw_eth', 'l1_settlement_custom_eth', 'fees_paid_eth')
+                        WHERE metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes', 'celestia_blobs_eth', 'ethereum_blobs_eth', 'cost_l1_raw_eth', 'l1_settlement_custom_eth', 'fees_paid_eth')
                                 {exclude_string}
                                 {ok_string}
                                 AND date >= date_trunc('day',now()) - interval '{days} days'
@@ -407,7 +407,7 @@ class DbConnector:
                                         WHEN 'ethereum_blobs_eth' THEN 'ethereum_blobs_usd'
                                         WHEN 'celestia_blobs_eth' THEN 'celestia_blobs_usd'
                                         WHEN 'costs_blobs_eth' THEN 'costs_blobs_usd'
-                                        WHEN 'costs_l1_raw_eth' THEN 'costs_l1_raw_usd'
+                                        WHEN 'cost_l1_raw_eth' THEN 'cost_l1_raw_usd'
                                         WHEN 'costs_l1_eth' THEN 'costs_l1_usd'
                                         WHEN 'costs_total_eth' THEN 'costs_total_usd'
                                         WHEN 'da_fees_eth' THEN 'da_fees_usd'
