@@ -94,21 +94,6 @@ class DbConnector:
                         print(e)
                         return None
                 
-        def get_main_config_dict(self):
-                exec_string = "SELECT * FROM sys_chains"
-
-                df = pd.read_sql(exec_string, self.engine.connect())
-
-                ## break up all columns with dictionaries into separate columns but keep the original column name as a prefix
-                for column in ['api', 'aliases', 'metadata', 'socials', 'runs', 'backfiller', 'cross_check', 'circulating_supply']:
-                        df = pd.concat([df.drop([column], axis=1), df[column].apply(pd.Series).add_prefix(column + '_')], axis=1)
-
-                df = df.where(pd.notnull(df), None)
-                df['backfiller_batch_size'] = df['backfiller_batch_size'].fillna(0). astype(int)
-
-                main_config = df.to_dict(orient='records')
-                return main_config
-                
         def get_stage(self, origin_key:str):
                 try:
                         query = f"SELECT l2beat_stage FROM sys_chains WHERE origin_key = '{origin_key}' LIMIT 1"
