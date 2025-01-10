@@ -39,9 +39,9 @@ class AdapterDune(AbstractAdapter):
         if self.load_type == 'fact_kpis':
             ## Prepare queries to load
             if query_names is not None:
-                self.queries_to_load = [x for x in dune_queries if x.name in query_names and x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'check-for-depreciated-L2-trx' and x.name != 'API: fact_da_consumers']
+                self.queries_to_load = [x for x in dune_queries if x.name in query_names and x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'check-for-depreciated-L2-trx']
             else:
-                self.queries_to_load = [x for x in dune_queries if x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'check-for-depreciated-L2-trx' and x.name != 'API: fact_da_consumers']
+                self.queries_to_load = [x for x in dune_queries if x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'check-for-depreciated-L2-trx']
 
             ## Load data
             df = self.extract_data(self.queries_to_load, days)     

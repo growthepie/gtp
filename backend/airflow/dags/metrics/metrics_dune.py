@@ -109,9 +109,10 @@ def etl():
         df = ad.extract(load_params)
         for i, row in df.iterrows():
             send_discord_message(f"<@790276642660548619> The economics mapping function for **{row.l2}** has changed. Details: settlement on {row.settlement_layer}, {row.no_of_trx} trx per day, from_address: {row.from_address}, to_address: {row.to_address}, method: {row.method}.", os.getenv('DISCORD_ALERTS'))
+    
     run_fact_kpis()
-    run_fact_da_consumers()
     #run_inscriptions() # paused as of Jan 2025, noone uses inscriptions. Backfilling easily possible if needed
     run_glo_holders()
     check_for_depreciated_L2_trx()
+    
 etl()

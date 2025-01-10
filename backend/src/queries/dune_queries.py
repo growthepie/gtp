@@ -20,11 +20,9 @@ dune_queries = [
     #,QueryBase(name="l1-values-per-chain", query_id=4511409, params=[QueryParameter.text_type(name="days", value="7")]) ## All L1 rent values per L2
     #,QueryBase(name="beacon-total", query_id=3857093, params=[QueryParameter.text_type(name="days", value="7")]) ## Total size of blobs on beacon chain
     #,QueryBase(name="beacon-total", query_id=4096281, params=[QueryParameter.text_type(name="days", value="7")]) ## Total size of calldata on L1 
-    ,QueryBase(name="API: fact_kpis", query_id=4046209, params=[QueryParameter.text_type(name="days", value="7")])
-    # fact_da_consumers
     #,QueryBase(name="beacon-values-per-chain", query_id=4538574, params=[QueryParameter.text_type(name="days", value="7")]) ## All beacon chain rent/data values per L2
-    ,QueryBase(name="API: fact_da_consumers", query_id=4539475, params=[QueryParameter.text_type(name="days", value="7")])
-
+    ,QueryBase(name="economics_da", query_id=4046209, params=[QueryParameter.text_type(name="days", value="7")])
+    
     ## Others
     ,QueryBase(name="inscriptions", query_id=3346613, params=[QueryParameter.text_type(name="days", value="1000")]) ## Load inscription addresses and store in inscription_addresses table
     ,QueryBase(name="glo_holders", query_id=3732844) ## top 20 glo holders
