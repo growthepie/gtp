@@ -124,5 +124,8 @@ class TallyAPI:
                 df.drop(['metadata'], axis=1),
                 df['metadata'].apply(pd.Series)
             ], axis=1)
-            
+        
+        # Expand start to startTime
+        df['startTime'] = df['start'].apply(lambda x: x['timestamp'])
+
         return df
