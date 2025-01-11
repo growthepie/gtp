@@ -889,6 +889,9 @@ class OctantV2():
         """
         projects_metadata_df = self.load_from_db('projects_metadata')
 
+        ##fix grqwthepie name
+        projects_metadata_df['name'] = projects_metadata_df['name'].replace('GrowThePie', 'growthepie')
+
         # remove trailing slashes from the websiteUrl
         projects_metadata_df['website_url'] = projects_metadata_df['website_url'].str.rstrip('/')
 
