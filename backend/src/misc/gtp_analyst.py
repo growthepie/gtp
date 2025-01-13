@@ -150,6 +150,10 @@ class GTPAnalyst:
     def _evaluate_milestones(self, df, milestones):
         results = []
 
+        # Dictionary to track which milestones (for a given origin/metric/milestone_name)
+        # have already been triggered, and at which value.
+        triggered_milestones = {}
+
         for index, row in df.iterrows():
             formatted_date = row['date'].strftime('%d.%m.%Y')
             origin = row['origin']
@@ -157,59 +161,78 @@ class GTPAnalyst:
             rank = row['rank']
             value = row['value']
 
+            # ---------------------------------------------
             # Check for ATH
+            # ---------------------------------------------
             if value == row['ath']:
-                # Create milestone result for ATH
-                ath_result = self._create_milestone_result(
-                    row,
-                    milestone_name="Chain ATH",
-                    importance_score=9,
-                    date=formatted_date
-                )
-                results.append(ath_result)
+                milestone_name = "Chain ATH"
 
-                # Check for combined milestones with multiples
-                for milestone in milestones:
-                    if milestone['type'] == 'Multiples' and value >= milestone['threshold']:
-                        combined_importance = round(
-                            (milestone['importance_score'] + (rank * self.CHAIN_WEIGHT)) * self.SIGNIFICANCE_MULTIPLIER, 2
-                        )
-                        combined_result = self._create_milestone_result(
-                            row,
-                            milestone_name=f"Chain ATH and {milestone['milestone']}",
-                            importance_score=milestone['importance_score'],
-                            date=formatted_date,
-                            total_importance=combined_importance
-                        )
-                        results.append(combined_result)
+                # Skip if this exact milestone value is repeated
+                if not self._is_repeated_milestone(triggered_milestones, origin, metric, milestone_name, value):
+                    # Create milestone result for ATH
+                    ath_result = self._create_milestone_result(
+                        row,
+                        milestone_name=milestone_name,
+                        importance_score=9,
+                        date=formatted_date
+                    )
+                    results.append(ath_result)
 
+                    # Mark as triggered
+                    self._mark_milestone_triggered(triggered_milestones, origin, metric, milestone_name, value)
+
+                    # Check for combined milestones with multiples
+                    for milestone in milestones:
+                        if milestone['type'] == 'Multiples' and value >= milestone['threshold']:
+                            combined_importance = round(
+                                (milestone['importance_score'] + (rank * self.CHAIN_WEIGHT)) * self.SIGNIFICANCE_MULTIPLIER, 2
+                            )
+                            combined_result = self._create_milestone_result(
+                                row,
+                                milestone_name=f"Chain ATH and {milestone['milestone']}",
+                                importance_score=milestone['importance_score'],
+                                date=formatted_date,
+                                total_importance=combined_importance
+                            )
+                            results.append(combined_result)
+
+            # ---------------------------------------------
             # Check for 1-year high
+            # ---------------------------------------------
             if value == row['1y_high']:
-                # Create milestone result for 1-Year High
-                y_high_result = self._create_milestone_result(
-                    row,
-                    milestone_name="1-Year High",
-                    importance_score=8,
-                    date=formatted_date
-                )
-                results.append(y_high_result)
+                milestone_name = "1-Year High"
 
-                # Check for combined milestones with multiples
-                for milestone in milestones:
-                    if milestone['type'] == 'Multiples' and value >= milestone['threshold']:
-                        combined_importance = round(
-                            (milestone['importance_score'] + (rank * self.CHAIN_WEIGHT)) * self.SIGNIFICANCE_MULTIPLIER, 2
-                        )
-                        combined_result = self._create_milestone_result(
-                            row,
-                            milestone_name=f"1-Year High and {milestone['milestone']}",
-                            importance_score=milestone['importance_score'],
-                            date=formatted_date,
-                            total_importance=combined_importance
-                        )
-                        results.append(combined_result)
+                # Skip if this exact milestone value is repeated
+                if not self._is_repeated_milestone(triggered_milestones, origin, metric, milestone_name, value):
+                    y_high_result = self._create_milestone_result(
+                        row,
+                        milestone_name=milestone_name,
+                        importance_score=8,
+                        date=formatted_date
+                    )
+                    results.append(y_high_result)
 
+                    # Mark as triggered
+                    self._mark_milestone_triggered(triggered_milestones, origin, metric, milestone_name, value)
+
+                    # Check for combined milestones with multiples
+                    for milestone in milestones:
+                        if milestone['type'] == 'Multiples' and value >= milestone['threshold']:
+                            combined_importance = round(
+                                (milestone['importance_score'] + (rank * self.CHAIN_WEIGHT)) * self.SIGNIFICANCE_MULTIPLIER, 2
+                            )
+                            combined_result = self._create_milestone_result(
+                                row,
+                                milestone_name=f"1-Year High and {milestone['milestone']}",
+                                importance_score=milestone['importance_score'],
+                                date=formatted_date,
+                                total_importance=combined_importance
+                            )
+                            results.append(combined_result)
+
+            # ---------------------------------------------
             # Check percentage increases
+            # ---------------------------------------------
             pct_fields = {
                 '1d_pct_change': '24h Up',
                 '7d_pct_change': '7 days Up',
@@ -219,20 +242,48 @@ class GTPAnalyst:
             for pct_col, label in pct_fields.items():
                 pct_change = row.get(pct_col)
                 if pd.notnull(pct_change):
+                    # Evaluate each configured milestone that is of type 'Up %'
                     for milestone in milestones:
                         if milestone['type'] == 'Up %' and pct_change >= milestone['threshold']:
-                            total_importance = round(milestone['importance_score'] + (rank * self.CHAIN_WEIGHT), 2)
-                            pct_result = self._create_milestone_result(
-                                row,
-                                milestone_name=f"{label} {milestone['threshold']}%+",
-                                importance_score=milestone['importance_score'],
-                                date=formatted_date,
-                                exact_value=f"{pct_change:,.2f}%",
-                                total_importance=total_importance
-                            )
-                            results.append(pct_result)
+                            milestone_name = f"{label} {milestone['threshold']}%+"
+
+                            # Round the pct_change to avoid floating-point quirks
+                            rounded_pct_change = round(pct_change, 2)
+
+                            # Skip if this exact milestone value is repeated
+                            if not self._is_repeated_milestone(triggered_milestones, origin, metric, milestone_name, rounded_pct_change):
+                                total_importance = round(milestone['importance_score'] + (rank * self.CHAIN_WEIGHT), 2)
+                                pct_result = self._create_milestone_result(
+                                    row,
+                                    milestone_name=milestone_name,
+                                    importance_score=milestone['importance_score'],
+                                    date=formatted_date,
+                                    exact_value=f"{pct_change:,.2f}%",
+                                    total_importance=total_importance
+                                )
+                                results.append(pct_result)
+
+                                # Mark as triggered with the rounded value
+                                self._mark_milestone_triggered(triggered_milestones, origin, metric, milestone_name, rounded_pct_change)
+
+        # Sort results by date (latest first) and total importance (highest first)
+        results.sort(
+            key=lambda x: (
+                -pd.to_datetime(x['date'], format='%d.%m.%Y').timestamp(),
+                -x['total_importance']
+            )
+        )
 
         return results
+
+    def _is_repeated_milestone(self, triggered_dict, origin, metric, milestone_name, milestone_value):
+        key = (origin, metric, milestone_name)
+        last_value = triggered_dict.get(key)
+        return (last_value == milestone_value)
+
+    def _mark_milestone_triggered(self, triggered_dict, origin, metric, milestone_name, milestone_value):
+        key = (origin, metric, milestone_name)
+        triggered_dict[key] = milestone_value
 
     def _create_milestone_result(self, row, milestone_name, importance_score, date, exact_value=None, total_importance=None):
         rank = row['rank']

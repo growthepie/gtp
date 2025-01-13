@@ -27,9 +27,9 @@ CET = timezone("Europe/Paris")
     catchup=False  # Ensures only future runs are scheduled, not backfilled
 )
 
-def gtp_ai():
+def gtp_analyst():
     @task(execution_timeout=timedelta(minutes=45))
-    def run_ai():
+    def run_analyst():
         from dotenv import load_dotenv
         load_dotenv()
 
@@ -149,6 +149,6 @@ def gtp_ai():
         analytics.craft_and_send_discord_embeds(webhook_url, responses, title, footer)
         print("Discord embed message sent successfully.")
 
-    run_ai()
-gtp_ai()
+    run_analyst()
+gtp_analyst()
     
