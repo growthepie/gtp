@@ -3,22 +3,18 @@ import pandas as pd
 
 class AgoraAPI:    
     def __init__(self, api_key: str):
-        self.base_url = "https://vote.optimism.io/api/v1/"
         self.api_key = api_key
-        
-    def _get_headers(self) -> dict:
-        """
-        Generate headers for the API request.
-        Returns:
-            dict: Headers including authorization and accept type.
-        """
-        headers = {
+        self.headers = {
             'Authorization': f"Bearer {self.api_key}",
             'accept': 'application/json'
         }
-        return headers
+        # base_url mapping
+        self.base_url = {
+            "Optimism": "https://vote.optimism.io/api/v1/",
+            "Scroll": "https://gov.scroll.io/api/v1/"
+        }
     
-    def get_proposals(self, limit: int = 10, offset: int = 0) -> dict:
+    def get_proposals(self, url, limit: int = 10, offset: int = 0) -> dict:
         """
         Fetch proposals from the Agora API.
         Args:
@@ -35,12 +31,12 @@ class AgoraAPI:
             }
             
             # Print the URL for debugging purposes
-            print(f"Fetching: {self.base_url + endpoint}")
+            print(f"Fetching: {url + endpoint}")
 
             # Make the GET request
             response = requests.get(
-                self.base_url + endpoint,
-                headers=self._get_headers(),
+                url + endpoint,
+                headers=self.headers,
                 params=params
             )
             response.raise_for_status()  # Raise an exception for HTTP errors
