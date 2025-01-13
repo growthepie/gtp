@@ -18,7 +18,7 @@ SELECT
     map.gtp_origin_key,  
     SUM(value) AS data_posted
 FROM public.fact_da_consumers f
-LEFT JOIN sys_da_mapping map ON f."namespace" = map."namespace" 
+LEFT JOIN sys_economics_mapping map ON f."namespace" = map."namespace" 
 WHERE f.metric_key = 'blob_size_bytes'
     AND "date" >= current_date - INTERVAL '{{ days }} days' 
     AND "date" < current_date

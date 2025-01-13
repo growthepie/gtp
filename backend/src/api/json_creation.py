@@ -4,6 +4,9 @@ import datetime
 import pandas as pd
 import numpy as np
 from datetime import timedelta, datetime, timezone
+import zipfile
+import io
+import requests
 import getpass
 sys_user = getpass.getuser()
 
@@ -543,8 +546,26 @@ class JSONCreation():
         self.fees_list = [item for sublist in [self.fees_types[metric]['metric_keys'] for metric in self.fees_types] for item in sublist]
 
     
-    ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
+    ###### gtp-dna methods ######
+    def get_custom_logos(self):
+        # Get the repository
+        repo_url = "https://github.com/growthepie/gtp-dna/tree/main/"
+        _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
 
+        # Download directory as ZIP file
+        zip_url = f"https://github.com/{owner}/{repo_name}/archive/{branch}.zip"
+        response = requests.get(zip_url)
+        zip_content = io.BytesIO(response.content)
+
+        with zipfile.ZipFile(zip_content) as zip_ref:
+            path = 'gtp-dna-main/logos/custom_logos.json'
+            with zip_ref.open(path) as file:
+                content = file.read().decode('utf-8')
+                content = json.loads(content)
+        
+        return content
+
+    ###### CHAIN DETAILS AND METRIC DETAILS METHODS ########
     def get_metric_dict(self, metric_type):
         if metric_type == 'default':
             return self.metrics
@@ -599,6 +620,10 @@ class JSONCreation():
         ## filter out chains that have this metric excluded
         chains_list_metric = [chain.origin_key for chain in self.main_config if metric_id not in chain.api_exclude_metrics]
         df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(chains_list_metric))]
+
+        ## if not dev api endpoint, filter out chains that are not on prod
+        if self.api_version != 'dev':
+            df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(self.chains_list_in_api_prod))]
 
         ## filter out ethereum
         df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
@@ -1307,7 +1332,10 @@ class JSONCreation():
         if economics_api == True:
             df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api_economics))]
         else:
-            df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api))]
+            if self.api_version == 'dev':
+                df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api))]
+            else:
+                df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api_prod))]
 
         # filter df _tmp by date so that date is greather than 2 years ago
         df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')]  
@@ -1511,6 +1539,7 @@ class JSONCreation():
             'current_version' : self.api_version,
             'default_chain_selection' : self.get_default_selection(df_data),
             'chains' : chain_dict,
+            'custom_logos' : self.get_custom_logos(),
             'da_layers' : da_dict,
             'metrics' : self.metrics,
             'da_metrics' : self.da_metrics,
