@@ -15,7 +15,7 @@ class AdapterOSO(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("OSO", adapter_params, db_connector)
-        self.g = Github(adapter_params.get('github_token', None))
+        self.g = Github()
         self.webhook_url = adapter_params['webhook']
         print_init(self.name, self.adapter_params)
 

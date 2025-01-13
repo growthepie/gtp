@@ -30,7 +30,6 @@ def etl():
         from src.adapters.adapter_oso import AdapterOSO
 
         adapter_params = {
-            'github_token' : os.getenv("GITHUB_TOKEN"), # Optional: Add GITHUB_TOKEN to .env file for GitHub API authentication
             'webhook' : os.getenv('DISCORD_CONTRACTS')
         }
         load_params = {
