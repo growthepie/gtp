@@ -19,7 +19,7 @@ def run_ai():
     print("Loading environment variables...")
     url = os.getenv("GTP_URL")
     local_filename = os.getenv("GTP_AI_LOCAL_FILENAME")
-    webhook_url = os.getenv("GTP_AI_WEBHOOK_URL")
+    webhook_url = os.getenv("GTP_ANALYST_WEBHOOK_URL_LOCAL")
 
     if not url or not local_filename or not webhook_url:
         raise ValueError("Environment variables for URL, local filename, or webhook URL are not set.")
@@ -124,7 +124,7 @@ def run_ai():
     print("Crafting and sending Discord embed message...")
     title = "Layer 2 Blockchain Milestone Update"
     footer = f"Analysis as of {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | Data compiled from latest metrics"
-    #analytics.craft_and_send_discord_embeds(webhook_url, responses, title, footer)
+    analytics.craft_and_send_discord_embeds(webhook_url, responses, title, footer)
     print("Discord embed message sent successfully.")
 
 if __name__ == "__main__":
