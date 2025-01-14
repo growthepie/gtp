@@ -10,17 +10,13 @@
 {% set days = days | default(7) %}
 
 SELECT 
-    date_trunc('day', block_timestamp) AS day, 
-    COUNT(*) AS value -- number of blobs
-FROM (
-    SELECT 
-        block_timestamp, 
-        jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_sizes
-    FROM celestia_tx
-    WHERE 
-    	block_timestamp >= current_date - interval '{{ days }} days' 
-        AND block_timestamp < current_date
-        AND blob_sizes IS NOT NULL
-)
+	"date" AS day,
+	SUM(value) AS value -- number blobs
+FROM public.fact_da_consumers
+WHERE 
+    "date" >= current_date - interval '{{ days }} days' 
+    AND "date" < current_date
+    AND metric_key = 'blob_count'
+    AND da_layer = 'da_celestia'
 GROUP BY 1
 ORDER BY 1 DESC;
