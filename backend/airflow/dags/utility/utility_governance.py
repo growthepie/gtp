@@ -56,7 +56,6 @@ def etl():
         # checking Optimism and Scroll
         a = AgoraAPI(os.getenv("Agora_API_KEY"))
         for governance in a.base_url:
-            print(governance)
             proposals = a.get_proposals(a.base_url[governance])
             for i, proposal in proposals.iterrows():
                 if proposal['startTime'].split('T')[0] == datetime.now().isoformat().split('T')[0]: # only post about proposals that are starting voting today
