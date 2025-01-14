@@ -72,7 +72,6 @@ def etl():
             [
                 L2,
                 layers.get('name'), 
-                layers.get('gtp_origin_key'),
                 settlement_layer, 
                 f.get('from_address'), 
                 f.get('to_address'), 
@@ -83,12 +82,12 @@ def etl():
             for settlement_layer, filters in layers.items() if isinstance(filters, list)
             for f in filters
         ]
-        df = pd.DataFrame(table, columns=['da_consumer_key', 'name', 'gtp_origin_key', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'])
+        df = pd.DataFrame(table, columns=['origin_key', 'name', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'])
 
         ## in column da_layer rename 'celestia' to 'da_celestia', 'L1' to 'da_ethereum_calldata', 'beacon' to 'da_ethereum_blobs'
-        df['da_layer'] = df['da_layer'].replace({'celestia': 'da_celestia', 'L1': 'da_ethereum_calldata', 'beacon': 'da_ethereum_blobs'})
+        df['da_layer'] = df['da_layer'].replace({'celestia': 'da_celestia', 'l1': 'da_ethereum_calldata', 'beacon': 'da_ethereum_blobs'})
 
-        df.set_index(['da_consumer_key', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'], inplace=True)
+        df.set_index(['origin_key', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'], inplace=True)
 
         db_connector = DbConnector()
         db_connector.upsert_table('sys_economics_mapping', df)
