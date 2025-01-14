@@ -46,7 +46,11 @@ def etl():
         adapter_params = {}
         load_params = {
             'load_type' : 'jinja', ## usd_to_eth or metrics or blockspace
-            'queries' : ['da_metrics/upsert_fact_da_consumers_celestia_blob_size.sql.j2', 'da_metrics/upsert_fact_da_consumers_celestia_blob_fees.sql.j2', 'da_metrics/upsert_fact_da_consumers_celestia_blob_count.sql.j2'],
+            'queries' : ['da_metrics/upsert_fact_da_consumers_celestia_blob_size.sql.j2', 
+                         'da_metrics/upsert_fact_da_consumers_celestia_blob_fees.sql.j2', 
+                         'da_metrics/upsert_fact_da_consumers_celestia_blob_count.sql.j2',
+                         'da_metrics/upsert_fact_kpis_celestia_chain_metrics.sql.j2'
+                         ],
         }
 
         # initialize adapter

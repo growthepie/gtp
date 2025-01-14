@@ -1,0 +1,26 @@
+{#
+    Insert or update records into the 'fact_kpis' table. This query computes the sum of of DA metrics on chain level based on the economics mapping and the 'fact_da_consumers' table.
+    
+    Parameters:
+    - days: default = 7; The time interval (in days) to consider for the data extraction. This will be dynamically injected into the query via Jinja2 templating.
+#}
+
+{% set days = days | default(7) %}
+
+INSERT INTO fact_kpis (metric_key, origin_key, date, value)
+
+	SELECT 
+		REPLACE(REPLACE(REPLACE(metric_key , 'blob_size_bytes', 'celestia_blob_size_bytes'), 'blob_fee_eth', 'celestia_blobs_eth'), 'blob_count', 'celestia_blob_count') AS metric_key,
+		eco.origin_key, 
+		"date",
+		sum(value) as value
+	FROM public.fact_da_consumers f
+	inner join sys_economics_mapping eco using ("namespace")
+	where f.da_layer = 'da_celestia'
+        and date > current_date - interval '{{ days }} days'   -- Dynamic time interval
+        and date < current_date 
+	group by 1,2,3
+
+ON CONFLICT (metric_key, origin_key, date)  
+DO UPDATE SET 
+    value = EXCLUDED.value;
