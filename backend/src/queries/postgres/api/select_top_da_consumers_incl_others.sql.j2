@@ -1,28 +1,40 @@
 
 
 {% set days = days | default(7) %}
-{% set da_layer = da_layer | default('all') %}
 {% set limit = limit | default(10) %}
 
-WITH RankedData AS (
+{% if da_layer == "da_ethereum_blobs" %}
+    {% set metric_key = "= 'ethereum_blob_size_bytes'" %}
+{% elif da_layer == "da_celestia" %}
+    {% set metric_key = "= 'celestia_blob_size_bytes'" %}
+{% endif %}
+
+with econ_names as (
     SELECT 
-        COALESCE(map.da_consumer_key, f.namespace) AS da_consumer_key, 
-        map.name, 
-        f.da_layer, 
-        map.gtp_origin_key,  
-        SUM(value) AS data_posted,
-        RANK() OVER (ORDER BY SUM(value) DESC) AS rank
-    FROM public.fact_da_consumers f
-    LEFT JOIN sys_economics_mapping map ON f."namespace" = map."namespace" 
-    WHERE f.metric_key = 'blob_size_bytes'
-        AND "date" >= current_date - INTERVAL '{{ days }} days' 
-        AND "date" < current_date
-        -- if da_layer is specified, filter by it
-        {% if da_layer != 'all' %}
-            AND f.da_layer = '{{ da_layer }}'
-        {% endif %}
-    GROUP BY 1,2,3,4
+        origin_key,
+        max("name") as econ_name
+    FROM sys_economics_mapping
+    group by 1
 ),
+
+RankedData as (
+    select 
+        origin_key as da_consumer_key,
+        eco.econ_name as name,
+        'NA' as da_layer,
+        c.origin_key as gtp_origin_key,
+        sum(value) as data_posted,
+        RANK() OVER (ORDER BY SUM(value) DESC) AS rank
+    FROM public.fact_kpis
+    left join econ_names eco using (origin_key)
+    left join sys_chains c using (origin_key)
+    where metric_key {{ metric_key }}
+    AND "date" >= current_date - INTERVAL '{{ days }} days' 
+        AND "date" < current_date
+    group by 1,2,3,4
+    order by 5 desc
+),
+
 TopWithTotals AS (
     SELECT
         da_consumer_key,
