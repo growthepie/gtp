@@ -18,6 +18,6 @@ WHERE
     "date" >= current_date - interval '{{ days }} days' 
     AND "date" < current_date
     AND metric_key = 'blob_size_bytes'
-    and map.gtp_origin_key = '{{ origin_key }}'
+    and map.origin_key = '{{ origin_key }}'
 GROUP BY 1
 ORDER BY 1 DESC;
