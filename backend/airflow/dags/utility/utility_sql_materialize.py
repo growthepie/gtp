@@ -87,6 +87,9 @@ def etl():
         ## in column da_layer rename 'celestia' to 'da_celestia', 'L1' to 'da_ethereum_calldata', 'beacon' to 'da_ethereum_blobs'
         df['da_layer'] = df['da_layer'].replace({'celestia': 'da_celestia', 'l1': 'da_ethereum_calldata', 'beacon': 'da_ethereum_blobs'})
 
+        ## replace None with 'NA' in all columns
+        df.fillna('NA', inplace=True)
+
         df.set_index(['origin_key', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'], inplace=True)
 
         db_connector = DbConnector()
