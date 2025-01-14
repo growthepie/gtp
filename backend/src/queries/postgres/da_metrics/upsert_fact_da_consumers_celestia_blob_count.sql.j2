@@ -1,0 +1,34 @@
+{#
+    Insert or update records into the 'fact_da_consumers' table. This query computes the sum of 'blob_count' from the 'celestia_tx' table.
+    It counts the blobs submitted per namespace.
+    
+    Parameters:
+    - days: default = 7; The time interval (in days) to consider for the data extraction. This will be dynamically injected into the query via Jinja2 templating.
+#}
+
+{% set days = days | default(7) %}
+
+INSERT INTO fact_da_consumers (date, da_layer, namespace, metric_key, value)
+
+    SELECT 
+        date_trunc('day', block_timestamp) AS day, 
+        'da_celestia' as da_layer,
+        namespace,
+        'blob_count' as metric_key,
+        COUNT(*) AS value -- number of blobs
+    FROM (
+        SELECT 
+            block_timestamp, 
+            jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_sizes,
+            trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
+        FROM celestia_tx
+        WHERE 
+            block_timestamp > current_date - interval '{{ days }} days' 
+            AND block_timestamp < current_date
+            AND blob_sizes IS NOT NULL
+    )
+    GROUP BY 1,2,3,4
+
+ON CONFLICT (date, da_layer, namespace, metric_key)  
+DO UPDATE SET 
+    value = EXCLUDED.value;

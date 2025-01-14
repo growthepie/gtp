@@ -17,5 +17,6 @@ WHERE
     "date" >= current_date - interval '{{ days }} days' 
     AND "date" < current_date
     AND metric_key = 'blob_size_bytes'
+    AND da_layer = 'da_celestia'
 GROUP BY 1
 ORDER BY 1 DESC;

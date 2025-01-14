@@ -6,6 +6,8 @@
     - days: default = 7; The time interval (in days) to consider for the data extraction. This will be dynamically injected into the query via Jinja2 templating.
 #}
 
+{% set days = days | default(7) %}
+
 INSERT INTO fact_da_consumers (date, da_layer, namespace, metric_key, value)
 
 SELECT
@@ -16,14 +18,13 @@ SELECT
     sum(blob_sizes) AS value
 FROM (
     SELECT 
-        tx_hash, 
         block_timestamp, 
         jsonb_array_elements(blob_sizes::jsonb)::numeric AS blob_sizes,
         trim('"' FROM jsonb_array_elements(namespaces::jsonb)::text) AS namespace
     FROM celestia_tx
     WHERE 
-        block_timestamp > date_trunc('day', now()) - interval '{{ days | default (7) }} days'  -- Dynamic time interval
-        AND block_timestamp < date_trunc('day', now())
+        block_timestamp > current_date - interval '{{ days }} days'   -- Dynamic time interval
+        AND block_timestamp < current_date
         AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
 ) AS subquery
 GROUP BY 1,2,3,4
