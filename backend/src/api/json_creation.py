@@ -40,7 +40,7 @@ class JSONCreation():
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
-        self.main_config = get_main_config()
+        self.main_config = get_main_config(api_version=self.api_version)
         self.multi_config = get_multi_config()
         self.da_config = get_da_config()
         self.latest_eth_price = self.db_connector.get_last_price_usd('ethereum')
@@ -85,7 +85,7 @@ class JSONCreation():
 
         self.metrics = {
             'tvl': {
-                'name': 'Total Value Locked',
+                'name': 'Total Value Secured',
                 'fundamental': True,
                 'metric_keys': ['tvl', 'tvl_eth'],
                 'units': {

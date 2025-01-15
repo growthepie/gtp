@@ -132,9 +132,9 @@ def get_main_config_dict():
 
     return main_config_dict
 
-def get_main_config(db_connector:DbConnector=None, main_config_dict=None, source='s3'):
+def get_main_config(db_connector:DbConnector=None, main_config_dict=None, source='s3', api_version = 'v1'):
     if source == 's3':
-        response = requests.get("https://api.growthepie.xyz/v1/main_conf.pkl")
+        response = requests.get(f"https://api.growthepie.xyz/{api_version}/main_conf.pkl")
         main_config = pickle.loads(response.content)
     elif source == 'github':
         if not main_config_dict:
