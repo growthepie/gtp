@@ -5,16 +5,28 @@
     - da_layer: The DA layer to consider for data extraction.
 #}
 
-{% set da_layer = da_layer %}
+{% if da_layer == "da_ethereum_blobs" %}
+    {% set metric_key = "ethereum_blob_size_bytes" %}
+{% elif da_layer == "da_celestia" %}
+    {% set metric_key = "celestia_blob_size_bytes" %}
+{% endif %}
 
-SELECT 
-    map.name, 
-    map.gtp_origin_key,  
-    SUM(value) AS data_posted
-FROM public.fact_da_consumers f
-INNER JOIN sys_economics_mapping map ON lower(f."namespace") = lower(map."namespace") 
-WHERE f.metric_key = 'blob_size_bytes'
-    AND f.da_layer = '{{ da_layer }}'
-GROUP BY 1,2
-having SUM(value) > 0.1 * 1024 * 1024 * 1024 --at least 100MB of data posted
+with econ_names as (
+    SELECT 
+        origin_key,
+        max("name") as econ_name
+    FROM sys_economics_mapping
+    group by 1
+)
+
+select 
+	eco.econ_name as name,
+	c.origin_key as gtp_origin_key,
+	sum(value) as data_posted
+from fact_kpis fk 
+left join econ_names eco using (origin_key)
+left join sys_chains c using (origin_key)
+where metric_key = '{{ metric_key }}'
+group by 1,2
+having sum(value) > 0.1 * 1024 * 1024 * 1024 --at least 100MB of data posted
 order by 3 desc

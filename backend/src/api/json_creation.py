@@ -40,7 +40,7 @@ class JSONCreation():
         self.s3_bucket = s3_bucket
         self.cf_distribution_id = cf_distribution_id
         self.db_connector = db_connector
-        self.main_config = get_main_config()
+        self.main_config = get_main_config(api_version=self.api_version)
         self.multi_config = get_multi_config()
         self.da_config = get_da_config()
         self.latest_eth_price = self.db_connector.get_last_price_usd('ethereum')
@@ -85,7 +85,7 @@ class JSONCreation():
 
         self.metrics = {
             'tvl': {
-                'name': 'Total Value Locked',
+                'name': 'Total Value Secured',
                 'fundamental': True,
                 'metric_keys': ['tvl', 'tvl_eth'],
                 'units': {
@@ -426,7 +426,7 @@ class JSONCreation():
                 'log_default': False
             }
             ,'fees_paid': {
-                'name': 'Fees Paid',
+                'name': 'DA Fees Paid',
                 'fundamental': True,
                 'metric_keys': ['da_fees_usd', 'da_fees_eth'],
                 'units': {
@@ -454,7 +454,7 @@ class JSONCreation():
                 'log_default': True
             }
             ,'blob_producers': {
-                'name': 'Blob Producers',
+                'name': 'DA Consumers',
                 'fundamental': True,
                 'metric_keys': ['da_unique_blob_producers'],
                 'units': {
@@ -1600,6 +1600,10 @@ class JSONCreation():
          ## put all origin_keys from main_config in a list where in_api is True
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
 
+        #if 'ethereum' exists in chain_keys, remove it
+        if 'ethereum' in chain_keys:
+            chain_keys.remove('ethereum')
+
         for days in [1,7,30,90,180,365]:
             contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
 
@@ -2284,8 +2288,8 @@ class JSONCreation():
                     total_fees_eth += da_dict['data']['da_breakdown'][key][timeframe_key]['fees']['total'][1]
                     total_data_posted += da_dict['data']['da_breakdown'][key][timeframe_key]['size']['total'][0]
 
-            total_data_per_mb_usd = total_fees_usd / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0
-            total_data_per_mb_eth = total_fees_eth / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0           
+            total_data_per_mb_usd = total_fees_usd / total_data_posted * 1024 * 1024 if total_data_posted != 0 else 0.0
+            total_data_per_mb_eth = total_fees_eth / total_data_posted * 1024 * 1024 if total_data_posted != 0 else 0.0           
 
             da_dict['data']['da_breakdown']['totals'][timeframe_key] = {
                 "fees": {

@@ -5,7 +5,7 @@
     - Extracts `blob_sizes` and `namespaces` from JSON columns in `celestia_tx`.
     - Calculates blob-related fees using fixed and variable fee shares.
     - Aggregates fees by date, data availability (DA) layer and DA consumer ID.
-    - Converts fees into eth equivilant with hourly price granularity from `fact_kpis_granular`.
+    - Converts fees into eth equivalent with hourly price granularity from `fact_kpis_granular`.
 
     ### Parameters:
     - days: default = 7; Specifies the lookback period in days. Injected dynamically using Jinja2 templating.
@@ -39,8 +39,8 @@ celestia_blob_transactions as (
 	    jsonb_array_length(blob_sizes::jsonb) AS tx_blob_count -- total amount of blobs in the transaction
 	FROM celestia_tx
 	WHERE 
-	    block_timestamp > date_trunc('day', now()) - interval '{{ days }} days'
-        AND block_timestamp < date_trunc('day', now())
+	    block_timestamp > current_date - interval '{{ days }} days'
+        AND block_timestamp < current_date
         AND blob_sizes IS NOT NULL
 		--AND "action" = 'celestia.blob.v1.MsgPayForBlobs'
 ), 

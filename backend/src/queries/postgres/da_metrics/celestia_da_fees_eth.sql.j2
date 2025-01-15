@@ -10,22 +10,14 @@
 
 {% set days = days | default(7) %}
 
-WITH tia_price AS (
-    SELECT "timestamp", value AS price_eth
-    FROM public.fact_kpis_granular
-    WHERE 
-        origin_key = 'celestia' 
-        AND metric_key = 'price_eth' 
-        AND granularity = 'hourly'
-        AND "timestamp" BETWEEN date_trunc('day', now()) - INTERVAL '{{ days }} days' 
-                           AND date_trunc('day', now())
-)
 SELECT 
-    date_trunc('day', block_timestamp) AS day, 
-    SUM(fee * price_eth)/1e6 AS value
-FROM celestia_tx tx
-LEFT JOIN tia_price p ON date_trunc('hour', tx.block_timestamp) = p."timestamp"
-WHERE blob_sizes IS NOT NULL
-    AND block_timestamp >= current_date - interval '{{ days }} days' 
-    AND block_timestamp < current_date
-GROUP BY 1;
+	"date" AS day,
+	SUM(value) AS value -- in eth
+FROM public.fact_da_consumers
+WHERE 
+    "date" >= current_date - interval '{{ days }} days' 
+    AND "date" < current_date
+    AND metric_key = 'blob_fee_eth'
+    AND da_layer = 'da_celestia'
+GROUP BY 1
+ORDER BY 1 DESC;

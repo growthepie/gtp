@@ -9,49 +9,82 @@
 
 {% set days = days | default(7) %}
 {% set limit = limit | default(7) %}
-{% set da_layer = da_layer %}
 
+{% if da_layer == "da_ethereum_blobs" %}
+    {% set metric_key = "ethereum_blob_size_bytes" %}
+{% elif da_layer == "da_celestia" %}
+    {% set metric_key = "celestia_blob_size_bytes" %}
+{% endif %}
+
+
+with econ_names as (
+    SELECT 
+        origin_key,
+        max("name") as econ_name
+    FROM sys_economics_mapping
+    group by 1
+),
 
 -- top 7 consumers in the last 7 days (hardcoded)
-with top_7 as (
+top_7 as (
 	SELECT 
-	    COALESCE(map.da_consumer_key, lower(f.namespace)) AS da_consumer_key, 
-	    map.name, 
-	    map.gtp_origin_key,  
-	    SUM(value) AS data_posted
-	FROM public.fact_da_consumers f
-	LEFT JOIN sys_economics_mapping map ON lower(f."namespace") = lower(map."namespace") 
-	WHERE f.metric_key = 'blob_size_bytes'
-	    AND "date" >= current_date - INTERVAL '30 days'
-	    AND "date" < current_date
-	    AND f.da_layer = '{{ da_layer }}'
-	GROUP BY 1,2,3
-	order by 4 desc
+		origin_key as da_consumer_key,  
+		SUM(value) AS data_posted
+	FROM public.fact_kpis f
+	WHERE f.metric_key = '{{ metric_key }}'
+		AND "date" >= current_date - INTERVAL '7 days'
+		AND "date" < current_date
+	GROUP BY 1
+	order by 2 desc
 	limit {{ limit }}
 ),
 
-timeseries_data as (
+top_7_ts as (
 	SELECT 
-	    COALESCE(map.da_consumer_key, lower(f.namespace)) AS da_consumer_key, 
+	    origin_key as da_consumer_key, 
 	    f."date",
+	    eco.econ_name as name,
+	    c.origin_key as gtp_origin_key, -- outdate but would break json
 	    SUM(value) AS data_posted
-	FROM public.fact_da_consumers f
-	LEFT JOIN sys_economics_mapping map ON lower(f."namespace") = lower(map."namespace")
-	WHERE f.metric_key = 'blob_size_bytes'
+	FROM public.fact_kpis f
+	inner join top_7 t7 on f.origin_key = t7.da_consumer_key
+	left join econ_names eco using (origin_key)
+	left join sys_chains c using (origin_key)
+	WHERE f.metric_key = '{{ metric_key }}'
 	    AND "date" >= current_date - INTERVAL '{{ days }} days' 
 	    AND "date" < current_date
-	    AND f.da_layer = '{{ da_layer }}'
-	GROUP BY 1,2
-	order by 2 desc
+	GROUP BY 1,2,3,4
+),
+
+total_ts as (
+	select 
+		date,
+		sum(value) as total
+	from fact_kpis
+	where metric_key = '{{ metric_key }}'
+	AND "date" >= current_date - INTERVAL '{{ days }} days' 
+	    AND "date" < current_date
+	group by 1
+),
+
+
+others_ts as (
+	select 
+		'others' as da_consumer_key,
+		date,		
+		'Others' as name,
+		null as gtp_origin_key,
+		total-top_7_data as data_posted
+	from (
+		select
+			date,
+			sum(data_posted) as top_7_data
+		from top_7_ts
+		group by 1
+		) a
+	left join total_ts t using (date)
 )
 
-select 
-	coalesce(t7.da_consumer_key, 'others') as da_consumer_key,
-	ts.date,
-	coalesce(t7.name, 'Others') as name,
-	t7.gtp_origin_key,
-	sum(ts.data_posted) as data_posted
-from timeseries_data ts
-left join top_7 t7 using (da_consumer_key)
-group by 1,2,3,4
-order by ts.date desc
+select * from top_7_ts
+union all
+select * from others_ts
