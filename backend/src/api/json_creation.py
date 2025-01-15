@@ -1600,6 +1600,10 @@ class JSONCreation():
          ## put all origin_keys from main_config in a list where in_api is True
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
 
+        #if 'ethereum' exists in chain_keys, remove it
+        if 'ethereum' in chain_keys:
+            chain_keys.remove('ethereum')
+
         for days in [1,7,30,90,180,365]:
             contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
 
@@ -2284,8 +2288,8 @@ class JSONCreation():
                     total_fees_eth += da_dict['data']['da_breakdown'][key][timeframe_key]['fees']['total'][1]
                     total_data_posted += da_dict['data']['da_breakdown'][key][timeframe_key]['size']['total'][0]
 
-            total_data_per_mb_usd = total_fees_usd / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0
-            total_data_per_mb_eth = total_fees_eth / total_data_posted / 1024 / 1024 if total_data_posted != 0 else 0.0           
+            total_data_per_mb_usd = total_fees_usd / total_data_posted * 1024 * 1024 if total_data_posted != 0 else 0.0
+            total_data_per_mb_eth = total_fees_eth / total_data_posted * 1024 * 1024 if total_data_posted != 0 else 0.0           
 
             da_dict['data']['da_breakdown']['totals'][timeframe_key] = {
                 "fees": {
