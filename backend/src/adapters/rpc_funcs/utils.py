@@ -480,7 +480,7 @@ def prep_dataframe_new(df, chain):
     """
     op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber', 'worldchain', 'mint']
     default_chains = ['manta', 'metis']
-    arbitrum_nitro_chains = ['arbitrum', 'gravity']
+    arbitrum_nitro_chains = ['arbitrum', 'gravity', 'real', 'arbitrum_nova']
     
     chain_lower = chain.lower()
 
