@@ -426,7 +426,7 @@ class JSONCreation():
                 'log_default': False
             }
             ,'fees_paid': {
-                'name': 'Fees Paid',
+                'name': 'DA Fees Paid',
                 'fundamental': True,
                 'metric_keys': ['da_fees_usd', 'da_fees_eth'],
                 'units': {
@@ -454,7 +454,7 @@ class JSONCreation():
                 'log_default': True
             }
             ,'blob_producers': {
-                'name': 'Blob Producers',
+                'name': 'DA Consumers',
                 'fundamental': True,
                 'metric_keys': ['da_unique_blob_producers'],
                 'units': {
