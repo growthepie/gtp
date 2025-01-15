@@ -57,41 +57,46 @@ def etl():
         ad.extract(load_params)
 
     @task()
-    def run_da_mapping():
+    def run_economics_mapping():
+        import requests
         import yaml
         import pandas as pd
         from src.db_connector import DbConnector
 
-        ## read file src/da_mapping.yml into dict
-        if sys_user == 'ubuntu':
-                with open(f'/home/{sys_user}/gtp/backend/src/da_mapping.yml', 'r') as file:
-                    da_mapping = yaml.safe_load(file)
-        else:
-                with open('src/da_mapping.yml', 'r') as file:
-                    da_mapping = yaml.safe_load(file)
-            
-        # Flatten the nested dictionary and extract relevant fields
-        rows = []
-        for da_layer, da_keys in da_mapping.items():
-            for da_key, details in da_keys.items():
-                rows.append({
-                    'da_layer': da_layer,
-                    'da_consumer_key': da_key,
-                    'gtp_origin_key': details.get('gtp_origin_key', None),
-                    'name': details.get('name', None),
-                    'namespace': details.get('namespace', None),
-                })
+        # URL of the raw file from GitHub
+        url = "https://raw.githubusercontent.com/growthepie/gtp-dna/refs/heads/main/economics_da/economics_mapping.yml"
+        response = requests.get(url)
 
-        # Create the DataFrame
-        df = pd.DataFrame(rows)
-        df.set_index(['da_layer', 'da_consumer_key'], inplace=True)
+        data = yaml.load(response.text, Loader=yaml.FullLoader)
+        table = [
+            [
+                L2,
+                layers.get('name'), 
+                layers.get('gtp_origin_key'),
+                settlement_layer, 
+                f.get('from_address'), 
+                f.get('to_address'), 
+                f.get('method'), 
+                f.get('namespace') if settlement_layer == 'celestia' else None
+            ]
+            for L2, layers in data.items()
+            for settlement_layer, filters in layers.items() if isinstance(filters, list)
+            for f in filters
+        ]
+        df = pd.DataFrame(table, columns=['da_consumer_key', 'name', 'gtp_origin_key', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'])
+
+        ## in column da_layer rename 'celestia' to 'da_celestia', 'L1' to 'da_ethereum_calldata', 'beacon' to 'da_ethereum_blobs'
+        df['da_layer'] = df['da_layer'].replace({'celestia': 'da_celestia', 'L1': 'da_ethereum_calldata', 'beacon': 'da_ethereum_blobs'})
+
+        df.set_index(['da_consumer_key', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'], inplace=True)
 
         db_connector = DbConnector()
-        db_connector.upsert_table('sys_da_mapping', df)
+        db_connector.upsert_table('sys_economics_mapping', df)
+
 
     run_unique_senders()
     run_da_queries()
-    run_da_mapping()
+    run_economics_mapping()
 etl()
 
 

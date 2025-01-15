@@ -15,16 +15,18 @@ dune_queries = [
     ,QueryBase(name="stables_mcap", query_id=2608415, params=[QueryParameter.text_type(name="days", value="7")])
     # ,QueryBase(name="stables_mcap", query_id=3808795, params=[QueryParameter.text_type(name="Days", value="7")]) ## zksync_era, imx, polgyon_zkevm stables_mcap (daily)
     
-    # the three queries below are merged into one endpoint called all-economics-blobs
-    #,QueryBase(name="rent_paid", query_id=4031521, params=[QueryParameter.text_type(name="days", value="7")]) ## Rent paid to mainnet for all L2s
-    #,QueryBase(name="total_blob_size", query_id=3857093, params=[QueryParameter.text_type(name="days", value="7")]) ## Total size of blobs on Ethereum
-    #,QueryBase(name="blob_size_per_chain", query_id=4043212, params=[QueryParameter.text_type(name="days", value="7")]) ## Size of blobs by each L2 chain on Ethereum
-    ,QueryBase(name="all-economics-blobs", query_id=4046209, params=[QueryParameter.text_type(name="days", value="7")])
-
+    # commented out queries below are merged into one endpoint named after the table they are stored in: 
+    # fact_kpis
+    #,QueryBase(name="l1-values-per-chain", query_id=4511409, params=[QueryParameter.text_type(name="days", value="7")]) ## All L1 rent values per L2
+    #,QueryBase(name="beacon-total", query_id=3857093, params=[QueryParameter.text_type(name="days", value="7")]) ## Total size of blobs on beacon chain
+    #,QueryBase(name="beacon-total", query_id=4096281, params=[QueryParameter.text_type(name="days", value="7")]) ## Total size of calldata on L1 
+    #,QueryBase(name="beacon-values-per-chain", query_id=4538574, params=[QueryParameter.text_type(name="days", value="7")]) ## All beacon chain rent/data values per L2
+    ,QueryBase(name="economics_da", query_id=4046209, params=[QueryParameter.text_type(name="days", value="7")])
+    
     ## Others
     ,QueryBase(name="inscriptions", query_id=3346613, params=[QueryParameter.text_type(name="days", value="1000")]) ## Load inscription addresses and store in inscription_addresses table
     ,QueryBase(name="glo_holders", query_id=3732844) ## top 20 glo holders
 
     ## Checks
-    ,QueryBase(name="checks-rent-paid-v3", query_id=4037780) ## checks if rent paid v3 functions changed and sends alert if so
+    ,QueryBase(name="check-for-depreciated-L2-trx", query_id=4544157) ## checks if any of the L2s switch function type or sequencer addresses and alerts in discord if so
 ]

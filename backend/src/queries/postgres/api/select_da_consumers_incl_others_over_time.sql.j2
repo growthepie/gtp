@@ -20,7 +20,7 @@ with top_7 as (
 	    map.gtp_origin_key,  
 	    SUM(value) AS data_posted
 	FROM public.fact_da_consumers f
-	LEFT JOIN sys_da_mapping map ON lower(f."namespace") = lower(map."namespace") 
+	LEFT JOIN sys_economics_mapping map ON lower(f."namespace") = lower(map."namespace") 
 	WHERE f.metric_key = 'blob_size_bytes'
 	    AND "date" >= current_date - INTERVAL '30 days'
 	    AND "date" < current_date
@@ -36,7 +36,7 @@ timeseries_data as (
 	    f."date",
 	    SUM(value) AS data_posted
 	FROM public.fact_da_consumers f
-	LEFT JOIN sys_da_mapping map ON lower(f."namespace") = lower(map."namespace")
+	LEFT JOIN sys_economics_mapping map ON lower(f."namespace") = lower(map."namespace")
 	WHERE f.metric_key = 'blob_size_bytes'
 	    AND "date" >= current_date - INTERVAL '{{ days }} days' 
 	    AND "date" < current_date

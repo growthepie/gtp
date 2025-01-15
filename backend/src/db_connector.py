@@ -94,21 +94,6 @@ class DbConnector:
                         print(e)
                         return None
                 
-        def get_main_config_dict(self):
-                exec_string = "SELECT * FROM sys_chains"
-
-                df = pd.read_sql(exec_string, self.engine.connect())
-
-                ## break up all columns with dictionaries into separate columns but keep the original column name as a prefix
-                for column in ['api', 'aliases', 'metadata', 'socials', 'runs', 'backfiller', 'cross_check', 'circulating_supply']:
-                        df = pd.concat([df.drop([column], axis=1), df[column].apply(pd.Series).add_prefix(column + '_')], axis=1)
-
-                df = df.where(pd.notnull(df), None)
-                df['backfiller_batch_size'] = df['backfiller_batch_size'].fillna(0). astype(int)
-
-                main_config = df.to_dict(orient='records')
-                return main_config
-                
         def get_stage(self, origin_key:str):
                 try:
                         query = f"SELECT l2beat_stage FROM sys_chains WHERE origin_key = '{origin_key}' LIMIT 1"
@@ -261,7 +246,6 @@ class DbConnector:
         The get_economics_in_eth function is used to get the economics data on chain level in ETH. The following metrics are calculated:
         - blob_size_bytes: total blob size in bytes (currently sum of celestia and ethereum blob size)
         - costs_blobs_eth: costs for storing blobs in ETH (sum of celestia and ethereum blobs)
-        - costs_da_eth: costs for data availability in ETH (sum of celestia and ethereum blobs and l1 data availability). Warning: not clear split in l1_data_availability_eth and l1_settlement_eth
         - costs_l1_eth: costs for ethereuem excl blobs (sum of l1 data availability and l1 settlement)
         - rent_paid_eth: total amount of fees that is paid to Ethereum (blobs and l1 data availability and l1 settlement)
         - costs_total_eth: total costs in ETH (sum of all costs of a chain)
@@ -279,7 +263,7 @@ class DbConnector:
                         ok_string = "AND tkd.origin_key in ('" + "', '".join(origin_keys) + "')"
                 
                 if incl_profit:
-                        profit_string = ",SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS profit_eth"
+                        profit_string = ",SUM(CASE WHEN metric_key = 'fees_paid_eth' THEN value END) - SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'cost_l1_raw_eth', 'l1_settlement_custom_eth') THEN value END) AS profit_eth"
                 else:
                         profit_string = ''
 
@@ -290,14 +274,13 @@ class DbConnector:
                                 ,SUM(CASE WHEN metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes') THEN value END) AS blob_size_bytes
 
                                 ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth') THEN value END) AS costs_blobs_eth
-                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth') THEN value END) AS costs_da_eth
-                                ,SUM(CASE WHEN metric_key in ('l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_l1_eth
-                                ,SUM(CASE WHEN metric_key in ('l1_data_availability_eth', 'l1_settlement_eth', 'ethereum_blobs_eth') THEN value END) AS rent_paid_eth
+                                ,SUM(CASE WHEN metric_key in ('cost_l1_raw_eth', 'l1_settlement_custom_eth') THEN value END) AS costs_l1_eth
+                                ,SUM(CASE WHEN metric_key in ('cost_l1_raw_eth', 'ethereum_blobs_eth') THEN value END) AS rent_paid_eth
 
-                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth') THEN value END) AS costs_total_eth
+                                ,SUM(CASE WHEN metric_key in ('ethereum_blobs_eth', 'celestia_blobs_eth', 'cost_l1_raw_eth') THEN value END) AS costs_total_eth
                                 {profit_string}
                         FROM fact_kpis tkd
-                        WHERE metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes', 'celestia_blobs_eth', 'ethereum_blobs_eth', 'l1_data_availability_eth', 'l1_settlement_eth', 'fees_paid_eth')
+                        WHERE metric_key in ('ethereum_blob_size_bytes', 'celestia_blob_size_bytes', 'celestia_blobs_eth', 'ethereum_blobs_eth', 'cost_l1_raw_eth', 'l1_settlement_custom_eth', 'fees_paid_eth')
                                 {exclude_string}
                                 {ok_string}
                                 AND date >= date_trunc('day',now()) - interval '{days} days'
@@ -421,13 +404,11 @@ class DbConnector:
                         SELECT 
                                 Case tkd.metric_key 
                                         WHEN 'rent_paid_eth' THEN 'rent_paid_usd'
-                                        WHEN 'l1_data_availability_eth' THEN 'l1_data_availability_usd'
-                                        WHEN 'l1_settlement_eth' THEN 'l1_settlement_usd'
                                         WHEN 'ethereum_blobs_eth' THEN 'ethereum_blobs_usd'
                                         WHEN 'celestia_blobs_eth' THEN 'celestia_blobs_usd'
                                         WHEN 'costs_blobs_eth' THEN 'costs_blobs_usd'
+                                        WHEN 'cost_l1_raw_eth' THEN 'cost_l1_raw_usd'
                                         WHEN 'costs_l1_eth' THEN 'costs_l1_usd'
-                                        WHEN 'costs_da_eth' THEN 'costs_da_usd'
                                         WHEN 'costs_total_eth' THEN 'costs_total_usd'
                                         WHEN 'da_fees_eth' THEN 'da_fees_usd'
                                         WHEN 'fees_paid_eth' THEN 'fees_paid_usd'
