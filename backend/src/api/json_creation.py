@@ -2370,13 +2370,20 @@ class JSONCreation():
             df = execute_jinja_query(self.db_connector, "api/select_da_consumers_incl_others_over_time.sql.j2", query_parameters, return_df=True)
             df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
             df.sort_values(by=['date'], inplace=True, ascending=True)
+
+            #fill df gtp_origin_key with 'NA' if it is null
+            df['gtp_origin_key'] = df['gtp_origin_key'].fillna('NA')
+
             df_monthly = df.groupby([pd.Grouper(key='date', freq='MS', ), 'da_consumer_key', 'name', 'gtp_origin_key']).sum().reset_index()
 
             df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
             df_monthly['unix'] = df_monthly['date'].apply(lambda x: x.timestamp() * 1000)
 
             df = df.drop(columns=['date'])
+            df['gtp_origin_key'] = df['gtp_origin_key'].replace('NA', None)
             df_monthly = df_monthly.drop(columns=['date'])
+            df_monthly['gtp_origin_key'] = df_monthly['gtp_origin_key'].replace('NA', None)
+
 
             ## for unique da_consumer_keys, create a list of all da_consumer_keys
             da_consumer_keys = df['da_consumer_key'].unique().tolist()
