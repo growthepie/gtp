@@ -1324,7 +1324,7 @@ class JSONCreation():
         return chains_dict
     
     ## This method generates a dict containing aggregate daily values for all_l2s (all chains except Ethereum) for a specific metric_id
-    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False, days=730):
+    def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False, days=730, incl_monthly=False):
         metric = self.metrics[metric_id]
         mks = metric['metric_keys']
 
@@ -1337,7 +1337,7 @@ class JSONCreation():
             else:
                 df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api_prod))]
 
-        # filter df _tmp by date so that date is greather than 2 years ago
+        # filter df _tmp by date so that date is greather than the days set
         df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')]  
         
         # group by unix and metric_key and sum up the values or calculate the mean (depending on the metric)
@@ -1358,6 +1358,9 @@ class JSONCreation():
 
             # drop value_txcount column
             df_tmp.drop(columns=['value_txcount'], inplace=True)
+
+        if incl_monthly:
+            df_tmp_copy = df_tmp.copy()
 
         df_tmp = df_tmp.loc[df_tmp.metric_key.isin(mks), ["unix", "value", "metric_key"]].pivot(index='unix', columns='metric_key', values='value').reset_index()
         df_tmp.sort_values(by=['unix'], inplace=True, ascending=True)
@@ -1389,6 +1392,33 @@ class JSONCreation():
                 "data": mk_list_int
             }
         }
+
+        if incl_monthly:
+            ## drop unix from df_tmp_copy
+            df_tmp_copy.drop(columns=['unix'], inplace=True)
+            # based on df_tmp_copy, create df_tmp_monthly that groups by month and metric_key and sums up the value column
+            df_tmp_monthly = df_tmp_copy.groupby([pd.Grouper(key='date', freq='MS'), 'metric_key']).sum().reset_index()
+            df_tmp_monthly['unix'] = df_tmp_monthly['date'].apply(lambda x: x.timestamp() * 1000)
+
+            df_tmp_monthly = df_tmp_monthly.loc[df_tmp_monthly.metric_key.isin(mks), ["unix", "value", "metric_key"]].pivot(index='unix', columns='metric_key', values='value').reset_index()
+            df_tmp_monthly.sort_values(by=['unix'], inplace=True, ascending=True)
+            df_tmp_monthly.columns.name = None
+
+            df_tmp_monthly = self.df_rename(df_tmp_monthly, metric_id, self.metrics, col_name_removal=True)
+
+            mk_list = df_tmp_monthly.values.tolist()
+
+            if len(self.metrics[metric_id]['units']) == 1:
+                mk_list_int = [[int(i[0]),i[1]] for i in mk_list]
+            elif len(self.metrics[metric_id]['units']) == 2:
+                mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list]
+            else:
+                raise NotImplementedError("Only 1 or 2 units are supported")
+            
+            dict['monthly'] = {
+                "types": df_tmp_monthly.columns.to_list(),
+                "data": mk_list_int
+            }
 
         return dict
     
@@ -1990,12 +2020,12 @@ class JSONCreation():
             }
         }
 
-        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=720)
+        economics_dict['data']['all_l2s']['metrics']['fees'] = self.generate_all_l2s_metric_dict(df, 'fees', rolling_avg=False, economics_api=True, days=720, incl_monthly=True)
         economics_dict['data']['all_l2s']['metrics']['costs'] = {
-            'costs_l1': self.generate_all_l2s_metric_dict(df, 'costs_l1', rolling_avg=False, economics_api=True, days=720),
-            'costs_blobs': self.generate_all_l2s_metric_dict(df, 'costs_blobs', rolling_avg=False, economics_api=True, days=720)
+            'costs_l1': self.generate_all_l2s_metric_dict(df, 'costs_l1', rolling_avg=False, economics_api=True, days=720, incl_monthly=True),
+            'costs_blobs': self.generate_all_l2s_metric_dict(df, 'costs_blobs', rolling_avg=False, economics_api=True, days=720, incl_monthly=True),
         }
-        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=720)
+        economics_dict['data']['all_l2s']['metrics']['profit'] = self.generate_all_l2s_metric_dict(df, 'profit', rolling_avg=False, economics_api=True, days=720, incl_monthly=True)
 
         # filter df for all_l2s (all chains except chains that aren't included in the API)
         # chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True and chain.api_deployment_flag == 'PROD']
@@ -2195,6 +2225,10 @@ class JSONCreation():
                     mk_list_int = mk_list[0]
                     mk_list_columns = mk_list[1]
 
+                    monthly_mk_list = self.generate_monthly_list(df, metric, da_layer, metric_type='da')
+                    monthly_mk_list_int = monthly_mk_list[0]
+                    monthly_mk_list_columns = monthly_mk_list[1]
+
                     da_dict['data']['all_da']['metrics'][metric][da_layer] = {
                         'metric_name': da.name,
                         'source': [],
@@ -2202,6 +2236,10 @@ class JSONCreation():
                         'daily': {
                             'types' : mk_list_columns,
                             'data' : mk_list_int
+                        },
+                        'monthly': {
+                            'types' : monthly_mk_list_columns,
+                            'data' : monthly_mk_list_int
                         }
                     }
         
@@ -2332,17 +2370,28 @@ class JSONCreation():
             df = execute_jinja_query(self.db_connector, "api/select_da_consumers_incl_others_over_time.sql.j2", query_parameters, return_df=True)
             df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
             df.sort_values(by=['date'], inplace=True, ascending=True)
+            df_monthly = df.groupby([pd.Grouper(key='date', freq='MS', ), 'da_consumer_key', 'name', 'gtp_origin_key']).sum().reset_index()
+
             df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+            df_monthly['unix'] = df_monthly['date'].apply(lambda x: x.timestamp() * 1000)
+
             df = df.drop(columns=['date'])
+            df_monthly = df_monthly.drop(columns=['date'])
 
             ## for unique da_consumer_keys, create a list of all da_consumer_keys
             da_consumer_keys = df['da_consumer_key'].unique().tolist()
             for da_consumer_key in da_consumer_keys:
                 df_tmp = df[df['da_consumer_key'] == da_consumer_key]
+                df_tmp_monthly = df_monthly[df_monthly['da_consumer_key'] == da_consumer_key]
+
                 da_dict["data"]["da_layers"][da]["da_consumers"][da_consumer_key] = {
                     "daily": {
                         "types": df_tmp.columns.tolist(),
                         "values": df_tmp.values.tolist()
+                    },
+                    "monthly": {
+                        "types": df_tmp_monthly.columns.tolist(),
+                        "values": df_tmp_monthly.values.tolist()
                     }
                 }         
 
