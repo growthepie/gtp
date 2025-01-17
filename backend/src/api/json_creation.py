@@ -2358,49 +2358,60 @@ class JSONCreation():
                 "da_layers" : {}
             }
         }
+
+        timeframes = [1,7,30,90,365,'max']
+
         for da in self.da_layer_overview:
-            da_dict["data"]["da_layers"][da] = {
-                "da_consumers": {},
-            }
+            da_dict["data"]["da_layers"][da] = {}
 
-            query_parameters = {
-                "days": 520,
-                "da_layer": da
-            }
-            df = execute_jinja_query(self.db_connector, "api/select_da_consumers_incl_others_over_time.sql.j2", query_parameters, return_df=True)
-            df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
-            df.sort_values(by=['date'], inplace=True, ascending=True)
-
-            #fill df gtp_origin_key with 'NA' if it is null
-            df['gtp_origin_key'] = df['gtp_origin_key'].fillna('NA')
-
-            df_monthly = df.groupby([pd.Grouper(key='date', freq='MS', ), 'da_consumer_key', 'name', 'gtp_origin_key']).sum().reset_index()
-
-            df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
-            df_monthly['unix'] = df_monthly['date'].apply(lambda x: x.timestamp() * 1000)
-
-            df = df.drop(columns=['date'])
-            df['gtp_origin_key'] = df['gtp_origin_key'].replace('NA', None)
-            df_monthly = df_monthly.drop(columns=['date'])
-            df_monthly['gtp_origin_key'] = df_monthly['gtp_origin_key'].replace('NA', None)
-
-
-            ## for unique da_consumer_keys, create a list of all da_consumer_keys
-            da_consumer_keys = df['da_consumer_key'].unique().tolist()
-            for da_consumer_key in da_consumer_keys:
-                df_tmp = df[df['da_consumer_key'] == da_consumer_key]
-                df_tmp_monthly = df_monthly[df_monthly['da_consumer_key'] == da_consumer_key]
-
-                da_dict["data"]["da_layers"][da]["da_consumers"][da_consumer_key] = {
-                    "daily": {
-                        "types": df_tmp.columns.tolist(),
-                        "values": df_tmp.values.tolist()
-                    },
-                    "monthly": {
-                        "types": df_tmp_monthly.columns.tolist(),
-                        "values": df_tmp_monthly.values.tolist()
+            for timeframe in timeframes:
+                timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
+                days = timeframe if timeframe != 'max' else 2000
+                
+                da_dict["data"]["da_layers"][da][timeframe_key] = {
+                        "da_consumers": {},
                     }
-                }         
+
+
+                query_parameters = {
+                    "days": days,
+                    "da_layer": da
+                }
+                
+                df = execute_jinja_query(self.db_connector, "api/select_da_consumers_incl_others_over_time.sql.j2", query_parameters, return_df=True)
+                df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+                df.sort_values(by=['date'], inplace=True, ascending=True)
+
+                #fill df gtp_origin_key with 'NA' if it is null
+                df['gtp_origin_key'] = df['gtp_origin_key'].fillna('NA')
+
+                df_monthly = df.groupby([pd.Grouper(key='date', freq='MS', ), 'da_consumer_key', 'name', 'gtp_origin_key']).sum().reset_index()
+
+                df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+                df_monthly['unix'] = df_monthly['date'].apply(lambda x: x.timestamp() * 1000)
+
+                df = df.drop(columns=['date'])
+                df['gtp_origin_key'] = df['gtp_origin_key'].replace('NA', None)
+                df_monthly = df_monthly.drop(columns=['date'])
+                df_monthly['gtp_origin_key'] = df_monthly['gtp_origin_key'].replace('NA', None)
+
+
+                ## for unique da_consumer_keys, create a list of all da_consumer_keys
+                da_consumer_keys = df['da_consumer_key'].unique().tolist()
+                for da_consumer_key in da_consumer_keys:
+                    df_tmp = df[df['da_consumer_key'] == da_consumer_key]
+                    df_tmp_monthly = df_monthly[df_monthly['da_consumer_key'] == da_consumer_key]
+
+                    da_dict["data"]["da_layers"][da][timeframe_key]["da_consumers"][da_consumer_key] = {
+                        "daily": {
+                            "types": df_tmp.columns.tolist(),
+                            "values": df_tmp.values.tolist()
+                        },
+                        "monthly": {
+                            "types": df_tmp_monthly.columns.tolist(),
+                            "values": df_tmp_monthly.values.tolist()
+                        }
+                    }         
 
         da_dict = fix_dict_nan(da_dict, 'da_timeseries')
 
