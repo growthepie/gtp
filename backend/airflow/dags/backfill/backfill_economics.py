@@ -7,8 +7,6 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 
-import pandas as pd
-
 @dag(
     default_args={
         'owner': 'lorenz',
@@ -28,7 +26,7 @@ def main():
         
     # task to check if a new commit for the file economics_mapping.yml was made in the last 24 hours, returns new or depreciated rows as a df
     @task()
-    def check_for_new_commits() -> pd.DataFrame:
+    def check_for_new_commits() -> dict:
         from src.misc.helper_functions import convert_economics_mapping_into_df
         from github import Github
         from datetime import datetime, timedelta, timezone
@@ -48,7 +46,7 @@ def main():
         # check if there was a new commit in the last d days hours
         if commits[0].commit.author.date < datetime.now(timezone.utc) - timedelta(days=d):
             print(f"No new commit found in the last {24*d} hours.")
-            return pd.DataFrame() # return empty df
+            return pd.DataFrame().to_dict(orient="records") # return empty df, dict steralized
         else:
             print(f"New commit found in the last {24*d} hours.")
 
@@ -72,13 +70,15 @@ def main():
         depreciated_rows = df_24h_ago.merge(df_now, how='outer', indicator=True).loc[lambda x: x['_merge'] == 'left_only'].drop('_merge', axis=1)
 
         # merge the two dataframes
-        return pd.concat([new_rows, depreciated_rows])
+        return pd.concat([new_rows, depreciated_rows]).to_dict(orient="records")
 
 
     # task to backfill raw dune data based on df
     @task()
-    def backfill_dune(df: pd.DataFrame):
+    def backfill_dune(df_dict: dict):
         # return in case the df is empty
+        import pandas as pd
+        df = pd.DataFrame(df_dict)
         if df.empty:
             print("No new or depreciated rows in the economics mapping file.")
             return
@@ -159,7 +159,7 @@ def main():
             print(f"Completed backfilling: {row['name']}.")
 
     # Task dependencies
-    df = check_for_new_commits()
-    backfill_dune(df)
+    df_dict = check_for_new_commits()
+    backfill_dune(df_dict)
 
 main()
