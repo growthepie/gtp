@@ -28,7 +28,7 @@ def etl():
     def run_fact_kpis():
         import os
         from src.db_connector import DbConnector
-        from backend.src.adapters.adapter_dune import AdapterDune
+        from src.adapters.adapter_dune import AdapterDune
 
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
@@ -67,7 +67,7 @@ def etl():
     def run_inscriptions():
         import os
         from src.db_connector import DbConnector
-        from backend.src.adapters.adapter_dune import AdapterDune
+        from src.adapters.adapter_dune import AdapterDune
 
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
@@ -96,7 +96,7 @@ def etl():
     def run_glo_holders():
         import os
         from src.db_connector import DbConnector
-        from backend.src.adapters.adapter_dune import AdapterDune
+        from src.adapters.adapter_dune import AdapterDune
 
         adapter_params = {
             'api_key' : os.getenv("DUNE_API")
@@ -124,7 +124,7 @@ def etl():
     def check_for_depreciated_L2_trx():
         import os
         from src.db_connector import DbConnector
-        from backend.src.adapters.adapter_dune import AdapterDune
+        from src.adapters.adapter_dune import AdapterDune
         from src.misc.helper_functions import send_discord_message
 
         adapter_params = {
