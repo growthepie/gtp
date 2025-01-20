@@ -7,6 +7,8 @@ from datetime import datetime, timedelta
 from airflow.decorators import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 
+import pandas as pd
+
 @dag(
     default_args={
         'owner': 'lorenz',
@@ -26,7 +28,7 @@ def main():
         
     # task to check if a new commit for the file economics_mapping.yml was made in the last 24 hours, returns new or depreciated rows as a df
     @task()
-    def check_for_new_commits():
+    def check_for_new_commits() -> pd.DataFrame:
         from src.misc.helper_functions import convert_economics_mapping_into_df
         from github import Github
         from datetime import datetime, timedelta, timezone
@@ -74,7 +76,7 @@ def main():
 
 
     # task to backfill raw dune data based on df
-    def backfill_dune(df):
+    def backfill_dune(df: pd.DataFrame):
         import os
         from src.db_connector import DbConnector
         from src.adapters.adapter_dune import AdapterDune
