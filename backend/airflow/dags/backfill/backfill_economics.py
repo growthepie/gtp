@@ -76,6 +76,7 @@ def main():
 
 
     # task to backfill raw dune data based on df
+    @task()
     def backfill_dune(df: pd.DataFrame):
         # return in case the df is empty
         if df.empty:
