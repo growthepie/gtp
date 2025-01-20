@@ -39,7 +39,6 @@ class AdapterOSO(AbstractAdapter):
     ## This method loads the projects from oss-directory github
     ## It returns a df with columns: ['name', 'display_name', 'description', 'github', 'websites', 'npm', 'social', 'active', 'source']
     def load_oss_projects(self):
-        
         # Get the repository
         repo_url = "https://github.com/opensource-observer/oss-directory/tree/main/data/projects"
         _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
@@ -68,6 +67,15 @@ class AdapterOSO(AbstractAdapter):
         df = df[['name', 'display_name', 'description', 'github', 'websites', 'npm', 'social']]
         df['active'] = True # project is marked active because it is in the OSS directory
         df['source'] = 'OSS_DIRECTORY'
+
+        ## load logo mapping from github
+        url = "https://raw.githubusercontent.com/growthepie/gtp-dna/refs/heads/main/logos/logo-mapping.csv"
+        df_logos = pd.read_csv(url)
+        df_logos = df_logos[['logo', 'owner_project']]
+        df_logos.rename(columns={'owner_project': 'name', 'logo':'logo_path'}, inplace=True)
+
+        ## merge df with logos on name
+        df = pd.merge(df, df_logos, on='name', how='left')
 
         return df	
 

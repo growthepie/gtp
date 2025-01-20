@@ -1660,7 +1660,8 @@ class DbConnector:
                                 description, 
                                 replace((github->0->>'url'), 'https://github.com/', '') AS main_github,
                                 replace(replace((social->'twitter'->0->>'url'), 'https://twitter.com/', ''),'https://x.com/', '') AS twitter,
-                                (websites->0->>'url') AS website
+                                (websites->0->>'url') AS website,
+                                logo_path
                         FROM public.oli_oss_directory 
                         WHERE active = true
                         """
