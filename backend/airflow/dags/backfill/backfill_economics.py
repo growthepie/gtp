@@ -26,7 +26,7 @@ def main():
         
     # task to check if a new commit for the file economics_mapping.yml was made in the last 24 hours, returns new or depreciated rows as a df
     @task()
-    def check_for_new_commits() -> dict:
+    def check_for_new_commits() -> list:
         from src.misc.helper_functions import convert_economics_mapping_into_df
         from github import Github
         from datetime import datetime, timedelta, timezone
@@ -75,7 +75,7 @@ def main():
 
     # task to backfill raw dune data based on df
     @task()
-    def backfill_dune(df_dict: dict):
+    def backfill_dune(df_dict: list):
         # return in case the df is empty
         import pandas as pd
         df = pd.DataFrame(df_dict)
