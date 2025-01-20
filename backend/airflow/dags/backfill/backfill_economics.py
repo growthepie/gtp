@@ -77,6 +77,11 @@ def main():
 
     # task to backfill raw dune data based on df
     def backfill_dune(df: pd.DataFrame):
+        # return in case the df is empty
+        if df.empty:
+            print("No new or depreciated rows in the economics mapping file.")
+            return
+
         import os
         from src.db_connector import DbConnector
         from src.adapters.adapter_dune import AdapterDune
@@ -154,7 +159,6 @@ def main():
 
     # Task dependencies
     df = check_for_new_commits()
-    if df.empty == False:
-        backfill_dune(df)
+    backfill_dune(df)
 
 main()
