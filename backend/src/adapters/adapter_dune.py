@@ -85,7 +85,7 @@ class AdapterDune(AbstractAdapter):
         df.drop(['day'], axis=1, inplace=True)
         # replace nil or None values with 0
         df['value'] = df['value'].replace('<nil>', 0)
-        df = df.value.fillna(0)
+        df['value'] = df.value.fillna(0)
         # turn value column into float
         df['value'] = df['value'].astype(float)
         # set primary keys as index
