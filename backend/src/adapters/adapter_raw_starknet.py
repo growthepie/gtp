@@ -7,6 +7,7 @@ import requests
 import pandas as pd
 import json
 import time
+import random
 
 class AdapterStarknet(AbstractAdapterRaw):
     def __init__(self, adapter_params: dict, db_connector):
@@ -432,8 +433,7 @@ class AdapterStarknet(AbstractAdapterRaw):
         except Exception as e:
             print(f"Error inserting data into table {table_name}: {e}")
             
-# Helper Function
-    def send_request(self, method, params=[], rpc_url=None):
+    def send_request(self, method, params=[], rpc_url=None, max_retries=5):
         if rpc_url is None:
             raise ValueError("rpc_url must be provided")
 
@@ -444,14 +444,39 @@ class AdapterStarknet(AbstractAdapterRaw):
             "params": params,
             "id": 1
         }
-        try:
-            response = requests.post(rpc_url, headers=headers, json=payload)
-            if response.status_code != 200:
-                raise ConnectionError("Request to RPC failed with status code != 200")
-            return response.json()
-        except Exception as e:
-            print(f"Exception when sending request to {rpc_url}: {e}")
-            raise e
+
+        retries = 0
+        base_wait_time = 1  # Initial wait time in seconds
+
+        while retries < max_retries:
+            try:
+                response = requests.post(rpc_url, headers=headers, json=payload)
+
+                if response.status_code == 200:
+                    return response.json()
+
+                # Handle 429 (Too Many Requests)
+                if response.status_code == 429:
+                    retry_after = response.headers.get("Retry-After")
+                    wait_time = (
+                        int(retry_after)
+                        if retry_after and retry_after.isdigit()
+                        else base_wait_time + random.uniform(0, 1)
+                    )
+                    print(f"429 received. Retrying after {wait_time:.2f} seconds.")
+                else:
+                    raise ConnectionError(f"Unexpected status code: {response.status_code}")
+
+            except Exception as e:
+                print(f"Error in request to {rpc_url}: {e}")
+
+            # Increment retries and apply exponential backoff
+            retries += 1
+            wait_time = min((2 ** retries) + random.uniform(0, 1), 64)
+            print(f"Retrying ({retries}/{max_retries}) in {wait_time:.2f} seconds...")
+            time.sleep(wait_time)
+
+        raise Exception(f"Request failed after {max_retries} retries to {rpc_url}")
 
     def backfill_missing_blocks(self, start_block, end_block, batch_size):
         missing_block_ranges = check_and_record_missing_block_ranges(self.db_connector, self.table_name, start_block, end_block)

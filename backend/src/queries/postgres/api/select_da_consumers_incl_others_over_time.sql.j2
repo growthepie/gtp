@@ -25,14 +25,14 @@ with econ_names as (
     group by 1
 ),
 
--- top 7 consumers in the last 7 days (hardcoded)
+-- top 7 consumers in the last xx days
 top_7 as (
 	SELECT 
 		origin_key as da_consumer_key,  
 		SUM(value) AS data_posted
 	FROM public.fact_kpis f
 	WHERE f.metric_key = '{{ metric_key }}'
-		AND "date" >= current_date - INTERVAL '7 days'
+		AND "date" >= current_date - INTERVAL '{{ days }} days'
 		AND "date" < current_date
 	GROUP BY 1
 	order by 2 desc
