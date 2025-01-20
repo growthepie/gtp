@@ -6,6 +6,7 @@ sys.path.append(f"/home/{sys_user}/gtp/backend/")
 from datetime import datetime,timedelta
 from airflow.decorators import dag, task 
 from src.misc.airflow_utils import alert_via_webhook
+from src.misc.helper_functions import convert_economics_mapping_into_df
 
 @dag(
     default_args={
@@ -72,21 +73,7 @@ def etl():
         response = requests.get(url)
 
         data = yaml.load(response.text, Loader=yaml.FullLoader)
-        table = [
-            [
-                L2,
-                layers.get('name'), 
-                settlement_layer, 
-                f.get('from_address'), 
-                f.get('to_address'), 
-                f.get('method'), 
-                f.get('namespace') if settlement_layer == 'celestia' else None
-            ]
-            for L2, layers in data.items()
-            for settlement_layer, filters in layers.items() if isinstance(filters, list)
-            for f in filters
-        ]
-        df = pd.DataFrame(table, columns=['origin_key', 'name', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'])
+        df = convert_economics_mapping_into_df(data)
 
         ## in column da_layer rename 'celestia' to 'da_celestia', 'L1' to 'da_ethereum_calldata', 'beacon' to 'da_ethereum_blobs'
         df['da_layer'] = df['da_layer'].replace({'celestia': 'da_celestia', 'l1': 'da_ethereum_calldata', 'beacon': 'da_ethereum_blobs'})

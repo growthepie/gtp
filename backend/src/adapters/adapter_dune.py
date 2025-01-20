@@ -1,166 +1,111 @@
-import time
 import pandas as pd
 from datetime import datetime
 
 from src.adapters.abstract_adapters import AbstractAdapter
-
-from src.queries.dune_queries import dune_queries
-from dune_client.client import DuneClient
-from dune_client.types import QueryParameter
-
-from src.misc.helper_functions import upsert_to_kpis, get_df_kpis
 from src.misc.helper_functions import print_init, print_load, print_extract
 
+from dune_client.client import DuneClient
+from dune_client.query import QueryBase
+from dune_client.types import QueryParameter
 
 class AdapterDune(AbstractAdapter):
-    """
-    adapter_params require the following fields:
-    """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Dune", adapter_params, db_connector)
         self.api_key = adapter_params['api_key']
-
         self.client = DuneClient(self.api_key)
         print_init(self.name, self.adapter_params)
 
-    """
-    load_params require the following fields:
-        query_names:list - the queries that should be loaded. If None, all available queries will be loaded
-        days:int - the number of days to load. If auto, the number of days will be determined by the adapter
-        load_type:str - can be 'fact_kpis', 'fact_da_consumers', 'inscriptions', 'glo_holders', 'check-for-depreciated-L2-trx'
-    """
     def extract(self, load_params:dict):
-        ## Set variables
-        self.load_type = load_params['load_type']
+        """
+        Extract utilizes the `load_params` dictionary to execute specified queries, prepare the resulting data and load it into a desired table.
 
-        query_names = load_params.get('query_names', None)
-        days = load_params.get('days', 'auto')        
+        Parameters:
+        
+        load_params : dict
+            - 'queries' (list): A list of dictionaries, each specifying a query to be executed. Each query dictionary contains:
+                - 'name' (str): A descriptive name for the query.
+                - 'query_id' (int): The unique identifier for the query.
+                - 'params' (dict): Parameters for the query, can be any as set in dune:
+                    - 'days' (int): The time range for the query in days.
+                    - 'chain' (str): The origin_key of the chain.
+            - 'prepare_df' (str): The name of the function or method to be used for preparing the resulting df into the desired format.
+            - 'load_type' (str): Specifies the table to load the df into.
+        """
+        self.load_params = load_params
 
-        if self.load_type == 'fact_kpis':
-            ## Prepare queries to load
-            if query_names is not None:
-                self.queries_to_load = [x for x in dune_queries if x.name in query_names and x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'check-for-depreciated-L2-trx']
-            else:
-                self.queries_to_load = [x for x in dune_queries if x.name != 'inscriptions' and x.name != 'glo_holders' and x.name != 'check-for-depreciated-L2-trx']
+        # create list of QueryBase objects
+        self.queries = []
+        for query in self.load_params.get('queries'):
+            self.queries.append(QueryBase(name = query['name'], query_id = query['query_id']))
+            if 'params' in query:
+                self.queries[-1].params = [QueryParameter.text_type(name = k, value = v) for k, v in query['params'].items()]
 
-            ## Load data
-            df = self.extract_data(self.queries_to_load, days)     
+        # load all queries and merge them into one dataframe
+        df_main = pd.DataFrame()
+        for query in self.queries:
+            try:
+                print(f"...start loading {query.name} with query_id: {query.query_id} and params: {query.params}")
+                df = self.client.refresh_into_dataframe(query)
+                print(f"...finished loading {query.name}. Loaded {df.shape[0]} rows")
+            except Exception as e:
+                print(f"Error loading {query.name}: {e}")
+                continue
             
-            print_extract(self.name, load_params, df.shape)
-            return df
-        elif self.load_type == 'inscriptions':
-            self.queries_to_load = [x for x in dune_queries if x.name == 'inscriptions']
-            df = self.extract_inscriptions(self.queries_to_load, days)
-            print_extract(self.name, load_params, df.shape)
-            return df
-        elif self.load_type == 'glo_holders':
-            self.queries_to_load = [x for x in dune_queries if x.name == 'glo_holders']
-            df = self.extract_glo_holders(self.queries_to_load)
-            print_extract(self.name, load_params, df.shape)
-            return df
-        elif self.load_type == 'check-for-depreciated-L2-trx':
-            self.queries_to_load = [x for x in dune_queries if x.name == 'check-for-depreciated-L2-trx']
-            df = self.extract_check(self.queries_to_load)
-            print_extract(self.name, load_params, df.shape)
-            return df
-        else:
-            raise NotImplementedError(f"load_type {self.load_type} not implemented")
+            # Prepare df if set in load_params
+            prep_df = self.load_params.get('prepare_df')
+            if prep_df != None:
+                df = eval(f"self.{prep_df}(df)")
+            
+            # Concatenate dataframes into one
+            df_main = pd.concat([df_main, df])
+
+        print_extract(self.name, self.load_params, df_main.shape)
+        return df_main
 
     def load(self, df:pd.DataFrame):
-        if self.load_type == 'fact_kpis':
-            upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
-            print_load(self.name, upserted, tbl_name)
-        elif self.load_type == 'inscriptions':
-            tbl_name = 'inscription_addresses'
-            upserted = self.db_connector.upsert_table(tbl_name, df)
-            print_load(self.name, upserted, tbl_name)
-        elif self.load_type == 'glo_holders':
-            tbl_name = 'glo_holders'
-            upserted = self.db_connector.upsert_table(tbl_name, df)
-            print_load(self.name, upserted, tbl_name)
+        table = self.load_params.get('load_type')
+        if table != None:
+            try:
+                upserted = self.db_connector.upsert_table(table, df)
+                print_load(self.name, upserted, table)
+            except Exception as e:
+                print(f"Error loading {table}: {e}")
         else:
-            raise NotImplementedError(f"load_type {self.load_type} not implemented")
-
+            print("No load_type specified in load_params. Data not loaded!")
+        
+        
     ## ----------------- Helper functions --------------------
-    def prepare_df(self, df):
-        ## unpivot df only if not already in the correct format
+    
+    def prepare_df_metric_daily(self, df):
+        # unpivot df only if not already in the correct format
         if 'metric_key' not in df.columns and 'value' not in df.columns:
             df = df.melt(id_vars=['day', 'origin_key'], var_name='metric_key', value_name='value')
-
-        df['date'] = df['day'].apply(pd.to_datetime)
-        df['date'] = df['date'].dt.date
+        # change day column to date
+        df['date'] = df['day'].apply(pd.to_datetime).dt.date
         df.drop(['day'], axis=1, inplace=True)
+        # replace nil or None values with 0
         df['value'] = df['value'].replace('<nil>', 0)
-        df.value.fillna(0, inplace=True)
+        df['value'] = df.value.fillna(0)
+        # turn value column into float
         df['value'] = df['value'].astype(float)
-        
-        return df
-
-    def extract_data(self, queries_to_load, days):
-        dfMain = get_df_kpis()
-
-        for query in queries_to_load:
-            if days == 'auto':
-                if query.name == 'waa':
-                    day_val = 15
-                elif query.name == 'maa':
-                    day_val = 60
-                else:
-                    day_val = 5
-            else:
-                day_val = days
-
-            if query.name == 'aa_last30d':
-                query.params = []
-            else:
-                query.params = [QueryParameter.text_type(name="days", value=str(day_val))]
-
-            print(f"...start loading {query.name} with query_id: {query.query_id} and params: {query.params}")
-            df = self.client.refresh_into_dataframe(query)
-
-            df = self.prepare_df(df)
-            print(f"...finished loading {query.name}. Loaded {df.shape[0]} rows")
-            dfMain = pd.concat([dfMain,df])
-            time.sleep(1)
-
-        dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
-        return dfMain
-    
-    def extract_inscriptions(self, query, days):
-        if days == 'auto':
-            day_val = 1000
-        else:
-            day_val = days
-        
-        query[0].params = [QueryParameter.text_type(name="days", value=str(day_val))]
-
-        print(f"...start loading {query[0].name} with query_id: {query[0].query_id} and params: {query[0].params}")
-        df = self.client.refresh_into_dataframe(query[0])
-
-        ##df.address to bytea
-        df['address'] = df['address'].apply(lambda x: bytes.fromhex(x[2:]))
-        
-        print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
-        df.set_index(['address', 'origin_key'], inplace=True)
+        # set primary keys as index
+        df = df.set_index(['metric_key', 'origin_key', 'date'])
         return df
     
-    def extract_glo_holders(self, query):
-        print(f"...start loading {query[0].name} with query_id: {query[0].query_id}")
-        df = self.client.refresh_into_dataframe(query[0])
-
-        ##df.address to bytea
+    def prepare_df_incriptions(self, df):
+        # address column to bytea
         df['address'] = df['address'].apply(lambda x: bytes.fromhex(x[2:]))
-        ## date column with current date
+        # set primary keys as index
+        df = df.set_index(['address', 'origin_key'])
+        return df
+    
+    def prepare_df_glo_holders(self, df):
+        # address column to bytea
+        df['address'] = df['address'].apply(lambda x: bytes.fromhex(x[2:]))
+        # date column with current date
         df['date'] = datetime.now().date()
-        ## parse origin_keys column in df so that it can be loaded into a postgres array - split by comma and add curly braces
+        # parse origin_keys column in df so that it can be loaded into a postgres array - split by comma and add curly braces
         df['origin_keys'] = df['origin_keys'].apply(lambda x: '{"' + x.replace(',', '","') + '"}')
-        
-        print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
-        df.set_index(['address', 'date'], inplace=True)
-        return df
-    
-    def extract_check(self, query):
-        print(f"...start loading {query[0].name} with query_id: {query[0].query_id}")
-        df = self.client.refresh_into_dataframe(query[0])
-        print(f"...finished loading {query[0].name}. Loaded {df.shape[0]} rows")
+        # set primary keys as index
+        df = df.set_index(['address', 'date'])
         return df
