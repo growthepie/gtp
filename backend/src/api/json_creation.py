@@ -2254,7 +2254,6 @@ class JSONCreation():
             }
 
         df = df.loc[(df.origin_key.isin(self.da_layer_overview))]
-        timeframes = [1,7,30,90,365,'max']
 
         ## TABLE and PIE CHARTS for each DA Layer
         # iterate over each da_layer and generate table and chart data
@@ -2359,7 +2358,7 @@ class JSONCreation():
             }
         }
 
-        timeframes = [1,7,30,90,365,'max']
+        timeframes = [1,7,30,90,180,365,'max']
 
         for da in self.da_layer_overview:
             da_dict["data"]["da_layers"][da] = {}
