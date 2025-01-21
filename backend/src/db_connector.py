@@ -1830,6 +1830,40 @@ class DbConnector:
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        def get_gtp_labels_export_oli_compliant(self): # export all labels created by us (gtp) in an OLI compliant table
+                exec_string = f"""
+                        SELECT
+                                '0x' || encode(address, 'hex') AS address,
+                                origin_key AS chain_id,
+                                MAX(CASE WHEN tag_id = 'is_eoa' THEN value END) AS is_eoa,
+                                MAX(CASE WHEN tag_id = 'is_contract' THEN value END) AS is_contract,
+                                MAX(CASE WHEN tag_id = 'is_factory_contract' THEN value END) AS is_factory_contract,
+                                MAX(CASE WHEN tag_id = 'is_proxy' THEN value END) AS is_proxy,
+                                MAX(CASE WHEN tag_id = 'is_safe_contract' THEN value END) AS is_safe_contract,
+                                MAX(CASE WHEN tag_id = 'name' THEN value END) AS "name",
+                                MAX(CASE WHEN tag_id = 'deployment_tx' THEN value END) AS deployment_tx,
+                                MAX(CASE WHEN tag_id = 'deployer_address' THEN value END) AS deployer_address,
+                                MAX(CASE WHEN tag_id = 'owner_project' THEN value END) AS owner_project,
+                                MAX(CASE WHEN tag_id = 'deployment_date' THEN value END) AS deployment_date,
+                                MAX(CASE WHEN tag_id = 'erc_type' THEN value END) AS erc_type, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc20_name' THEN value END) AS erc20_symbol,
+                                MAX(CASE WHEN tag_id = 'erc20_decimals' THEN value END) AS erc20_decimals, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc721_name' THEN value END) AS erc721_name, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc721_symbol' THEN value END) AS erc721_symbol, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc1155_name' THEN value END) AS erc1155_name, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc1155_symbol' THEN value END) AS erc1155_symbol, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'usage_category' THEN value END) AS usage_category,
+                                MAX(CASE WHEN tag_id = 'version' THEN value END) AS version, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'audit' THEN value END) AS audit, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'contract_monitored' THEN value END) AS contract_monitored, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'source_code_verified' THEN value END) AS source_code_verified
+                        FROM public.oli_tag_mapping
+                        GROUP BY address, origin_key
+                        HAVING MAX(CASE WHEN "source" = 'orbal' OR "source" = 'Matthias' OR "source" IS NULL THEN 'gtp' ELSE '000' END) = 'gtp';
+                """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
 
         def get_labels_page_sparkline(self, limit=100, origin_keys=None):
                 exec_string = f"""

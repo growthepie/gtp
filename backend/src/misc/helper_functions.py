@@ -466,3 +466,22 @@ def prompt_chatgpt(prompt, api_key, model="gpt-3.5-turbo"):
         return response.choices[0].message.content
     except Exception as e:
         return f"An error occurred while prompting chatgpt: {str(e)}"
+    
+# convert yml file object (dict) into a df
+def convert_economics_mapping_into_df(data): # turns yml object of economics_mapping.yml into a dataframe
+    table = [
+        [
+            L2,
+            layers.get('name'), 
+            settlement_layer, 
+            f.get('from_address'), 
+            f.get('to_address'), 
+            f.get('method'), 
+            f.get('namespace') if settlement_layer == 'celestia' else None
+        ]
+        for L2, layers in data.items()
+        for settlement_layer, filters in layers.items() if isinstance(filters, list)
+        for f in filters
+    ]
+    df = pd.DataFrame(table, columns=['origin_key', 'name', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'])
+    return df
