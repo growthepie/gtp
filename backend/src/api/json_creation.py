@@ -2267,8 +2267,8 @@ class JSONCreation():
                 df_da_consumers = execute_jinja_query(self.db_connector, "api/select_top_da_consumers_list.sql.j2", query_parameters, return_df=True)
                 da_consumers_count = df_da_consumers.shape[0]
                 da_consumers_dict = {
-                                        "types": df_da_consumers[['name', 'gtp_origin_key']].columns.tolist(),
-                                        "values": df_da_consumers[['name', 'gtp_origin_key']].values.tolist()
+                                        "types": df_da_consumers[['da_consumer_key', 'name', 'gtp_origin_key']].columns.tolist(),
+                                        "values": df_da_consumers[['da_consumer_key', 'name', 'gtp_origin_key']].values.tolist()
                                     }
 
                 ## TABLE: OTHER METRICS CELLS + PIE CHART (see end)
