@@ -2212,7 +2212,7 @@ class JSONCreation():
             }
         }
 
-        ## TOP Area Charts
+        ## TOP AREA CHARTS
         # fill all_da with daily data 
         metrics_list = ['fees_paid', 'data_posted']
         ## data_posted, fees_paid
@@ -2243,7 +2243,7 @@ class JSONCreation():
                         }
                     }
         
-        ## TOP DA Consumers chart
+        ## TOP DA CONSUMERS BAR CHART
         timeframes = [1,7,30,90,180,365,'max']
         da_dict['data']['all_da']['top_da_consumers'] = {}
         for timeframe in timeframes:
@@ -2260,6 +2260,8 @@ class JSONCreation():
         for origin_key in self.da_layer_overview:
             ## calc number of DA consumers and generate list
             query_parameters = {'da_layer': origin_key}
+
+            ## TABLE: DA CONSUMERS CELL
             df_da_consumers = execute_jinja_query(self.db_connector, "api/select_top_da_consumers_list.sql.j2", query_parameters, return_df=True)
             da_consumers_count = df_da_consumers.shape[0]
             da_consumers_dict = {
@@ -2267,8 +2269,8 @@ class JSONCreation():
                                     "values": df_da_consumers[['name', 'gtp_origin_key']].values.tolist()
                                 }
 
+            ## TABLE: OTHER METRICS CELLS + PIE CHART (see end)
             da_dict['data']['da_breakdown'][origin_key] = {}
-            # get data for each timeframe (for table aggregates)
             for timeframe in timeframes:
                 timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
                 days = timeframe if timeframe != 'max' else 2000
@@ -2303,12 +2305,15 @@ class JSONCreation():
                         "chains": da_consumers_dict
                     },
                     "fixed_params": fixed_params,
+
+                    ## PIE CHART
                     "da_consumer_chart": {
                         'types': ['da_consumer_key', 'name', 'da_layer', 'origin_key', 'data_posted'],
-                        'data': self.get_da_consumers_incl_others(timeframe, da_layer=origin_key, limit=8)
+                        'data': self.get_da_consumers_incl_others(timeframe, da_layer=origin_key, limit=7)
                     }
                 }
-    
+
+        ## TOTALS ROW
         ## Calculate and add the total data posted, fees paid, fees/mb for all da layers combined for each timeframe
         da_dict['data']['da_breakdown']['totals'] = {}
         for timeframe in timeframes:
