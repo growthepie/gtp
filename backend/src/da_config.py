@@ -24,6 +24,7 @@ class DAConfig(BaseModel):
     incl_in_da_overview: bool = Field(alias="incl_in_da_overview", default=False)
    
     ## METADATA
+    parameters: Optional[dict]
 
     ## SOCIALS
     socials_website: Optional[HttpUrl] = Field(alias="socials_website")

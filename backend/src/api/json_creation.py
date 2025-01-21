@@ -2257,61 +2257,57 @@ class JSONCreation():
 
         ## TABLE and PIE CHARTS for each DA Layer
         # iterate over each da_layer and generate table and chart data
-        for origin_key in self.da_layer_overview:
-            ## calc number of DA consumers and generate list
-            query_parameters = {'da_layer': origin_key}
+        for da in self.da_config:
+            if da.incl_in_da_overview:
+                origin_key = da.da_layer
+                ## calc number of DA consumers and generate list
+                query_parameters = {'da_layer': origin_key}
 
-            ## TABLE: DA CONSUMERS CELL
-            df_da_consumers = execute_jinja_query(self.db_connector, "api/select_top_da_consumers_list.sql.j2", query_parameters, return_df=True)
-            da_consumers_count = df_da_consumers.shape[0]
-            da_consumers_dict = {
-                                    "types": df_da_consumers[['name', 'gtp_origin_key']].columns.tolist(),
-                                    "values": df_da_consumers[['name', 'gtp_origin_key']].values.tolist()
-                                }
+                ## TABLE: DA CONSUMERS CELL
+                df_da_consumers = execute_jinja_query(self.db_connector, "api/select_top_da_consumers_list.sql.j2", query_parameters, return_df=True)
+                da_consumers_count = df_da_consumers.shape[0]
+                da_consumers_dict = {
+                                        "types": df_da_consumers[['name', 'gtp_origin_key']].columns.tolist(),
+                                        "values": df_da_consumers[['name', 'gtp_origin_key']].values.tolist()
+                                    }
 
-            ## TABLE: OTHER METRICS CELLS + PIE CHART (see end)
-            da_dict['data']['da_breakdown'][origin_key] = {}
-            for timeframe in timeframes:
-                timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
-                days = timeframe if timeframe != 'max' else 2000
+                ## TABLE: OTHER METRICS CELLS + PIE CHART (see end)
+                da_dict['data']['da_breakdown'][origin_key] = {}
+                for timeframe in timeframes:
+                    timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'    
+                    days = timeframe if timeframe != 'max' else 2000
 
-                fees_eth = self.aggregate_metric(df, origin_key, 'da_fees_eth', days)
-                fees_usd = self.aggregate_metric(df, origin_key, 'da_fees_usd', days)
-                data_posted = self.aggregate_metric(df, origin_key, 'da_data_posted_bytes', days) * 1024 * 1024 * 1024 # convert from GB to bytes
-                fees_per_mb_eth = fees_eth / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
-                fees_per_mb_usd = fees_usd / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
+                    fees_eth = self.aggregate_metric(df, origin_key, 'da_fees_eth', days)
+                    fees_usd = self.aggregate_metric(df, origin_key, 'da_fees_usd', days)
+                    data_posted = self.aggregate_metric(df, origin_key, 'da_data_posted_bytes', days) * 1024 * 1024 * 1024 # convert from GB to bytes
+                    fees_per_mb_eth = fees_eth / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
+                    fees_per_mb_usd = fees_usd / data_posted * 1024 * 1024 if data_posted != 0 else 0.0
 
-                fixed_params = { # TODO: real values
-                    'block_time': "12s",
-                    'blob_size': "2 MiB",
-                    'l2beat_risk': "https://l2beat.com/data-availability/projects/celestia/no-bridge",
-                }
+                    da_dict['data']['da_breakdown'][origin_key][timeframe_key] = {
+                        "fees": {
+                            "types": ["usd", "eth"],
+                            "total": [fees_usd, fees_eth]
+                        },		
+                        "size": {
+                            "types": ["bytes"],
+                            "total": [data_posted]
+                        },
+                        "fees_per_mb": {
+                            "types": ["usd", "eth"],
+                            "total": [fees_per_mb_usd, fees_per_mb_eth]
+                        },	
+                        "da_consumers": {
+                            "count": da_consumers_count,
+                            "chains": da_consumers_dict
+                        },
+                        "fixed_params": da.parameters,
 
-                da_dict['data']['da_breakdown'][origin_key][timeframe_key] = {
-                    "fees": {
-                        "types": ["usd", "eth"],
-                        "total": [fees_usd, fees_eth]
-                    },		
-                    "size": {
-                        "types": ["bytes"],
-                        "total": [data_posted]
-                    },
-                    "fees_per_mb": {
-                        "types": ["usd", "eth"],
-                        "total": [fees_per_mb_usd, fees_per_mb_eth]
-                    },	
-                    "da_consumers": {
-                        "count": da_consumers_count,
-                        "chains": da_consumers_dict
-                    },
-                    "fixed_params": fixed_params,
-
-                    ## PIE CHART
-                    "da_consumer_chart": {
-                        'types': ['da_consumer_key', 'name', 'da_layer', 'origin_key', 'data_posted'],
-                        'data': self.get_da_consumers_incl_others(timeframe, da_layer=origin_key, limit=7)
+                        ## PIE CHART
+                        "da_consumer_chart": {
+                            'types': ['da_consumer_key', 'name', 'da_layer', 'origin_key', 'data_posted'],
+                            'data': self.get_da_consumers_incl_others(timeframe, da_layer=origin_key, limit=7)
+                        }
                     }
-                }
 
         ## TOTALS ROW
         ## Calculate and add the total data posted, fees paid, fees/mb for all da layers combined for each timeframe
