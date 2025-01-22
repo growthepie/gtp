@@ -1651,7 +1651,7 @@ class DbConnector:
                 
 
         ### OLI functions
-        def get_active_projects(self):
+        def get_active_projects(self, add_category=False):
                 # if multiple githubs, websites or socials, it will always take the first one in the list!
                 exec_string = """
                         SELECT 
@@ -1666,6 +1666,31 @@ class DbConnector:
                         WHERE active = true
                         """
                 df = pd.read_sql(exec_string, self.engine.connect())
+
+                if add_category:
+                        exec_string = """
+                        with raw_counts as (
+                                SELECT 
+                                        owner_project, 
+                                        cat.main_category_id,
+                                        count(*) as counter,
+                                        ROW_NUMBER() OVER (PARTITION BY owner_project ORDER BY count(*) DESC) AS row_num
+                                FROM public.vw_oli_labels_materialized vw
+                                left join oli_categories cat on cat.category_id = vw.usage_category
+                                where vw.owner_project is not null and vw.usage_category is not null
+                                group by 1,2
+                        )
+
+                        SELECT 
+                                owner_project as "name", 
+                                ocm."name" as main_category
+                        FROM raw_counts
+                        left join oli_categories_main ocm using (main_category_id)
+                        WHERE row_num = 1;
+                        """
+                        df_categories = pd.read_sql(exec_string, self.engine.connect())
+                        df = df.merge(df_categories, on='name', how='left')
+
                 return df
         
         def get_projects_for_airtable(self):

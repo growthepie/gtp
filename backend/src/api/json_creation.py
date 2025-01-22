@@ -2535,7 +2535,7 @@ class JSONCreation():
         print(f'DONE -- sparkline export')
 
     def create_projects_json(self):        
-        df = self.db_connector.get_active_projects()
+        df = self.db_connector.get_active_projects(add_category=True)
         df = df.rename(columns={'name': 'owner_project'})
         df = df.replace({np.nan: None})        
 
