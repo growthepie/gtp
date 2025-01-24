@@ -804,6 +804,11 @@ class OctantV2():
                 row['allocated_to_project_keys']['all'])
 
             compiled_data.append(row)
+        
+        # ## TODO: resolve address to ENS. Not sure if on each runtime is ideal (as it might take a while for 1000 users). Might need to store them in db.
+        # for user in compiled_data:
+        #     if user['user'] == '0x25854e2a49A6CDAeC7f0505b4179834509038549':
+        #         user['user'] = 'Test'
 
         # save compiled_data
         if self.s3_bucket == None:
