@@ -508,6 +508,43 @@ class JSONCreation():
             }
         }
 
+        self.app_metrics =  {
+            'txcount': {
+                'name': 'Transaction Count',
+                'metric_keys': ['txcount'],
+                'units': {
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+            }
+            ,'daa': {
+                'name': 'Active Addresses',
+                'metric_keys': ['daa'],
+                'units': {
+                    'value': {'decimals': 0, 'decimals_tooltip': 0, 'agg_tooltip': False}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'maa',
+                'max_date_fill' : False,
+            }
+            ,'fees': {
+                'name': 'Fees Paid',
+                'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
+                'units': {
+                    'usd': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}, 
+                    'eth': {'decimals': 2, 'decimals_tooltip': 2, 'agg_tooltip': False}
+                },
+                'avg': True,
+                'all_l2s_aggregate': 'sum',
+                'monthly_agg': 'sum',
+                'max_date_fill' : False,
+            }
+        }
+
         for metric_key, metric_value in self.metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
 
@@ -520,9 +557,13 @@ class JSONCreation():
         for metric_key, metric_value in self.eim_metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
 
+        for metric_key, metric_value in self.app_metrics.items():
+            metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
+
         #append all values of metric_keys in metrics dict to a list
         self.metrics_list = [item for sublist in [self.metrics[metric]['metric_keys'] for metric in self.metrics] for item in sublist]
         self.da_metrics_list = [item for sublist in [self.da_metrics[metric]['metric_keys'] for metric in self.da_metrics] for item in sublist]
+        self.app_metrics_list = [item for sublist in [self.app_metrics[metric]['metric_keys'] for metric in self.app_metrics] for item in sublist]
         #concat all values of metrics_list to a string and add apostrophes around each value
         self.metrics_string = "'" + "','".join(self.metrics_list) + "'"
 
@@ -573,6 +614,8 @@ class JSONCreation():
             return self.da_metrics
         elif metric_type == 'eim':
             return self.eim_metrics
+        elif metric_type == 'app':
+            return self.app_metrics
         else:
             raise ValueError(f"ERROR: metric type {metric_type} is not implemented")
 
@@ -2169,6 +2212,10 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/economics', economics_dict, self.cf_distribution_id)
         print(f'DONE -- economics export')
 
+    #######################################################################
+    ### DA OVERVIEW
+    #######################################################################
+
     ## This function is used to generate the top da consumers for blobs (top chart DA overview page)
     def get_top_da_consumers(self, days, da_layer, limit=5):
         if days == 'max':
@@ -2420,6 +2467,138 @@ class JSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/da_timeseries', da_dict, self.cf_distribution_id)
         print(f'DONE -- DA timeseries export')
+
+
+    #######################################################################
+    ### APPS
+    #######################################################################
+
+    def load_app_data(self, owner_project:str, chains:list):
+        chains_str = ', '.join([f"'{chain}'" for chain in chains])
+
+        exec_string = f"""
+            SELECT 
+                oli.owner_project, 
+                fact.origin_key,
+                fact.date, 
+                SUM(fact.txcount) as txcount,
+                SUM(fact.gas_fees_eth) AS fees_paid_eth,
+                SUM(fact.gas_fees_usd) AS fees_paid_usd,
+                SUM(fact.daa) AS daa
+            FROM public.blockspace_fact_contract_level AS fact
+            INNER JOIN vw_oli_labels_materialized AS oli USING (address)
+            WHERE 
+                oli.owner_project = '{owner_project}'
+                AND fact.origin_key IN ({chains_str})
+            GROUP BY 1,2,3
+        """
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = df.drop(columns='owner_project')
+
+        ## unpivot table to have one row per date, origin_key and metric_key
+        df = df.melt(id_vars=['origin_key', 'date'], var_name='metric_key', value_name='value')
+
+        ## date to datetime column in UTC
+        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
+        ## datetime to unix timestamp using timestamp() function
+        df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
+        # fill NaN values with 0
+        df.value.fillna(0, inplace=True)
+
+        return df
+    
+    def get_app_contracts(self, owner_project:str, chains:list):
+        chains_str = ', '.join([f"'{chain}'" for chain in chains])
+
+        exec_string = f"""
+            SELECT 
+                fact.address,
+                oli.name,
+                cat.main_category_id as main_category_key,
+                oli.usage_category as sub_category_key,
+                fact.origin_key, 
+                SUM(fact.txcount) as txcount,
+                SUM(fact.gas_fees_eth) AS fees_paid_eth,
+                SUM(fact.gas_fees_usd) AS fees_paid_usd,
+                SUM(fact.daa) AS daa
+            FROM public.blockspace_fact_contract_level AS fact
+            INNER JOIN vw_oli_labels_materialized AS oli USING (address)
+            left join oli_categories cat on oli.usage_category = cat.category_id
+            WHERE 
+                oli.owner_project = '{owner_project}'
+                AND fact.origin_key IN ({chains_str})
+            GROUP BY 1,2,3,4,5
+            ORDER BY fees_paid_eth DESC
+        """
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = db_addresses_to_checksummed_addresses(df, ['address'])
+
+        return df
+    
+
+    def create_app_details_jsons(self, owner_projects:list, chains:list):
+        timeframes = [1,7,30,90,180,365,'max']
+        timeframe_keys = []
+        for timeframe in timeframes:
+            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'  
+            timeframe_keys.append(timeframe_key)
+
+        ## loop over all projects and generate a app details json for all projects and with all possible metrics
+        for project in owner_projects:
+            print(f'..starting: App details export for {project}')
+            df = self.load_app_data(project, chains)
+
+            app_dict = {
+                'metrics': {}
+            }
+
+            for metric in self.app_metrics:
+                app_dict['metrics'][metric] = {
+                    'metric_name': self.metrics[metric]['name'],
+                    'avg': self.metrics[metric]['avg'],
+                    'over_time': {},
+                    'aggregated': {
+                        'types': timeframe_keys,
+                        'data': {}
+                    }
+                }
+                
+                for origin_key in chains:
+                    mk_list = self.generate_daily_list(df, metric, origin_key, metric_type='app')
+                    mk_list_int = mk_list[0]
+                    mk_list_columns = mk_list[1]
+
+                    app_dict['metrics'][metric]['over_time'][origin_key] = {
+                        'daily': {
+                            'types' : mk_list_columns,
+                            'data' : mk_list_int
+                        }
+                    }
+
+                    data_list = []
+                    for timeframe in timeframes:  
+                        days = timeframe if timeframe != 'max' else 2000
+                        val = self.aggregate_metric(df, origin_key, metric, days)
+                        data_list.append(val)
+
+                    app_dict['metrics'][metric]['aggregated']['data'][origin_key] = data_list
+            
+            ## Contracts
+            contracts = self.get_app_contracts(project, chains)
+            contract_dict = {
+                'types': contracts.columns.to_list(),
+                'data': contracts.values.tolist()
+            }
+
+            app_dict['contracts'] = contract_dict
+
+            app_dict = fix_dict_nan(app_dict, f'apps/details/{project}')
+
+            if self.s3_bucket == None:
+                self.save_to_json(app_dict, f'apps/details/{project}')
+            else:
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/apps/details/{project}', app_dict, self.cf_distribution_id)
+            print(f'DONE -- App details export for {project}')
 
 
 
