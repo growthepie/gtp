@@ -2478,17 +2478,16 @@ class JSONCreation():
 
         exec_string = f"""
             SELECT 
-                oli.owner_project, 
-                fact.origin_key,
-                fact.date, 
-                SUM(fact.txcount) as txcount,
-                SUM(fact.gas_fees_eth) AS fees_paid_eth,
-                SUM(fact.gas_fees_usd) AS fees_paid_usd,
-                SUM(fact.daa) AS daa
-            FROM public.blockspace_fact_contract_level AS fact
-            INNER JOIN vw_oli_labels_materialized AS oli USING (address)
+                owner_project, 
+                origin_key,
+                date, 
+                SUM(txcount) as txcount,
+                SUM(fees_paid_eth) AS fees_paid_eth,
+                SUM(fees_paid_usd) AS fees_paid_usd,
+                SUM(daa) AS daa
+            FROM vw_apps_contract_level_materialized AS fact
             WHERE 
-                oli.owner_project = '{owner_project}'
+                owner_project = '{owner_project}'
                 AND fact.origin_key IN ({chains_str})
             GROUP BY 1,2,3
         """
@@ -2512,20 +2511,18 @@ class JSONCreation():
 
         exec_string = f"""
             SELECT 
-                fact.address,
-                oli.name,
-                cat.main_category_id as main_category_key,
-                oli.usage_category as sub_category_key,
-                fact.origin_key, 
-                SUM(fact.txcount) as txcount,
-                SUM(fact.gas_fees_eth) AS fees_paid_eth,
-                SUM(fact.gas_fees_usd) AS fees_paid_usd,
-                SUM(fact.daa) AS daa
-            FROM public.blockspace_fact_contract_level AS fact
-            INNER JOIN vw_oli_labels_materialized AS oli USING (address)
-            left join oli_categories cat on oli.usage_category = cat.category_id
+                address,
+                name,
+                main_category_key,
+                sub_category_key,
+                origin_key, 
+                SUM(txcount) as txcount,
+                SUM(fees_paid_eth) AS fees_paid_eth,
+                SUM(fees_paid_usd) AS fees_paid_usd,
+                SUM(daa) AS daa
+            FROM vw_apps_contract_level_materialized AS fact
             WHERE 
-                oli.owner_project = '{owner_project}'
+                owner_project = '{owner_project}'
                 AND fact.origin_key IN ({chains_str})
             GROUP BY 1,2,3,4,5
             ORDER BY fees_paid_eth DESC
