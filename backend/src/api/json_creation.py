@@ -1786,8 +1786,12 @@ class JSONCreation():
             if self.s3_bucket == None:
                 self.save_to_json(details_dict, f'chains/{origin_key}')
             else:
-                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id)
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/chains/{origin_key}', details_dict, self.cf_distribution_id, invalidate=False)
+            
             print(f'DONE -- Chain details export for {origin_key}')
+
+        ## after all chain details jsons are created, invalidate the cache
+        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/chains/*.json')
 
     def create_metric_details_jsons(self, df, metric_keys:list=None):
         if metric_keys != None:
@@ -1859,8 +1863,11 @@ class JSONCreation():
             if self.s3_bucket == None:
                 self.save_to_json(details_dict, f'metrics/{metric}')
             else:
-                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id)
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/metrics/{metric}', details_dict, self.cf_distribution_id, invalidate=False)
             print(f'DONE -- Metric details export for {metric}')
+
+        ## after all metric jsons are created, invalidate the cache
+        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/metrics/*.json')
 
     def create_da_metric_details_jsons(self, df, metric_keys:list=None):
         if metric_keys != None:
