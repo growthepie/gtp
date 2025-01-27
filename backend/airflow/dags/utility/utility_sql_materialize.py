@@ -87,7 +87,7 @@ def etl():
         db_connector.upsert_table('sys_economics_mapping', df)
 
     @task()
-    def run_refresh_materialized_app_view(read_airtable_contracts:str):
+    def run_refresh_materialized_app_view():
         from src.db_connector import DbConnector
 
         # refresh the materialized view for APP level fact table
