@@ -20,7 +20,7 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Update Airtable for contracts labelling',
     tags=['utility', 'daily'],
     start_date=datetime(2023,9,10),
-    schedule='15 02 * * *'
+    schedule='15 01 * * *'
 )
 
 def etl():
