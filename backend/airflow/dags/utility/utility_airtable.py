@@ -194,9 +194,10 @@ def etl():
         db_connector = DbConnector()
 
         # fill table with new data
-        df = db_connector.get_inactive_contracts()
-        df = df[['old_owner_project']]
-        df = df['old_owner_project'].value_counts().reset_index()
+        df = db_connector.get_tags_inactive_projects()
+        df = df.rename(columns={'value': 'old_owner_project'})
+        df = df.groupby('old_owner_project').size()
+        df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
 
     # order the tasks
