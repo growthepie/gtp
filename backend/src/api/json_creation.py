@@ -12,11 +12,12 @@ sys_user = getpass.getuser()
 
 from src.main_config import get_main_config, get_multi_config
 from src.da_config import get_da_config
-from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan
+from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan, empty_cloudfront_cache
 from src.misc.glo_prep import Glo
 from src.db_connector import DbConnector
 from eim.funcs import get_eim_yamls
 from src.misc.jinja_helper import execute_jinja_query
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import warnings
 
@@ -2473,6 +2474,48 @@ class JSONCreation():
     ### APPS
     #######################################################################
 
+    def create_app_overview_json(self, chains:list):
+        chains_str = ', '.join([f"'{chain}'" for chain in chains])
+        timeframes = [1,7,30,90,365,9999]
+        for timeframe in timeframes:
+            if timeframe == 9999:
+                timeframe_key = 'max'
+            else:
+                timeframe_key = f'{timeframe}d'
+
+            print(f'Creating App overview for for {timeframe_key}')
+
+            exec_string = f"""
+                SELECT 
+                    owner_project, 
+                    origin_key,
+                    count(distinct address) as num_contracts,
+                    coalesce(sum(case when"date" <= current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as gas_fees_eth, 
+                    coalesce(sum(case when"date" > current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as prev_gas_fees_eth, 
+                    coalesce(sum(fees_paid_usd), 0) as gas_fees_usd , 
+                    coalesce(sum(case when"date" <= current_date - interval '{timeframe} days' then txcount end), 0) as txcount, 
+                    coalesce(sum(case when"date" > current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount
+                FROM vw_apps_contract_level_materialized fact
+                where "date" >= current_date - interval '{timeframe*2} days'
+                    and fact.origin_key in ({chains_str})
+                group by 1,2
+                Having sum(txcount) > 10
+            """
+
+            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+            projects_dict = {
+                'data': {
+                    'types': df.columns.to_list(),
+                    'data': df.values.tolist()
+                }
+            }
+            if self.s3_bucket == None:
+                self.save_to_json(projects_dict, f'apps/app_overview_{timeframe_key}')
+            else:
+                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/apps/app_overview_{timeframe_key}', projects_dict, self.cf_distribution_id)
+
+            print(f'DONE -- App overview export for {timeframe_key}')
+
     def load_app_data(self, owner_project:str, chains:list):
         chains_str = ', '.join([f"'{chain}'" for chain in chains])
 
@@ -2532,19 +2575,9 @@ class JSONCreation():
 
         return df
     
-
-    def create_app_details_jsons(self, owner_projects:list, chains:list):
-        timeframes = [1,7,30,90,180,365,'max']
-        timeframe_keys = []
-        for timeframe in timeframes:
-            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'  
-            timeframe_keys.append(timeframe_key)
-
-        ## loop over all projects and generate a app details json for all projects and with all possible metrics
-        for project in owner_projects:
-            print(f'..starting: App details export for {project}')
-            df = self.load_app_data(project, chains)
-
+    def create_app_details_json(self, project:str, chains:list, timeframes, timeframe_keys, is_all=False):
+        df = self.load_app_data(project, chains)
+        if len(df) > 0:
             app_dict = {
                 'metrics': {}
             }
@@ -2561,24 +2594,26 @@ class JSONCreation():
                 }
                 
                 for origin_key in chains:
-                    mk_list = self.generate_daily_list(df, metric, origin_key, metric_type='app')
-                    mk_list_int = mk_list[0]
-                    mk_list_columns = mk_list[1]
+                    ## check if origin_key is in df
+                    if origin_key in df.origin_key.unique():
+                        mk_list = self.generate_daily_list(df, metric, origin_key, metric_type='app')
+                        mk_list_int = mk_list[0]
+                        mk_list_columns = mk_list[1]
 
-                    app_dict['metrics'][metric]['over_time'][origin_key] = {
-                        'daily': {
-                            'types' : mk_list_columns,
-                            'data' : mk_list_int
+                        app_dict['metrics'][metric]['over_time'][origin_key] = {
+                            'daily': {
+                                'types' : mk_list_columns,
+                                'data' : mk_list_int
+                            }
                         }
-                    }
 
-                    data_list = []
-                    for timeframe in timeframes:  
-                        days = timeframe if timeframe != 'max' else 2000
-                        val = self.aggregate_metric(df, origin_key, metric, days)
-                        data_list.append(val)
+                        data_list = []
+                        for timeframe in timeframes:  
+                            days = timeframe if timeframe != 'max' else 2000
+                            val = self.aggregate_metric(df, origin_key, metric, days)
+                            data_list.append(val)
 
-                    app_dict['metrics'][metric]['aggregated']['data'][origin_key] = data_list
+                        app_dict['metrics'][metric]['aggregated']['data'][origin_key] = data_list
             
             ## Contracts
             contracts = self.get_app_contracts(project, chains)
@@ -2594,11 +2629,48 @@ class JSONCreation():
             if self.s3_bucket == None:
                 self.save_to_json(app_dict, f'apps/details/{project}')
             else:
-                upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/apps/details/{project}', app_dict, self.cf_distribution_id)
+                if is_all: ## in this case don't invalidate each file
+                    upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/apps/details/{project}', app_dict, self.cf_distribution_id, invalidate=False)
+                else:
+                    upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/apps/details/{project}', app_dict, self.cf_distribution_id)
             print(f'DONE -- App details export for {project}')
 
+        else:
+            print(f'..skipped: App details export for {project}. No data found')
+        return project
 
+    def run_app_details_jsons(self, owner_projects:list, chains:list, is_all=False):
+        timeframes = [1,7,30,90,180,365,'max']
+        timeframe_keys = []
+        for timeframe in timeframes:
+            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'  
+            timeframe_keys.append(timeframe_key)
 
+        ## loop over all projects and generate a app details json for all projects and with all possible metrics
+        counter = 1
+
+        ## run steps in parallel
+        with ThreadPoolExecutor() as executor:
+            futures = [executor.submit(self.create_app_details_json, i, chains, timeframes, timeframe_keys, is_all) for i in owner_projects]
+            for future in as_completed(futures):
+                project = future.result()
+                print(f'..done with {project}. {counter}/{len(owner_projects)}')    
+                counter += 1
+
+    def run_app_details_jsons_all(self, chains:list):
+        ## get all active projects with contracts assigned
+        chains_str = ', '.join([f"'{chain}'" for chain in chains])
+        exec_string = f"""
+                select distinct(owner_project) as name
+                from vw_apps_contract_level_materialized
+                where origin_key IN ({chains_str})
+        """
+        df_projects = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        projects = df_projects.name.to_list()
+        print(f'..starting: App details export for all projects. Number of projects: {len(projects)}')
+
+        self.run_app_details_jsons(projects, chains, is_all=True)
+        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/apps/details/*')
 
     #######################################################################
     ### LABELS
