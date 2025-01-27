@@ -368,7 +368,7 @@ def fix_dict_nan(test_dict, dict_name, send_notification=True):
 ## S3 functions
 def empty_cloudfront_cache(distribution_id, path):
         cf = boto3.client('cloudfront')
-        # print("Creating invalidation for path: " + path)
+        print("Creating invalidation for path: " + path)
         time.sleep(random.randint(1, 3))
         res = cf.create_invalidation(
             DistributionId=distribution_id,
