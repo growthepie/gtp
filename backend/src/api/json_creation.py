@@ -1625,6 +1625,7 @@ class JSONCreation():
             }
         }
 
+        master_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         master_dict = fix_dict_nan(master_dict, 'master')
 
         if self.s3_bucket == None:
@@ -1699,6 +1700,7 @@ class JSONCreation():
                 'data': contracts.values.tolist()
             }
 
+        landing_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         landing_dict = fix_dict_nan(landing_dict, 'landing_page')
 
         if self.s3_bucket == None:
@@ -1781,6 +1783,7 @@ class JSONCreation():
                 }
             }
 
+            details_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             details_dict = fix_dict_nan(details_dict, f'chains/{origin_key}')
 
             if self.s3_bucket == None:
@@ -1858,6 +1861,7 @@ class JSONCreation():
                 }
             }
 
+            details_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             details_dict = fix_dict_nan(details_dict, f'metrics/{metric}')
 
             if self.s3_bucket == None:
@@ -2212,6 +2216,7 @@ class JSONCreation():
                     }
                 }
 
+        economics_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         economics_dict = fix_dict_nan(economics_dict, 'economics')
 
         if self.s3_bucket == None:
@@ -2399,6 +2404,7 @@ class JSONCreation():
                 }
             }
 
+        da_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         da_dict = fix_dict_nan(da_dict, 'da_overview')
 
         if self.s3_bucket == None:
@@ -2468,6 +2474,7 @@ class JSONCreation():
                         }
                     }         
 
+        da_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         da_dict = fix_dict_nan(da_dict, 'da_timeseries')
 
         if self.s3_bucket == None:
@@ -2497,17 +2504,18 @@ class JSONCreation():
                     owner_project, 
                     origin_key,
                     count(distinct address) as num_contracts,
-                    coalesce(sum(case when"date" <= current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as gas_fees_eth, 
-                    coalesce(sum(case when"date" > current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as prev_gas_fees_eth, 
+                    coalesce(sum(case when "date" <= current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as gas_fees_eth, 
+                    coalesce(sum(case when "date" > current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as prev_gas_fees_eth, 
                     coalesce(sum(fees_paid_usd), 0) as gas_fees_usd , 
-                    coalesce(sum(case when"date" <= current_date - interval '{timeframe} days' then txcount end), 0) as txcount, 
-                    coalesce(sum(case when"date" > current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount
+                    coalesce(sum(case when "date" <= current_date - interval '{timeframe} days' then txcount end), 0) as txcount, 
+                    coalesce(sum(case when "date" > current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount
                 FROM vw_apps_contract_level_materialized fact
                 where "date" >= current_date - interval '{timeframe*2} days'
                     and fact.origin_key in ({chains_str})
                 group by 1,2
                 Having sum(txcount) > 10
             """
+            print(exec_string)
 
             df = pd.read_sql(exec_string, self.db_connector.engine.connect())
             projects_dict = {
@@ -2516,6 +2524,10 @@ class JSONCreation():
                     'data': df.values.tolist()
                 }
             }
+
+            projects_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+            projects_dict = fix_dict_nan(projects_dict, f'apps/app_overview_{timeframe_key}')
+
             if self.s3_bucket == None:
                 self.save_to_json(projects_dict, f'apps/app_overview_{timeframe_key}')
             else:
@@ -2631,6 +2643,7 @@ class JSONCreation():
 
             app_dict['contracts'] = contract_dict
 
+            app_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             app_dict = fix_dict_nan(app_dict, f'apps/details/{project}')
 
             if self.s3_bucket == None:
@@ -2723,6 +2736,7 @@ class JSONCreation():
             }
         }
 
+        labels_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         labels_dict = fix_dict_nan(labels_dict, f'labels-{type}')
 
         if self.s3_bucket == None:
@@ -2781,6 +2795,7 @@ class JSONCreation():
                     'sparkline': df[(df['address'] == address) & (df['origin_key'] == origin_key)][['unix', 'txcount', 'gas_fees_usd', 'daa']].values.tolist()
             }                     
 
+        sparkline_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         sparkline_dict = fix_dict_nan(sparkline_dict, 'labels-sparkline')
 
         if self.s3_bucket == None:
@@ -2801,6 +2816,7 @@ class JSONCreation():
             }
         }
 
+        projects_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         projects_dict = fix_dict_nan(projects_dict, f'projects')
 
         if self.s3_bucket == None:
@@ -2899,6 +2915,7 @@ class JSONCreation():
             }
         }
 
+        details_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         details_dict = fix_dict_nan(details_dict, f'metrics/{metric}')
 
         if self.s3_bucket == None:
@@ -2932,6 +2949,7 @@ class JSONCreation():
             }
         }
 
+        details_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         details_dict = fix_dict_nan(details_dict, f'metrics/{metric}')
 
         if self.s3_bucket == None:
@@ -2961,6 +2979,7 @@ class JSONCreation():
             }
         }
 
+        holders_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         holders_dict = fix_dict_nan(holders_dict, f'eim-eth_holders')
 
         if self.s3_bucket == None:

@@ -20,7 +20,7 @@ from src.misc.helper_functions import convert_economics_mapping_into_df
     description='Aggregate materialized views on database',
     tags=['utility', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='05 02 * * *' ##needs to run after Airtable DAG (which included new labels -> relevant for app level metrics)
+    schedule='00 03 * * *' ##needs to run after Airtable DAG (which included new labels -> relevant for app level metrics) and blockspace DAG
 )
 
 def etl():
