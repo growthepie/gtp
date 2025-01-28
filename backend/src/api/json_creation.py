@@ -2504,11 +2504,11 @@ class JSONCreation():
                     owner_project, 
                     origin_key,
                     count(distinct address) as num_contracts,
-                    coalesce(sum(case when "date" <= current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as gas_fees_eth, 
-                    coalesce(sum(case when "date" > current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as prev_gas_fees_eth, 
+                    coalesce(sum(case when "date" > current_date - interval '{timeframe+1} days' then fees_paid_eth end), 0) as gas_fees_eth, 
+                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as prev_gas_fees_eth, 
                     coalesce(sum(fees_paid_usd), 0) as gas_fees_usd , 
-                    coalesce(sum(case when "date" <= current_date - interval '{timeframe} days' then txcount end), 0) as txcount, 
-                    coalesce(sum(case when "date" > current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount
+                    coalesce(sum(case when "date" > current_date - interval '{timeframe+1} days' then txcount end), 0) as txcount, 
+                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount
                 FROM vw_apps_contract_level_materialized fact
                 where "date" >= current_date - interval '{timeframe*2} days'
                     and fact.origin_key in ({chains_str})
