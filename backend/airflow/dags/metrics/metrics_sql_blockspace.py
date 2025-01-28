@@ -15,7 +15,7 @@ from src.misc.airflow_utils import alert_via_webhook
         'retry_delay' : timedelta(minutes=5),
         'on_failure_callback': alert_via_webhook
     },
-    dag_id='metrics_sql',
+    dag_id='metrics_sql_blockspace',
     description='Run blockspace sql aggregations on database.',
     tags=['metrics', 'daily'],
     start_date=datetime(2023,4,24),
