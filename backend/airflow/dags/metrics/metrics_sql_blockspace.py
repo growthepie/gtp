@@ -19,7 +19,7 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Run blockspace sql aggregations on database.',
     tags=['metrics', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='10 02 * * *' ## after coingecko, before sql materialize
+    schedule='50 00 * * *' ## after coingecko, before sql materialize
 )
 
 def etl():

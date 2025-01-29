@@ -19,7 +19,7 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Load price, volume, and market_cap from coingecko API for all tracked tokens.',
     tags=['metrics', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='05 02 * * *'
+    schedule='30 00 * * *' ## data should be available by 0:10 utc according to https://docs.coingecko.com/v3.0.1/reference/coins-id-market-chart
 )
 
 def etl():
