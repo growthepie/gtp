@@ -1586,44 +1586,6 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
 
-        # function that returns all contracts from inactive projects that need reassigning
-        def get_inactive_contracts(self):
-                exec_string = f'''
-                        WITH inactive_names AS (
-                                SELECT 
-                                        "name",
-                                        active,
-                                        "source"
-                                FROM public.oli_oss_directory
-                                WHERE active = FALSE
-                                ),
-
-                                inactive_contracts AS(
-                                        select
-                                                value as owner_project,
-                                        tm.address, 
-                                        tm.origin_key
-                                        FROM public.oli_tag_mapping tm
-                                        JOIN inactive_names ia ON tm.value = ia."name"
-                                        WHERE tm.tag_id = 'owner_project'
-                                )
-
-                                SELECT 
-                                        ic.address, 
-                                        ic.origin_key, 
-                                        max(ic.owner_project) AS old_owner_project,
-                                        max(bl.deployment_date) AS deployment_date,
-                                        max(bl.internal_description) AS internal_description,
-                                        max(bl.usage_category) AS usage_category, 
-                                        max(bl."name") AS contract_name,
-                                        bool_and(bl.is_proxy) AS is_proxy,
-                                        max(bl.source_code_verified) AS source_code_verified
-                                FROM inactive_contracts ic
-                                LEFT JOIN vw_oli_labels_materialized bl ON ic.address = bl.address AND ic.origin_key = bl.origin_key
-                                GROUP BY 1,2
-                '''
-                df = pd.read_sql(exec_string, self.engine.connect())
-                return df
 
         ### Sys Chains functions
         # This function takes a dataframe with origin_key and an additional column as input and updates row-by-row the table sys_chains without overwriting other columns
@@ -1729,7 +1691,7 @@ class DbConnector:
                         where tag_id = 'owner_project'
                         and ip.name is null
                         order by value asc
-                        """
+                """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
 

@@ -44,15 +44,25 @@ TopWithTotals AS (
         data_posted
     FROM RankedData
     WHERE rank <= {{ limit }}
+    
     UNION ALL
-    SELECT
+
+    SELECT 
         'others' AS da_consumer_key,
         'Others' AS name,
         NULL AS da_layer,
         NULL AS gtp_origin_key,
-        SUM(data_posted) AS data_posted
-    FROM RankedData
-    WHERE rank > {{ limit }}
+        (SELECT SUM(value) 
+            FROM fact_kpis
+            WHERE metric_key = 'da_data_posted_bytes' 
+            AND origin_key = '{{ da_layer }}'
+            AND "date" >= current_date - INTERVAL '{{ days }} days' 
+            AND "date" < current_date)
+        -
+        (SELECT SUM(data_posted) 
+            FROM RankedData 
+            WHERE rank <= {{ limit }}) 
+        AS data_posted
 )
 SELECT 
     da_consumer_key,

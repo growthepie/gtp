@@ -366,12 +366,12 @@ def fix_dict_nan(test_dict, dict_name, send_notification=True):
 
 
 ## S3 functions
-def empty_cloudfront_cache(distrubution_id, path):
+def empty_cloudfront_cache(distribution_id, path):
         cf = boto3.client('cloudfront')
-        # print("Creating invalidation for path: " + path)
-        time.sleep(random.randint(1, 5))
+        print("Creating invalidation for path: " + path)
+        time.sleep(random.randint(1, 3))
         res = cf.create_invalidation(
-            DistributionId=distrubution_id,
+            DistributionId=distribution_id,
             InvalidationBatch={
                 'Paths': {
                     'Quantity': 1,
@@ -383,8 +383,6 @@ def empty_cloudfront_cache(distrubution_id, path):
             }
         )
         invalidation_id = res['Invalidation']['Id']
-
-        time.sleep(random.randint(1, 3))
         #print("Invalidation created successfully with Id: " + invalidation_id)
         return invalidation_id
 
@@ -398,7 +396,7 @@ def upload_file_to_cf_s3(bucket, path_name, local_path, cf_distribution_id):
     empty_cloudfront_cache(cf_distribution_id, f'/{path_name}')
 
 
-def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id):
+def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id, invalidate=True):
     # Convert Dictionary to JSON String
     details_json = json.dumps(details_dict)
 
@@ -412,7 +410,8 @@ def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id):
     )
 
     print(f'..uploaded to {path_name}')
-    empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.json')
+    if invalidate:
+        empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.json')
 
 def upload_png_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id):
     print(f'...uploading png from {local_path} to {s3_path} in bucket {bucket}')

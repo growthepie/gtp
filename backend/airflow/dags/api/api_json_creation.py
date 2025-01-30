@@ -74,6 +74,14 @@ def etl():
         json_creator.create_da_timeseries_json()
 
     @task()
+    def run_create_app_level_jsons():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
+        json_creator.create_app_overview_json(chains=['optimism', 'arbitrum', 'mode', 'base'])
+        json_creator.run_app_details_jsons_all(chains=['optimism', 'arbitrum', 'mode', 'base'])
+
+    @task()
     def run_create_master():
         db_connector = DbConnector()
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
@@ -153,6 +161,9 @@ def etl():
     run_create_blockspace_overview()
     run_create_blockspace_category_comparison()
     run_create_chain_blockspace()
+
+    ## App Level
+    run_create_app_level_jsons()
 
     ## Labels
     run_create_labels()

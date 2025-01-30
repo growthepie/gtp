@@ -20,7 +20,7 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Update Airtable for contracts labelling',
     tags=['utility', 'daily'],
     start_date=datetime(2023,9,10),
-    schedule='15 02 * * *'
+    schedule='20 01 * * *' #after coingecko and after sql_blockspace, before sql materialize
 )
 
 def etl():
@@ -194,9 +194,10 @@ def etl():
         db_connector = DbConnector()
 
         # fill table with new data
-        df = db_connector.get_inactive_contracts()
-        df = df[['old_owner_project']]
-        df = df['old_owner_project'].value_counts().reset_index()
+        df = db_connector.get_tags_inactive_projects()
+        df = df.rename(columns={'value': 'old_owner_project'})
+        df = df.groupby('old_owner_project').size()
+        df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
 
     # order the tasks

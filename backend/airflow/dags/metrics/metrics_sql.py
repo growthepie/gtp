@@ -19,7 +19,7 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Run some sql aggregations on database.',
     tags=['metrics', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='00 04 * * *'
+    schedule='30 04 * * *'
 )
 
 def etl():
@@ -181,29 +181,6 @@ def etl():
         # # load
         ad.load(df)
 
-    @task()
-    def run_blockspace():
-        from src.db_connector import DbConnector
-        from src.adapters.adapter_sql import AdapterSQL
-
-        db_connector = DbConnector()
-
-        adapter_params = {
-        }
-
-        load_params = {
-            'load_type' : 'blockspace', ## usd_to_eth or metrics or blockspace
-            'days' : 'auto', ## days as or auto
-            'origin_keys' : None, ## origin_keys as list or None
-        }
-
-        # initialize adapter
-        ad = AdapterSQL(adapter_params, db_connector)
-
-        # extract
-        ad.extract(load_params)
-
     run_eth_to_usd(run_usd_to_eth(run_fdv(run_da_metrics(run_economics(run_metrics_dependent())))))    
-    run_blockspace()
     run_metrics_independent()
 etl()
