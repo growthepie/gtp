@@ -2004,9 +2004,9 @@ class JSONCreation():
             if chain.api_in_fees == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
-            if origin_key == 'ethereum':
-                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
-                continue  
+            # if origin_key == 'ethereum':
+            #     print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
+            #     continue  
             
             eth_price = self.db_connector.get_last_price_usd('ethereum')                
             fees_dict["chain_data"][origin_key] = {}
