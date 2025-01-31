@@ -1794,7 +1794,7 @@ class JSONCreation():
             print(f'DONE -- Chain details export for {origin_key}')
 
         ## after all chain details jsons are created, invalidate the cache
-        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/chains/*.json')
+        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/chains/*')
 
     def create_metric_details_jsons(self, df, metric_keys:list=None):
         if metric_keys != None:
@@ -1871,7 +1871,7 @@ class JSONCreation():
             print(f'DONE -- Metric details export for {metric}')
 
         ## after all metric jsons are created, invalidate the cache
-        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/metrics/*.json')
+        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/metrics/*')
 
     def create_da_metric_details_jsons(self, df, metric_keys:list=None):
         if metric_keys != None:
