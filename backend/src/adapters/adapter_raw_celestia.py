@@ -272,7 +272,9 @@ class AdapterCelestia(AbstractAdapterRaw):
                 df.index.name = 'tx_hash'
                 if 'signer' not in df.columns:
                     df['signer'] = None
-                df.replace({pd.NA: None, 'null': None, 'None': None}, inplace=True)
+                    
+                # Replace invalid values with None for PostgreSQL compatibility
+                df.replace({pd.NA: None, 'null': None, 'None': None, 'nan': None, float('nan'): None}, inplace=True)
 
                 # Upsert data into the database
                 try:
