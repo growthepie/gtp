@@ -53,12 +53,14 @@ class AdapterL2Beat(AbstractAdapter):
         return df 
 
     def load(self, df:pd.DataFrame):
-        if self.load_type == 'tvl':
+        if self.load_type == 'tvs':
             upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
             print_load(self.name, upserted, tbl_name)
         elif self.load_type == 'stages':
             self.db_connector.update_sys_chains(df, 'str')
             print_load(self.name, df.shape, 'sys_chains')
+        else:
+            raise NotImplementedError(f"load_type {self.load_type} not recognized")
 
     ## ----------------- Helper functions --------------------
 
