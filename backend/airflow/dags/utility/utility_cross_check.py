@@ -44,6 +44,9 @@ def etl():
 
         ## cross-check and send Discord message
         ad.cross_check()
+
+        ## cross-check Celestia
+        ad.cross_check_celestia()
     
     run_explorers()
 etl()
