@@ -19,7 +19,7 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Loads project data from the OSS Directory API',
     tags=['oli', 'daily'],
     start_date=datetime(2023,6,5),
-    schedule='05 02 * * *'
+    schedule='06 00 * * *'
 )
 
 def etl():
