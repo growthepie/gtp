@@ -127,14 +127,31 @@ class AdapterCelestia(AbstractAdapterRaw):
     def retrieve_block_data(self, block_number):
         df = pd.DataFrame()
         page = 1
-        should_continue, tx_search = self.fetch_block_transaction_details(block_number, page)
-        while should_continue and tx_search and tx_search['result']['txs']:
-            #print(f"Processing page {page} for block {block_number}...")
+        total_tx_count = 0  # Track total transactions
+        all_txs = []  # Store all transactions
+
+        while True:
+            tx_search = self.fetch_block_transaction_details(block_number, page)
+
+            # Handle case where no transactions are found or the RPC request fails
+            if not tx_search or 'result' not in tx_search or 'txs' not in tx_search['result']:
+                print(f"Failed to fetch transactions for block {block_number}, page {page}. Stopping.")
+                break
+
+            txs = tx_search['result']['txs']
+            tx_count = len(txs)
+            total_tx_count += tx_count
+            all_txs.extend(txs)  # Store transactions from each page
+
             df = pd.concat([df, self.prep_dataframe_celestia(tx_search)], ignore_index=True)
-            if len(tx_search['result']['txs']) < 100:
-                break  # No more pages to fetch
-            page += 1
-            should_continue, tx_search = self.fetch_block_transaction_details(block_number, page)
+
+            # Stop fetching pages if fewer than 100 transactions are returned
+            if tx_count < 100:
+                break
+
+            page += 1  # Increment to fetch the next page
+
+        print(f"Total Transactions for Block {block_number}: {total_tx_count}")
 
         if not df.empty:
             df = df.where(pd.notnull(df), None)
@@ -172,27 +189,18 @@ class AdapterCelestia(AbstractAdapterRaw):
                 "query": f"tx.height={str(block_number)}",
                 "prove": True,
                 "page": str(page),
-                "per_page": '100',
-                "order_by": "asc",
-                "match_events": True
+                "per_page": "100",
+                "order_by": "asc"
             },
             "id": 1
         }
-        response = self.request_rpc(payload, headers)
-        if response:
-            if 'result' in response:
-                return (True, response)
-            elif 'error' in response and 'data' in response['error']:
-                error_data = response['error']['data']
-                if 'page should be within' in error_data:
-                    range_msg = error_data.split('[')[1].split(']')[0]
-                    upper_limit = int(range_msg.split(',')[1].strip())
-                    if page > upper_limit:
-                        print(f"Requested page {page} exceeds available pages. Max page is {upper_limit}.")
-                        return (False, None)  # Indicates end of available pages
-                print(response['error']['message'])
-        print(f"Failed to fetch transaction details for block {block_number}.")
-        return (False, None)
+        
+        tx_search = self.request_rpc(payload, headers)
+        if tx_search and 'result' in tx_search and 'txs' in tx_search['result']:
+            return tx_search
+        else:
+            print(f"Failed to fetch transaction details for block {block_number}.")
+            return False, {"error": "No transactions found or RPC request failed"}
     
     def prep_dataframe_celestia(self, tx):
         if tx['result']['txs'] == None or tx['result']['txs'] == []:
@@ -272,7 +280,9 @@ class AdapterCelestia(AbstractAdapterRaw):
                 df.index.name = 'tx_hash'
                 if 'signer' not in df.columns:
                     df['signer'] = None
-                df.replace({pd.NA: None, 'null': None, 'None': None}, inplace=True)
+                    
+                # Replace invalid values with None for PostgreSQL compatibility
+                df.replace({pd.NA: None, 'null': None, 'None': None, 'nan': None, float('nan'): None}, inplace=True)
 
                 # Upsert data into the database
                 try:

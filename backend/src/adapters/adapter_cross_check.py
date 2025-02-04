@@ -148,3 +148,44 @@ class AdapterCrossCheck(AbstractAdapter):
             if row['diff_percent'] > threshold:
                 send_discord_message(f"txcount discrepancy in last 3 days for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])} tx)", self.webhook_url)
                 print(f"txcount discrepancy for {row['origin_key']}: {row['diff_percent'] * 100:.2f}% ({int(row['diff'])})")
+
+    def cross_check_celestia(self):
+        user_id = '326358477335298050'
+        days = 7
+
+        ## get Celenium data
+        now = datetime.now()
+        now = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        now = time.mktime(now.timetuple())
+        unix = int(now - days*24*60*60)
+
+        response_json = api_get_call(f'https://api.celenium.io/v1/stats/series/tx_count/day?from={unix}')
+        df_celenium = pd.DataFrame(response_json)
+        df_celenium['time'] = pd.to_datetime(df_celenium['time'])
+        df_celenium = df_celenium.rename(columns={'time': 'day', 'value': 'txcount_celenium'})
+        df_celenium['day'] = df_celenium['day'].dt.date
+        df_celenium = df_celenium[df_celenium['day'] < datetime.now().date()]
+        df_celenium['txcount_celenium'] = df_celenium['txcount_celenium'].astype(int)
+
+        ## get our data
+        exec_string = f"""
+            select
+                date_trunc('day', block_timestamp) as day,
+                count(*) as txcount_db
+            from celestia_tx
+            where block_timestamp >= current_date - interval '{days} days' and block_timestamp < current_date
+            group by 1
+        """
+        df_our_db = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df_our_db['day'] = df_our_db['day'].dt.date
+
+        ## merge
+        df = df_celenium.merge(df_our_db, on='day', how='outer')
+        df['diff'] = df['txcount_celenium'] - df['txcount_db']
+
+        ## send message if discrepancy
+        if df['diff'].sum() / df['txcount_celenium'].sum() > 0.02:
+            send_discord_message(f"<@{user_id}> -- txcount discrepancy in last 7 days for Celestia: {df['diff'].sum()} tx which equals {(df['diff'].sum() / df['txcount_celenium'].sum()) * 100:.2f}%", self.webhook_url)
+            send_discord_message(f"```\n{df.to_markdown(index=False)}\n```", self.webhook_url)
+            print(f"txcount discrepancy for Celestia: {df['diff'].sum()} tx")
+

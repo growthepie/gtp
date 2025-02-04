@@ -20,7 +20,7 @@ from src.misc.helper_functions import convert_economics_mapping_into_df
     description='Aggregate materialized views on database',
     tags=['utility', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='05 02 * * *' ##needs to run after Airtable DAG (which included new labels -> relevant for app level metrics)
+    schedule='30 02 * * *' ##needs to run after Airtable DAG (which included new labels -> relevant for app level metrics) and blockspace DAG
 )
 
 def etl():
@@ -87,7 +87,7 @@ def etl():
         db_connector.upsert_table('sys_economics_mapping', df)
 
     @task()
-    def run_refresh_materialized_app_view(read_airtable_contracts:str):
+    def run_refresh_materialized_app_view():
         from src.db_connector import DbConnector
 
         # refresh the materialized view for APP level fact table

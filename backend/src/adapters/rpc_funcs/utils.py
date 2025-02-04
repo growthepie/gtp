@@ -100,6 +100,23 @@ def handle_l1_fee(df):
     
     return df
 
+def handle_l1_blob_base_fee(df):
+    """
+    Safely converts the 'handle_l1_blob_base_fee' column to float and fills NaN values with 0.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'handle_l1_blob_base_fee' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'handle_l1_blob_base_fee' converted to float.
+    """
+    if 'l1_blob_base_fee' in df.columns:
+        df['l1_blob_base_fee'] = df['l1_blob_base_fee'].apply(safe_float_conversion)
+        df['l1_blob_base_fee'] = df['l1_blob_base_fee'].astype('float64')
+        df['l1_blob_base_fee'].fillna(0, inplace=True)
+    
+    return df
+
 def handle_l1_fee_scalar(df):
     """
     Fills NaN values in the 'l1_fee_scalar' column with '0'.
@@ -127,6 +144,36 @@ def handle_l1_gas_used(df):
     if 'l1_gas_used' in df.columns:
         df['l1_gas_used'] = df['l1_gas_used'].apply(hex_to_int)
         df['l1_gas_used'].fillna(0, inplace=True)
+    return df
+
+def handle_l1_base_fee_scalar(df):
+    """
+    Converts the 'l1_base_fee_scalar' column from hexadecimal to integer and fills NaN values with 0.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'l1_base_fee_scalar' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'l1_base_fee_scalar' column processed.
+    """
+    if 'l1_base_fee_scalar' in df.columns:
+        df['l1_base_fee_scalar'] = df['l1_base_fee_scalar'].apply(hex_to_int)
+        df['l1_base_fee_scalar'].fillna(0, inplace=True)
+    return df
+
+def handle_l1_blob_base_fee_scalar(df):
+    """
+    Converts the 'l1_blob_base_fee_scalar' column from hexadecimal to integer and fills NaN values with 0.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing the 'l1_blob_base_fee_scalar' column.
+
+    Returns:
+        pd.DataFrame: DataFrame with 'l1_blob_base_fee_scalar' column processed.
+    """
+    if 'l1_blob_base_fee_scalar' in df.columns:
+        df['l1_blob_base_fee_scalar'] = df['l1_blob_base_fee_scalar'].apply(hex_to_int)
+        df['l1_blob_base_fee_scalar'].fillna(0, inplace=True)
     return df
 
 def calculate_tx_fee(df):
@@ -478,7 +525,7 @@ def prep_dataframe_new(df, chain):
     Returns:
         pd.DataFrame: The prepared DataFrame with necessary columns, data types, and operations applied.
     """
-    op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber', 'worldchain', 'mint']
+    op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell']
     default_chains = ['manta', 'metis']
     arbitrum_nitro_chains = ['arbitrum', 'gravity', 'real', 'arbitrum_nova']
     
@@ -500,12 +547,6 @@ def prep_dataframe_new(df, chain):
     for col in required_columns:
         if col not in df.columns:
             df[col] = 0
-
-    # Fill NaN values with specified defaults
-    fillna_values = config.get('fillna_values', {})
-    for col, value in fillna_values.items():
-        if col in df.columns:
-            df[col].fillna(value, inplace=True)
 
     # Map columns
     column_mapping = config.get('column_mapping', {})
@@ -535,6 +576,12 @@ def prep_dataframe_new(df, chain):
         else:
             print(f"Warning: Custom operation '{op_name}' not found.")
 
+    # Fill NaN values with specified defaults
+    fillna_values = config.get('fillna_values', {})
+    for col, value in fillna_values.items():
+        if col in df.columns:
+            df[col].fillna(value, inplace=True)
+            
     # Convert date columns
     date_columns = config.get('date_columns', {})
     for col, unit in date_columns.items():

@@ -40,8 +40,8 @@ class AdapterL2Beat(AbstractAdapter):
         projects_to_load = return_projects_to_load(projects, origin_keys)
 
         ## Load data
-        if self.load_type == 'tvl':
-            df = self.extract_tvl(
+        if self.load_type == 'tvs':
+            df = self.extract_tvs(
                 projects_to_load=projects_to_load)
         elif self.load_type == 'stages':
             df = self.extract_stages(
@@ -53,16 +53,18 @@ class AdapterL2Beat(AbstractAdapter):
         return df 
 
     def load(self, df:pd.DataFrame):
-        if self.load_type == 'tvl':
+        if self.load_type == 'tvs':
             upserted, tbl_name = upsert_to_kpis(df, self.db_connector)
             print_load(self.name, upserted, tbl_name)
         elif self.load_type == 'stages':
             self.db_connector.update_sys_chains(df, 'str')
             print_load(self.name, df.shape, 'sys_chains')
+        else:
+            raise NotImplementedError(f"load_type {self.load_type} not recognized")
 
     ## ----------------- Helper functions --------------------
 
-    def extract_tvl(self, projects_to_load):
+    def extract_tvs(self, projects_to_load):
         dfMain = get_df_kpis()
         for chain in projects_to_load:
             origin_key = chain.origin_key
@@ -71,7 +73,7 @@ class AdapterL2Beat(AbstractAdapter):
                 continue
 
             naming = chain.aliases_l2beat_slug
-            url = f"https://l2beat.com/api/scaling/tvl/{naming}?range=max"       
+            url = f"https://l2beat.com/api/scaling/tvs/{naming}?range=max"       
             print(url)
             response_json = api_get_call(url, sleeper=10, retries=3)
             if response_json['success']:
@@ -96,11 +98,11 @@ class AdapterL2Beat(AbstractAdapter):
                 df.value.fillna(0, inplace=True)
                 dfMain = pd.concat([dfMain,df])
 
-                print(f"...{self.name} - loaded TVL for {origin_key}. Shape: {df.shape}")
+                print(f"...{self.name} - loaded TVS for {origin_key}. Shape: {df.shape}")
                 time.sleep(1)
             else:
-                print(f'Error loading TVL data for {origin_key}')
-                send_discord_message(f'L2Beat: Error loading TVL data for {origin_key}. Other chains are not impacted.', self.webhook)            
+                print(f'Error loading TVS data for {origin_key}')
+                send_discord_message(f'L2Beat: Error loading TVS data for {origin_key}. Other chains are not impacted.', self.webhook)            
 
         dfMain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
         dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)

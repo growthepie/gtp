@@ -24,14 +24,14 @@ from src.misc.airflow_utils import alert_via_webhook
 
 def etl():
     @task()
-    def run_tvl():
+    def run_tvs():
         from src.db_connector import DbConnector
         from src.adapters.adapter_l2beat import AdapterL2Beat
 
         adapter_params = {}
         load_params = {
             'origin_keys' : None,
-            'load_type' : 'tvl',
+            'load_type' : 'tvs',
         }
 
        # initialize adapter
@@ -61,6 +61,6 @@ def etl():
         # load
         ad.load(df)
     
-    run_tvl()
+    run_tvs()
     run_stages()
 etl()

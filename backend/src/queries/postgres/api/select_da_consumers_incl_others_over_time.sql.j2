@@ -44,7 +44,7 @@ top_7_ts as (
 	    origin_key as da_consumer_key, 
 	    f."date",
 	    eco.econ_name as name,
-	    c.origin_key as gtp_origin_key, -- outdate but would break json
+	    c.origin_key as gtp_origin_key, -- outdated but would break json
 	    SUM(value) AS data_posted
 	FROM public.fact_kpis f
 	inner join top_7 t7 on f.origin_key = t7.da_consumer_key
@@ -61,12 +61,12 @@ total_ts as (
 		date,
 		sum(value) as total
 	from fact_kpis
-	where metric_key = '{{ metric_key }}'
+	WHERE metric_key = 'da_data_posted_bytes' 
+    AND origin_key = '{{ da_layer }}'
 	AND "date" >= current_date - INTERVAL '{{ days }} days' 
 	    AND "date" < current_date
 	group by 1
 ),
-
 
 others_ts as (
 	select 
