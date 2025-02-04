@@ -2004,9 +2004,9 @@ class JSONCreation():
             if chain.api_in_fees == False:
                 print(f'..skipped: Fees export for {origin_key}. API is set to False')
                 continue
-            if origin_key == 'ethereum':
-                print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
-                continue  
+            # if origin_key == 'ethereum':
+            #     print(f'..skipped: Fees export for {origin_key}. Ethereum is not included in the line chart')
+            #     continue  
             
             eth_price = self.db_connector.get_last_price_usd('ethereum')                
             fees_dict["chain_data"][origin_key] = {}
@@ -2023,15 +2023,16 @@ class JSONCreation():
                         "granularity": granularity,
                         "data": generated[0]
                     }
-            
-
                 fees_dict["chain_data"][origin_key][metric] = timespan_dict
 
+        fees_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         fees_dict = fix_dict_nan(fees_dict, f'fees/linechart')
 
         if self.s3_bucket == None:
             self.save_to_json(fees_dict, f'fees/linechart')
         else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart_test', fees_dict, self.cf_distribution_id)
+            fees_dict['chain_data'].pop('ethereum', None)
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
         print(f'DONE -- fees/linechart.json export')
 
