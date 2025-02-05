@@ -2509,14 +2509,15 @@ class JSONCreation():
                     coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as prev_gas_fees_eth, 
                     coalesce(sum(fees_paid_usd), 0) as gas_fees_usd , 
                     coalesce(sum(case when "date" > current_date - interval '{timeframe+1} days' then txcount end), 0) as txcount, 
-                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount
+                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount,
+                    coalesce(sum(case when "date" > current_date - interval '{timeframe+1} days' then daa end), 0) as daa, 
+                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then daa end), 0) as prev_daa
                 FROM vw_apps_contract_level_materialized fact
                 where "date" >= current_date - interval '{timeframe*2} days'
                     and fact.origin_key in ({chains_str})
                 group by 1,2
                 Having sum(txcount) > 10
             """
-            print(exec_string)
 
             df = pd.read_sql(exec_string, self.db_connector.engine.connect())
             projects_dict = {
