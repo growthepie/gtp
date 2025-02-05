@@ -96,6 +96,8 @@ sql_queries = [
         ,*standard_evm_queries("mint")
         ## Fraxtal
         ,*standard_evm_queries("fraxtal")
+        ## INK
+        ,*standard_evm_queries("ink")
         
         # Elastic Chain
         ## ZKsync Era
