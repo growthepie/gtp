@@ -2599,8 +2599,14 @@ class JSONCreation():
     def create_app_details_json(self, project:str, chains:list, timeframes, timeframe_keys, is_all=False):
         df = self.load_app_data(project, chains)
         if len(df) > 0:
+            df_first_seen = df.groupby('origin_key').agg({'date': 'min'}).copy()
+            df_first_seen.reset_index(inplace=True)
+            df_first_seen.date = df_first_seen.date.dt.strftime('%Y-%m-%d')
+            df_first_seen_dict = df_first_seen.set_index('origin_key').to_dict()['date']
+
             app_dict = {
-                'metrics': {}
+                'metrics': {},
+                'first_seen': df_first_seen_dict
             }
 
             for metric in self.app_metrics:
