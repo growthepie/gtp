@@ -3,6 +3,10 @@ from pangres import upsert
 from sqlalchemy import text
 import sqlalchemy
 import pandas as pd
+import sys
+import getpass
+sys_user = getpass.getuser()
+sys.path.append(f"/home/{sys_user}/gtp/backend/")
 
 from dotenv import load_dotenv
 load_dotenv() 
@@ -13,9 +17,14 @@ db_passwd = os.getenv("DB_PASSWORD")
 db_host = os.getenv("DB_HOST")
 db_name = os.getenv("DB_DATABASE")
 
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
+if sys_user == 'ubuntu':
+        jinja_env = Environment(loader=FileSystemLoader(f'/home/{sys_user}/gtp/backend/src/queries/postgres'), undefined=StrictUndefined)
+else:
+        jinja_env = Environment(loader=FileSystemLoader('src/queries/postgres'), undefined=StrictUndefined)
+
 class DbConnector:
         def __init__(self, db_user=db_user, db_passwd=db_passwd, db_host=db_host, db_name=db_name):
-            print(f"Connecting to {db_user}@{db_host}")
             self.url = f"postgresql+psycopg2://{db_user}:{db_passwd}@{db_host}/{db_name}"
             self.uri = f"postgresql://{db_user}:{db_passwd}@{db_host}/{db_name}"
             self.engine = sqlalchemy.create_engine(
@@ -27,7 +36,8 @@ class DbConnector:
                         "keepalives_count": 5,
                 },
                 pool_size=20, max_overflow=20
-        )
+                )
+            print(f"Connected to {db_user}@{db_host}")
 
         def upsert_table(self, table_name:str, df:pd.DataFrame, if_exists='update'):
                 batch_size = 100000
@@ -44,6 +54,17 @@ class DbConnector:
                         else:
                                 upsert(con=self.engine, df=df, table_name=table_name, if_row_exists=if_exists, create_table=False)
                         return df.shape[0]
+                
+        def execute_jinja(self, query_name, query_params, load_into_df=False):
+                query = jinja_env.get_template(query_name).render(query_params)
+                if load_into_df:
+                        print(f"Executing query {query_name} with params {query_params} and loading into DataFrame.")
+                        return pd.read_sql(text(query), self.engine)
+                else:
+                        print(f"Executing query {query_name} with params {query_params}")
+                        with self.engine.connect() as connection:
+                                connection.execute(text(query))
+                return None                
                 
 # ------------------------- additional db functions --------------------------------
         def refresh_materialized_view(self, view_name:str):
@@ -655,7 +676,14 @@ class DbConnector:
                 
         
         ## This method aggregates on top of fact_active_addresses and stores memory efficient hll hashes in fact_active_addresses_hll
-        def aggregate_unique_addresses_hll(self, chain:str, days:int):   
+        def aggregate_unique_addresses_hll(self, chain:str, days:int, days_end:int=None):   
+                if days_end is None:
+                        days_end_string = "DATE_TRUNC('day', NOW())"
+                else:
+                        if days_end > days:
+                                raise ValueError("days_end must be smaller than days")
+                        days_end_string = f"DATE_TRUNC('day', NOW() - INTERVAL '{days_end} days')"
+
                 ## in starknets case go straight to the source (raw tx data) because we don't add it to fact_active_addresses  
                 if chain in ['starknet']:    
                         exec_string = f'''
@@ -665,7 +693,7 @@ class DbConnector:
                                                 date_trunc('day', block_timestamp) as date,
                                                 hll_add_agg(hll_hash_text(from_address), 17,5,-1,1)        
                                         FROM {chain}_tx
-                                        WHERE block_timestamp < DATE_TRUNC('day', NOW())
+                                        WHERE block_timestamp < {days_end_string}
                                                 AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         GROUP BY 1,2
                                 ON CONFLICT (origin_key, date)
@@ -677,11 +705,11 @@ class DbConnector:
                                 INSERT INTO fact_active_addresses_hll (origin_key, date, hll_addresses) 
                                         select 
                                                 origin_key, 
-                                                date, 
+                                                date,
                                                 hll_add_agg(hll_hash_bytea(address), 17,5,-1,1)
                                         from fact_active_addresses 
                                         where origin_key = '{chain}' 
-                                                and date < DATE_TRUNC('day', NOW())
+                                                and date < {days_end_string}
                                                 AND date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                         group by 1,2
                                 ON CONFLICT (origin_key, date)

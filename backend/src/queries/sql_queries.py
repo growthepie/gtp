@@ -27,7 +27,8 @@ def standard_evm_queries(origin_key: str): ## op-stack and others
                 ,SQLQuery(metric_key = "aa_last7d", origin_key = origin_key, jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
                 ,SQLQuery(metric_key = "aa_last30d", origin_key = origin_key, jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
                 ,SQLQuery(metric_key = "gas_per_second", origin_key = origin_key, jinja_path='chain_metrics/select_gas_per_second.sql.j2', currency_dependent = False)
-                ,SQLQuery(metric_key = "cca", origin_key = origin_key, jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+                ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = origin_key, jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+                ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = origin_key, jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
                 ,SQLQuery(metric_key = "fees_paid_eth", origin_key = origin_key, jinja_path='chain_metrics/select_fees_paid.sql.j2')
                 ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = origin_key, jinja_path='chain_metrics/select_txcosts_median.sql.j2')
         ]
@@ -44,7 +45,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "maa", origin_key = "ethereum", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "ethereum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "ethereum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "ethereum", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "ethereum", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "ethereum", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
         
         # --- DA Layers ---
         # Celestia
@@ -61,7 +63,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "maa", origin_key = "arbitrum", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "arbitrum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "arbitrum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "arbitrum", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "arbitrum", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "arbitrum", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
 
         ## Real
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "real", jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_used"}, currency_dependent = False)
@@ -71,7 +74,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "real", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "real", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "real", jinja_path='chain_metrics/select_gas_per_second.sql.j2', currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "real", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "real", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "real", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "real", jinja_path='chain_metrics/select_fees_paid.sql.j2')
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "real", jinja_path='chain_metrics/select_txcosts_median.sql.j2')
 
@@ -128,7 +132,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "mantle", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "mantle", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "mantle", jinja_path='chain_metrics/custom/mantle_select_gas_per_second.sql.j2', currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "mantle", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "mantle", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "mantle", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "mantle", jinja_path='chain_metrics/select_fees_paid_custom_gas.sql.j2')
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "mantle", jinja_path='chain_metrics/select_txcosts_median_custom_gas.sql.j2')
 
@@ -140,7 +145,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "metis", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "metis", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "metis", jinja_path='chain_metrics/select_gas_per_second.sql.j2', currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "metis", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "metis", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "metis", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "metis", jinja_path='chain_metrics/select_fees_paid_custom_gas.sql.j2')
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "metis", jinja_path='chain_metrics/select_txcosts_median_custom_gas.sql.j2')
 
@@ -152,7 +158,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "gravity", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "gravity", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
         ,SQLQuery(metric_key = "gas_per_second", origin_key = "gravity", jinja_path='chain_metrics/custom/orbit_select_gas_per_second.sql.j2', currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "gravity", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "gravity", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "gravity", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "gravity", jinja_path='chain_metrics/select_fees_paid_custom_gas.sql.j2')
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gravity", jinja_path='chain_metrics/select_txcosts_median_custom_gas.sql.j2')
 
@@ -163,7 +170,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "maa", origin_key = "imx", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "imx", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "imx", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "imx", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "imx", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "imx", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
 
         ## Loopring
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "loopring", jinja_path='chain_metrics/select_txcount_plain.sql.j2', currency_dependent = False)
@@ -172,7 +180,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "maa", origin_key = "loopring", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "loopring", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "loopring", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "loopring", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "loopring", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "loopring", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
 
         ## Rhino
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "rhino", jinja_path='chain_metrics/select_txcount_plain.sql.j2', currency_dependent = False)
@@ -181,7 +190,8 @@ sql_queries = [
         ,SQLQuery(metric_key = "maa", origin_key = "rhino", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "rhino", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "rhino", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
-        ,SQLQuery(metric_key = "cca", origin_key = "rhino", jinja_path='chain_metrics/select_cca.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "rhino", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "rhino", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
 
         ## Starknet
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "starknet", jinja_path='chain_metrics/select_txcount_plain.sql.j2', currency_dependent = False)
@@ -193,4 +203,5 @@ sql_queries = [
         ,SQLQuery(metric_key = "user_base_weekly", origin_key = "starknet", jinja_path='chain_metrics/select_waa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "starknet", jinja_path='chain_metrics/select_fees_paid.sql.j2')
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "starknet", jinja_path='chain_metrics/select_txcosts_median.sql.j2')
+        ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "starknet", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
 ]

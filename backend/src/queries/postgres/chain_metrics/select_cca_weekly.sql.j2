@@ -1,0 +1,31 @@
+{#
+    This query calculates the unique active addresses on a specified chain ('origin_key') in a given week.
+    The metric (cca_last7d_exclusive) is computed as (unique address on chain MINUS intersecting unique addresses).
+    
+    metric_key: cca_weekly_exclusive
+
+    Parameters:
+    - origin_key: The key identifying the target chain.
+    - days: default = 7; The time interval (in days) over which to consider active addresses.
+#}
+
+{% set days = days | default(8) %}
+
+WITH step_1 AS (
+    SELECT 
+        DATE_TRUNC('week', date) AS day,
+        #hll_union_agg(hll_addresses) AS unioned,
+        #hll_union_agg(CASE WHEN origin_key = '{{ origin_key }}' THEN hll_addresses END) AS chain_a,
+        #hll_union_agg(CASE WHEN origin_key <> '{{ origin_key }}' THEN hll_addresses END) AS other_chains
+    FROM fact_active_addresses_hll
+    WHERE 
+        date < DATE_TRUNC('week', current_date)
+        AND date >= DATE_TRUNC('week', current_date - INTERVAL '{{ days }} days')
+    GROUP BY 1
+)
+SELECT 
+    day as date,
+    '{{ origin_key }}' AS origin_key,
+    'cca_weekly_exclusive' AS metric_key,
+    (chain_a - (chain_a + other_chains - unioned))::int AS value -- chain_a - intersecting
+FROM step_1;
