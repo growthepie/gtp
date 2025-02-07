@@ -13,7 +13,7 @@
 
 WITH step_1 AS (
     SELECT 
-        DATE_TRUNC('week', date) AS day,
+        DATE_TRUNC('week', date) AS "day",
         #hll_union_agg(hll_addresses) AS unioned,
         #hll_union_agg(CASE WHEN origin_key = '{{ origin_key }}' THEN hll_addresses END) AS chain_a,
         #hll_union_agg(CASE WHEN origin_key <> '{{ origin_key }}' THEN hll_addresses END) AS other_chains
@@ -24,7 +24,7 @@ WITH step_1 AS (
     GROUP BY 1
 )
 SELECT 
-    day as date,
+    "day",
     '{{ origin_key }}' AS origin_key,
     'cca_weekly_exclusive' AS metric_key,
     (chain_a - (chain_a + other_chains - unioned))::int AS value -- chain_a - intersecting
