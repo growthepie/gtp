@@ -101,7 +101,7 @@ def remove_control_characters(s):
     return "".join(ch for ch in s if unicodedata.category(ch)[0]!="C")
 
 ## Adapter preparation functions
-## this function checks if origin_keys exist in the projects:AdapterMapping or FlipsideQueries and returns an error if one is missing
+## this function checks if origin_keys exist in the projects:AdapterMapping and returns an error if one is missing
 def check_projects_to_load(projects, origin_keys):
         if origin_keys is not None:
             for ok in origin_keys:
@@ -111,7 +111,7 @@ def check_projects_to_load(projects, origin_keys):
                         ok_existing = True
                         break
                 if ok_existing == False:
-                    print(f'origin_key {ok} does not exist in AdapterMapping.')
+                    print(f'origin_key {ok} does not exist in AdapterMapping OR query doesnt exist.')
                     raise NotImplementedError
 
 ## this function checks if query_name exist in the zettablock_queries and returns an error if one is missing
