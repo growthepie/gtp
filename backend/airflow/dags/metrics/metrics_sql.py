@@ -94,7 +94,7 @@ def etl():
         ad.load(df)
 
     @task()
-    def run_da_metrics(run_economics:str):
+    def run_da_metrics(run_metrics_independent:str):
         from src.db_connector import DbConnector
         from src.adapters.adapter_sql import AdapterSQL
 
@@ -181,6 +181,6 @@ def etl():
         # # load
         ad.load(df)
 
-    run_eth_to_usd(run_usd_to_eth(run_fdv(run_da_metrics(run_economics(run_metrics_dependent())))))    
-    run_metrics_independent()
+    run_eth_to_usd(run_usd_to_eth(run_fdv(run_economics(run_metrics_dependent()))))
+    run_eth_to_usd(run_da_metrics(run_metrics_independent()))
 etl()
