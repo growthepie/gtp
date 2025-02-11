@@ -532,7 +532,7 @@ class JSONCreation():
                 'monthly_agg': 'maa',
                 'max_date_fill' : False,
             }
-            ,'fees': {
+            ,'gas_fees': {
                 'name': 'Fees Paid',
                 'metric_keys': ['fees_paid_usd', 'fees_paid_eth'],
                 'units': {
@@ -2611,8 +2611,8 @@ class JSONCreation():
 
             for metric in self.app_metrics:
                 app_dict['metrics'][metric] = {
-                    'metric_name': self.metrics[metric]['name'],
-                    'avg': self.metrics[metric]['avg'],
+                    'metric_name': self.app_metrics[metric]['name'],
+                    'avg': self.app_metrics[metric]['avg'],
                     'over_time': {},
                     'aggregated': {
                         'types': timeframe_keys,
