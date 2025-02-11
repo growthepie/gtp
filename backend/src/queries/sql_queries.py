@@ -102,7 +102,9 @@ sql_queries = [
         ,*standard_evm_queries("fraxtal")
         ## INK
         ,*standard_evm_queries("ink")
-        
+        ## Soneium
+        ,*standard_evm_queries("soneium")
+
         # Elastic Chain
         ## ZKsync Era
         ,*standard_evm_queries("zksync_era")
