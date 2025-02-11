@@ -2597,7 +2597,7 @@ class JSONCreation():
 
         return df
     
-    def create_app_details_json(self, project:str, chains:list, timeframes, timeframe_keys, is_all=False):
+    def create_app_details_json(self, project:str, chains:list, timeframes, is_all=False):
         df = self.load_app_data(project, chains)
         if len(df) > 0:
             df_first_seen = df.groupby('origin_key').agg({'date': 'min'}).copy()
@@ -2616,11 +2616,12 @@ class JSONCreation():
                     'avg': self.app_metrics[metric]['avg'],
                     'over_time': {},
                     'aggregated': {
-                        'types': timeframe_keys,
+                        'types': list(self.app_metrics[metric]['units'].keys()),
                         'data': {}
                     }
                 }
                 
+
                 for origin_key in chains:
                     ## check if origin_key is in df
                     if origin_key in df.origin_key.unique():
@@ -2634,14 +2635,18 @@ class JSONCreation():
                                 'data' : mk_list_int
                             }
                         }
+                        app_dict['metrics'][metric]['aggregated']['data'][origin_key] = {}
 
-                        data_list = []
                         for timeframe in timeframes:  
-                            days = timeframe if timeframe != 'max' else 2000
-                            val = self.aggregate_metric(df, origin_key, metric, days)
-                            data_list.append(val)
+                            data_list = []
+                            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
 
-                        app_dict['metrics'][metric]['aggregated']['data'][origin_key] = data_list
+                            days = timeframe if timeframe != 'max' else 2000
+                            for metric_key in self.app_metrics[metric]['metric_keys']:
+                                val = self.aggregate_metric(df, origin_key, metric_key, days)
+                                data_list.append(val)
+                        
+                            app_dict['metrics'][metric]['aggregated']['data'][origin_key][timeframe_key] = data_list
             
             ## Contracts
             contracts = self.get_app_contracts(project, chains)
@@ -2654,6 +2659,8 @@ class JSONCreation():
 
             app_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             app_dict = fix_dict_nan(app_dict, f'apps/details/{project}')
+
+            #print(app_dict)
 
             if self.s3_bucket == None:
                 self.save_to_json(app_dict, f'apps/details/{project}')
@@ -2670,17 +2677,11 @@ class JSONCreation():
 
     def run_app_details_jsons(self, owner_projects:list, chains:list, is_all=False):
         timeframes = [1,7,30,90,180,365,'max']
-        timeframe_keys = []
-        for timeframe in timeframes:
-            timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'  
-            timeframe_keys.append(timeframe_key)
-
-        ## loop over all projects and generate a app details json for all projects and with all possible metrics
         counter = 1
 
         ## run steps in parallel
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.create_app_details_json, i, chains, timeframes, timeframe_keys, is_all) for i in owner_projects]
+            futures = [executor.submit(self.create_app_details_json, i, chains, timeframes, is_all) for i in owner_projects]
             for future in as_completed(futures):
                 project = future.result()
                 print(f'..done with {project}. {counter}/{len(owner_projects)}')    
