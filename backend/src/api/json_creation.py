@@ -1617,6 +1617,7 @@ class JSONCreation():
             'da_layers' : da_dict,
             'metrics' : self.metrics,
             'da_metrics' : self.da_metrics,
+            'app_metrics' : self.app_metrics,
             'fee_metrics' : fees_types_api,
             'blockspace_categories' : {
                 'main_categories' : main_category_dict,
