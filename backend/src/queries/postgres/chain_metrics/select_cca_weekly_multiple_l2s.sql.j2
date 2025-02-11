@@ -1,0 +1,35 @@
+{#
+    This query calculates the unique active addresses on a specified chain ('origin_key') in a given week.
+    The metric (cca_last7d_exclusive) is computed as (unique address on chain MINUS intersecting unique addresses).
+    
+    metric_key: cca_weekly_exclusive
+
+    Parameters:
+    - origin_key: The key identifying the target chain.
+    - days: default = 7; The time interval (in days) over which to consider active addresses.
+#}
+
+{% set days = days | default(8) %}
+
+WITH chain_info AS (
+    SELECT 
+        DATE_TRUNC('week', date) AS day,
+        address,
+        count(distinct origin_key) as counter,
+        array_agg(distinct origin_key) as ok_array
+    FROM fact_active_addresses
+    WHERE
+        date < DATE_TRUNC('week', NOW())
+        AND date >= DATE_TRUNC('week', NOW() - INTERVAL '{{ days }} days')
+        AND origin_key <> 'starknet'
+    GROUP BY 1, 2
+)
+
+SELECT
+    day as date,
+    'all' as origin_key,
+    'cca_weekly_multiple_l2s' AS metric_key,
+    COUNT(*) AS value
+FROM chain_info
+WHERE counter > 1 AND NOT ('ethereum' = ANY(ok_array))
+GROUP BY 1

@@ -1,0 +1,27 @@
+{#
+    This query calculates the unique active addresses on a specified chain ('origin_key') over the last 7 days.
+    The metric (cca_last7d_exclusive) is computed as (unique address on chain MINUS intersecting unique addresses).
+    
+    metric_key: cca_last7d_exclusive
+
+    Parameters:
+    - origin_key: The key identifying the target chain.
+    - days_interval: default = 7; The time interval (in days) over which to consider active addresses.
+#}
+
+WITH step_1 AS (
+    SELECT 
+        #hll_union_agg(hll_addresses) AS unioned,
+        #hll_union_agg(CASE WHEN origin_key = '{{ origin_key }}' THEN hll_addresses END) AS chain_a,
+        #hll_union_agg(CASE WHEN origin_key <> '{{ origin_key }}' THEN hll_addresses END) AS other_chains
+    FROM fact_active_addresses_hll
+    WHERE 
+        --origin_key NOT IN ('ethereum', 'starknet')
+        "date" BETWEEN current_date - INTERVAL '7 days' AND current_date
+    ORDER BY 1 DESC
+)
+SELECT 
+    (current_date - INTERVAL '1 days')::DATE AS day,
+    'cca_last7d_exclusive' AS metric_key,
+    (chain_a - (chain_a + other_chains - unioned))::int AS value -- chain_a - intersecting
+FROM step_1;

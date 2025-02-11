@@ -1,15 +1,10 @@
 import os
-import sys
-import getpass
-sys_user = getpass.getuser()
-sys.path.append(f"/home/{sys_user}/gtp/backend/")
 import pandas as pd
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
 from src.misc.helper_functions import upsert_to_kpis, get_missing_days_blockspace, send_discord_message
 from src.misc.helper_functions import print_init, print_load, print_extract, check_projects_to_load
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 ##ToDos: 
 # Add logs (query execution, execution fails, etc)
@@ -141,23 +136,24 @@ class AdapterSQL(AbstractAdapter):
             return None
         
         elif load_type == 'jinja':
-            if days:
-                query_parameters = {'days': days}
-            else:
-                query_parameters = {}
+            query_parameters = load_params.get('query_parameters', None)
+            destination_table = load_params.get('destination_table', None)
+
+            if query_parameters is None:
+                if days:
+                    query_parameters = {'days': days}
+                else:
+                    query_parameters = {}
 
             jinja_queries = load_params.get('queries', None)
-            if sys_user == 'ubuntu':
-                    env = Environment(loader=FileSystemLoader(f'/home/{sys_user}/gtp/backend/src/queries/postgres'), undefined=StrictUndefined)
-            else:
-                    env = Environment(loader=FileSystemLoader('src/queries/postgres'), undefined=StrictUndefined)
-
+            
             for jinja_q in jinja_queries:
-                template = env.get_template(jinja_q)
-                rendered_sql = template.render(query_parameters)
                 print(f"...executing jinja query: {jinja_q} with params: {query_parameters}")
-                self.db_connector.engine.execute(rendered_sql)
-                df = pd.DataFrame() ## dummy df, TODO: make it more clear what queries are fact_kpis and what are not
+                if destination_table is not None:
+                    df = self.db_connector.execute_jinja(query_name=jinja_q, query_params=query_parameters, load_into_df=True)
+                else:
+                    self.db_connector.execute_jinja(query_name=jinja_q, query_params=query_parameters)
+                    df = pd.DataFrame() ## dummy df, TODO: make it more clear what queries are fact_kpis and what are not
 
         else:
             raise ValueError('load_type not supported')
@@ -317,8 +313,12 @@ class AdapterSQL(AbstractAdapter):
                 print(f"...aggregating + inserting active addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
                 self.db_connector.aggregate_unique_addresses(origin_key, days, days_end)
 
-            print(f"...HLL: aggregating + inserting active addresses data for {origin_key} and last {days} days...")
-            self.db_connector.aggregate_unique_addresses_hll(origin_key, days)
+            print(f"...HLL: aggregating + inserting active addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
+            self.db_connector.aggregate_unique_addresses_hll(origin_key, days, days_end)
+
+        ## run aggregation for weekly active addresses (landing page chart)
+        print(f"...run cca_weekly_multiple l2s for last {days} days (can take a while for longer timeframes)...")
+        self.db_connector.execute_jinja('chain_metrics/select_cca_weekly_multiple_l2s.sql.j2', {'origin_key': origin_key, 'days': days})
 
         ## STOPPED loading this on October 15th, 2024 (currently not used)
         # print(f'...aggregate_addresses_first_seen_global for last {days} days...')
