@@ -1659,22 +1659,24 @@ class DbConnector:
 
                 if add_category:
                         exec_string = """
-                        with raw_counts as (
-                                SELECT 
-                                        owner_project, 
-                                        cat.main_category_id,
-                                        count(*) as counter,
-                                        ROW_NUMBER() OVER (PARTITION BY owner_project ORDER BY count(*) DESC) AS row_num
-                                FROM public.vw_oli_labels_materialized vw
-                                left join oli_categories cat on cat.category_id = vw.usage_category
-                                where vw.owner_project is not null and vw.usage_category is not null
-                                group by 1,2
+                       with raw_counts as (
+                                select 
+                                                owner_project,
+                                                sub_category_key as category_id,
+                                                sum(txcount) as txcount,
+                                                ROW_NUMBER() OVER (PARTITION BY owner_project ORDER BY sum(txcount) DESC) AS row_num
+                                        from vw_apps_contract_level_materialized vw
+                                        where "date" >= current_date - interval '365 days'
+                                        and vw.sub_category_key is not null
+                                        group by 1,2
                         )
 
                         SELECT 
                                 owner_project as "name", 
+                                oc.name as "sub_category",
                                 ocm."name" as main_category
-                        FROM raw_counts
+                        FROM raw_counts r
+                        left join oli_categories oc using (category_id)
                         left join oli_categories_main ocm using (main_category_id)
                         WHERE row_num = 1;
                         """
