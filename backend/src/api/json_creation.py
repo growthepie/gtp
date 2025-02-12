@@ -1733,6 +1733,8 @@ class JSONCreation():
                 if metric in chain.api_exclude_metrics:
                     print(f'..skipped: Chain details export for {origin_key} - {metric}. Metric is excluded')
                     continue
+
+                print(f'..processing: Chain details for {origin_key} - {metric}')
                 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
@@ -1819,6 +1821,8 @@ class JSONCreation():
                 if metric in chain.api_exclude_metrics:
                     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                     continue
+
+                print(f'..processing: Metric details for {origin_key} - {metric}')
 
                 mk_list = self.generate_daily_list(df, metric, origin_key)
                 mk_list_int = mk_list[0]
