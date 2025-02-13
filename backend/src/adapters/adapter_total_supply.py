@@ -88,7 +88,8 @@ class AdapterTotalSupply(AbstractAdapter):
 
                 # load in the contract
                 w3 = Web3(Web3.HTTPProvider(rpc))
-                contract = w3.eth.contract(address=coin.cs_token_address, abi=coin.cs_token_abi)
+                token_address = coin.cs_token_address if Web3.is_checksum_address(coin.cs_token_address) else Web3.to_checksum_address(coin.cs_token_address)
+                contract = w3.eth.contract(address=token_address, abi=coin.cs_token_abi)
                 print(f'...connected to {coin.cs_deployment_origin_key} at {rpc}')
                 time.sleep(1)
 

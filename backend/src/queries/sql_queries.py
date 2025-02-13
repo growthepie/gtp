@@ -105,6 +105,9 @@ sql_queries = [
         ## Soneium
         ,*standard_evm_queries("soneium")
 
+        ## Swell
+        ,*standard_evm_queries("swell")
+
         # Elastic Chain
         ## ZKsync Era
         ,*standard_evm_queries("zksync_era")
