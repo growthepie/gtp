@@ -18,7 +18,7 @@ class AdapterBlockscout(AbstractAdapter):
     class Contract:
         address: str 
         origin_key: str 
-        name: str = None 
+        contract_name: str = None 
         deployment_tx: str = None 
         deployer_address: str = None 
         deployment_date: str = None
@@ -26,7 +26,8 @@ class AdapterBlockscout(AbstractAdapter):
         is_proxy: bool = None 
         is_contract: bool = None 
         is_eoa: bool = None 
-        erc20_name: str = None 
+        erc20_symbol: str = None 
+        erc20_decimals: str = None 
         # we can get the factory contract address from deployment transaction
         is_factory_contract: bool = None
 
@@ -34,7 +35,7 @@ class AdapterBlockscout(AbstractAdapter):
     class ProcessingStats:
         total_contracts_input: int = 0
         count_contracts: int = 0
-        count_name: int = 0
+        count_contract_name: int = 0
         count_deployment_tx: int = 0
         count_deployer_address: int = 0
         count_deployment_date: int = 0
@@ -42,7 +43,8 @@ class AdapterBlockscout(AbstractAdapter):
         count_is_proxy: int = 0
         count_is_contract: int = 0
         count_is_eoa: int = 0
-        count_erc20_name: int = 0
+        count_erc20_symbol: int = 0
+        count_erc20_decimals: int = 0
         count_is_factory_contract: int = 0
         elapsed_time: str = ""
 
@@ -65,6 +67,7 @@ class AdapterBlockscout(AbstractAdapter):
             return pd.DataFrame()
         df = self.turn_list_of_contracts_into_df(c)
         df['deployment_date'] = df['deployment_date'].apply(lambda x: x.replace('T', ' ').replace('.000000Z', '') if x is not None else x)
+        df = df.rename(columns={'erc20_symbol': 'erc20.symbol', 'erc20_decimals': 'erc20.decimals'})
         # print extract
         print_extract(self.name, load_params, df.shape)
         return df
@@ -76,7 +79,7 @@ class AdapterBlockscout(AbstractAdapter):
         # replace 0x with \x in address column
         df['address'] = df['address'].apply(lambda x: x.replace('0x', '\\x'))
         # make sure the name is not longer than 40 characters
-        df['name'] = df['name'].apply(lambda x: x[:40] if x is not None else x)
+        df['contract_name'] = df['contract_name'].apply(lambda x: x[:40] if x is not None else x)
         # melt all columns apart from address and origin_key into tag_id and value
         df = df.melt(id_vars=['address', 'origin_key'], var_name='tag_id', value_name='value')
         # remove duplicates and any row where value = None
@@ -150,13 +153,14 @@ class AdapterBlockscout(AbstractAdapter):
 
         # if token, then map name from there, else from contract
         try:
-            contract.name = address_json["token"]["name"]
+            contract.contract_name = address_json["token"]["name"]
             if address_json["token"]["type"] == "ERC-20":
-                contract.erc20_name = address_json["token"]["symbol"]
+                contract.erc20_symbol = address_json["token"]["symbol"]
+                contract.erc20_decimals = address_json["token"]["decimals"]
         except:
             if 'name' in keys_address:
                 if address_json["name"] != None:
-                    contract.name = address_json["name"]
+                    contract.contract_name = address_json["name"]
 
         # map is_proxy if any proxy_type is given
         if 'proxy_type' in keys_address:
@@ -257,8 +261,8 @@ class AdapterBlockscout(AbstractAdapter):
                     # keep track of stats
                     for c in processed_contracts:
                         stats.count_contracts += 1
-                        if c.name:
-                            stats.count_name += 1
+                        if c.contract_name:
+                            stats.count_contract_name += 1
                         if c.deployment_tx:
                             stats.count_deployment_tx += 1
                         if c.deployer_address:
@@ -273,8 +277,10 @@ class AdapterBlockscout(AbstractAdapter):
                             stats.count_is_contract += 1
                         if c.is_eoa:
                             stats.count_is_eoa += 1
-                        if c.erc20_name:
-                            stats.count_erc20_name += 1
+                        if c.erc20_symbol:
+                            stats.count_erc20_symbol += 1
+                        if c.erc20_decimals:
+                            stats.count_erc20_decimals += 1
                         if c.is_factory_contract:
                             stats.count_is_factory_contract += 1
                         # occasionally print progress
