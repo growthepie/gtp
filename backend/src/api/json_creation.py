@@ -2581,7 +2581,7 @@ class JSONCreation():
         exec_string = f"""
             SELECT 
                 address,
-                name,
+                contract_name as name,
                 main_category_key,
                 sub_category_key,
                 origin_key, 
