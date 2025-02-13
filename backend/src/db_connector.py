@@ -1166,7 +1166,7 @@ class DbConnector:
                                 SELECT 
                                         cl.address,
                                         cl.origin_key,
-                                        bl.name as contract_name,
+                                        bl.contract_name as contract_name,
                                         oss.display_name as project_name,
                                         {sub_main_string}
                                         sum(gas_fees_eth) as gas_fees_eth,
@@ -1241,7 +1241,7 @@ class DbConnector:
                                 SELECT
                                         cl.address,
                                         cl.origin_key,
-                                        bl.name as contract_name,
+                                        bl.contract_name as contract_name,
                                         oss.display_name as project_name,
                                         bl.usage_category as sub_category_key,
                                         bcm.category_name as sub_category_name,
@@ -1346,7 +1346,7 @@ class DbConnector:
                                 SELECT 
                                         cl.address,
                                         cl.origin_key,
-                                        bl.name as contract_name,
+                                        bl.contract_name as contract_name,
                                         oss.display_name as project_name,
                                         {sub_main_string}
                                         sum(gas_fees_eth) as gas_fees_eth,
@@ -1514,7 +1514,7 @@ class DbConnector:
                                         cl.origin_key, 
                                         max(bl.deployment_date) AS deployment_date,
                                         max(bl.internal_description) AS internal_description,
-                                        max(bl."name") AS name,
+                                        max(bl.contract_name) AS name,
                                         bool_and(bl.is_proxy) AS is_proxy,
                                         max(bl.source_code_verified) AS source_code_verified,
                                         max(bl.owner_project) AS owner_project,
@@ -1738,7 +1738,7 @@ class DbConnector:
                         SELECT 
                                 address,
                                 {chain_str},
-                                name,
+                                contract_name as name,
                                 owner_project,
                                 usage_category,
                                 is_factory_contract,
@@ -1786,7 +1786,7 @@ class DbConnector:
                                 cl.address, 
                                 cl.origin_key, 
                                 syc.caip2 as chain_id,
-                                lab."name",
+                                lab.contract_name as name,
                                 lab.owner_project,
                                 oss.display_name as owner_project_clear,
                                 lab.usage_category,
@@ -1827,7 +1827,7 @@ class DbConnector:
                                 cl.address, 
                                 cl.origin_key, 
                                 syc.caip2 as chain_id,
-                                lab."name",
+                                lab.contract_name as name,
                                 lab.owner_project,
                                 lab.usage_category,
                                 lab.deployment_tx,
