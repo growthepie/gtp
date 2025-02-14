@@ -33,25 +33,27 @@ class EthProxy:
     def retry_operation(self, func, method_name, *args, max_retries=5, initial_wait=1.0, **kwargs):
         retries = 0
         wait_time = initial_wait
+        current_rpc = self._web3cc.get_rpc_url()
         while retries < max_retries:
+            print(f"Attempting {method_name} on RPC {current_rpc} with args {args} and kwargs {kwargs}. Retry {retries+1}")
             if self._web3cc.is_rate_limited and retries > 2:
-                print(f"RETRY - Rate Limit exceed: for {self._web3cc.get_rpc_url()}: Retrying in {wait_time} seconds...")
+                print(f"RETRY - Rate Limit exceed: for {current_rpc}: Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
             try:
                 return func(*args, **kwargs)
             except ReadTimeout as e:
-                print(f"RETRY - Read timeout: for {self._web3cc.get_rpc_url()}: Read timeout while trying {method_name} with params {args}, {kwargs}. Retrying in {wait_time} seconds...")
+                print(f"RETRY - Read timeout: for {current_rpc}: Read timeout while trying {method_name} with params {args}, {kwargs}. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
                 retries += 1
             except ConnectionError as e:
-                print(f"RETRY - Connection Error: for {self._web3cc.get_rpc_url()}: Connection error while trying {method_name}. Retrying in {wait_time} seconds...")
+                print(f"RETRY - Connection Error: for {current_rpc}: Connection error while trying {method_name}. Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
                 wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
                 retries += 1
             except HTTPError as e:
                 if e.response.status_code == 429:  # Rate Limit Exceeded
-                    print(f"RETRY - Too Many Requests: for {self._web3cc.get_rpc_url()}: Retrying in {wait_time} seconds...")
+                    print(f"RETRY - Too Many Requests: for {current_rpc}: Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
                     wait_time = min(wait_time * 2, 30) + random.uniform(0, wait_time * 0.1)
                     retries += 1
@@ -60,7 +62,7 @@ class EthProxy:
             except Exception as e:
                 raise e
 
-        raise Exception(f"ERROR: for {self._web3cc.get_rpc_url()}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
+        raise Exception(f"ERROR: for {current_rpc}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
 
 class ResponseNormalizerMiddleware:
     def __init__(self, web3):
@@ -69,13 +71,19 @@ class ResponseNormalizerMiddleware:
     def __call__(self, make_request, web3):
         def middleware(method, params):
             response = make_request(method, params)
-            if 'result' in response and 'uncles' in response['result'] and isinstance(response['result']['uncles'], type(None)):
+            # Guard against response being None
+            if response is None:
+                rpc_url = web3.provider.endpoint_uri
+                print(f"WARNING: RPC {rpc_url} returned None for method {method} with params {params}")
+                return response
+            if 'result' in response and 'uncles' in response['result'] and response['result']['uncles'] is None:
                 response['result']['uncles'] = []
             return response
         return middleware
     
 class Web3CC:
     def __init__(self, rpc_config):
+        print(f"Initializing Web3CC with RPC URL: {rpc_config['url']}")
         self._w3 = self._connect(rpc_config['url'])
         self.call_count = 0
         self.calls_per_sec_count = 0
@@ -125,7 +133,7 @@ class Web3CC:
     
     def get_rpc_url(self):
         raw_url = self._w3.provider.endpoint_uri
-        ## remove http:// or https://
+        # Remove http:// or https:// from the URL for clarity
         url = raw_url.split("//")[-1]
 
         return url

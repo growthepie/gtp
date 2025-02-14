@@ -91,7 +91,7 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
 
     # drop not needded columns and clean df
     df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', 'labelling_type', 'internal_description', 'is_proxy']]
-    df.rename(columns={'contract_name': 'name' , 'labelling_type' : 'source'}, inplace=True)
+    df.rename(columns={'labelling_type' : 'source'}, inplace=True)
 
     # owner_project and usage_category are lists with 1 element, so we extract the element at index 0
     df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])

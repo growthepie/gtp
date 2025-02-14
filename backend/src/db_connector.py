@@ -1852,32 +1852,51 @@ class DbConnector:
                 exec_string = f"""
                         SELECT
                                 '0x' || encode(address, 'hex') AS address,
-                                origin_key AS chain_id,
+                                CASE 
+                                        WHEN origin_key = 'arbitrum' THEN 'eip155:42161'
+                                        WHEN origin_key = 'base' THEN 'eip155:8453'
+                                        WHEN origin_key = 'blast' THEN 'eip155:81457'
+                                        WHEN origin_key = 'ethereum' THEN 'eip155:1'
+                                        WHEN origin_key = 'fraxtal' THEN 'eip155:252'
+                                        WHEN origin_key = 'linea' THEN 'eip155:59144'
+                                        WHEN origin_key = 'mantle' THEN 'eip155:5000'
+                                        WHEN origin_key = 'metis' THEN 'eip155:1088'
+                                        WHEN origin_key = 'mode' THEN 'eip155:34443'
+                                        WHEN origin_key = 'optimism' THEN 'eip155:10'
+                                        WHEN origin_key = 'polygon_zkevm' THEN 'eip155:1101'
+                                        WHEN origin_key = 'redstone' THEN 'eip155:690'
+                                        WHEN origin_key = 'scroll' THEN 'eip155:534352'
+                                        WHEN origin_key = 'taiko' THEN 'eip155:167000'
+                                        WHEN origin_key = 'zksync_era' THEN 'eip155:324'
+                                        WHEN origin_key = 'zora' THEN 'eip155:7777777'
+                                        ELSE NULL
+                                END AS chain_id,
                                 MAX(CASE WHEN tag_id = 'is_eoa' THEN value END) AS is_eoa,
                                 MAX(CASE WHEN tag_id = 'is_contract' THEN value END) AS is_contract,
                                 MAX(CASE WHEN tag_id = 'is_factory_contract' THEN value END) AS is_factory_contract,
                                 MAX(CASE WHEN tag_id = 'is_proxy' THEN value END) AS is_proxy,
                                 MAX(CASE WHEN tag_id = 'is_safe_contract' THEN value END) AS is_safe_contract,
-                                MAX(CASE WHEN tag_id = 'name' THEN value END) AS "name",
+                                MAX(CASE WHEN tag_id = 'contract_name' THEN value END) AS contract_name,
                                 MAX(CASE WHEN tag_id = 'deployment_tx' THEN value END) AS deployment_tx,
                                 MAX(CASE WHEN tag_id = 'deployer_address' THEN value END) AS deployer_address,
                                 MAX(CASE WHEN tag_id = 'owner_project' THEN value END) AS owner_project,
                                 MAX(CASE WHEN tag_id = 'deployment_date' THEN value END) AS deployment_date,
                                 MAX(CASE WHEN tag_id = 'erc_type' THEN value END) AS erc_type, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc20_name' THEN value END) AS erc20_symbol,
-                                MAX(CASE WHEN tag_id = 'erc20_decimals' THEN value END) AS erc20_decimals, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc721_name' THEN value END) AS erc721_name, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc721_symbol' THEN value END) AS erc721_symbol, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc1155_name' THEN value END) AS erc1155_name, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc1155_symbol' THEN value END) AS erc1155_symbol, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc20.symbol' THEN value END) AS erc20.symbol,
+                                MAX(CASE WHEN tag_id = 'erc20.decimals' THEN value END) AS erc20.decimals,
+                                MAX(CASE WHEN tag_id = 'erc721.name' THEN value END) AS erc721.name, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc721.symbol' THEN value END) AS erc721.symbol, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc1155.name' THEN value END) AS erc1155.name, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc1155.symbol' THEN value END) AS erc1155.symbol, -- not yet used as of 15.01.2025
                                 MAX(CASE WHEN tag_id = 'usage_category' THEN value END) AS usage_category,
                                 MAX(CASE WHEN tag_id = 'version' THEN value END) AS version, -- not yet used as of 15.01.2025
                                 MAX(CASE WHEN tag_id = 'audit' THEN value END) AS audit, -- not yet used as of 15.01.2025
                                 MAX(CASE WHEN tag_id = 'contract_monitored' THEN value END) AS contract_monitored, -- not yet used as of 15.01.2025
                                 MAX(CASE WHEN tag_id = 'source_code_verified' THEN value END) AS source_code_verified
-                        FROM public.oli_tag_mapping
-                        GROUP BY address, origin_key
-                        HAVING MAX(CASE WHEN "source" = 'orbal' OR "source" = 'Matthias' OR "source" IS NULL THEN 'gtp' ELSE '000' END) = 'gtp';
+                                FROM public.oli_tag_mapping
+                                WHERE origin_key <> 'gitcoin_pgn' -- Exclude all rows with gitcoin_pgn
+                                GROUP BY address, origin_key
+                                HAVING MAX(CASE WHEN "source" = 'orbal' OR "source" = 'Matthias' OR "source" IS NULL THEN 'gtp' ELSE '000' END) = 'gtp';
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
