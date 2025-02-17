@@ -35,7 +35,7 @@ class EthProxy:
         wait_time = initial_wait
         current_rpc = self._web3cc.get_rpc_url()
         while retries < max_retries:
-            print(f"Attempting {method_name} on RPC {current_rpc} with args {args} and kwargs {kwargs}. Retry {retries+1}")
+            #print(f"Attempting {method_name} on RPC {current_rpc} with args {args} and kwargs {kwargs}. Retry {retries+1}")
             if self._web3cc.is_rate_limited and retries > 2:
                 print(f"RETRY - Rate Limit exceed: for {current_rpc}: Retrying in {wait_time} seconds...")
                 time.sleep(wait_time)
@@ -73,8 +73,8 @@ class ResponseNormalizerMiddleware:
             response = make_request(method, params)
             # Guard against response being None
             if response is None:
-                rpc_url = web3.provider.endpoint_uri
-                print(f"WARNING: RPC {rpc_url} returned None for method {method} with params {params}")
+                #rpc_url = web3.provider.endpoint_uri
+                #print(f"WARNING: RPC {rpc_url} returned None for method {method} with params {params}")
                 return response
             if 'result' in response and 'uncles' in response['result'] and response['result']['uncles'] is None:
                 response['result']['uncles'] = []
@@ -83,7 +83,7 @@ class ResponseNormalizerMiddleware:
     
 class Web3CC:
     def __init__(self, rpc_config):
-        print(f"Initializing Web3CC with RPC URL: {rpc_config['url']}")
+        #print(f"Initializing Web3CC with RPC URL: {rpc_config['url']}")
         self._w3 = self._connect(rpc_config['url'])
         self.call_count = 0
         self.calls_per_sec_count = 0
