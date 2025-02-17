@@ -32,7 +32,7 @@ chain_settings = {
         'email_on_failure': False,
         'on_failure_callback': lambda context: alert_via_webhook(context, user='nader')
     },
-    dag_id='backfill_rpc',
+    dag_id='backfill_rpc_pause',
     description='DAG for backfilling missing blockchain data',
     tags=['backfill', 'daily'],
     start_date=datetime(2023, 12, 1),
