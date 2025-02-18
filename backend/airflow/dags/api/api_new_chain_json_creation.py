@@ -61,7 +61,50 @@ def json_creation():
         json_creator.create_metric_details_jsons(df)
         json_creator.create_economics_json(df)
 
+    # @task()
+    # def run_create_blockspace_overview(**kwargs):
+    #     import os
+    #     from src.db_connector import DbConnector
+    #     from src.api.blockspace_json_creation import BlockspaceJSONCreation
+
+    #     api_version = kwargs['params'].get('api_version', 'v1')
+
+    #     db_connector = DbConnector()
+    #     blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
+    #     blockspace_json_creator.create_blockspace_overview_json()
+
+    # @task()
+    # def run_create_blockspace_category_comparison(**kwargs):
+    #     import os
+    #     from src.db_connector import DbConnector
+    #     from src.api.blockspace_json_creation import BlockspaceJSONCreation
+
+    #     api_version = kwargs['params'].get('api_version', 'v1')
+
+    #     db_connector = DbConnector()
+    #     blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
+    #     blockspace_json_creator.create_blockspace_comparison_json()    
+
+    @task()
+    def run_create_chain_blockspace(**kwargs):
+        import os
+        from src.db_connector import DbConnector
+        from src.api.blockspace_json_creation import BlockspaceJSONCreation
+
+        api_version = kwargs['params'].get('api_version', 'v1')
+        origin_key = kwargs['params'].get('origin_key', 'ethereum')
+
+        db_connector = DbConnector()
+        blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
+        blockspace_json_creator.create_blockspace_single_chain_json([origin_key])
+
     # Main
     run_create_jsons()    
+    #run_create_blockspace_overview()
+    #run_create_blockspace_category_comparison()
+    run_create_chain_blockspace()
    
 json_creation()

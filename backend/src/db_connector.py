@@ -1844,7 +1844,7 @@ class DbConnector:
                         left join sys_chains syc on cl.origin_key = syc.origin_key
                         where cl."date"  >= current_date - interval '180 days'
                                 and cl."date" < current_date
-                                and (lab."name" is not null OR lab.owner_project is not null OR lab.deployment_tx is not null OR lab.deployer_address is not null OR lab.deployment_date is not null)
+                                and (lab.contract_name is not null OR lab.owner_project is not null OR lab.deployment_tx is not null OR lab.deployer_address is not null OR lab.deployment_date is not null)
                                 and cl.origin_key IN ('{"','".join(origin_keys)}')
                         group by 1,2,3,4,5,6,7,8,9
                         order by sum(txcount) desc
