@@ -72,6 +72,11 @@ class DbConnector:
                 with self.engine.connect() as connection:
                         connection.execute(exec_string)
                 print(f"Materialized view {view_name} refreshed.")
+
+        def get_table(self, table_name:str, limit:int=10000):
+                exec_string = f"SELECT * FROM {table_name} LIMIT {limit};"
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
         
         def get_last_price_eth(self, origin_key:str, granularity:str='daily'):
                 if granularity == 'daily':

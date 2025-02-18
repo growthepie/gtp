@@ -85,13 +85,13 @@ def etl():
         db_connector.refresh_materialized_view('vw_oli_labels_materialized')
 
     @task()
-    def oss_projects(run_refresh_materialized_view:str):
+    def oss_projects():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
         import src.misc.airtable_functions as at
 
-        #initialize Airtable instance
+        # initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
         api = Api(AIRTABLE_API_KEY)
@@ -108,7 +108,40 @@ def etl():
         at.push_to_airtable(table, df)
 
     @task()
-    def write_airtable_contracts(oss_projects:str):
+    def write_chain_info():
+        import pandas as pd
+        import os
+        import src.misc.airtable_functions as at
+        from pyairtable import Api
+        from src.main_config import get_main_config
+
+        # initialize Airtable instance
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+
+        # get all chain info from main config
+        config = get_main_config()
+        df = pd.DataFrame(data={'origin_key': [chain.origin_key for chain in config],
+                                'chain_type': [chain.chain_type for chain in config],
+                                'l2beat_stage': [chain.l2beat_stage for chain in config],
+                                'caip2': [chain.caip2 for chain in config],
+                                'name': [chain.name for chain in config],
+                                'name_short': [chain.name_short for chain in config],
+                                'bucket': [chain.bucket for chain in config],
+                                'block_explorers': [None if chain.block_explorers is None else next(iter(chain.block_explorers.values())) for chain in config],
+                                'socials_website': [chain.socials_website for chain in config],
+                                'socials_twitter': [chain.socials_twitter for chain in config],
+                                'runs_aggregate_blockspace': [chain.runs_aggregate_blockspace for chain in config]
+                                })
+        
+        # write to airtable
+        table = api.table(AIRTABLE_BASE_ID, 'Chain List')
+        at.clear_all_airtable(table)
+        at.push_to_airtable(table, df)
+
+    @task()
+    def write_airtable_contracts():
         import os
         import pandas as pd
         from pyairtable import Api
@@ -176,7 +209,7 @@ def etl():
         at.push_to_airtable(table, df)
 
     @task()
-    def write_depreciated_owner_project(write_airtable_contracts:str):
+    def write_depreciated_owner_project():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
@@ -201,7 +234,16 @@ def etl():
         df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
 
-    # order the tasks
-    write_depreciated_owner_project(write_airtable_contracts(oss_projects(run_refresh_materialized_view(read_airtable_contracts()))))
 
-etl()
+    # all tasks
+    read = read_airtable_contracts()
+    refresh = run_refresh_materialized_view()
+    oss = oss_projects()
+    write_chain = write_chain_info()
+    write_contracts = write_airtable_contracts()
+    write_owner_project = write_depreciated_owner_project()
+
+    # Define execution order
+    read >> refresh  # Ensure refresh runs after reading from Airtable
+    refresh >> [oss, write_chain]  # Allow oss and write_chain to run in parallel
+    refresh >> write_contracts >> write_owner_project # refresh needs to complete before updating contracts & owner projects table
