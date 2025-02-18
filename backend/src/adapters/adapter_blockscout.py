@@ -26,8 +26,13 @@ class AdapterBlockscout(AbstractAdapter):
         is_proxy: bool = None 
         is_contract: bool = None 
         is_eoa: bool = None 
+        erc20_name: str = None 
         erc20_symbol: str = None 
-        erc20_decimals: str = None 
+        erc20_decimals: int = None 
+        erc721_name: str = None
+        erc721_symbol: str = None
+        erc1155_name: str = None
+        erc1155_symbol: str = None
         # we can get the factory contract address from deployment transaction
         is_factory_contract: bool = None
 
@@ -43,8 +48,13 @@ class AdapterBlockscout(AbstractAdapter):
         count_is_proxy: int = 0
         count_is_contract: int = 0
         count_is_eoa: int = 0
+        count_erc20_name: int = 0
         count_erc20_symbol: int = 0
         count_erc20_decimals: int = 0
+        count_erc721_name: int = 0
+        count_erc721_symbol: int = 0
+        count_erc1155_name: int = 0
+        count_erc1155_symbol: int = 0
         count_is_factory_contract: int = 0
         elapsed_time: str = ""
 
@@ -157,6 +167,12 @@ class AdapterBlockscout(AbstractAdapter):
             if address_json["token"]["type"] == "ERC-20":
                 contract.erc20_symbol = address_json["token"]["symbol"]
                 contract.erc20_decimals = address_json["token"]["decimals"]
+            elif address_json["token"]["type"] == "ERC-721":
+                contract.erc721_name = address_json["token"]["name"]
+                contract.erc721_symbol = address_json["token"]["symbol"]
+            elif address_json["token"]["type"] == "ERC-1155":
+                contract.erc1155_name = address_json["token"]["name"]
+                contract.erc1155_symbol = address_json["token"]["symbol"]
         except:
             if 'name' in keys_address:
                 if address_json["name"] != None:
@@ -225,6 +241,8 @@ class AdapterBlockscout(AbstractAdapter):
             return [contract]
         try:
             blockscout_json_address = self.fetch_blockscout_data(api_url + "addresses/", contract.address)
+            #print(f"Processing address {contract.address} from {contract.origin_key}")
+            #print(blockscout_json_address)
             return self.map_blockscout_to_open_labels(contract, blockscout_json_address)
         except (ValueError, TimeoutError) as e:
             print(f"Error processing address {contract.address}: {str(e)}")
@@ -277,10 +295,20 @@ class AdapterBlockscout(AbstractAdapter):
                             stats.count_is_contract += 1
                         if c.is_eoa:
                             stats.count_is_eoa += 1
+                        if c.erc20_name:
+                            stats.count_erc20_name += 1
                         if c.erc20_symbol:
                             stats.count_erc20_symbol += 1
                         if c.erc20_decimals:
                             stats.count_erc20_decimals += 1
+                        if c.erc721_name:
+                            stats.count_erc721_name += 1
+                        if c.erc721_symbol:
+                            stats.count_erc721_symbol += 1
+                        if c.erc1155_name:
+                            stats.count_erc1155_name += 1
+                        if c.erc1155_symbol:
+                            stats.count_erc1155_symbol += 1
                         if c.is_factory_contract:
                             stats.count_is_factory_contract += 1
                         # occasionally print progress
