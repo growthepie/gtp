@@ -187,6 +187,12 @@ def etl():
         # remove all duplicates that are still in the airtable due to temp_owner_project
         df_remove = at.read_airtable(table)
         if df_remove.empty == False:
+            # replace id with actual origin_key
+            chains = api.table(AIRTABLE_BASE_ID, 'Chain List')
+            df_chains = at.read_airtable(chains)
+            df_remove['origin_key'] = df_remove['origin_key'].apply(lambda x: x[0])
+            df_remove = df_remove.replace({'origin_key': df_chains.set_index('id')['origin_key']})
+            # remove duplicates from df
             df_remove = df_remove[['address', 'origin_key']]
             df = df.merge(df_remove, on=['address', 'origin_key'], how='left', indicator=True)
             df = df[df['_merge'] == 'left_only'].drop(columns=['_merge'])
