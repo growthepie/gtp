@@ -85,7 +85,7 @@ def etl():
         db_connector.refresh_materialized_view('vw_oli_labels_materialized')
 
     @task()
-    def oss_projects():
+    def write_oss_projects():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
@@ -244,12 +244,12 @@ def etl():
     # all tasks
     read = read_airtable_contracts()
     refresh = run_refresh_materialized_view()
-    oss = oss_projects()
+    write_oss = write_oss_projects()
     write_chain = write_chain_info()
     write_contracts = write_airtable_contracts()
     write_owner_project = write_depreciated_owner_project()
 
     # Define execution order
-    read >> refresh >> oss >> write_chain >> write_contracts >> write_owner_project
+    read >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
 
 etl()
