@@ -134,11 +134,18 @@ def etl():
                                 'socials_twitter': [chain.socials_twitter for chain in config],
                                 'runs_aggregate_blockspace': [chain.runs_aggregate_blockspace for chain in config]
                                 })
-        
-        # write to airtable
+
+        # merge current table with the new data
         table = api.table(AIRTABLE_BASE_ID, 'Chain List')
-        at.clear_all_airtable(table)
-        at.push_to_airtable(table, df)
+        df = df.merge(at.read_airtable(table)[['origin_key', 'id']], how='left', left_on='origin_key', right_on='origin_key')
+
+        # update existing records (primary key is the id)
+        at.update_airtable(table, df)
+
+        # add any new records/chains if present
+        df_new = df[df['id'].isnull()]
+        if df_new.empty == False:
+            at.push_to_airtable(table, df_new.drop(columns=['id']))
 
     @task()
     def write_airtable_contracts():

@@ -32,6 +32,42 @@ def push_to_airtable(table, df):
 
     print(f"Pushed {len(rows)} records to Airtable.")
 
+# update records in airtable
+def update_airtable(table, df):
+
+    # throw error if id column is not present
+    if 'id' not in df.columns:
+        raise ValueError('id column is missing in the dataframe.')
+
+    # remove all rows that have NaN in the id column
+    df = df.dropna(subset=['id'])
+
+    # extract ids from df
+    ids = df['id'].tolist()
+
+    # convert rows to dictionary & remove index column
+    df = df.drop(columns=['id'])
+    rows = df.to_dict(orient='records')
+
+    # convert all timestamp columns to string
+    for col in df.dtypes[df.dtypes == 'datetime64[ns]'].index:
+        for row in rows:
+            if pd.notnull(row[col]):
+                row[col] = row[col].strftime('%Y-%m-%d %H:%M:%S')
+
+    # convert NaT, nan to None for all columns
+    for col in df.dtypes.index:
+        for row in rows:
+            if pd.isnull(row[col]):
+                row[col] = None
+
+    # create a list of dictionaries with the id and the fields to update
+    c = [{'id': i, 'fields': r} for i, r in zip(ids, rows)]
+
+    # update contracts in Airtable
+    table.batch_update(c)
+
+    print(f"Updated {len(rows)} records in Airtable.")
 
 # delete all records from airtable
 def clear_all_airtable(table):
