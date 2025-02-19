@@ -205,6 +205,12 @@ def etl():
         df = df.replace({'owner_project': df_proj.set_index('Name')['id']})
         df['owner_project'] = df['owner_project'].apply(lambda x: [x])
 
+        # exchange the chain origin_key with the id & make it a list
+        chains = api.table(AIRTABLE_BASE_ID, 'Chain List')
+        df_chains = at.read_airtable(chains)
+        df = df.replace({'origin_key': df_chains.set_index('origin_key')['id']})
+        df['origin_key'] = df['origin_key'].apply(lambda x: [x])
+
         # write to airtable
         at.push_to_airtable(table, df)
 
@@ -244,6 +250,4 @@ def etl():
     write_owner_project = write_depreciated_owner_project()
 
     # Define execution order
-    read >> refresh  # Ensure refresh runs after reading from Airtable
-    refresh >> [oss, write_chain]  # Allow oss and write_chain to run in parallel
-    refresh >> write_contracts >> write_owner_project # refresh needs to complete before updating contracts & owner projects table
+    read >> refresh >> oss >> write_chain >> write_contracts >> write_owner_project

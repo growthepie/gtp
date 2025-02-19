@@ -9,7 +9,7 @@ from src.misc.airflow_utils import alert_via_webhook
 
 @dag(
     default_args={
-        'owner' : 'lorenz234',
+        'owner' : 'lorenz',
         'retries' : 2,
         'email_on_failure': False,
         'retry_delay' : timedelta(minutes=5),
