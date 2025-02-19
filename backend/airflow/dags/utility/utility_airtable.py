@@ -85,7 +85,7 @@ def etl():
         db_connector.refresh_materialized_view('vw_oli_labels_materialized')
 
     @task()
-    def oss_projects():
+    def write_oss_projects():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
@@ -134,11 +134,18 @@ def etl():
                                 'socials_twitter': [chain.socials_twitter for chain in config],
                                 'runs_aggregate_blockspace': [chain.runs_aggregate_blockspace for chain in config]
                                 })
-        
-        # write to airtable
+
+        # merge current table with the new data
         table = api.table(AIRTABLE_BASE_ID, 'Chain List')
-        at.clear_all_airtable(table)
-        at.push_to_airtable(table, df)
+        df = df.merge(at.read_airtable(table)[['origin_key', 'id']], how='left', left_on='origin_key', right_on='origin_key')
+
+        # update existing records (primary key is the id)
+        at.update_airtable(table, df)
+
+        # add any new records/chains if present
+        df_new = df[df['id'].isnull()]
+        if df_new.empty == False:
+            at.push_to_airtable(table, df_new.drop(columns=['id']))
 
     @task()
     def write_airtable_contracts():
@@ -180,6 +187,12 @@ def etl():
         # remove all duplicates that are still in the airtable due to temp_owner_project
         df_remove = at.read_airtable(table)
         if df_remove.empty == False:
+            # replace id with actual origin_key
+            chains = api.table(AIRTABLE_BASE_ID, 'Chain List')
+            df_chains = at.read_airtable(chains)
+            df_remove['origin_key'] = df_remove['origin_key'].apply(lambda x: x[0])
+            df_remove = df_remove.replace({'origin_key': df_chains.set_index('id')['origin_key']})
+            # remove duplicates from df
             df_remove = df_remove[['address', 'origin_key']]
             df = df.merge(df_remove, on=['address', 'origin_key'], how='left', indicator=True)
             df = df[df['_merge'] == 'left_only'].drop(columns=['_merge'])
@@ -244,12 +257,12 @@ def etl():
     # all tasks
     read = read_airtable_contracts()
     refresh = run_refresh_materialized_view()
-    oss = oss_projects()
+    write_oss = write_oss_projects()
     write_chain = write_chain_info()
     write_contracts = write_airtable_contracts()
     write_owner_project = write_depreciated_owner_project()
 
     # Define execution order
-    read >> refresh >> oss >> write_chain >> write_contracts >> write_owner_project
+    read >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
 
 etl()
