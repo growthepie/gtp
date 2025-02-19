@@ -77,7 +77,7 @@ def etl():
                 db_connector.update_owner_projects(row['old_owner_project'], row['owner_project'])
 
     @task()
-    def run_refresh_materialized_view(read_airtable_contracts:str):
+    def run_refresh_materialized_view():
         from src.db_connector import DbConnector
 
         # refresh the materialized view for OLI tags, so not the same contracts are shown in the airtable
