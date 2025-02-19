@@ -93,9 +93,10 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
     df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', 'labelling_type', 'internal_description', 'is_proxy']]
     df.rename(columns={'labelling_type' : 'source'}, inplace=True)
 
-    # owner_project and usage_category are lists with 1 element, so we extract the element at index 0
+    # origin_key, owner_project and usage_category are lists with 1 element, so we extract the element at index 0
     df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])
     df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: x[0])
+    df['origin_key'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: x[0])
 
     # convert column ids to text for owner_project & usage_category columns (e.g. recgawzTCg3ALuSR2 -> uniswap)
     if len(df[df["owner_project"].notna()]) > 0:
@@ -108,6 +109,11 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
         df_usage_categories = df_usage_categories[['id', 'Category']]
         df_usage_categories.set_index('id', inplace=True)
         df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: df_usage_categories.loc[x]['Category'])
+    if len(df[df["origin_key"].notna()]) > 0:
+        df_chains = read_airtable(api.table(AIRTABLE_BASE_ID, 'Chain List'))
+        df_chains = df_chains[['id', 'origin_key']]
+        df_chains.set_index('id', inplace=True)
+        df['origin_key'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: df_chains.loc[x]['origin_key'])
 
     # source is a dict with a name key, so we extract the first word
     df['source'] = df['source'].replace('', float('nan')) # replace empty strings with nan
