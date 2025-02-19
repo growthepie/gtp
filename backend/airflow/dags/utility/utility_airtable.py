@@ -251,3 +251,5 @@ def etl():
 
     # Define execution order
     read >> refresh >> oss >> write_chain >> write_contracts >> write_owner_project
+
+etl()
