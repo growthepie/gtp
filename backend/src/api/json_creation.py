@@ -50,6 +50,25 @@ class JSONCreation():
         self.eth_exported_entities = eim_yamls[0]
         self.ethereum_events = eim_yamls[1]
 
+        self.maturity_levels = {
+            'Stage 2': {
+                'maturity_name' : 'Robust',
+                'description' : "Fully decentralized and secure network that cannot be tampered with or stopped by any individual or group, including its creators. This is a network that fulfills Ethereum's vision of decentralization.",
+            },
+            'Stage 1': {
+                'maturity_name' : 'Maturing',
+                'description' : "A network transitioning to being decentralized. A group of actors still may be able to halt the network in extreme situations.",
+            },
+            'Stage 0': {
+                'maturity_name' : 'Developing',
+                'description' : "A centralized operator runs the network but adds fail-safe features to reduce risks of centralization.",
+            },
+            'NA': {
+                'maturity_name' : 'Emerging',
+                'description' : "A centralized operator runs the network. The data is publicly visible on Ethereum to verify whether the operator is being honest.",
+            }
+        }
+        
         ## Decimals: only relevant if value isn't aggregated
         ## When aggregated (starting >1k), we always show 2 decimals
         ## in case of ETH and decimals >6, show Gwei
@@ -669,7 +688,7 @@ class JSONCreation():
         if self.api_version != 'dev':
             df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(self.chains_list_in_api_prod))]
 
-        ## filter out ethereum
+        ## filter out ethereum TODO: include Ethereum for new landing
         df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
 
         ## assign rank based on order (descending order if metric_key is not 'txcosts')
@@ -1288,7 +1307,8 @@ class JSONCreation():
         chains_dict = {}
         all_users = self.get_aa_last7d(df, 'all')
         for chain in self.main_config:
-            if chain.api_in_main == True and chain.origin_key != 'ethereum':
+            ##if chain.api_in_main == True and chain.origin_key != 'ethereum':
+            if chain.api_in_main == True:
                 ranking_dict = {}
                 for metric in self.metrics:
                     if self.metrics[metric]['ranking_landing']:
@@ -1665,13 +1685,34 @@ class JSONCreation():
                     "symbol": "-",
                     "metrics": {}
                 },
+                "ethereum": {
+                    "chain_id": "ethereum",
+                    "chain_name": "Ethereum (L1)",
+                    "symbol": "ETH",
+                    "metrics": {}
+                },
                 "top_contracts": {
                 }
             }
         }
 
+        start_date = datetime.now() - timedelta(days=720)
+        start_date = start_date.replace(tzinfo=timezone.utc) 
+
         for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
             landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
+
+            if metric_id != 'rent_paid':
+                eth_values, eth_types = self.generate_daily_list(df, metric_id, 'ethereum', start_date=start_date)
+                landing_dict['data']['ethereum']['metrics'][metric_id] = {
+                    "metric_name": self.metrics[metric_id]['name'],
+                    "source": [],
+                    "avg": "true",
+                    "daily": {
+                        "types": eth_types,
+                        "data": eth_values
+                    }
+                }
 
          ## put all origin_keys from main_config in a list where in_api is True
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
