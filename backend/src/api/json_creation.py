@@ -68,7 +68,7 @@ class JSONCreation():
                 'description' : "A centralized operator runs the network. The data is publicly visible on Ethereum to verify whether the operator is being honest.",
             }
         }
-        
+
         ## Decimals: only relevant if value isn't aggregated
         ## When aggregated (starting >1k), we always show 2 decimals
         ## in case of ETH and decimals >6, show Gwei
@@ -3119,6 +3119,26 @@ class JSONCreation():
             self.save_to_json(fundamentals_dict, 'fundamentals_full')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fundamentals_full', fundamentals_dict, self.cf_distribution_id)
+
+    def create_da_fundamentals_json(self):
+        metrics_user_string = "'" + "','".join(self.da_metrics_list) + "'"
+        chain_user_string = "'" + "','".join(self.da_layers_list) + "'"
+
+        df = self.download_data(chain_user_string, metrics_user_string)
+        df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
+
+        ## transform date column to string with format YYYY-MM-DD
+        df['date'] = df['date'].dt.strftime('%Y-%m-%d')
+        
+        ## put dataframe into a json string
+        fundamentals_dict = df.to_dict(orient='records')
+
+        fundamentals_dict = fix_dict_nan(fundamentals_dict, 'da_fundamentals')
+
+        if self.s3_bucket == None:
+            self.save_to_json(fundamentals_dict, 'da_fundamentals')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/da_fundamentals', fundamentals_dict, self.cf_distribution_id)
 
     def create_metrics_export_json(self, df):
         df = df[['metric_key', 'origin_key', 'date', 'value']].copy()
