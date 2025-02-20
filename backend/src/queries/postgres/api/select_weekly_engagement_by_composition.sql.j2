@@ -1,0 +1,77 @@
+{#
+    A query to get the data by composition for our landing page chart
+
+    Parameters:
+    -
+#}
+
+
+WITH 
+-- temp aggregates
+tmp_aggregates AS (
+    SELECT 
+        date_trunc('week', date) as week,
+        #hll_union_agg(hll_addresses) AS total,
+        #hll_union_agg(CASE WHEN origin_key = 'ethereum' THEN hll_addresses END) AS ethereum,
+        #hll_union_agg(CASE WHEN origin_key <> 'ethereum' THEN hll_addresses END) AS l2s
+    FROM fact_active_addresses_hll
+    WHERE 
+        "date" >= '2022-01-01'
+        and date < DATE_TRUNC('week', NOW())
+    GROUP BY 1
+),
+
+-- origin_key only ethereum, same address not active on any other chain
+only_l1 as (
+    SELECT 
+        week,
+        'only_l1' AS metric_key,
+        (ethereum - (ethereum + l2s - total))::int AS value -- ethereum - intersecting
+    FROM tmp_aggregates
+),
+
+cross_layer as (
+    SELECT 
+        week,
+        'cross_layer' AS metric_key,
+        (ethereum + l2s - total)::int AS value -- intersecting
+    FROM tmp_aggregates
+),
+
+unioned as (
+    select * 
+    from only_l1
+
+    UNION ALL
+
+    select *
+    from cross_layer
+
+    UNION ALL
+
+    select 
+        date as week, 
+        'multiple L2s' as metric_key, 
+        value
+    from fact_kpis
+    where metric_key = 'cca_weekly_multiple_l2s'
+    and "date" >= '2022-01-01'
+    and date < DATE_TRUNC('week', NOW())
+
+    UNION ALL
+
+    select 
+        date as week, 
+        'a single L2' as metric_key, 
+        sum(value)
+    from fact_kpis
+    where metric_key = 'cca_weekly_exclusive'
+    and "date" >= '2022-01-01'
+    and date < DATE_TRUNC('week', NOW())
+    and origin_key <> 'ethereum'
+    group by 1,2
+)
+
+select *
+from unioned
+order by week desc
