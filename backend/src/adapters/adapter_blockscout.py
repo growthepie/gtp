@@ -77,7 +77,7 @@ class AdapterBlockscout(AbstractAdapter):
             return pd.DataFrame()
         df = self.turn_list_of_contracts_into_df(c)
         df['deployment_date'] = df['deployment_date'].apply(lambda x: x.replace('T', ' ').replace('.000000Z', '') if x is not None else x)
-        df = df.rename(columns={'erc20_symbol': 'erc20.symbol', 'erc20_decimals': 'erc20.decimals'})
+        df = df.rename(columns={'erc20_symbol': 'erc20.symbol', 'erc20_decimals': 'erc20.decimals', 'erc721_name': 'erc721.name', 'erc721_symbol': 'erc721.symbol', 'erc1155_name': 'erc1155.name', 'erc1155_symbol': 'erc1155.symbol'})
         # print extract
         print_extract(self.name, load_params, df.shape)
         return df
