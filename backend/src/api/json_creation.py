@@ -539,10 +539,7 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
-                'source': {
-                    'RPC': 'www.growthepie.xyz',
-                    'OLI': 'www.openlabelsinitiative.org'
-                }
+                'source': ['RPC', 'OLI']
             }
             ,'daa': {
                 'name': 'Active Addresses',
@@ -554,10 +551,7 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'maa',
                 'max_date_fill' : False,
-                'source': {
-                    'RPC': 'www.growthepie.xyz',
-                    'OLI': 'www.openlabelsinitiative.org'
-                }
+                'source': ['RPC', 'OLI']
             }
             ,'gas_fees': {
                 'name': 'Fees Paid',
@@ -570,10 +564,7 @@ class JSONCreation():
                 'all_l2s_aggregate': 'sum',
                 'monthly_agg': 'sum',
                 'max_date_fill' : False,
-                'source': {
-                    'RPC': 'www.growthepie.xyz',
-                    'OLI': 'www.openlabelsinitiative.org'
-                }
+                'source': ['RPC', 'OLI']
             }
         }
 
