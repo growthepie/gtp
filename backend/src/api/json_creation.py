@@ -1361,16 +1361,7 @@ class JSONCreation():
         return mk_list_int
 
     def generate_userbase_dict(self, df, chain, aggregation):
-        total_l2_users = self.chain_users(df, aggregation, 'all_l2s')
-        if chain.origin_key in ['ethereum', 'all_l2s']:
-            user_share = 0
-        else:
-            user_share = round(self.chain_users(df, aggregation, chain.origin_key) / total_l2_users, 4)
         dict = {
-                    "chain_name": chain.name,
-                    "technology": chain.metadata_technology,
-                    "purpose": chain.metadata_purpose,
-                    "user_share": user_share,
                     "data": {
                         "types": [
                             "unix",
@@ -1680,6 +1671,19 @@ class JSONCreation():
                             "chains": self.generate_chains_userbase_dict(df, 'weekly')
                             }
                         },
+                    # "engagement" : {
+                    #     "metric_name": "Ethereum ecosystem engagement",
+                    #     "source": ['RPC'],
+                    #     "weekly": {
+                    #         "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
+                    #         "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
+                    #         "l2_dominance": self.l2_user_share(df, 'weekly'),
+                    #         "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
+                    #         "cross_chain_users": self.cross_chain_users(df), # TODO: change to Total users that are active on multiple chains (cross-layer or multiple l2s), currently it's only multiple L2s. How to handle Focus toggle?
+                    #         "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df), #TODO: above
+                    #         "chains": self.generate_chains_userbase_dict(df, 'weekly') ## TODO: update!!
+                    #     }
+                    # },
                     "table_visual" : self.get_landing_table_dict(df)
                     },
                 "all_l2s": {
