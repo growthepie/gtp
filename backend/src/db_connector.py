@@ -55,7 +55,7 @@ class DbConnector:
                                 upsert(con=self.engine, df=df, table_name=table_name, if_row_exists=if_exists, create_table=False)
                         return df.shape[0]
                 
-        def execute_jinja(self, query_name, query_params, load_into_df=False):
+        def execute_jinja(self, query_name, query_params={}, load_into_df=False):
                 query = jinja_env.get_template(query_name).render(query_params)
                 if load_into_df:
                         print(f"Executing query {query_name} with params {query_params} and loading into DataFrame.")

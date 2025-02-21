@@ -1381,6 +1381,30 @@ class JSONCreation():
             chains_dict[chain.origin_key] = self.generate_userbase_dict(df, chain, aggregation)
         return chains_dict
     
+    def generate_engagement_by_composition_dict(self):
+        ## download and prep data
+        df_engagement = self.db_connector.execute_jinja('api/select_weekly_engagement_by_composition.sql.j2', load_into_df=True)
+        df_engagement['unix'] = df_engagement['week'].apply(lambda x: x.timestamp() * 1000).astype(int)
+        df_engagement['value'] = df_engagement['value'].astype(int)
+        df_engagement.sort_values(by='unix', ascending=True, inplace=True)
+
+        ## create dict for each composition with list of lists as values
+        composition_dict = {}
+        for composition in df_engagement['metric_key'].unique():
+            df_composition = df_engagement[df_engagement['metric_key'] == composition]
+            composition_dict[composition] = df_composition[['unix', 'value']].values.tolist()
+
+        engagement_dict = {
+            "types": [
+                "unix",
+                "value"
+            ],
+            "compositions": composition_dict
+
+        }
+
+        return engagement_dict
+    
     ## This method generates a dict containing aggregate daily values for all_l2s (all chains except Ethereum) for a specific metric_id
     def generate_all_l2s_metric_dict(self, df, metric_id, rolling_avg=False, economics_api=False, days=730, incl_monthly=False):
         metric = self.metrics[metric_id]
@@ -1671,19 +1695,19 @@ class JSONCreation():
                             "chains": self.generate_chains_userbase_dict(df, 'weekly')
                             }
                         },
-                    # "engagement" : {
-                    #     "metric_name": "Ethereum ecosystem engagement",
-                    #     "source": ['RPC'],
-                    #     "weekly": {
-                    #         "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
-                    #         "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
-                    #         "l2_dominance": self.l2_user_share(df, 'weekly'),
-                    #         "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
-                    #         "cross_chain_users": self.cross_chain_users(df), # TODO: change to Total users that are active on multiple chains (cross-layer or multiple l2s), currently it's only multiple L2s. How to handle Focus toggle?
-                    #         "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df), #TODO: above
-                    #         "chains": self.generate_chains_userbase_dict(df, 'weekly') ## TODO: update!!
-                    #     }
-                    # },
+                    "engagement" : {
+                        "metric_name": "Ethereum ecosystem engagement",
+                        "source": ['RPC'],
+                        "weekly": {
+                            "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
+                            "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
+                            "l2_dominance": self.l2_user_share(df, 'weekly'),
+                            "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
+                            "cross_chain_users": self.cross_chain_users(df), # TODO: change to Total users that are active on multiple chains (cross-layer or multiple l2s), currently it's only multiple L2s. How to handle Focus toggle?
+                            "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df), #TODO: above
+                            "timechart": self.generate_engagement_by_composition_dict()
+                        }
+                    },
                     "table_visual" : self.get_landing_table_dict(df)
                     },
                 "all_l2s": {

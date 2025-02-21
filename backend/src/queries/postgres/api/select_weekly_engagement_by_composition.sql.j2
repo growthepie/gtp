@@ -51,7 +51,7 @@ unioned as (
 
     select 
         date as week, 
-        'multiple L2s' as metric_key, 
+        'multiple_l2s' as metric_key, 
         value
     from fact_kpis
     where metric_key = 'cca_weekly_multiple_l2s'
@@ -62,7 +62,7 @@ unioned as (
 
     select 
         date as week, 
-        'a single L2' as metric_key, 
+        'single_l2' as metric_key, 
         sum(value)
     from fact_kpis
     where metric_key = 'cca_weekly_exclusive'
@@ -74,4 +74,5 @@ unioned as (
 
 select *
 from unioned
+where "week" >= '2022-01-01'
 order by week desc
