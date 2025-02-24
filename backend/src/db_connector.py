@@ -137,6 +137,12 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 stages_dict = df.set_index("origin_key").to_dict()["l2beat_stage"]
                 return stages_dict
+        
+        def get_maturity_dict(self):
+                exec_string = "SELECT origin_key, maturity FROM sys_chains WHERE maturity IS NOT NULL"
+                df = pd.read_sql(exec_string, self.engine.connect())
+                maturity_dict = df.set_index("origin_key").to_dict()["maturity"]
+                return maturity_dict
                 
         def get_chain_info(self, origin_key:str, column:str):
                 try:

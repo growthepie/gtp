@@ -11,6 +11,7 @@ class MainConfig(BaseModel):
     origin_key: str
     chain_type: str
     l2beat_stage: str = "NA" ## default NA
+    maturity: str = "NA" ## default NA
     caip2: Optional[str]
     evm_chain_id: Optional[int]
     name: str
@@ -149,6 +150,13 @@ def get_main_config(db_connector:DbConnector=None, main_config_dict=None, source
             chain = [chain for chain in main_config if chain.origin_key == stage]
             if chain:
                 chain[0].l2beat_stage = stages[stage]
+
+        maturity_levels = db_connector.get_maturity_dict()
+        ## iterate over maturity levels and update the new_config with the stage
+        for maturity in maturity_levels:
+            chain = [chain for chain in main_config if chain.origin_key == maturity]
+            if chain:
+                chain[0].maturity = maturity_levels[maturity]
     else:
         raise NotImplementedError(f"Source {source} not implemented")
 

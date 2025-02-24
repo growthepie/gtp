@@ -59,7 +59,7 @@ class JSONCreation():
         self.app_metrics = gtp_app_metrics
         self.fees_types = gtp_fees_types
         self.fees_timespans = gtp_fees_timespans
-        self.maturity_levels = eth_maturity_levels
+        self.maturity_levels = l2_maturity_levels
         self.eim_metrics = eim_metrics
 
         for metric_key, metric_value in self.metrics.items():
@@ -1102,6 +1102,7 @@ class JSONCreation():
                 'purpose': chain.metadata_purpose,
                 'launch_date': chain.metadata_launch_date,
                 'enable_contracts': chain.api_in_labels,
+                'maturity': chain.maturity,
                 'l2beat_stage': self.gen_l2beat_stage(chain),
                 'l2beat_link': self.gen_l2beat_link(chain),
                 'l2beat_id': chain.aliases_l2beat,
@@ -1155,7 +1156,8 @@ class JSONCreation():
                 'main_categories' : main_category_dict,
                 'sub_categories' : sub_category_dict,
                 'mapping' : mapping_dict,
-            }
+            },
+            'maturity_levels': self.maturity_levels
         }
 
         master_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
