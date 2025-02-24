@@ -1621,28 +1621,39 @@ class DbConnector:
 
 
         ### Sys Chains functions
-        # This function takes a dataframe with origin_key and an additional column as input and updates row-by-row the table sys_chains without overwriting other columns
+        # This function takes a dataframe with origin_key and an additional columns as input and updates row-by-row the table sys_chains without overwriting other columns
         def update_sys_chains(self, df, column_type='str'):
                 columns = df.columns.str.lower()
-                if len(columns) != 2:
-                        raise Exception("Only 2 columns are allowed in the dataframe")
+                
                 if 'origin_key' not in columns:
                         raise Exception("origin_key column is missing")
                 
-                value_column = columns[columns != 'origin_key'][0]
-
+                value_columns = [col for col in columns if col != 'origin_key']
+                
+                if len(value_columns) == 0:
+                        raise Exception("At least one additional column is required in the dataframe")
+                
                 ## for each row in the dataframe, create an update statement
                 for index, row in df.iterrows():
-                        if column_type == 'str':
-                                exec_string = f"""
-                                        UPDATE sys_chains
-                                        SET {value_column} = '{row[value_column]}'
-                                        WHERE origin_key = '{row['origin_key']}';
-                                """
-                        else:
-                                raise NotImplementedError("Only string type is supported so far")
+                        set_clauses = []
+                        
+                        for col in value_columns:
+                                if column_type == 'str':
+                                        set_clauses.append(f"{col} = '{row[col]}'")
+                                else:
+                                        raise NotImplementedError("Only string type is supported so far")
+                        
+                        set_clause = ", ".join(set_clauses)
+                        
+                        exec_string = f"""
+                        UPDATE sys_chains
+                        SET {set_clause}
+                        WHERE origin_key = '{row['origin_key']}';
+                        """
+                        
                         self.engine.execute(exec_string)
-                print(f"{len(df)} projects updated in sys_chains")
+                
+                print(f"{len(df)} records updated in sys_chains")
                 
 
         ### OLI functions

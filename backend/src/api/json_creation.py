@@ -19,7 +19,7 @@ from eim.funcs import get_eim_yamls
 from src.misc.jinja_helper import execute_jinja_query
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src.config import gtp_units, gtp_metrics, gtp_da_metrics, gtp_app_metrics, gtp_fees_types, gtp_fees_timespans, eth_maturity_levels, eim_metrics
+from src.config import gtp_units, gtp_metrics, gtp_da_metrics, gtp_app_metrics, gtp_fees_types, gtp_fees_timespans, l2_maturity_levels, eim_metrics
 
 import warnings
 

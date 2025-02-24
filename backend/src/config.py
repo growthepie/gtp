@@ -459,14 +459,16 @@ gtp_fees_timespans = {
         '180d' : {'granularity': 'daily', 'filter_days': 180, 'tps_divisor': 60*60*24},
     }
 
-eth_maturity_levels = {
+l2_maturity_levels = {
         "4_robust": {
             "name" : "Robust",
             "description" : "Fully decentralized and secure network that cannot be tampered with or stopped by any individual or group, including its creators. This is a network that fulfills Ethereum's vision of decentralization.",
             "conditions": {
                 "and" : {
-                    "tvl": 1000000000,
-                    "stage": "Stage 2"
+                    "tvs": 1000000000,
+                    "stage": "Stage 2",
+                    "age": 0,
+                    "risks": 0
                 }
             }
         },
@@ -475,9 +477,10 @@ eth_maturity_levels = {
             "description" : "A network transitioning to being decentralized. A group of actors still may be able to halt the network in extreme situations.",
             "conditions": {
                 "and" : {
-                    "tvl": 150000000,
+                    "tvs": 150000000,
                     "stage": "Stage 1",
-                    "age": 180 
+                    "age": 180,
+                    "risks": 0
                 }
             }
         },
@@ -486,7 +489,7 @@ eth_maturity_levels = {
             "description" : "A centralized operator runs the network but adds fail-safe features to reduce risks of centralization.",
             "conditions": {
                 "and" : {
-                    "tvl": 150000000,
+                    "tvs": 150000000,
                     "stage": "Stage 0",
                     "risks": 3,
                     "age": 180 
@@ -502,7 +505,7 @@ eth_maturity_levels = {
                     "risks": 2
                 },
                 "or" : {
-                    "tvl": 150000000,
+                    "tvs": 150000000,
                     "age": 180 
                 }
             }

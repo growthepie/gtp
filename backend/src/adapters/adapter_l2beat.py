@@ -8,6 +8,7 @@ from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
 from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_df_kpis, upsert_to_kpis
 from src.misc.helper_functions import print_init, print_load, print_extract, send_discord_message
+from src.config import l2_maturity_levels
 
 
 class AdapterL2Beat(AbstractAdapter):
@@ -122,21 +123,84 @@ class AdapterL2Beat(AbstractAdapter):
                 continue
             
             l2beat_id = str(chain.aliases_l2beat)
-            print(f'...loading stage info for {origin_key} with l2beat_id: {l2beat_id}') 
-            stage = response['data']['projects'][l2beat_id]['stage']
+            print(f'...loading stage and maturity info for {origin_key} with l2beat_id: {l2beat_id}') 
 
+            ## processing stage
+            stage = response['data']['projects'][l2beat_id]['stage']
             if stage in ['NotApplicable', 'Not applicable']:
                 stage = 'NA'
-                
             # Compare with the existing stage in the main_config
             current_stage = next((config.l2beat_stage for config in current_config if config.origin_key == origin_key), 'NA')
-
             # If the stage has changed, send a notification
             if stage != current_stage:
                 send_discord_message(f'L2Beat: {origin_key} has changed stage from {current_stage} to {stage}', self.webhook)
+
+
+            ## processing maturity
+            maturity_level = 'NA'
+
+            tvs = response['data']['projects'][l2beat_id]['tvs']['breakdown']['total']
+            positive_risk_count = 0
+            for risks in response['data']['projects'][l2beat_id]['risks']:
+                if risks['sentiment'] == 'good':
+                    positive_risk_count += 1
+            launch_date = chain.metadata_launch_date
+            age = (datetime.now() - datetime.strptime(launch_date, '%Y-%m-%d')).days
             
-            stages.append({'origin_key': origin_key, 'l2beat_stage': stage})
-            print(f"...{self.name} - loaded Stage: {stage} for {origin_key}")
+            ## iterate over all maturity levels and check if all conditions are met, if yes than break and assign maturity level # TODO
+            for maturity in l2_maturity_levels:
+                maturity_dict = l2_maturity_levels[maturity]
+                all_and_conditions_met = True
+                all_or_conditions_met = False
+
+                ## check if all conditions in 'and' are met
+                for condition in maturity_dict['conditions']['and']:
+                    if condition == 'tvs':
+                        if tvs < maturity_dict['conditions']['and']['tvs']:
+                            all_and_conditions_met = False
+                            break
+                    elif condition == 'risks':
+                        if positive_risk_count < maturity_dict['conditions']['and']['risks']:
+                            all_and_conditions_met = False
+                            break
+                    elif condition == 'age':
+                        if age < maturity_dict['conditions']['and']['age']:
+                            all_and_conditions_met = False
+                            break
+                    elif condition == 'stage':
+                        if stage != maturity_dict['conditions']['and']['stage']:
+                            all_and_conditions_met = False
+                            break
+
+                ## check if any conditions in 'or' are met
+                if 'or' in maturity_dict['conditions']:
+                    for condition in maturity_dict['conditions']['or']:
+                        if condition == 'tvs':
+                            if tvs >= maturity_dict['conditions']['or']['tvs']:
+                                all_or_conditions_met = True
+                                break
+                        elif condition == 'risks':
+                            if positive_risk_count >= maturity_dict['conditions']['or']['risks']:
+                                all_or_conditions_met = True
+                                break
+                        elif condition == 'age':
+                            if age >= maturity_dict['conditions']['or']['age']:
+                                all_or_conditions_met = True
+                                break
+                        elif condition == 'stage':
+                            if stage == maturity_dict['conditions']['or']['stage']:
+                                all_or_conditions_met = True
+                                break
+                else:
+                    all_or_conditions_met = True
+
+                if all_and_conditions_met and all_or_conditions_met:
+                    maturity_level = maturity
+                    break
+
+
+            stages.append({'origin_key': origin_key, 'l2beat_stage': stage, 'maturity': maturity_level})
+            print(f"...{self.name} - loaded Stage & Maturity: {stage} - {maturity_level} for {origin_key}")
             time.sleep(0.5)
             
         df = pd.DataFrame(stages)
