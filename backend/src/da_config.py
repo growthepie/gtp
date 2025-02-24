@@ -1,6 +1,5 @@
 from pydantic import BaseModel, HttpUrl, Field, validator
-from typing import Optional, List, Dict, Any
-from src.db_connector import DbConnector
+from typing import Optional
 import zipfile
 import io
 import json
