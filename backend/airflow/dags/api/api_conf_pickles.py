@@ -25,6 +25,9 @@ from src.misc.airflow_utils import alert_via_webhook
 def json_creation():
     @task()
     def run_create_main_conf():
+        import dotenv
+        dotenv.load_dotenv()
+
         import os
         import pickle
         from src.main_config import get_main_config
@@ -43,6 +46,9 @@ def json_creation():
 
     @task()
     def run_create_da_conf():
+        import dotenv
+        dotenv.load_dotenv()
+        
         import os
         import pickle
         from src.da_config import get_da_config
