@@ -2110,6 +2110,54 @@ class JSONCreation():
 
             print(f'DONE -- App overview export for {timeframe_key}')
 
+    def fill_missing_dates(self, df):
+        # Make sure date is in datetime format
+        df['date'] = pd.to_datetime(df['date'])
+        
+        # Get yesterday's date
+        yesterday = datetime.now().date() - timedelta(days=1)
+        
+        # Create a DataFrame with all combinations of origin_key and date
+        # Get unique origin_keys
+        origin_keys = df['origin_key'].unique()
+        
+        # Find min date per origin_key
+        min_dates = df.groupby('origin_key')['date'].min()
+        
+        # Create an empty list to store dataframes for each origin_key
+        all_dfs = []
+        
+        # For each origin_key, create a complete date range
+        for origin_key in origin_keys:
+            min_date = min_dates[origin_key]
+            
+            # Create a complete date range for this origin_key
+            date_range = pd.date_range(start=min_date, end=yesterday)
+            
+            # Create a dataframe for this origin_key with all dates
+            date_df = pd.DataFrame({
+                'origin_key': origin_key,
+                'date': date_range
+            })
+            
+            all_dfs.append(date_df)
+        
+        # Combine all the dataframes
+        complete_df = pd.concat(all_dfs)
+        
+        # Merge with original dataframe to fill in existing values
+        # Use left join to keep all dates, even those not in original df
+        result = pd.merge(complete_df, df, on=['origin_key', 'date'], how='left')
+        
+        # Fill missing values with 0
+        fill_columns = ['txcount', 'fees_paid_eth', 'fees_paid_usd', 'daa']
+        result[fill_columns] = result[fill_columns].fillna(0)
+        
+        # Sort the final dataframe
+        result = result.sort_values(['origin_key', 'date']).reset_index(drop=True)
+        
+        return result
+
     def load_app_data(self, owner_project:str, chains:list):
         chains_str = ', '.join([f"'{chain}'" for chain in chains])
 
@@ -2130,12 +2178,18 @@ class JSONCreation():
         """
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
         df = df.drop(columns='owner_project')
+        ## date to datetime column in
+        df['date'] = pd.to_datetime(df['date'])
+
+        ## fill missing dates with 0s
+        df = self.fill_missing_dates(df)
+
+        ## date to datetime column in UTC
+        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
 
         ## unpivot table to have one row per date, origin_key and metric_key
         df = df.melt(id_vars=['origin_key', 'date'], var_name='metric_key', value_name='value')
 
-        ## date to datetime column in UTC
-        df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
         ## datetime to unix timestamp using timestamp() function
         df['unix'] = df['date'].apply(lambda x: x.timestamp() * 1000)
         # fill NaN values with 0
