@@ -1579,7 +1579,7 @@ class DbConnector:
                         ORDER BY origin_key, row_num_gas, row_num_daa
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
-                df['day range'] = int(days)
+                df['day_range'] = int(days)
                 return df
         
         ## This function is used for our Airtable - it updates old owner_projects with new one set in the Remap Owner Project table
