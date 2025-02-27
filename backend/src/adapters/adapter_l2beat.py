@@ -150,51 +150,56 @@ class AdapterL2Beat(AbstractAdapter):
             ## iterate over all maturity levels and check if all conditions are met, if yes than break and assign maturity level # TODO
             for maturity in l2_maturity_levels:
                 maturity_dict = l2_maturity_levels[maturity]
-                all_and_conditions_met = True
-                all_or_conditions_met = False
 
-                ## check if all conditions in 'and' are met
-                for condition in maturity_dict['conditions']['and']:
-                    if condition == 'tvs':
-                        if tvs < maturity_dict['conditions']['and']['tvs']:
-                            all_and_conditions_met = False
-                            break
-                    elif condition == 'risks':
-                        if positive_risk_count < maturity_dict['conditions']['and']['risks']:
-                            all_and_conditions_met = False
-                            break
-                    elif condition == 'age':
-                        if age < maturity_dict['conditions']['and']['age']:
-                            all_and_conditions_met = False
-                            break
-                    elif condition == 'stage':
-                        if stage != maturity_dict['conditions']['and']['stage']:
-                            all_and_conditions_met = False
-                            break
+                if 'conditions' in maturity_dict:
+                    all_and_conditions_met = True
+                    all_or_conditions_met = False
 
-                ## check if any conditions in 'or' are met
-                if 'or' in maturity_dict['conditions']:
-                    for condition in maturity_dict['conditions']['or']:
+                    ## check if all conditions in 'and' are met
+                    for condition in maturity_dict['conditions']['and']:
                         if condition == 'tvs':
-                            if tvs >= maturity_dict['conditions']['or']['tvs']:
-                                all_or_conditions_met = True
+                            if tvs < maturity_dict['conditions']['and']['tvs']:
+                                all_and_conditions_met = False
                                 break
                         elif condition == 'risks':
-                            if positive_risk_count >= maturity_dict['conditions']['or']['risks']:
-                                all_or_conditions_met = True
+                            if positive_risk_count < maturity_dict['conditions']['and']['risks']:
+                                all_and_conditions_met = False
                                 break
                         elif condition == 'age':
-                            if age >= maturity_dict['conditions']['or']['age']:
-                                all_or_conditions_met = True
+                            if age < maturity_dict['conditions']['and']['age']:
+                                all_and_conditions_met = False
                                 break
                         elif condition == 'stage':
-                            if stage == maturity_dict['conditions']['or']['stage']:
-                                all_or_conditions_met = True
+                            if stage != maturity_dict['conditions']['and']['stage']:
+                                all_and_conditions_met = False
                                 break
-                else:
-                    all_or_conditions_met = True
 
-                if all_and_conditions_met and all_or_conditions_met:
+                    ## check if any conditions in 'or' are met
+                    if 'or' in maturity_dict['conditions']:
+                        for condition in maturity_dict['conditions']['or']:
+                            if condition == 'tvs':
+                                if tvs >= maturity_dict['conditions']['or']['tvs']:
+                                    all_or_conditions_met = True
+                                    break
+                            elif condition == 'risks':
+                                if positive_risk_count >= maturity_dict['conditions']['or']['risks']:
+                                    all_or_conditions_met = True
+                                    break
+                            elif condition == 'age':
+                                if age >= maturity_dict['conditions']['or']['age']:
+                                    all_or_conditions_met = True
+                                    break
+                            elif condition == 'stage':
+                                if stage == maturity_dict['conditions']['or']['stage']:
+                                    all_or_conditions_met = True
+                                    break
+                    else:
+                        all_or_conditions_met = True
+
+                    if all_and_conditions_met and all_or_conditions_met:
+                        maturity_level = maturity
+                        break
+                else:
                     maturity_level = maturity
                     break
 

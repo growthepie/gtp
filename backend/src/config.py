@@ -509,6 +509,10 @@ l2_maturity_levels = {
                     "age": 180 
                 }
             }
+        },
+        "0_early_phase": {
+            "name" : "Early Phase",
+            "description" : "A project that just recently launched (<6 months) and hasn't acquired much capital.",
         }
     }
 
