@@ -18,7 +18,7 @@ from src.misc.airflow_utils import alert_via_webhook
     },
     dag_id='oli_label_pool',
     description='Loads raw labels into the data pool',
-    tags=['contracts', 'daily'],
+    tags=['contracts', 'oli', 'raw'],
     start_date=datetime(2023, 6, 5),
     schedule='*/30 * * * *',  # Runs every 30 minutes
     catchup=False  # Prevents backfilling
