@@ -37,7 +37,8 @@ class AdapterLabelPool(AbstractAdapter):
         # remove duplicates
         df = df.drop_duplicates(subset=['id'], keep='last')
         print_extract(self.name, load_params, df.shape)
-        send_discord_message(self.webhook, f"{len(df)} new labels were submitted to the OLI Label Pool 🎉")
+        if len(df) > 0:
+            send_discord_message(self.webhook, f"{len(df)} new labels were submitted to the OLI Label Pool 🎉")
         return df
 
     def load(self, df:pd.DataFrame):
