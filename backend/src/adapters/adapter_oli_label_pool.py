@@ -38,7 +38,7 @@ class AdapterLabelPool(AbstractAdapter):
         df = df.drop_duplicates(subset=['id'], keep='last')
         print_extract(self.name, load_params, df.shape)
         if len(df) > 0:
-            send_discord_message(self.webhook, f"{len(df)} new labels were submitted to the OLI Label Pool 🎉")
+            send_discord_message(f"{len(df)} new labels were submitted to the OLI Label Pool 🎉", self.webhook)
         return df
 
     def load(self, df:pd.DataFrame):
@@ -51,7 +51,7 @@ class AdapterLabelPool(AbstractAdapter):
             # set id as index
             df = df.set_index('id')
             # load df into db, updated row if id already exists
-            self.db_connector.upsert_table(df, 'oli_label_pool_bronze', if_exists='update')
+            self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
         print_load(self.name, {}, df.shape)
 
     ## ----------------- Helper functions --------------------
