@@ -1922,6 +1922,15 @@ class DbConnector:
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        ## OLI Label Pool functions
+        def get_max_value(self, table_name:str, column_name:str):
+                exec_string = f"""
+                SELECT MAX({column_name}) AS max_value
+                FROM public.{table_name};
+                """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df['max_value'][0]
 
         def get_labels_page_sparkline(self, limit=100, origin_keys=None):
                 exec_string = f"""
