@@ -20,7 +20,8 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Loads raw labels into the data pool',
     tags=['contracts', 'daily'],
     start_date=datetime(2023, 6, 5),
-    schedule='22 02 * * *', # no dependency
+    schedule='*/30 * * * *',  # Runs every 30 minutes
+    catchup=False  # Prevents backfilling
 )
 
 def main():
