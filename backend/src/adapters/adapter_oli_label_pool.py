@@ -5,7 +5,6 @@ import os
 import requests
 
 from src.adapters.abstract_adapters import AbstractAdapter
-from src.main_config import get_main_config
 from src.misc.helper_functions import print_init, print_load, print_extract, send_discord_message
 
 class AdapterLabelPool(AbstractAdapter):
@@ -18,7 +17,7 @@ class AdapterLabelPool(AbstractAdapter):
         self.base_url = 'https://base.easscan.org/graphql'
         self.base_sepolia_url = 'https://base-sepolia.easscan.org/graphql' # testnet
         self.schemaId = '0xb763e62d940bed6f527dd82418e146a904e62a297b8fa765c9b3e1f0bc6fdd68' # OLI v1.0.0 schema
-        self.webhook = os.getenv('DISCORD_ALERTS')
+        self.webhook = os.getenv('DISCORD_CONTRACTS')
         print_init(self.name, self.adapter_params)
 
     """
@@ -38,6 +37,7 @@ class AdapterLabelPool(AbstractAdapter):
         # remove duplicates
         df = df.drop_duplicates(subset=['id'], keep='last')
         print_extract(self.name, load_params, df.shape)
+        send_discord_message(self.webhook, f"{len(df)} new labels were submitted to the OLI Label Pool 🎉")
         return df
 
     def load(self, df:pd.DataFrame):
