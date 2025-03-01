@@ -753,6 +753,7 @@ class DbConnector:
                                         AND block_timestamp < {days_end_string}
                                         AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 GROUP BY 1,2,3
+                                HAVING COUNT(DISTINCT from_address) > 1
                         ON CONFLICT (address, origin_key, date)
                         DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
                 '''
