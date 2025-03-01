@@ -2258,6 +2258,24 @@ class JSONCreation():
 
         return df
     
+    def get_active_addresses_val(self, owner_project:str, origin_key:str, timeframe:int):
+        exec_string = f"""
+            SELECT 
+                coalesce(hll_cardinality(hll_union_agg(case when "date" > current_date - interval '{timeframe+1} days' then hll_addresses end))::int, 0) as val
+            FROM public.fact_active_addresses_contract_hll fact
+            JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+            WHERE 
+                owner_project = '{owner_project}'
+                AND fact.origin_key = '{origin_key}'
+                AND "date" >= current_date - interval '{timeframe} days'
+
+        """
+        with self.db_connector.engine.connect() as connection:
+            result = connection.execute(exec_string)
+            val = result.scalar()
+            return val
+
+
     def create_app_details_json(self, project:str, chains:list, timeframes, is_all=False):
         df = self.load_app_data(project, chains)
         if len(df) > 0:
@@ -2281,7 +2299,6 @@ class JSONCreation():
                         'data': {}
                     }
                 }
-                
 
                 for origin_key in chains:
                     ## check if origin_key is in df
@@ -2296,16 +2313,21 @@ class JSONCreation():
                                 'data' : mk_list_int
                             }
                         }
-                        app_dict['metrics'][metric]['aggregated']['data'][origin_key] = {}
 
+                        app_dict['metrics'][metric]['aggregated']['data'][origin_key] = {}
                         for timeframe in timeframes:  
                             data_list = []
                             timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
+                            days = timeframe if timeframe != 'max' else 9999
 
-                            days = timeframe if timeframe != 'max' else 2000
-                            for metric_key in self.app_metrics[metric]['metric_keys']:
-                                val = self.aggregate_metric(df, origin_key, metric_key, days)
+                            ##for active addresses we cannot just sum up the values, we need to pull the hll data for each timeframe from our db
+                            if metric == 'daa':
+                                val = self.get_active_addresses_val(project, origin_key, days)
                                 data_list.append(val)
+                            else:
+                                for metric_key in self.app_metrics[metric]['metric_keys']:
+                                    val = self.aggregate_metric(df, origin_key, metric_key, days)
+                                    data_list.append(val)
                         
                             app_dict['metrics'][metric]['aggregated']['data'][origin_key][timeframe_key] = data_list
             
