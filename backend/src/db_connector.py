@@ -732,6 +732,36 @@ class DbConnector:
                                 connection.execute(text(exec_string))
                 print(f"HLL hashes for {chain} and {days} days loaded into fact_active_addresses_hll.")
 
+        def aggregate_unique_addresses_contracts_hll(self, chain:str, days:int, days_end:int=None):   
+                if days_end is None:
+                        days_end_string = "DATE_TRUNC('day', NOW())"
+                else:
+                        if days_end > days:
+                                raise ValueError("days_end must be smaller than days")
+                        days_end_string = f"DATE_TRUNC('day', NOW() - INTERVAL '{days_end} days')"
+
+                exec_string = f'''
+                        INSERT INTO fact_active_addresses_contract_hll (address, origin_key, date, hll_addresses)
+                                SELECT 
+                                        to_address as address,
+                                        '{chain}' as origin_key,
+                                        date_trunc('day', block_timestamp) as date,
+                                        hll_add_agg(hll_hash_bytea(from_address), 17,5,-1,1)        
+                                FROM {chain}_tx
+                                WHERE 
+                                        to_address is not null
+                                        AND block_timestamp < {days_end_string}
+                                        AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                GROUP BY 1,2,3
+                        ON CONFLICT (address, origin_key, date)
+                        DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
+                '''
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"HLL hashes on contract level for {chain} and {days} days loaded into fact_active_addresses_contract_hll.")
+
         ## This method aggregates address for the fact_unique_addresses table and determines when an address was first seen
         def aggregate_addresses_first_seen_global(self, days:int):   
                 

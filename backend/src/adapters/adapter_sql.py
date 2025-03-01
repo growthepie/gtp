@@ -316,6 +316,12 @@ class AdapterSQL(AbstractAdapter):
             print(f"...HLL: aggregating + inserting active addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
             self.db_connector.aggregate_unique_addresses_hll(origin_key, days, days_end)
 
+            if origin_key in [chain.origin_key for chain in self.main_config if chain.runs_aggregate_apps == True]:
+                print(f"...HLL: aggregating + inserting app addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
+                self.db_connector.aggregate_unique_addresses_contracts_hll(origin_key, days, days_end)
+            else:
+                print(f"...HLL: no app addresses for {origin_key} to be aggregated...")
+
         ## run aggregation for weekly active addresses (landing page chart) - this needs to be re-run completely whenever a new chain is added . TODO: re-run this for 1000d once a week (same for all cca_weekly_exclusives)
         print(f"...run cca_weekly_multiple l2s for last {days} days (can take a while for longer timeframes)...")
         self.db_connector.execute_jinja('chain_metrics/upsert_cca_weekly_multiple_l2s.sql.j2', {'days': days})
