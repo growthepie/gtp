@@ -31,6 +31,7 @@ class MainConfig(BaseModel):
     api_in_fees: Optional[bool] = Field(alias="api_in_api_fees")
     api_in_economics: Optional[bool] = Field(alias="api_in_api_economics")
     api_in_labels: Optional[bool] = Field(alias="api_in_api_labels")
+    api_in_apps: Optional[bool] = Field(alias="api_in_api_apps")
     api_deployment_flag: Optional[str] = Field(alias="api_api_deployment_flag")
     api_exclude_metrics: Optional[List[str]] = Field(alias="api_api_exclude_metrics")
 
@@ -58,6 +59,7 @@ class MainConfig(BaseModel):
     ## RUNS
     runs_aggregate_blockspace: Optional[bool] = Field(alias="runs_aggregate_blockspace")
     runs_aggregate_addresses: Optional[bool] = Field(alias="runs_aggregate_addresses ")
+    runs_aggregate_apps: Optional[bool] = Field(alias="runs_aggregate_apps")
     runs_contract_metadata: Optional[bool] = Field(alias="runs_contract_metadata")
 
     ## RPC CONFIG
