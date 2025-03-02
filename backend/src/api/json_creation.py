@@ -2074,22 +2074,40 @@ class JSONCreation():
             print(f'Creating App overview for for {timeframe_key}')
 
             exec_string = f"""
+                with apps_mat as (
                 SELECT 
-                    owner_project, 
-                    origin_key,
-                    count(distinct address) as num_contracts,
-                    coalesce(sum(case when "date" > current_date - interval '{timeframe+1} days' then fees_paid_eth end), 0) as gas_fees_eth, 
-                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then fees_paid_eth end), 0) as prev_gas_fees_eth, 
-                    coalesce(sum(fees_paid_usd), 0) as gas_fees_usd , 
-                    coalesce(sum(case when "date" > current_date - interval '{timeframe+1} days' then txcount end), 0) as txcount, 
-                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then txcount end), 0) as prev_txcount,
-                    coalesce(sum(case when "date" > current_date - interval '{timeframe+1} days' then daa end), 0) as daa, 
-                    coalesce(sum(case when "date" < current_date - interval '{timeframe} days' then daa end), 0) as prev_daa
+                    fact.owner_project, 
+                    fact.origin_key,
+                    COUNT(DISTINCT fact.address) AS num_contracts,
+                    COALESCE(SUM(fees_paid_eth) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS gas_fees_eth, 
+                    COALESCE(SUM(fees_paid_eth) FILTER (WHERE fact."date" < current_date - interval '{timeframe} days'), 0) AS prev_gas_fees_eth, 
+                    COALESCE(SUM(fees_paid_usd) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS gas_fees_usd, 
+                    COALESCE(SUM(txcount) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS txcount, 
+                    COALESCE(SUM(txcount) FILTER (WHERE fact."date" < current_date - interval '{timeframe} days'), 0) AS prev_txcount
                 FROM vw_apps_contract_level_materialized fact
-                where "date" >= current_date - interval '{timeframe*2} days'
-                    and fact.origin_key in ({chains_str})
-                group by 1,2
-                Having sum(txcount) > 10
+                WHERE fact."date" >= current_date - interval '{timeframe*2} days'
+                    AND fact.origin_key IN ({chains_str})
+                GROUP BY 1,2
+                HAVING SUM(txcount) > 30
+                )
+                select 
+                    fact.*,
+                    greatest(aa.daa, 1) AS daa,
+                    greatest(aa.prev_daa, 0) AS prev_daa
+                from apps_mat fact
+                LEFT JOIN (
+                    SELECT 
+                        owner_project,
+                        origin_key, 
+                        coalesce(hll_cardinality(hll_union_agg(case when "date" > current_date - interval '{timeframe+1} days' then hll_addresses end))::int, 0) as daa, 
+                        coalesce(hll_cardinality(hll_union_agg(case when "date" < current_date - interval '{timeframe} days' then hll_addresses end))::int, 0) as prev_daa
+                    FROM public.fact_active_addresses_contract_hll fact
+                    JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+                    WHERE "date" >= current_date - interval '{timeframe*2} days'
+                        AND fact.origin_key IN ({chains_str})
+                        AND oli.owner_project IS NOT NULL
+                    GROUP BY 1, 2
+                ) aa USING (owner_project, origin_key)
             """
 
             df = pd.read_sql(exec_string, self.db_connector.engine.connect())
@@ -2201,28 +2219,63 @@ class JSONCreation():
         chains_str = ', '.join([f"'{chain}'" for chain in chains])
 
         exec_string = f"""
-            SELECT 
-                address,
-                contract_name as name,
-                main_category_key,
-                sub_category_key,
-                origin_key, 
-                SUM(txcount) as txcount,
-                SUM(fees_paid_eth) AS fees_paid_eth,
-                SUM(fees_paid_usd) AS fees_paid_usd,
-                SUM(daa) AS daa
-            FROM vw_apps_contract_level_materialized AS fact
-            WHERE 
-                owner_project = '{owner_project}'
-                AND fact.origin_key IN ({chains_str})
-            GROUP BY 1,2,3,4,5
-            ORDER BY fees_paid_eth DESC
+            with apps_mat as (
+                SELECT 
+                    address,
+                    contract_name as name,
+                    main_category_key,
+                    sub_category_key,
+                    origin_key, 
+                    SUM(txcount) as txcount,
+                    SUM(fees_paid_eth) AS fees_paid_eth,
+                    SUM(fees_paid_usd) AS fees_paid_usd
+                FROM vw_apps_contract_level_materialized AS fact
+                WHERE 
+                    owner_project = '{owner_project}'
+                    AND fact.origin_key IN ({chains_str})
+                GROUP BY 1,2,3,4,5
+            )
+            select 
+                fact.*,
+                greatest(aa.daa, 1) AS daa
+            from apps_mat fact
+            LEFT JOIN (
+                SELECT 
+                    address,
+                    origin_key, 
+                    hll_cardinality(hll_union_agg(hll_addresses))::int AS daa
+                FROM public.fact_active_addresses_contract_hll fact
+                JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+                WHERE 
+                    oli.owner_project  = '{owner_project}'
+                    AND fact.origin_key IN ({chains_str})
+                GROUP BY 1, 2
+            ) aa USING (address, origin_key)
+            ORDER BY fees_paid_eth desc
         """
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
         df = db_addresses_to_checksummed_addresses(df, ['address'])
 
         return df
     
+    def get_active_addresses_val(self, owner_project:str, origin_key:str, timeframe:int):
+        exec_string = f"""
+            SELECT 
+                coalesce(hll_cardinality(hll_union_agg(case when "date" > current_date - interval '{timeframe+1} days' then hll_addresses end))::int, 0) as val
+            FROM public.fact_active_addresses_contract_hll fact
+            JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+            WHERE 
+                owner_project = '{owner_project}'
+                AND fact.origin_key = '{origin_key}'
+                AND "date" >= current_date - interval '{timeframe} days'
+
+        """
+        with self.db_connector.engine.connect() as connection:
+            result = connection.execute(exec_string)
+            val = result.scalar()
+            return val
+
+
     def create_app_details_json(self, project:str, chains:list, timeframes, is_all=False):
         df = self.load_app_data(project, chains)
         if len(df) > 0:
@@ -2246,7 +2299,6 @@ class JSONCreation():
                         'data': {}
                     }
                 }
-                
 
                 for origin_key in chains:
                     ## check if origin_key is in df
@@ -2261,16 +2313,21 @@ class JSONCreation():
                                 'data' : mk_list_int
                             }
                         }
-                        app_dict['metrics'][metric]['aggregated']['data'][origin_key] = {}
 
+                        app_dict['metrics'][metric]['aggregated']['data'][origin_key] = {}
                         for timeframe in timeframes:  
                             data_list = []
                             timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
+                            days = timeframe if timeframe != 'max' else 9999
 
-                            days = timeframe if timeframe != 'max' else 2000
-                            for metric_key in self.app_metrics[metric]['metric_keys']:
-                                val = self.aggregate_metric(df, origin_key, metric_key, days)
+                            ##for active addresses we cannot just sum up the values, we need to pull the hll data for each timeframe from our db
+                            if metric == 'daa':
+                                val = self.get_active_addresses_val(project, origin_key, days)
                                 data_list.append(val)
+                            else:
+                                for metric_key in self.app_metrics[metric]['metric_keys']:
+                                    val = self.aggregate_metric(df, origin_key, metric_key, days)
+                                    data_list.append(val)
                         
                             app_dict['metrics'][metric]['aggregated']['data'][origin_key][timeframe_key] = data_list
             
