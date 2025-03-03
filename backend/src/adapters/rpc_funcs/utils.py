@@ -525,7 +525,7 @@ def prep_dataframe_new(df, chain):
     Returns:
         pd.DataFrame: The prepared DataFrame with necessary columns, data types, and operations applied.
     """
-    op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell']
+    op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell', 'zircuit']
     default_chains = ['manta', 'metis']
     arbitrum_nitro_chains = ['arbitrum', 'gravity', 'real', 'arbitrum_nova']
     
