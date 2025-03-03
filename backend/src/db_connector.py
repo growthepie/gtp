@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from pangres import upsert
 from sqlalchemy import text
 import sqlalchemy
@@ -65,6 +65,59 @@ class DbConnector:
                         with self.engine.connect() as connection:
                                 connection.execute(text(query))
                 return None                
+        
+        def get_data_from_table(self, table_name: str, filters: dict = None, days: int = None):
+                """
+                Get data from a specific table with optional filtering by columns and date range.
+                
+                Args:
+                        table_name (str): Name of the table to query
+                        filters (dict, optional): Dictionary of column name and value pairs to filter by
+                        days (int, optional): Number of days to look back from today
+                        
+                Returns:
+                        pd.DataFrame: DataFrame containing the requested data
+                """
+                try:
+                        # Start building the query
+                        query = f"SELECT * FROM {table_name}"
+                        
+                        # Add WHERE clauses for filters
+                        where_clauses = []
+                        
+                        # Add date range filter if days is specified
+                        if days is not None:
+                                current_date = datetime.now().date()
+                                start_date = current_date - timedelta(days=days)
+                                where_clauses.append(f"date >= '{start_date}'")
+                        
+                        # Add column filters
+                        if filters is not None:
+                                for column, value in filters.items():
+                                        if isinstance(value, list):
+                                                # If value is a list, use IN clause
+                                                values_str = ', '.join([f"'{v}'" for v in value])
+                                                where_clauses.append(f"{column} IN ({values_str})")
+                                        else:
+                                                # Otherwise use equals
+                                                where_clauses.append(f"{column} = '{value}'")
+                        
+                        # Add WHERE clause to query if we have conditions
+                        if where_clauses:
+                                query += " WHERE " + " AND ".join(where_clauses)
+
+                        df = pd.read_sql(query, self.engine)
+                        
+                        # Convert date column to datetime if it exists
+                        if 'date' in df.columns:
+                                df['date'] = pd.to_datetime(df['date'])
+                        
+                        return df
+                        
+                except Exception as e:
+                        print(f"Error getting data from {table_name}: {e}")
+                        # Return empty DataFrame with proper structure
+                        return pd.DataFrame()
                 
 # ------------------------- additional db functions --------------------------------
         def refresh_materialized_view(self, view_name:str):
