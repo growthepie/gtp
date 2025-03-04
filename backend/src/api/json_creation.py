@@ -2215,7 +2215,7 @@ class JSONCreation():
 
         return df
     
-    def get_app_contracts(self, owner_project:str, chains:list):
+    def get_app_contracts(self, owner_project:str, chains:list, days:int):
         chains_str = ', '.join([f"'{chain}'" for chain in chains])
 
         exec_string = f"""
@@ -2233,6 +2233,8 @@ class JSONCreation():
                 WHERE 
                     owner_project = '{owner_project}'
                     AND fact.origin_key IN ({chains_str})
+                    and fact.date < current_date
+                    and fact.date >= current_date - interval '{days} days'
                 GROUP BY 1,2,3,4,5
             )
             select 
@@ -2249,6 +2251,8 @@ class JSONCreation():
                 WHERE 
                     oli.owner_project  = '{owner_project}'
                     AND fact.origin_key IN ({chains_str})
+                    and fact.date < current_date
+                    and fact.date >= current_date - interval '{days} days'
                 GROUP BY 1, 2
             ) aa USING (address, origin_key)
             ORDER BY fees_paid_eth desc
@@ -2330,14 +2334,26 @@ class JSONCreation():
                                     data_list.append(val)
                         
                             app_dict['metrics'][metric]['aggregated']['data'][origin_key][timeframe_key] = data_list
-            
-            ## Contracts
-            contracts = self.get_app_contracts(project, chains)
+
+            ## Contracts NEW
+            app_dict['contracts_table'] = {}
+            for timeframe in timeframes: 
+                timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
+                days = timeframe if timeframe != 'max' else 9999
+                
+                contracts = self.get_app_contracts(project, chains, days)
+                contract_dict = {
+                    'types': contracts.columns.to_list(),
+                    'data': contracts.values.tolist()
+                }
+                app_dict['contracts_table'][timeframe_key] = contract_dict
+
+            ## Contracts TODO: delete
+            contracts = self.get_app_contracts(project, chains, 9999)
             contract_dict = {
                 'types': contracts.columns.to_list(),
                 'data': contracts.values.tolist()
             }
-
             app_dict['contracts'] = contract_dict
 
             app_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
