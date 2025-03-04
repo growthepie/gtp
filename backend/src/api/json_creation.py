@@ -2348,18 +2348,8 @@ class JSONCreation():
                 }
                 app_dict['contracts_table'][timeframe_key] = contract_dict
 
-            ## Contracts TODO: delete
-            contracts = self.get_app_contracts(project, chains, 9999)
-            contract_dict = {
-                'types': contracts.columns.to_list(),
-                'data': contracts.values.tolist()
-            }
-            app_dict['contracts'] = contract_dict
-
             app_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
             app_dict = fix_dict_nan(app_dict, f'apps/details/{project}')
-
-            #print(app_dict)
 
             if self.s3_bucket == None:
                 self.save_to_json(app_dict, f'apps/details/{project}')
