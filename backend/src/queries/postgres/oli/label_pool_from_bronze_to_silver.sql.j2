@@ -2,23 +2,24 @@
     Takes NEW records from 'oli_label_pool_bronze' converts them and adds them to the 'oli_label_pool_silver' table. 
 
     Parameters:
-    - days: default = 7; The time interval (in days) to consider for the data extraction. This will be dynamically injected into the query via Jinja2 templating.
+    - time_created: default = 0; Only consider attestations newer than time_created (int: Unix Timestamp).
 #}
 
-{% set days = days | default(7) %}
+{% set time_created = time_created | default(0) %}
 
 WITH base_data AS (
-    select
-    	id,
+    SELECT
+        id,
         attester, 
         recipient,
         time_created,
         revocation_time,
         revoked,
+        is_offchain,
         ( -- Extract chain_id
-        	SELECT value->>'value' 
-        	FROM jsonb_array_elements(decoded_data_json::jsonb) 
-        	WHERE value->>'name' = 'chain_id'
+            SELECT value->>'value' 
+            FROM jsonb_array_elements(decoded_data_json::jsonb) 
+            WHERE value->>'name' = 'chain_id'
         )::jsonb->>'value' AS chain_id,
         ( -- Extract tags_json as a JSON string
             SELECT value->>'value' 
@@ -28,22 +29,58 @@ WITH base_data AS (
     FROM 
         public.oli_label_pool_bronze
     WHERE 
-        time_created >= EXTRACT(EPOCH FROM NOW()) - ({{ days }} * 24 * 60 * 60)
-        OR revocation_time >= EXTRACT(EPOCH FROM NOW()) - ({{ days }} * 24 * 60 * 60)
+        time_created > {{ time_created }}
+        OR revocation_time > {{ time_created }}
 ),
 tags_expanded AS (
     SELECT 
-    	id,
+        id,
         chain_id,
         recipient AS address,
         tag_entry.key AS tag_id,
-        tag_entry.value::text AS tag_value,
+        trim(BOTH '"' FROM tag_entry.value::text) AS tag_value,
         attester, 
         time_created,
         revocation_time,
-        revoked
+        revoked,
+        is_offchain
     FROM 
         base_data,
         jsonb_each(tags_json_string::jsonb) AS tag_entry
 )
-SELECT * FROM tags_expanded;
+
+INSERT INTO public.oli_label_pool_silver (
+    id,
+    chain_id,
+    address,
+    tag_id,
+    tag_value,
+    attester,
+    time_created,
+    revocation_time,
+    revoked,
+    is_offchain
+)
+SELECT 
+    id,
+    chain_id,
+    address,
+    tag_id,
+    tag_value,
+    attester,
+    time_created,
+    revocation_time,
+    revoked,
+    is_offchain
+FROM 
+    tags_expanded
+ON CONFLICT (id, tag_id) 
+DO UPDATE SET
+    chain_id = EXCLUDED.chain_id,
+    address = EXCLUDED.address,
+    tag_value = EXCLUDED.tag_value,
+    attester = EXCLUDED.attester,
+    time_created = EXCLUDED.time_created,
+    revocation_time = EXCLUDED.revocation_time,
+    revoked = EXCLUDED.revoked,
+    is_offchain = EXCLUDED.is_offchain;

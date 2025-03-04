@@ -26,17 +26,18 @@ class AdapterLabelPool(AbstractAdapter):
     """
     def extract(self, load_params:dict = None):
         if load_params is None:
-            #df = self.db_connector.
+            # "time_created" is the time when the label is indexed, "time" is the time the user defines when he creates the label; therefore we use "time_created" to get the latest labels
             load_params = {'time': int(self.db_connector.get_max_value('oli_label_pool_bronze', 'time_created'))}
+        self.load_params = load_params
         # get latest new attestations
-        df_new = self.get_latest_new_attestations(load_params)
+        df_new = self.get_latest_new_attestations(self.load_params)
         # get latest revoked attestations
-        df_rev = self.get_latest_revoked_attestations(load_params)
+        df_rev = self.get_latest_revoked_attestations(self.load_params)
         # merge new and revoked attestations
         df = pd.concat([df_new, df_rev])
         # remove duplicates
         df = df.drop_duplicates(subset=['id'], keep='last')
-        print_extract(self.name, load_params, df.shape)
+        print_extract(self.name, self.load_params, df.shape)
         if len(df) > 0:
             send_discord_message(f"{len(df)} new labels were submitted to the OLI Label Pool 🎉", self.webhook)
         return df
@@ -52,9 +53,17 @@ class AdapterLabelPool(AbstractAdapter):
             df = df.set_index('id')
             # load df into db, updated row if id already exists
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
+            # increment labels from bronze to silver
+            self.upsert_from_bronze_to_silver()
         print_load(self.name, {}, df.shape)
 
     ## ----------------- Helper functions --------------------
+
+    def upsert_from_bronze_to_silver(self):
+        # upsert attestations from bronze to silver
+        result = self.db_connector.execute_jinja('oli/upsert_cca_weekly_multiple_l2s.sql.j2', {'time_created': self.load_params['time']})
+        print(result)
+
 
     def get_latest_new_attestations(self, load_params):
         # get latest attestations
