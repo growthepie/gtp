@@ -2,7 +2,7 @@
     Takes NEW records from 'oli_label_pool_bronze' converts them and adds them to the 'oli_label_pool_silver' table. 
 
     Parameters:
-    - time_created: default = 0; Only consider attestations newer than time_created (int: Unix Timestamp).
+    - time_created: default = 0; Only consider attestations (including revokations) newer than that time (int: Unix Timestamp).
 #}
 
 {% set time_created = time_created | default(0) %}
