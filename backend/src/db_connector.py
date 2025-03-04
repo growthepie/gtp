@@ -1747,7 +1747,7 @@ class DbConnector:
                 print(f"{len(df)} records updated in sys_chains")
                 
 
-        ### OLI functions
+        ### OLI functions, Open Labels Initative
         def get_active_projects(self, add_category=False):
                 # if multiple githubs, websites or socials, it will always take the first one in the list!
                 exec_string = """

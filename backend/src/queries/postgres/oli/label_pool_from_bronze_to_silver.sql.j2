@@ -1,0 +1,49 @@
+{#
+    Takes NEW records from 'oli_label_pool_bronze' converts them and adds them to the 'oli_label_pool_silver' table. 
+
+    Parameters:
+    - days: default = 7; The time interval (in days) to consider for the data extraction. This will be dynamically injected into the query via Jinja2 templating.
+#}
+
+{% set days = days | default(7) %}
+
+WITH base_data AS (
+    select
+    	id,
+        attester, 
+        recipient,
+        time_created,
+        revocation_time,
+        revoked,
+        ( -- Extract chain_id
+        	SELECT value->>'value' 
+        	FROM jsonb_array_elements(decoded_data_json::jsonb) 
+        	WHERE value->>'name' = 'chain_id'
+        )::jsonb->>'value' AS chain_id,
+        ( -- Extract tags_json as a JSON string
+            SELECT value->>'value' 
+            FROM jsonb_array_elements(decoded_data_json::jsonb) 
+            WHERE value->>'name' = 'tags_json'
+        )::jsonb->>'value' AS tags_json_string
+    FROM 
+        public.oli_label_pool_bronze
+    WHERE 
+        time_created >= EXTRACT(EPOCH FROM NOW()) - ({{ days }} * 24 * 60 * 60)
+        OR revocation_time >= EXTRACT(EPOCH FROM NOW()) - ({{ days }} * 24 * 60 * 60)
+),
+tags_expanded AS (
+    SELECT 
+    	id,
+        chain_id,
+        recipient AS address,
+        tag_entry.key AS tag_id,
+        tag_entry.value::text AS tag_value,
+        attester, 
+        time_created,
+        revocation_time,
+        revoked
+    FROM 
+        base_data,
+        jsonb_each(tags_json_string::jsonb) AS tag_entry
+)
+SELECT * FROM tags_expanded;
