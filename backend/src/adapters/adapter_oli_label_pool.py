@@ -43,6 +43,7 @@ class AdapterLabelPool(AbstractAdapter):
         return df
 
     def load(self, df:pd.DataFrame):
+        # upsert attestations into bronze table
         if df.empty == False:
             # convert id, attester, recipient and tx_id columns to bytea
             df['id'] = df['id'].apply(lambda x: '\\x' + x[2:])
@@ -53,17 +54,17 @@ class AdapterLabelPool(AbstractAdapter):
             df = df.set_index('id')
             # load df into db, updated row if id already exists
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
-            # increment labels from bronze to silver
-            self.upsert_from_bronze_to_silver()
-        print_load(self.name, {}, df.shape)
+        print_load(self.name + ' bronze', {}, df.shape)
+        # upsert attestations from bronze to silver table
+        if df.empty == False:
+            df2 = self.upsert_from_bronze_to_silver()
+            print_load(self.name + ' silver', {}, df2.shape)
 
     ## ----------------- Helper functions --------------------
 
     def upsert_from_bronze_to_silver(self):
         # upsert attestations from bronze to silver
-        result = self.db_connector.execute_jinja('oli/upsert_cca_weekly_multiple_l2s.sql.j2', {'time_created': self.load_params['time']})
-        print(result)
-
+        return self.db_connector.execute_jinja('oli/upsert_cca_weekly_multiple_l2s.sql.j2', {'time_created': self.load_params['time']})
 
     def get_latest_new_attestations(self, load_params):
         # get latest attestations
