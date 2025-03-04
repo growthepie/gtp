@@ -253,6 +253,13 @@ def etl():
         df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
 
+    @task()
+    def write_label_pool_reattest():
+        print("...")
+
+    @task()
+    def read_label_pool_reattest():
+        print("...")
 
     # all tasks
     read = read_airtable_contracts()
