@@ -140,6 +140,8 @@ sql_queries = [
         ,*standard_evm_queries("taiko")
         ## Manta
         ,*standard_evm_queries("manta")
+        ## Zircuit
+        ,*standard_evm_queries("zircuit")
 
         # Others EVM Custom Gas Token
         ## Mantle (also custom gas query)

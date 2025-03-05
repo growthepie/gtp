@@ -342,7 +342,8 @@ gtp_app_metrics =  {
             'all_l2s_aggregate': 'sum',
             'monthly_agg': 'sum',
             'max_date_fill' : False,
-            'source': ['RPC', 'OLI']
+            'source': ['RPC', 'OLI'],
+            'icon_name': 'gtp-metrics-transactioncount'
         }
         ,'daa': {
             'name': 'Active Addresses',
@@ -354,7 +355,8 @@ gtp_app_metrics =  {
             'all_l2s_aggregate': 'sum',
             'monthly_agg': 'maa',
             'max_date_fill' : False,
-            'source': ['RPC', 'OLI']
+            'source': ['RPC', 'OLI'],
+            'icon_name': 'gtp-metrics-activeaddresses'
         }
         ,'gas_fees': {
             'name': 'Fees Paid',
@@ -367,7 +369,8 @@ gtp_app_metrics =  {
             'all_l2s_aggregate': 'sum',
             'monthly_agg': 'sum',
             'max_date_fill' : False,
-            'source': ['RPC', 'OLI']
+            'source': ['RPC', 'OLI'],
+            'icon_name': 'gtp-metrics-transactioncosts'
         }
     }
 
