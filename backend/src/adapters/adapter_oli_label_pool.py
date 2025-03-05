@@ -57,14 +57,15 @@ class AdapterLabelPool(AbstractAdapter):
         print_load(self.name + ' bronze', {}, df.shape)
         # upsert attestations from bronze to silver table
         if df.empty == False:
-            df2 = self.upsert_from_bronze_to_silver()
-            print_load(self.name + ' silver', {}, df2.shape)
+            if self.upsert_from_bronze_to_silver():
+                print("Successfully upserted attestations from bronze to silver.")
 
     ## ----------------- Helper functions --------------------
 
     def upsert_from_bronze_to_silver(self):
         # upsert attestations from bronze to silver
-        return self.db_connector.execute_jinja('oli/upsert_cca_weekly_multiple_l2s.sql.j2', {'time_created': self.load_params['time']})
+        self.db_connector.execute_jinja('/oli/label_pool_from_bronze_to_silver.sql.j2', {'time_created': self.load_params['time']})
+        return True # return True if successful (no exception)
 
     def get_latest_new_attestations(self, load_params):
         # get latest attestations
