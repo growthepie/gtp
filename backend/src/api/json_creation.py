@@ -1175,6 +1175,14 @@ class JSONCreation():
         chain_keys = self.chains_list_in_api + ['multiple']
         df = df.loc[(df.origin_key.isin(chain_keys))]
 
+        composition_ts_dict = self.generate_engagement_by_composition_dict()
+        cur_l2 = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['single_l2'][-1][1]
+        prev_l2 = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['single_l2'][-2][1]
+        cur_eth = composition_ts_dict['compositions']['only_l1'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
+        prev_eth = composition_ts_dict['compositions']['only_l1'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
+        cur_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
+        prev_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
+
         landing_dict = {
             "data": {
                 "metrics" : {
@@ -1195,13 +1203,15 @@ class JSONCreation():
                         "metric_name": "Ethereum ecosystem engagement",
                         "source": ['RPC'],
                         "weekly": {
-                            "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
-                            "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
+                            "latest_total_l2": cur_l2,
+                            "latest_total": cur_l2 + cur_eth,
+                            "latest_total_comparison_l2": (cur_l2 - prev_l2) / prev_l2,
+                            "latest_total_comparison": ((cur_l2 + cur_eth) - (prev_l2 + prev_eth)) / (prev_l2 + prev_eth),
                             "l2_dominance": self.l2_user_share(df, 'weekly'),
                             "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
-                            "cross_chain_users": self.cross_chain_users(df), # TODO: change to Total users that are active on multiple chains (cross-layer or multiple l2s), currently it's only multiple L2s. How to handle Focus toggle?
-                            "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df), #TODO: above
-                            "timechart": self.generate_engagement_by_composition_dict()
+                            "cross_chain_users": cur_multi_chain,
+                            "cross_chain_users_comparison": (cur_multi_chain - prev_multi_chain) / prev_multi_chain,
+                            "timechart": composition_ts_dict
                         }
                     },
                     "table_visual" : self.get_landing_table_dict(df)
