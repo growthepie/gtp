@@ -494,7 +494,7 @@ def get_all_oli_tags():
     df = pd.DataFrame(data['tags'])
     return df
 
-# get the growthepie x Open Labels Initative (OLI) list of trusted entities (address, tag_id, score)
+# get the growthepie x Open Labels Initative (OLI) list of trusted entities (attester, tag_id, score)
 def get_trusted_entities():
     # copy Github data into df
     url = "https://raw.githubusercontent.com/growthepie/gtp-dna/refs/heads/main/oli/trusted_entities.yml"
@@ -516,11 +516,41 @@ def get_trusted_entities():
     # expand the list of tag_ids into separate rows
     df = df.explode('tag_id_list')
     # drop duplicates (only keep first occurances)
-    df = df.sort_values(by=['address', 'tag_id_list', 'tag_id'], ascending=[True, True, False])
-    df = df.drop_duplicates(subset=['address', 'tag_id_list'])
+    df = df.sort_values(by=['attester', 'tag_id_list', 'tag_id'], ascending=[True, True, False])
+    df = df.drop_duplicates(subset=['attester', 'tag_id_list'])
     # drop column tag_id and rename tag_id_list to tag_id
     df = df.drop(columns=['tag_id'])
     df = df.rename(columns={'tag_id_list': 'tag_id'})
     # reset index
     df = df.reset_index(drop=True)
     return df
+
+# Convert a pandas DataFrame into a SQL SELECT query.
+def df_to_postgres_values(df, table_alias="df"):
+    # Get column names from DataFrame
+    columns = df.columns.tolist()
+    column_names = ", ".join([f'"{col}"' for col in columns])
+    # Generate VALUES rows
+    rows = []
+    for _, row in df.iterrows():
+        values = []
+        for val in row:
+            if val is None:
+                values.append("null")
+            elif isinstance(val, (int, float)):
+                values.append(str(val))
+            else:
+                # Escape single quotes in string values
+                val_str = str(val).replace("'", "''")
+                values.append(f"'{val_str}'")
+        row_str = "(" + ", ".join(values) + ")"
+        rows.append(row_str)
+    values_str = ",\n    ".join(rows)
+    # Build the full query with comments
+    query = f"""SELECT 
+    *
+FROM (
+    VALUES -- {', '.join(columns)}
+    {values_str}
+) AS {table_alias} ({column_names})"""
+    return query

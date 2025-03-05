@@ -1,0 +1,57 @@
+{#
+    Takes the oli_label_pool_silver table, applies filtering based on gtp trusted entities list.
+        - Filters out revoked attestations
+        - Filters out tag_ids that are not OLI compliant
+        - Filters attestations to only include ones from trusted entities
+
+    Parameters:
+    - trusted_entities: An sql vlaue list of trusted entities (use function df_to_postgres_values)
+#}
+
+{% set trusted_entities = trusted_entities %}
+
+WITH trusted_entities AS (
+    {{ trusted_entities }}
+),
+
+trusted_attestations AS(
+	SELECT
+		s.id, 
+		s.chain_id, 
+		s.address, 
+		s.tag_id, 
+		s.tag_value, 
+		t.score,
+		s.attester,
+		t.description,
+		s.time_created,
+		s.is_offchain
+	FROM public.oli_label_pool_silver s
+	LEFT JOIN trusted_entities t ON 
+		s.attester = decode(substring(t.attester FROM 3), 'hex') 
+		AND s.tag_id = t.tag_id
+	WHERE 
+		t.score IS NOT NULL
+		AND s.revoked = false
+),
+
+ranked_attestations AS (
+    SELECT
+        *,
+        ROW_NUMBER() OVER (PARTITION BY address, tag_id ORDER BY score DESC) AS rank
+    FROM trusted_attestations
+)
+
+SELECT
+    id,
+    chain_id,
+    address,
+    tag_id,
+    tag_value,
+    score,
+    attester,
+    description,
+    time_created,
+    is_offchain
+FROM ranked_attestations
+WHERE rank = 1;
