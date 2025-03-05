@@ -55,7 +55,7 @@ class AdapterLabelPool(AbstractAdapter):
             # load df into db, updated row if id already exists
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
         print_load(self.name + ' bronze', {}, df.shape)
-        # upsert attestations from bronze to silver table
+        # upsert attestations from bronze to silver table #TODO: implement a check if decoded data json in the attestation is really a json!
         if df.empty == False:
             if self.upsert_from_bronze_to_silver():
                 print("Successfully upserted attestations from bronze to silver.")
