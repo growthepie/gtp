@@ -38,7 +38,7 @@ trusted_attestations AS(
 ranked_attestations AS (
     SELECT
         *,
-        ROW_NUMBER() OVER (PARTITION BY address, tag_id ORDER BY score DESC) AS rank
+        ROW_NUMBER() OVER (PARTITION BY address, tag_id ORDER BY score, time_created DESC) AS rank
     FROM trusted_attestations
 )
 
