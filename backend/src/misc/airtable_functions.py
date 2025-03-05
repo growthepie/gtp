@@ -83,7 +83,7 @@ def clear_all_airtable(table):
     print(f"Deleted {len(ids)} records from Airtable.")
 
 # delete specific records from airtable
-def delete_airtable_ids(table, ids):
+def delete_airtable_ids(table, ids: list):
     
     # api can only handle batches of 10
     for i in range(0, len(ids), 10):
@@ -99,7 +99,6 @@ def read_airtable(table):
     df = pd.DataFrame([{**r['fields'], 'id': r['id']} for r in j])
     
     return df   
-
 
 
 #-#-# SPECIFIC AIRTABLE FUNCTIONS #-#-#
@@ -144,17 +143,17 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
     df['origin_key'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: x[0])
 
     # convert column ids to text for owner_project & usage_category columns (e.g. recgawzTCg3ALuSR2 -> uniswap)
-    if len(df[df["owner_project"].notna()]) > 0:
+    if len(df[df["owner_project"].notna()]) > 0: # TODO: move this into a function
         df_owner_projects = read_airtable(api.table(AIRTABLE_BASE_ID, 'OSS Projects'))
         df_owner_projects = df_owner_projects[['id', 'Name']]
         df_owner_projects.set_index('id', inplace=True)
         df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: df_owner_projects.loc[x]['Name'])
-    if len(df[df["usage_category"].notna()]) > 0:
+    if len(df[df["usage_category"].notna()]) > 0: # TODO: move this into a function
         df_usage_categories = read_airtable(api.table(AIRTABLE_BASE_ID, 'Usage Categories'))
         df_usage_categories = df_usage_categories[['id', 'Category']]
         df_usage_categories.set_index('id', inplace=True)
         df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: df_usage_categories.loc[x]['Category'])
-    if len(df[df["origin_key"].notna()]) > 0:
+    if len(df[df["origin_key"].notna()]) > 0: # TODO: move this into a function
         df_chains = read_airtable(api.table(AIRTABLE_BASE_ID, 'Chain List'))
         df_chains = df_chains[['id', 'origin_key']]
         df_chains.set_index('id', inplace=True)
@@ -190,7 +189,7 @@ def read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table):
     df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])
 
      # convert column ids to text for owner_project (e.g. recgawzTCg3ALuSR2 -> uniswap)
-    if len(df[df["owner_project"].notna()]) > 0:
+    if len(df[df["owner_project"].notna()]) > 0: # TODO: move this into a function
         df_owner_projects = read_airtable(api.table(AIRTABLE_BASE_ID, 'OSS Projects'))
         df_owner_projects = df_owner_projects[['id', 'Name']]
         df_owner_projects.set_index('id', inplace=True)
@@ -241,17 +240,17 @@ def read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table):
     df['origin_key'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: x[0])
 
     # convert column ids to text for owner_project & usage_category columns (e.g. recgawzTCg3ALuSR2 -> uniswap)
-    if len(df[df["owner_project"].notna()]) > 0:
+    if len(df[df["owner_project"].notna()]) > 0: # TODO: move this into a function
         df_owner_projects = read_airtable(api.table(AIRTABLE_BASE_ID, 'OSS Projects'))
         df_owner_projects = df_owner_projects[['id', 'Name']]
         df_owner_projects.set_index('id', inplace=True)
         df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: df_owner_projects.loc[x]['Name'])
-    if len(df[df["usage_category"].notna()]) > 0:
+    if len(df[df["usage_category"].notna()]) > 0: # TODO: move this into a function
         df_usage_categories = read_airtable(api.table(AIRTABLE_BASE_ID, 'Usage Categories'))
         df_usage_categories = df_usage_categories[['id', 'Category']]
         df_usage_categories.set_index('id', inplace=True)
         df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: df_usage_categories.loc[x]['Category'])
-    if len(df[df["origin_key"].notna()]) > 0:
+    if len(df[df["origin_key"].notna()]) > 0: # TODO: move this into a function
         df_chains = read_airtable(api.table(AIRTABLE_BASE_ID, 'Chain List'))
         df_chains = df_chains[['id', 'origin_key']]
         df_chains.set_index('id', inplace=True)

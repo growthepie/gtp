@@ -35,7 +35,7 @@ class AdapterLabelPool(AbstractAdapter):
         df_rev = self.get_latest_revoked_attestations(self.load_params)
         # merge new and revoked attestations
         df = pd.concat([df_new, df_rev])
-        # remove duplicates
+        # remove duplicates (can only happen if attested and revoked within 30min)
         df = df.drop_duplicates(subset=['id'], keep='last')
         print_extract(self.name, self.load_params, df.shape)
         return df
