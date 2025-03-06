@@ -80,6 +80,7 @@ def etl():
 
         json_creator.create_app_overview_json(chains=['optimism', 'arbitrum', 'mode', 'base'])
         json_creator.run_app_details_jsons_all(chains=['optimism', 'arbitrum', 'mode', 'base'])
+        json_creator.clean_app_files()
 
     @task()
     def run_create_master():

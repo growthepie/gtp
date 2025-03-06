@@ -13,6 +13,9 @@ import numpy as np
 import yaml
 from openai import OpenAI
 
+import dotenv
+dotenv.load_dotenv()
+
 ## API interaction functions
 def api_get_call(url, sleeper=0.5, retries=15, header=None, _remove_control_characters=False, as_json=True, proxy=None):
     retry_counter = 0
@@ -414,6 +417,33 @@ def upload_json_to_cf_s3(bucket, path_name, details_dict, cf_distribution_id, in
     if invalidate:
         empty_cloudfront_cache(cf_distribution_id, f'/{path_name}.json')
 
+def remove_file_from_s3(bucket, path_name):
+    s3 = boto3.resource(
+        service_name='s3',
+        region_name='us-east-1',
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    )
+    obj = s3.Object(bucket, path_name)
+    obj.delete()
+    print(f"Deleted {path_name}")
+
+def get_files_df_from_s3(bucket_name, prefix):
+    s3 = boto3.resource(
+        service_name='s3',
+        region_name='us-east-1',
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    )
+    bucket = s3.Bucket(bucket_name)
+    files = []
+    for obj in bucket.objects.filter(Prefix=prefix):
+        files.append([obj.key, obj.last_modified])
+
+    df = pd.DataFrame(files, columns=['key', 'last_modified'])
+    df.sort_values(by='last_modified', ascending=False, inplace=True)
+    return df
+    
 def upload_png_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id):
     print(f'...uploading png from {local_path} to {s3_path} in bucket {bucket}')
     # Upload JSON String to an S3 Object
