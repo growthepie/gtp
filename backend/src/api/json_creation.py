@@ -8,11 +8,12 @@ import zipfile
 import io
 import requests
 import getpass
+
 sys_user = getpass.getuser()
 
 from src.main_config import get_main_config, get_multi_config
 from src.da_config import get_da_config
-from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan, empty_cloudfront_cache
+from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan, empty_cloudfront_cache, remove_file_from_s3, get_files_df_from_s3
 from src.misc.glo_prep import Glo
 from src.db_connector import DbConnector
 from eim.funcs import get_eim_yamls
@@ -2894,3 +2895,24 @@ class JSONCreation():
         self.create_fundamentals_json(df)
         self.create_fundamentals_full_json(df)
         self.create_contracts_json()
+
+    ## JSON removal
+    ## connect to s3 bucket and output list of files
+    
+    ## this function will remove all app files that are older than 5 days
+    def clean_app_files(self):
+        df = get_files_df_from_s3('growthepie', 'v1/apps/details')
+
+        ## filter df_raw where last_modified more than 3 days ago
+        df['last_modified'] = pd.to_datetime(df['last_modified'])
+        df['last_modified'] = df['last_modified'].dt.tz_localize(None)
+        df['days_since_last_modified'] = (pd.Timestamp.now() - df['last_modified']).dt.days
+
+        df_to_remove = df[df['days_since_last_modified'] > 4]
+
+        if df_to_remove.empty:
+            print('No App files to remove')
+        else:
+            for index, row in df_to_remove.iterrows():
+                key = row['key']
+                remove_file_from_s3('growthepie', key)
