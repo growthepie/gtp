@@ -253,9 +253,45 @@ def etl():
         df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
 
+    @task()
+    def read_label_pool_reattest():
+        # read in approved labels & delete approved labels from airtable
+        from src.db_connector import DbConnector
+        from datetime import datetime
+        import src.misc.airtable_functions as at
+        from pyairtable import Api
+        import os
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+        table = api.table(AIRTABLE_BASE_ID, 'Label Pool Reattest')
+        df = at.read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table)
+        if df is None:
+            print("No labels upserted.")
+        else:
+            # remove duplicates address, origin_key
+            df = df.drop_duplicates(subset=['address', 'origin_key'])
+            # keep track of ids
+            ids = df['id'].tolist()
+            # capitalize the first letter for contract_name
+            df['contract_name'] = df['contract_name'].str.capitalize()
+            # keep columns address, origin_key, source and unpivot the other columns
+            df = df[['address', 'origin_key', 'source', 'contract_name', 'owner_project', 'usage_category']]
+            df = df.melt(id_vars=['address', 'origin_key', 'source'], var_name='tag_id', value_name='value')
+            # filter out rows with empty values
+            df = df[df['value'].notnull()]
+            df['added_on'] = datetime.now()
+            df = df.set_index(['address', 'origin_key', 'tag_id'])
+            # initialize db connection & upsert labels
+            db_connector = DbConnector()
+            db_connector.upsert_table('oli_tag_mapping', df)
+            print(f"Uploaded {len(df)} labels to the database")
+            # delete just uploaded rows from airtable
+            at.delete_airtable_ids(table, ids)
 
     # all tasks
     read = read_airtable_contracts()
+    read_pool = read_label_pool_reattest()
     refresh = run_refresh_materialized_view()
     write_oss = write_oss_projects()
     write_chain = write_chain_info()
@@ -263,6 +299,6 @@ def etl():
     write_owner_project = write_depreciated_owner_project()
 
     # Define execution order
-    read >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
+    read >> read_pool >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
 
 etl()

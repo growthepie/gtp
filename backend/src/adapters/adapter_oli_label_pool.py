@@ -26,22 +26,22 @@ class AdapterLabelPool(AbstractAdapter):
     """
     def extract(self, load_params:dict = None):
         if load_params is None:
-            #df = self.db_connector.
+            # "time_created" is the time when the label is indexed, "time" is the time the user defines when he creates the label; therefore we use "time_created" to get the latest labels
             load_params = {'time': int(self.db_connector.get_max_value('oli_label_pool_bronze', 'time_created'))}
+        self.load_params = load_params
         # get latest new attestations
-        df_new = self.get_latest_new_attestations(load_params)
+        df_new = self.get_latest_new_attestations(self.load_params)
         # get latest revoked attestations
-        df_rev = self.get_latest_revoked_attestations(load_params)
+        df_rev = self.get_latest_revoked_attestations(self.load_params)
         # merge new and revoked attestations
         df = pd.concat([df_new, df_rev])
-        # remove duplicates
+        # remove duplicates (can only happen if attested and revoked within 30min)
         df = df.drop_duplicates(subset=['id'], keep='last')
-        print_extract(self.name, load_params, df.shape)
-        if len(df) > 0:
-            send_discord_message(f"{len(df)} new labels were submitted to the OLI Label Pool 🎉", self.webhook)
+        print_extract(self.name, self.load_params, df.shape)
         return df
 
     def load(self, df:pd.DataFrame):
+        # upsert attestations into bronze table
         if df.empty == False:
             # convert id, attester, recipient and tx_id columns to bytea
             df['id'] = df['id'].apply(lambda x: '\\x' + x[2:])
@@ -52,9 +52,62 @@ class AdapterLabelPool(AbstractAdapter):
             df = df.set_index('id')
             # load df into db, updated row if id already exists
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
-        print_load(self.name, {}, df.shape)
+        print_load(self.name + ' bronze', {}, df.shape)
+
+        # upsert attestations from bronze to silver table #TODO: implement a check if decoded data json in the attestation is really a json!
+        if df.empty == False:
+            if self.upsert_from_bronze_to_silver(): # executes a jinja sql query
+                print("Successfully upserted attestations from bronze to silver.")
+
+        # add untrusted owner_project attestations to airtable (eventually to be replaced with trust algorithms) #TODO: whitelist chain_id
+        if df.empty == False:
+            from src.db_connector import DbConnector
+            from src.misc.helper_functions import get_trusted_entities, df_to_postgres_values
+            from eth_utils import to_checksum_address
+            import src.misc.airtable_functions as at
+            from pyairtable import Api
+            import os
+            # get new untrusted owner_project attestations
+            df_entities = get_trusted_entities()
+            self.load_params['trusted_entities'] = df_to_postgres_values(df_entities)
+            df_air = self.db_connector.execute_jinja('/oli/extract_labels_for_review.sql.j2', self.load_params, load_into_df=True)
+            if df_air.empty == False:
+                # push to airtable
+                AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+                AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+                api = Api(AIRTABLE_API_KEY)
+                table = api.table(AIRTABLE_BASE_ID, 'Label Pool Reattest')
+                df_air['address'] = df_air['address'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
+                df_air['attester'] = df_air['attester'].apply(lambda x: to_checksum_address('0x' + bytes(x).hex()))
+                # exchange the category with the id & make it a list
+                cat = api.table(AIRTABLE_BASE_ID, 'Usage Categories')
+                df_cat = at.read_airtable(cat)
+                df_air = df_air.replace({'usage_category': df_cat.set_index('Category')['id']})
+                df_air['usage_category'] = df_air['usage_category'].apply(lambda x: [x])
+                # exchange the project with the id & make it a list
+                proj = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
+                df_proj = at.read_airtable(proj)
+                df_air = df_air.replace({'owner_project': df_proj.set_index('Name')['id']})
+                df_air['owner_project'] = df_air['owner_project'].apply(lambda x: [x])
+                # exchange the chain chain_id with the id & make it a list
+                chains = api.table(AIRTABLE_BASE_ID, 'Chain List')
+                df_chains = at.read_airtable(chains)
+                df_air = df_air.replace({'chain_id': df_chains.set_index('caip2')['id']})
+                df_air['chain_id'] = df_air['chain_id'].apply(lambda x: [x])
+                # rename chain_id to origin_key
+                df_air = df_air.rename(columns={'chain_id': 'origin_key'})
+                # write to airtable df
+                at.push_to_airtable(table, df_air)
+                # send discord message
+                send_discord_message(f"{df_air.shape[0]} new untrusted owner_project attestations submitted to label pool.", self.webhook)
+
 
     ## ----------------- Helper functions --------------------
+
+    def upsert_from_bronze_to_silver(self):
+        # upsert attestations from bronze to silver
+        self.db_connector.execute_jinja('/oli/label_pool_from_bronze_to_silver.sql.j2', {'time_created': self.load_params['time']})
+        return True # return True if successful (no exception)
 
     def get_latest_new_attestations(self, load_params):
         # get latest attestations
