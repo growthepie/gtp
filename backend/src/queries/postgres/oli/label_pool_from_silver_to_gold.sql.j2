@@ -2,6 +2,7 @@
     Takes the oli_label_pool_silver table, applies filtering based on gtp trusted entities list.
         - Filters out revoked attestations
         - Filters out tag_ids that are not OLI compliant
+        - Filters out chain_ids that is not in gtp-dna
         - Filters attestations to only include ones from trusted entities
         - If the score for one tag_id address combination is the same, the most recent attestation is selected
 
@@ -34,6 +35,7 @@ trusted_attestations AS(
 	WHERE 
 		t.score IS NOT NULL
 		AND s.revoked = false
+        AND s.chain_id IN (SELECT caip2 FROM public.sys_chains)
 ),
 
 ranked_attestations AS (

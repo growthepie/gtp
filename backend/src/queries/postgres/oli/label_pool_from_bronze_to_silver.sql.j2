@@ -71,4 +71,11 @@ SELECT
     revocation_time,
     revoked,
     is_offchain
-FROM tags_expanded;
+FROM tags_expanded
+ON CONFLICT (id, tag_id) DO UPDATE SET 
+    tag_value = EXCLUDED.tag_value,
+    attester = EXCLUDED.attester,
+    time_created = EXCLUDED.time_created,
+    revocation_time = EXCLUDED.revocation_time,
+    revoked = EXCLUDED.revoked,
+    is_offchain = EXCLUDED.is_offchain;

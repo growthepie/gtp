@@ -94,10 +94,12 @@ class AdapterLabelPool(AbstractAdapter):
                 df_chains = at.read_airtable(chains)
                 df_air = df_air.replace({'chain_id': df_chains.set_index('caip2')['id']})
                 df_air['chain_id'] = df_air['chain_id'].apply(lambda x: [x])
+                # rename chain_id to origin_key
+                df_air = df_air.rename(columns={'chain_id': 'origin_key'})
                 # write to airtable df
                 at.push_to_airtable(table, df_air)
                 # send discord message
-                send_discord_message(self.webhook, f"{df_air.shape[0]} new untrusted owner_project attestations submitted to label pool.")
+                send_discord_message(f"{df_air.shape[0]} new untrusted owner_project attestations submitted to label pool.", self.webhook)
 
 
     ## ----------------- Helper functions --------------------
