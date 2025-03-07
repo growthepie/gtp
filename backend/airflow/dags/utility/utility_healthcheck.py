@@ -16,10 +16,10 @@ from src.misc.airflow_utils import alert_via_webhook
         'on_failure_callback': lambda context: alert_via_webhook(context, user='lorenz')
     },
     dag_id='utility_healthcheck',
-    description='This DAG sends a heartbeat to healthchecks.io every 10 minutes',
+    description='This DAG sends a heartbeat to healthchecks.io every 5 minutes',
     tags=['utility'],
     start_date=datetime(2023,4,24),
-    schedule_interval='*/10 * * * *'
+    schedule_interval='*/5 * * * *'
 )
 
 def healthcheck():
