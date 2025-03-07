@@ -10,6 +10,7 @@ import os
 import eth_utils
 import random
 import numpy as np
+import yaml
 from openai import OpenAI
 
 import dotenv
@@ -514,3 +515,72 @@ def convert_economics_mapping_into_df(data): # turns yml object of economics_map
     ]
     df = pd.DataFrame(table, columns=['origin_key', 'name', 'da_layer', 'from_address', 'to_address', 'method', 'namespace'])
     return df
+
+# get all official Open Labels Initative (OLI) tags
+def get_all_oli_tags():
+    url = "https://raw.githubusercontent.com/openlabelsinitiative/OLI/refs/heads/main/1_data_model/tags/tag_definitions.yml"
+    response = requests.get(url)
+    data = yaml.load(response.text, Loader=yaml.FullLoader)
+    df = pd.DataFrame(data['tags'])
+    return df
+
+# get the growthepie x Open Labels Initative (OLI) list of trusted entities (attester, tag_id, score)
+def get_trusted_entities():
+    # copy Github data into df
+    url = "https://raw.githubusercontent.com/growthepie/gtp-dna/refs/heads/main/oli/trusted_entities.yml"
+    response = requests.get(url)
+    data = yaml.load(response.text, Loader=yaml.FullLoader)
+    df = pd.DataFrame(data['trusted_entities'])
+    # explode the tags column
+    df = df.explode('tags')   
+    # Then extract the tag_id and score from each tag dictionary
+    df['tag_id'] = df['tags'].apply(lambda x: x['tag_id'] if x else None)
+    df['score'] = df['tags'].apply(lambda x: x['score'] if x else None)
+    # Drop the original tags column
+    df = df.drop(columns=['tags'])
+    # get all_tag from oli github
+    all_tags = get_all_oli_tags()['tag_id'].tolist()
+    all_tags = [tag.replace('oli.', '') for tag in all_tags]
+    # make a list of tag_id, if tag_id is "*" then add all tags
+    df['tag_id_list'] = df['tag_id'].apply(lambda x: all_tags if x == "*" else [x])
+    # expand the list of tag_ids into separate rows
+    df = df.explode('tag_id_list')
+    # drop duplicates (only keep first occurances)
+    df = df.sort_values(by=['attester', 'tag_id_list', 'tag_id'], ascending=[True, True, False])
+    df = df.drop_duplicates(subset=['attester', 'tag_id_list'])
+    # drop column tag_id and rename tag_id_list to tag_id
+    df = df.drop(columns=['tag_id'])
+    df = df.rename(columns={'tag_id_list': 'tag_id'})
+    # reset index
+    df = df.reset_index(drop=True)
+    return df
+
+# Convert a pandas DataFrame into a SQL SELECT query.
+def df_to_postgres_values(df, table_alias="df"):
+    # Get column names from DataFrame
+    columns = df.columns.tolist()
+    column_names = ", ".join([f'"{col}"' for col in columns])
+    # Generate VALUES rows
+    rows = []
+    for _, row in df.iterrows():
+        values = []
+        for val in row:
+            if val is None:
+                values.append("null")
+            elif isinstance(val, (int, float)):
+                values.append(str(val))
+            else:
+                # Escape single quotes in string values
+                val_str = str(val).replace("'", "''")
+                values.append(f"'{val_str}'")
+        row_str = "(" + ", ".join(values) + ")"
+        rows.append(row_str)
+    values_str = ",\n    ".join(rows)
+    # Build the full query with comments
+    query = f"""SELECT 
+    *
+FROM (
+    VALUES -- {', '.join(columns)}
+    {values_str}
+) AS {table_alias} ({column_names})"""
+    return query

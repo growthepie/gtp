@@ -25,17 +25,21 @@ from src.misc.airflow_utils import alert_via_webhook
 )
 
 def main():
+
     @task()
     def sync_attestations():
+
         from src.db_connector import DbConnector
         from src.adapters.adapter_oli_label_pool import AdapterLabelPool
 
         db_connector = DbConnector()
         ad = AdapterLabelPool({}, db_connector)
 
+        # get new labels from the GraphQL endpoint
         df = ad.extract()
-        ad.load(df)
         
+        # load labels into bronze table, then also increment to silver and lastly pushes untrusted owner_project labels to airtable
+        ad.load(df)
 
     sync_attestations()
 

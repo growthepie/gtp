@@ -57,6 +57,8 @@ class DbConnector:
                 
         def execute_jinja(self, query_name, query_params={}, load_into_df=False):
                 query = jinja_env.get_template(query_name).render(query_params)
+                if 'trusted_entities' in query_params.keys():
+                        query_params['trusted_entities'] = '... see gtp-dna/oli/trusted_entities.yml'
                 if load_into_df:
                         print(f"Executing query {query_name} with params {query_params} and loading into DataFrame.")
                         return pd.read_sql(text(query), self.engine)
@@ -1747,7 +1749,7 @@ class DbConnector:
                 print(f"{len(df)} records updated in sys_chains")
                 
 
-        ### OLI functions
+        ### OLI functions, Open Labels Initative
         def get_active_projects(self, add_category=False):
                 # if multiple githubs, websites or socials, it will always take the first one in the list!
                 exec_string = """
