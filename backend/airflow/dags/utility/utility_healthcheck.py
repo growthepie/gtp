@@ -15,8 +15,8 @@ from src.misc.airflow_utils import alert_via_webhook
         'retry_delay' : timedelta(seconds=5),
         'on_failure_callback': lambda context: alert_via_webhook(context, user='lorenz')
     },
-    dag_id='utility_dummy',
-    description='This is a dummy DAG that is supposed to fail.',
+    dag_id='utility_healthcheck',
+    description='This DAG sends a heartbeat to healthchecks.io every 10 minutes',
     tags=['utility'],
     start_date=datetime(2023,4,24),
     schedule_interval='*/10 * * * *'
