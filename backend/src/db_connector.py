@@ -133,6 +133,12 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
+        def delete_all_rows(self, table_name:str): # dangerous function, use with caution!
+                exec_string = f"DELETE FROM {table_name};"
+                with self.engine.connect() as connection:
+                        connection.execute(exec_string)
+                print(f"All rows deleted from {table_name}.")
+        
         def get_last_price_eth(self, origin_key:str, granularity:str='daily'):
                 if granularity == 'daily':
                         table_name = 'fact_kpis'
@@ -1793,7 +1799,7 @@ class DbConnector:
                         df = df.merge(df_categories, on='name', how='left')
 
                 return df
-        
+
         def get_projects_for_airtable(self):
                 exec_string = """
                         SELECT 

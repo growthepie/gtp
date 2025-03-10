@@ -22,7 +22,7 @@ from src.misc.airflow_utils import alert_via_webhook
     schedule='30 01 * * *'
 )
 
-def etl():
+def etl(): # TODO: make this create attestations to the OLI label pool rather than upserting it into oli_tag_mapping
     @task()
     def run_oss():
         from src.db_connector import DbConnector
