@@ -8,11 +8,12 @@ import zipfile
 import io
 import requests
 import getpass
+
 sys_user = getpass.getuser()
 
 from src.main_config import get_main_config, get_multi_config
 from src.da_config import get_da_config
-from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan, empty_cloudfront_cache
+from src.misc.helper_functions import upload_json_to_cf_s3, upload_parquet_to_cf_s3, db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses, fix_dict_nan, empty_cloudfront_cache, remove_file_from_s3, get_files_df_from_s3
 from src.misc.glo_prep import Glo
 from src.db_connector import DbConnector
 from eim.funcs import get_eim_yamls
@@ -1175,6 +1176,14 @@ class JSONCreation():
         chain_keys = self.chains_list_in_api + ['multiple']
         df = df.loc[(df.origin_key.isin(chain_keys))]
 
+        composition_ts_dict = self.generate_engagement_by_composition_dict()
+        cur_l2 = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['single_l2'][-1][1]
+        prev_l2 = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['single_l2'][-2][1]
+        cur_eth = composition_ts_dict['compositions']['only_l1'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
+        prev_eth = composition_ts_dict['compositions']['only_l1'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
+        cur_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
+        prev_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
+
         landing_dict = {
             "data": {
                 "metrics" : {
@@ -1195,13 +1204,15 @@ class JSONCreation():
                         "metric_name": "Ethereum ecosystem engagement",
                         "source": ['RPC'],
                         "weekly": {
-                            "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
-                            "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
+                            "latest_total_l2": cur_l2,
+                            "latest_total": cur_l2 + cur_eth,
+                            "latest_total_comparison_l2": (cur_l2 - prev_l2) / prev_l2,
+                            "latest_total_comparison": ((cur_l2 + cur_eth) - (prev_l2 + prev_eth)) / (prev_l2 + prev_eth),
                             "l2_dominance": self.l2_user_share(df, 'weekly'),
                             "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
-                            "cross_chain_users": self.cross_chain_users(df), # TODO: change to Total users that are active on multiple chains (cross-layer or multiple l2s), currently it's only multiple L2s. How to handle Focus toggle?
-                            "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df), #TODO: above
-                            "timechart": self.generate_engagement_by_composition_dict()
+                            "cross_chain_users": cur_multi_chain,
+                            "cross_chain_users_comparison": (cur_multi_chain - prev_multi_chain) / prev_multi_chain,
+                            "timechart": composition_ts_dict
                         }
                     },
                     "table_visual" : self.get_landing_table_dict(df)
@@ -2884,3 +2895,24 @@ class JSONCreation():
         self.create_fundamentals_json(df)
         self.create_fundamentals_full_json(df)
         self.create_contracts_json()
+
+    ## JSON removal
+    ## connect to s3 bucket and output list of files
+    
+    ## this function will remove all app files that are older than 5 days
+    def clean_app_files(self):
+        df = get_files_df_from_s3('growthepie', 'v1/apps/details')
+
+        ## filter df_raw where last_modified more than 3 days ago
+        df['last_modified'] = pd.to_datetime(df['last_modified'])
+        df['last_modified'] = df['last_modified'].dt.tz_localize(None)
+        df['days_since_last_modified'] = (pd.Timestamp.now() - df['last_modified']).dt.days
+
+        df_to_remove = df[df['days_since_last_modified'] > 4]
+
+        if df_to_remove.empty:
+            print('No App files to remove')
+        else:
+            for index, row in df_to_remove.iterrows():
+                key = row['key']
+                remove_file_from_s3('growthepie', key)

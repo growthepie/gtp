@@ -5,6 +5,9 @@
   "drips": {
     "ethereum": {
       "ownedBy": "0x9438b8B447179740cD97869997a2FCc9b4AA63a2"
+    },
+    "metis": {
+      "ownedBy": "0x9438b8B447179740cD97869997a2FCc9b4AA63a2"
     }
   }
 }
