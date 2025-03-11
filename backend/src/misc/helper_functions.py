@@ -443,21 +443,41 @@ def get_files_df_from_s3(bucket_name, prefix):
     df = pd.DataFrame(files, columns=['key', 'last_modified'])
     df.sort_values(by='last_modified', ascending=False, inplace=True)
     return df
+
+def upload_image_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id, file_type):
+    """
+    Uploads an image (PNG or SVG) to an S3 bucket and invalidates the CloudFront cache.
     
-def upload_png_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id):
-    print(f'...uploading png from {local_path} to {s3_path} in bucket {bucket}')
-    # Upload JSON String to an S3 Object
+    :param bucket: S3 bucket name
+    :param s3_path: Destination path in S3 (without extension)
+    :param local_path: Local file path (with extension)
+    :param cf_distribution_id: CloudFront distribution ID
+    :param file_type: Image file type ('png' or 'svg')
+    """
+    valid_types = {'png': 'image/png', 'svg': 'image/svg+xml'}
+    if file_type not in valid_types:
+        raise ValueError("Unsupported file type. Use 'png' or 'svg'.")
+
+    s3_key = f"{s3_path}.{file_type}"
+    content_type = valid_types[file_type]
+
+    print(f'...uploading {file_type} from {local_path} to {s3_key} in bucket {bucket}')
+    
+    # Upload file to S3
     s3 = boto3.client('s3')
     with open(local_path, 'rb') as image:
         s3.put_object(
             Bucket=bucket, 
-            Key=f'{s3_path}.png',
+            Key=s3_key,
             Body=image.read(),
-            ContentType='image/png'
+            ContentType=content_type
         )
 
-    print(f'..uploaded to {s3_path}')
-    empty_cloudfront_cache(cf_distribution_id, f'/{s3_path}.png')
+    print(f'..uploaded to {s3_key}')
+    
+    # Invalidate CloudFront cache
+    empty_cloudfront_cache(cf_distribution_id, f'/{s3_key}')
+
 
 def upload_parquet_to_cf_s3(bucket, path_name, df, cf_distribution_id):
     s3_url = f"s3://{bucket}/{path_name}.parquet"
@@ -554,6 +574,81 @@ def get_trusted_entities():
     # reset index
     df = df.reset_index(drop=True)
     return df
+
+def get_files_from_github_folder_large(repo_name, path="", token=None):
+    """
+    Retrieves all file names in a single GitHub repository folder,
+    using the Git Trees API which better handles large directories.
+    
+    Args:
+        repo_name (str): Name of the repository (e.g., "owner/repo").
+        path (str, optional): Path within the repository. Defaults to root.
+        github_token (str, optional): Personal access token for GitHub API. Defaults to None.
+    
+    Returns:
+        list: List of filenames in the specified folder
+    """
+    print(f"Getting files in {repo_name}/{path}...")
+    # First, get the default branch
+    repo_url = f"https://api.github.com/repos/{repo_name}"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"{token}"
+
+    repo_response = requests.get(repo_url, headers=headers)
+    
+    if repo_response.status_code != 200:
+        print(f"Error getting repository: {repo_response.status_code}")
+        print(repo_response.text)
+        return []
+    
+    default_branch = repo_response.json()["default_branch"]
+    
+    # Get the reference to the latest commit on the default branch
+    ref_url = f"https://api.github.com/repos/{repo_name}/git/refs/heads/{default_branch}"
+    ref_response = requests.get(ref_url, headers=headers)
+    
+    if ref_response.status_code != 200:
+        print(f"Error getting reference: {ref_response.status_code}")
+        return []
+    
+    commit_sha = ref_response.json()["object"]["sha"]
+    
+    # Get the tree using the recursive parameter
+    tree_url = f"https://api.github.com/repos/{repo_name}/git/trees/{commit_sha}?recursive=1"
+    tree_response = requests.get(tree_url, headers=headers)
+    
+    if tree_response.status_code != 200:
+        print(f"Error getting tree: {tree_response.status_code}")
+        return []
+    
+    # Filter for files in the specified path
+    tree_data = tree_response.json()
+    files = []
+    
+    # Normalize path to ensure consistent formatting
+    if path and not path.endswith('/'):
+        path += '/'
+    
+    for item in tree_data["tree"]:
+        # Only include files (not trees/directories)
+        if item["type"] == "blob":
+            item_path = item["path"]
+            
+            # Check if the item is in the specified path
+            if not path or item_path.startswith(path):
+                # Extract just the filename from the path
+                if path:
+                    relative_path = item_path[len(path):]
+                else:
+                    relative_path = item_path
+                
+                # Only include items directly in the folder (no subdirectories)
+                if '/' not in relative_path:
+                    files.append(relative_path)
+    
+    print(f"Found {len(files)} files in {repo_name}/{path}:")
+    return files
 
 # Convert a pandas DataFrame into a SQL SELECT query.
 def df_to_postgres_values(df, table_alias="df"):

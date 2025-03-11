@@ -2,7 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 
-from src.misc.helper_functions import upload_png_to_cf_s3
+from src.misc.helper_functions import upload_image_to_cf_s3
 from PIL import Image
 import time
 import os
@@ -153,8 +153,8 @@ def run_screenshots(s3_bucket, cf_distribution_id, api_version, user=None, is_lo
             print(f"{now} - Uploading screenshot for {url} to s3 path: {s3_path}")
 
             if not is_local_test:
-                upload_png_to_cf_s3(s3_bucket, s3_path,
-                                    path, cf_distribution_id)
+                upload_image_to_cf_s3(s3_bucket, s3_path,
+                                    path, cf_distribution_id,'png')
 
 
 def get_page_groups_from_sitemap():
