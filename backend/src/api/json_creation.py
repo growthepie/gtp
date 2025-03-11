@@ -38,7 +38,7 @@ def merge_dicts(default, custom):
 
 class JSONCreation():
 
-    def __init__(self, s3_bucket, cf_distribution_id, db_connector:DbConnector, api_version):
+    def __init__(self, s3_bucket, cf_distribution_id, db_connector:DbConnector, api_version='v1'):
         ## Constants
         self.api_version = api_version
         self.s3_bucket = s3_bucket

@@ -4,7 +4,7 @@ import sys
 import json
 import pandas as pd
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import boto3
 import os
 import eth_utils
@@ -678,9 +678,73 @@ def df_to_postgres_values(df, table_alias="df"):
     values_str = ",\n    ".join(rows)
     # Build the full query with comments
     query = f"""SELECT 
-    *
-FROM (
-    VALUES -- {', '.join(columns)}
-    {values_str}
-) AS {table_alias} ({column_names})"""
+        *
+    FROM (
+        VALUES -- {', '.join(columns)}
+        {values_str}
+    ) AS {table_alias} ({column_names})"""
     return query
+
+## get app logos from Github
+def get_app_logo_files(repo, file_path:str, days:int, branch='main'):
+    # get the latest commits
+    commits = repo.get_commits(path=file_path, sha=branch)
+
+    # check if there was a new commit in the last d days hours
+    if commits[0].commit.author.date < datetime.now(timezone.utc) - timedelta(days=days):
+        print(f"No new commit found in the last {24*days} hours.")
+    else:
+        print(f"New commit found in the last {24*days} hours.")
+
+    ## loop through the commits and only keep the commits that are in the last d days. In addition, start a list of the files that were changed
+    files_to_upload = []
+    files_to_remove = []
+    for commit in commits:
+        if commit.commit.author.date > datetime.now(timezone.utc) - timedelta(days=days):
+            for file in commit.files:
+                if file_path in file.filename:
+                    if file.status in ["added", "modified"]:
+                        files_to_upload.append(file)
+                    elif file.status == "removed":
+                        files_to_remove.append(file)
+    return files_to_upload, files_to_remove
+
+def upload_app_logo_files_to_s3(repo, files_to_upload, cf_bucket_name, cf_distribution_id, branch='main'):
+    ## TODO:iterate over files to remove? files_to_remove
+    ## for each file in files_to_upload, download the file, write to to a temp file and then push it to S3
+    for file in files_to_upload:
+        print(f"Uploading {file.filename} to S3.")
+        content = repo.get_contents(file.filename, ref=branch)
+        content = content.decoded_content
+        file_name = file.filename.split("/")[-1]
+        file_type = file_name.split(".")[-1]
+        file_name = file_name.split(".")[0]
+        with open(f'local/temp.{file_type}', "wb") as f:
+            f.write(content)
+
+        upload_image_to_cf_s3(
+            bucket=cf_bucket_name, 
+            s3_path=f'v1/apps/logos/{file_name}', 
+            local_path=f'local/temp.{file_type}', 
+            cf_distribution_id = cf_distribution_id, 
+            file_type = file_type)
+        
+    print("All files uploaded to S3.")
+
+## This function gets the current list of files in the folder and removes any duplicates that have .png in the filename
+## It returns a pandas dataframe with the filenames and the logo_path
+## TODO: if we have logos in our repo that aren't in OSS dir we will add a new row to our oli_oss_dir table which should be avoided
+def get_current_file_list(repo_name, file_path, github_token):
+    current_files = get_files_from_github_folder_large(repo_name, file_path, github_token)
+    ## load the files into a pandas dataframe and add 2nd column called "owner_project" with the filename without the extension
+    df = pd.DataFrame(current_files, columns=["logo_path"])
+    df['name'] = df['logo_path'].str.split(".").str[:-1].str.join(".")
+
+    ## in df check for duplicates in the "name" column and remove the one the duplicate that has .png in the "logo_path" column
+    df_duplicates = df[df.duplicated(subset=["name"], keep=False)]
+    df_duplicates = df_duplicates[df_duplicates["logo_path"].str.contains(".png")]
+    df = df[~df["logo_path"].isin(df_duplicates["logo_path"])]
+    print(f"..removed {len(df_duplicates)} duplicates with .png in the filename.")
+
+    df.set_index("name", inplace=True)
+    return df
