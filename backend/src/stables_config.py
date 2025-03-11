@@ -1,4 +1,16 @@
 # Token metadata
+# a dictionary of tokens that can be considered stablecoins
+# each token has a name, symbol, decimals, coingecko_id, fiat currency, logo and addresses
+# the addresses are the contract addresses for the token on the ethereum network
+
+# name: the name is the name of the token
+# symbol: the symbol is the ticker symbol of the token
+# decimals: the number of decimals the token has
+# coingecko_id: the coingecko_id is the id of the token on coingecko
+# fiat: the fiat currency is the currency that the token is pegged to
+# logo: (optional) the logo is a link to the token's logo 
+# addresses: the addresses are the contract addresses for the token on the Ethereum network
+
 stables_metadata = {
     "usdc": {
         "name": "USD Coin",
@@ -259,7 +271,15 @@ stables_mapping = {
     },
     "base": {},
     "arbitrum": {},
-    "arbitrum_nova": {},
+    "arbitrum_nova": {
+        "bridged": {
+            "ethereum": [
+                "0xB2535b988dcE19f9D71dfB22dB6da744aCac21bf", # Arbitrum Nova L1 ERC20 Gateway
+                "0x23122da8C581AA7E0d07A36Ff1f16F799650232f", # Arbitrum Nova: L1 Arb-Custom Gateway
+                "0xA2e996f0cb33575FA0E36e8f62fCd4a9b897aAd3" # DAI Escrow contract
+            ], 
+        },
+    },
     "optimism": {},
 
     "taiko": {},
