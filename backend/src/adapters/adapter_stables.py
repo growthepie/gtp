@@ -7,6 +7,10 @@ from web3.middleware import geth_poa_middleware
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
 
+## TODO: add days 'auto' functionality. if blocks are missing, fetch all. If tokens are missing, fetch all
+## This should also work for new tokens being added etc
+## TODO: add functionality that for some chains we don't need block data (we only need it if we have direct tokens)
+
 class AdapterStablecoinSupply(AbstractAdapter):
     """
     Adapter for tracking stablecoin supply across different chains.
@@ -52,23 +56,23 @@ class AdapterStablecoinSupply(AbstractAdapter):
         
         print_init(self.name, self.adapter_params)
 
-    def extract(self, load_params:dict):
+    def extract(self, load_params:dict, update=False):
         """
         Extract stablecoin data based on load parameters.
         
         load_params require the following fields:
             days: int - Days of historical data to load
             load_type: str - Type of data to load ('block_data', 'bridged_supply', 'direct_supply', 'total_supply')
-            chains: list (optional) - Specific chains to process
+            origin_keys: list (optional) - Specific chains to process
             stablecoins: list (optional) - Specific stablecoins to track
         """
         self.days = load_params['days']
         self.load_type = load_params['load_type']
-        self.chains = load_params.get('chains', self.supported_chains)
+        self.chains = load_params.get('origin_keys', self.supported_chains)
         self.stablecoins = load_params.get('stablecoins', list(self.stables_metadata.keys()))
         
         if self.load_type == 'block_data':
-            df = self.get_block_data()
+            df = self.get_block_data(update=update)
         elif self.load_type == 'bridged_supply':
             df = self.get_bridged_supply()
         elif self.load_type == 'direct_supply':
@@ -153,334 +157,154 @@ class AdapterStablecoinSupply(AbstractAdapter):
         
     def get_first_block_of_day(self, w3: Web3, target_date: datetime.date):
         """
-        Finds the first block of a given day using database caching and optimized search.
-        
-        Optimizations:
-        1. Checks database for existing block data before making RPC calls
-        2. Uses cache to avoid redundant lookups
-        3. Makes smarter initial guesses based on block time estimates
-        4. Implements early stopping for sequential date queries
-        
-        :param w3: Web3 object to connect to the blockchain.
-        :param target_date: The target date to find the first block of the day (UTC).
+        Finds the first block of a given day using binary search based on the timestamp.
+        Includes simple optimizations to reduce RPC calls.
+
+        :param w3: Web3 object to connect to Ethereum blockchain.
+        :param target_date: The target date to find the first block of the day (in UTC).
         :return: Block object of the first block of the day or None if not found.
         """
-        # Initialize cache if it doesn't exist yet
-        if not hasattr(self, '_block_date_cache'):
-            self._block_date_cache = {}
-            self._avg_block_time = {}  # Cache for average block times per chain
-            self._db_cache_loaded = False
+        # Initialize cache if not exists
+        if not hasattr(self, '_block_cache'):
+            self._block_cache = {}  # Simple cache: {(chain_id, date_str): block}
+            self._timestamp_cache = {}  # Cache: {(chain_id, block_num): timestamp}
         
-        # Get chain ID to use for the cache key
+        # Get chain ID for cache lookup
         chain_id = w3.eth.chain_id
+        date_str = target_date.strftime("%Y-%m-%d")
         
-        # Try to identify which chain this is by name (for database lookups)
-        chain_name = None
-        for name, connection in self.connections.items():
-            if connection == w3:
-                chain_name = name
-                break
+        # Check cache first
+        cache_key = (chain_id, date_str)
+        if cache_key in self._block_cache:
+            print(f"Using cached block for {date_str}")
+            return self._block_cache[cache_key]
         
-        # Convert target date to timestamp
+        # Calculate start timestamp for target day
         start_of_day = datetime.datetime.combine(target_date, datetime.time(0, 0), tzinfo=datetime.timezone.utc)
         start_timestamp = int(start_of_day.timestamp())
-        
-        # Check memory cache first
-        if (chain_id, start_timestamp) in self._block_date_cache:
-            print(f"Using memory-cached block for {target_date}")
-            return self._block_date_cache[(chain_id, start_timestamp)]
-        
-        # Load from database if available and we haven't loaded it yet
-        if chain_name and not self._db_cache_loaded:
-            print(f"Loading cached blocks from database for {chain_name}")
-            try:
-                # Get all available first_block_of_day entries for this chain
-                db_blocks = self.db_connector.get_data_from_table(
-                    "fact_kpis",
-                    filters={
-                        "metric_key": "first_block_of_day",
-                        "origin_key": chain_name
-                    }
-                )
-                
-                if not db_blocks.empty:
-                    # Process database results to build cache
-                    db_blocks = db_blocks.reset_index()
-                    
-                    for _, row in db_blocks.iterrows():
-                        # We only have the block number from DB, not the full block
-                        # We'll create a partial block object with just the number
-                        # The timestamp will be filled when we need the actual block
-                        date_obj = row['date']
-                        day_start = datetime.datetime.combine(date_obj, datetime.time(0, 0), tzinfo=datetime.timezone.utc)
-                        day_timestamp = int(day_start.timestamp())
-                        
-                        # Create a placeholder block with just the number
-                        # We'll fill in other details only if needed
-                        self._block_date_cache[(chain_id, day_timestamp)] = {
-                            'number': int(row['value']),
-                            'db_placeholder': True  # Flag to indicate this is a placeholder
-                        }
-                    
-                    # Also calculate average block time if we have multiple entries
-                    if len(db_blocks) >= 2:
-                        # Sort by date
-                        db_blocks = db_blocks.sort_values(by='date')
-                        
-                        # Calculate the time difference and block difference
-                        total_time_diff = 0
-                        total_block_diff = 0
-                        
-                        for i in range(1, len(db_blocks)):
-                            prev_date = db_blocks.iloc[i-1]['date']
-                            curr_date = db_blocks.iloc[i]['date']
-                            prev_block = int(db_blocks.iloc[i-1]['value']) 
-                            curr_block = int(db_blocks.iloc[i]['value'])
-                            
-                            # Calculate differences
-                            time_diff = (curr_date - prev_date).total_seconds()
-                            block_diff = curr_block - prev_block
-                            
-                            if block_diff > 0:  # Avoid division by zero
-                                total_time_diff += time_diff
-                                total_block_diff += block_diff
-                        
-                        if total_block_diff > 0:
-                            self._avg_block_time[chain_id] = total_time_diff / total_block_diff
-                    
-                    print(f"Loaded {len(db_blocks)} blocks from database for {chain_name}")
-                    
-                self._db_cache_loaded = True
-                
-            except Exception as e:
-                print(f"Error loading blocks from database: {e}")
-        
-        # Check if we now have this block in cache after DB load
-        if (chain_id, start_timestamp) in self._block_date_cache:
-            block_info = self._block_date_cache[(chain_id, start_timestamp)]
-            
-            # If it's a placeholder from DB, fetch the full block
-            if 'db_placeholder' in block_info and block_info['db_placeholder']:
-                try:
-                    full_block = w3.eth.get_block(block_info['number'])
-                    self._block_date_cache[(chain_id, start_timestamp)] = full_block
-                    return full_block
-                except Exception as e:
-                    print(f"Error fetching full block from placeholder: {e}")
-                    # Fall through to regular search if this fails
-            else:
-                return block_info
-        
+
         # Get latest block
-        try:
-            latest_block = w3.eth.get_block('latest')
-            latest_block_number = latest_block['number']
-            latest_timestamp = latest_block['timestamp']
-        except Exception as e:
-            print(f"Error getting latest block: {e}")
+        latest_block = w3.eth.get_block('latest')
+        latest_number = latest_block['number']
+        
+        # Cache the latest block timestamp
+        self._timestamp_cache[(chain_id, latest_number)] = latest_block['timestamp']
+        
+        # Early exit if chain didn't exist yet
+        if latest_block['timestamp'] < start_timestamp:
             return None
-        
-        # If our target date is in the future, return None early
-        if start_timestamp > latest_timestamp:
-            print(f"Target date {target_date} is in the future")
-            return None
-        
-        # Check if we have any cached blocks for this chain that can help us narrow the search
-        if hasattr(self, '_block_date_cache'):
-            # Find the closest cached block before and after our target
-            before_block = None
-            after_block = None
-            before_timestamp = 0
-            after_timestamp = float('inf')
-            
-            for (c_id, ts), block in self._block_date_cache.items():
-                if c_id != chain_id:
-                    continue
-                    
-                # Skip placeholders for this part
-                if 'db_placeholder' in block and block['db_placeholder']:
-                    continue
-                    
-                if ts <= start_timestamp and ts > before_timestamp:
-                    before_timestamp = ts
-                    before_block = block
-                
-                if ts >= start_timestamp and ts < after_timestamp:
-                    after_timestamp = ts
-                    after_block = block
-            
-            # If we have blocks before and after, we can narrow our search range
-            if before_block and after_block:
-                low = before_block['number']
-                high = after_block['number']
-                #print(f"Narrowed search range using cache: {low} to {high}")
-            
-            # If we only have a block before, we can make a better guess
-            elif before_block:
-                # Estimate the average block time if we don't have it
-                if chain_id not in self._avg_block_time:
-                    # Estimate based on the last 1000 blocks (or fewer if we're near genesis)
-                    blocks_to_check = min(1000, before_block['number'])
-                    if blocks_to_check > 0:
-                        old_block = w3.eth.get_block(before_block['number'] - blocks_to_check)
-                        time_diff = before_block['timestamp'] - old_block['timestamp']
-                        avg_time = time_diff / blocks_to_check
-                        self._avg_block_time[chain_id] = avg_time
-                    else:
-                        # Default to 15 seconds for Ethereum if we can't calculate
-                        self._avg_block_time[chain_id] = 15
-                
-                # Calculate estimated blocks between our target and the before block
-                time_diff = start_timestamp - before_block['timestamp']
-                est_blocks = int(time_diff / self._avg_block_time[chain_id])
-                
-                # Set search range with a safety margin
-                low = before_block['number']
-                high = min(before_block['number'] + est_blocks * 2, latest_block_number)
-                #print(f"Estimated search range based on before block: {low} to {high}")
-            else:
-                # Default to full range if no useful cache entries
-                low = 0
-                high = latest_block_number
-        else:
-            # Default to full range if no cache
-            low = 0
-            high = latest_block_number
-        
-        # Now use placeholder info from DB to narrow search if available
-        placeholder_blocks = []
-        for (c_id, ts), block in self._block_date_cache.items():
-            if c_id == chain_id and 'db_placeholder' in block and block['db_placeholder']:
-                placeholder_blocks.append((ts, block['number']))
-        
-        if placeholder_blocks:
-            # Sort by timestamp
-            placeholder_blocks.sort()
-            
-            # Find blocks that bound our target timestamp
-            before_ts = 0
-            before_num = 0
-            after_ts = float('inf')
-            after_num = latest_block_number
-            
-            for ts, num in placeholder_blocks:
-                if ts <= start_timestamp and ts > before_ts:
-                    before_ts = ts
-                    before_num = num
-                if ts >= start_timestamp and ts < after_ts:
-                    after_ts = ts
-                    after_num = num
-            
-            # Narrow search range if we found bounding blocks
-            if before_ts > 0 and after_ts < float('inf'):
-                if before_num < low:
-                    low = before_num
-                if after_num < high:
-                    high = after_num
-                #print(f"Further narrowed search range using DB placeholders: {low} to {high}")
-        
-        # Binary search within our narrowed range
+
+        low, high = 0, latest_number
+
+        # Binary search to find the first block with timestamp >= start_timestamp
         while low < high:
             mid = (low + high) // 2
-            try:
-                mid_block = w3.eth.get_block(mid)
-                time.sleep(0.1)  # Sleep to avoid rate limiting
-                
-                # Cache this block for future use
-                day_start = datetime.datetime.fromtimestamp(mid_block['timestamp'], tz=datetime.timezone.utc).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
-                day_timestamp = int(day_start.timestamp())
-                self._block_date_cache[(chain_id, day_timestamp)] = mid_block
-                
-                if mid_block['timestamp'] < start_timestamp:
-                    low = mid + 1
-                else:
-                    high = mid
-            except Exception as e:
-                print(f"Error during binary search at block {mid}: {e}")
-                # If we fail in the middle, try to recover by adjusting the search range
-                # Assume the error was due to a non-existent block, so search lower
-                high = mid - 1
-        
-        # Get the result block
+            
+            # Check cache before making RPC call
+            if (chain_id, mid) in self._timestamp_cache:
+                mid_timestamp = self._timestamp_cache[(chain_id, mid)]
+            else:
+                try:
+                    mid_block = w3.eth.get_block(mid)
+                    mid_timestamp = mid_block['timestamp']
+                    # Cache this result
+                    self._timestamp_cache[(chain_id, mid)] = mid_timestamp
+                    time.sleep(0.1)  # Sleep to avoid rate limiting
+                except Exception as e:
+                    print(f"Error getting block {mid}: {e}")
+                    # On error, adjust bounds to try a different block
+                    high = mid - 1
+                    continue
+            
+            if mid_timestamp < start_timestamp:
+                low = mid + 1
+            else:
+                high = mid
+
+        # Get the final block
         try:
             result_block = w3.eth.get_block(low)
-            
-            # Verify this block is actually on or after our target timestamp
-            if result_block['timestamp'] < start_timestamp:
-                # Try the next block if this one is too early
-                try:
-                    next_block = w3.eth.get_block(low + 1)
-                    if next_block['timestamp'] >= start_timestamp:
-                        result_block = next_block
-                except:
-                    # If there's no next block, just use what we have
-                    pass
-            
-            # Cache the result
-            self._block_date_cache[(chain_id, start_timestamp)] = result_block
-            
-            return result_block
+            # Cache for future use
+            self._block_cache[cache_key] = result_block
+            return result_block if result_block['timestamp'] >= start_timestamp else None
         except Exception as e:
-            print(f"Error getting result block {low}: {e}")
+            print(f"Error getting final block {low}: {e}")
             return None
         
     def get_block_numbers(self, w3, days: int = 7):
         """
         Retrieves the first block of each day for the past 'days' number of days and returns a DataFrame 
         with the block number and timestamp for each day.
+        
+        Processes dates from newest to oldest for consistency with get_block_data method.
 
         :param w3: Web3 object to connect to the Ethereum blockchain.
         :param days: The number of days to look back from today (default is 7).
         :return: DataFrame containing the date, block number, and block timestamp for each day.
         """
         current_date = datetime.datetime.now().date()  # Get the current date (no time)
-        start_date = current_date - datetime.timedelta(days=days)  # Calculate the start date
-
+        
         # Initialize an empty list to hold the data
         block_data = []
+        found_zero_block = False
 
-        # Loop over each day from start_date to current_date
-        while current_date > start_date:
-            # Calculate the next day's date for which we want to find the first block
-            target_date = start_date + datetime.timedelta(days=1)
-
+        # Process dates from newest to oldest
+        for i in range(days):
+            target_date = current_date - datetime.timedelta(days=i)
+            
+            # If we found a zero block already, skip older dates
+            if found_zero_block:
+                print(f"..skipping {target_date} as earlier date had zero block")
+                continue
+                
             # Retrieve the first block of the day for the target date
-            new_block = self.get_first_block_of_day(w3, target_date)
+            block = self.get_first_block_of_day(w3, target_date)
 
             # Error handling in case get_first_block_of_day returns None
-            if new_block is None:
+            if block is None:
                 print(f"ERROR: Could not retrieve block for {target_date}")
             else:
                 # Log the block number and timestamp
-                print(f'..block number for {target_date}: {new_block["number"]}')
+                print(f'..block number for {target_date}: {block["number"]}')
+                
+                # Check if this is a zero block (chain didn't exist yet)
+                if block["number"] == 0:
+                    found_zero_block = True
+                    print(f"..found zero block at {target_date}, will skip older dates")
 
                 # Append the result as a dictionary to the block_data list
                 block_data.append({
                     'date': str(target_date),
-                    'block': new_block['number'],
-                    'block_timestamp': new_block['timestamp']
+                    'block': block['number'],
+                    'block_timestamp': block['timestamp']
                 })
-
-            # Move to the next date
-            start_date = target_date
 
         # Convert the collected block data into a DataFrame
         df = pd.DataFrame(block_data)
-
-        # block as string
+        
+        # Handle empty dataframe case
+        if df.empty:
+            return df
+            
+        # Convert block to string
         df['block'] = df['block'].astype(str)
         return df
 
-    def get_block_data(self):
+    def get_block_data(self, update=False):
         """
         Get block data for all chains
         
         First checks if data already exists in the database (fact_kpis table) to avoid
         unnecessary RPC calls. Only fetches missing data from the blockchain.
+        
+        Optimizations:
+        1. Uses existing data from database when available
+        2. Only fetches missing dates
+        3. Stops processing older dates once block 0 is found (chain wasn't active)
+        4. Filters out all but the latest date with block 0
         """
         df_main = pd.DataFrame()
+        print(f"Getting block data for {self.days} days and update set to {update}")
         
         for chain in self.chains:
             print(f"Processing {chain} block data")
@@ -495,19 +319,43 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 days=self.days
             )
             
+            # Check if we already have complete data in the database
             if not existing_data.empty and len(existing_data) >= self.days:
                 print(f"...using existing block data for {chain} from database")
                 # Rename 'value' column to match expected format
                 existing_data = existing_data.reset_index()
+                
+                # Handle zero blocks - keep only the latest date with block 0
+                if 0 in existing_data['value'].astype(int).values:
+                    existing_data_with_zeroes = existing_data[existing_data['value'].astype(int) == 0]
+                    latest_zero_date = existing_data_with_zeroes['date'].max()
+                    
+                    # Keep all non-zero blocks and only the latest zero block
+                    existing_data = existing_data[
+                        (existing_data['value'].astype(int) != 0) | 
+                        (existing_data['date'] == latest_zero_date)
+                    ]
+                    
+                    print(f"...filtered out old zero blocks, keeping only latest at {latest_zero_date}")
+                
                 df_chain = existing_data[['metric_key', 'origin_key', 'date', 'value']]
                 df_main = pd.concat([df_main, df_chain])
                 continue
             
             # If we don't have complete data, check what dates we're missing
             existing_dates = set()
+            known_zero_date = None
+            
             if not existing_data.empty:
                 print(f"...found partial data for {chain}, fetching missing dates only")
                 existing_data = existing_data.reset_index()
+                
+                # Check if we have any dates with block 0 already
+                zero_blocks = existing_data[existing_data['value'].astype(int) == 0]
+                if not zero_blocks.empty:
+                    known_zero_date = zero_blocks['date'].max()
+                    print(f"...found existing zero block at {known_zero_date}, will skip older dates")
+                
                 existing_dates = set(existing_data['date'].dt.strftime('%Y-%m-%d'))
             
             # Check if chain connection is available
@@ -522,8 +370,8 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 date = current_date - datetime.timedelta(days=i)
                 all_dates.add(date.strftime('%Y-%m-%d'))
             
-            # Find missing dates
-            missing_dates = all_dates - existing_dates
+            # Find missing dates, sorted from newest to oldest
+            missing_dates = sorted(all_dates - existing_dates, reverse=True)
             
             if not missing_dates:
                 print(f"...no missing dates for {chain}")
@@ -536,20 +384,41 @@ class AdapterStablecoinSupply(AbstractAdapter):
             
             # Only fetch missing dates
             missing_blocks_data = []
-            for date_str in sorted(missing_dates):
+            found_zero_block = False
+            oldest_zero_date = None
+            
+            for date_str in missing_dates:  # Already sorted newest to oldest
                 target_date = datetime.datetime.strptime(date_str, '%Y-%m-%d').date()
                 
                 # Skip dates in the future
                 if target_date > current_date:
                     continue
                     
+                # Skip dates older than our known zero block date (if we have one)
+                if known_zero_date and target_date < known_zero_date.date():
+                    #print(f"...skipping {date_str} as it's older than known zero block date {known_zero_date.date()}")
+                    continue
+                    
+                # If we already found a zero block in this run, skip older dates
+                if found_zero_block and target_date < oldest_zero_date:
+                    #print(f"...skipping {date_str} as it's older than discovered zero block date {oldest_zero_date}")
+                    continue
+                    
                 # Get first block of this day
                 block = self.get_first_block_of_day(w3, target_date)
                 
                 if block:
+                    block_number = block['number']
+                    
+                    # Check if this is a zero block
+                    if block_number == 0:
+                        found_zero_block = True
+                        oldest_zero_date = target_date
+                        print(f"...found zero block at {date_str}, will skip older dates")
+                    
                     missing_blocks_data.append({
                         'date': date_str,
-                        'block': block['number'],
+                        'block': block_number,
                         'block_timestamp': block['timestamp'],
                         'origin_key': chain,
                         'metric_key': 'first_block_of_day'
@@ -575,7 +444,29 @@ class AdapterStablecoinSupply(AbstractAdapter):
                     df_chain = pd.concat([existing_data, df_missing])
                 else:
                     df_chain = df_missing
+                
+                # Handle zero blocks - keep only the latest date with block 0
+                if 0 in df_chain['value'].astype(int).values:
+                    df_chain_with_zeroes = df_chain[df_chain['value'].astype(int) == 0]
+                    latest_zero_date = df_chain_with_zeroes['date'].max()
                     
+                    # Keep all non-zero blocks and only the latest zero block
+                    df_chain = df_chain[
+                        (df_chain['value'].astype(int) != 0) | 
+                        (df_chain['date'] == latest_zero_date)
+                    ]
+                    
+                    print(f"...filtered out old zero blocks, keeping only latest at {latest_zero_date}")
+                
+                if update:
+                    df_chain.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
+                    df_chain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+
+                    # If col index in df_main, drop it
+                    if 'index' in df_chain.columns:
+                        df_chain.drop(columns=['index'], inplace=True)
+                    self.load(df_chain)
+
                 df_main = pd.concat([df_main, df_chain])
         
         # Remove duplicates and set index
@@ -583,7 +474,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
             df_main.drop_duplicates(subset=['metric_key', 'origin_key', 'date'], inplace=True)
             df_main.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
 
-            ## if col index in df_main, drop it
+            # If col index in df_main, drop it
             if 'index' in df_main.columns:
                 df_main.drop(columns=['index'], inplace=True)
         
