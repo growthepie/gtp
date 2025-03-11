@@ -41,18 +41,21 @@ class AdapterStablecoinSupply(AbstractAdapter):
         
         # Create connections to each chain
         for chain in self.supported_chains:
-            try:
-                rpc_url = self.db_connector.get_special_use_rpc(chain)
-                w3 = Web3(Web3.HTTPProvider(rpc_url))
-                
-                # Apply middleware for PoA chains if needed
-                if chain != 'ethereum':
-                    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+            if chain != 'ethereum' and (self.stables_mapping[chain].get("direct") is None or len(self.stables_mapping[chain]["direct"]) == 0):
+                print(f"skipping {chain} as it doesn't have direct tokens")
+            else:
+                try:
+                    rpc_url = self.db_connector.get_special_use_rpc(chain)
+                    w3 = Web3(Web3.HTTPProvider(rpc_url))
                     
-                self.connections[chain] = w3
-                print(f"Connected to {chain}")
-            except Exception as e:
-                print(f"Failed to connect to {chain}: {e}")
+                    # Apply middleware for PoA chains if needed
+                    if chain != 'ethereum':
+                        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                        
+                    self.connections[chain] = w3
+                    print(f"Connected to {chain}")
+                except Exception as e:
+                    print(f"Failed to connect to {chain}: {e}")
         
         print_init(self.name, self.adapter_params)
 
@@ -308,6 +311,10 @@ class AdapterStablecoinSupply(AbstractAdapter):
         
         for chain in self.chains:
             print(f"Processing {chain} block data")
+            ## check if chain dict has a key "direct" and if it contains data
+            if chain != 'ethereum' and (self.stables_mapping[chain].get("direct") is None or len(self.stables_mapping[chain]["direct"]) == 0):
+                print(f"Skipping {chain} as it doesn't have direct tokens")
+                continue
             
             # First check if we already have this data in the database
             existing_data = self.db_connector.get_data_from_table(

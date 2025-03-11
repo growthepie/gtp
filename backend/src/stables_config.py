@@ -256,12 +256,10 @@ stables_mapping = {
                 "0xC67A8c5f22b40274Ca7C4A56Db89569Ee2AD3FAb" ## Escrow for USDC
             ],
         },
-        "direct": {
-
-        }
     },
     "base": {},
     "arbitrum": {},
+    "arbitrum_nova": {},
     "optimism": {},
 
     "taiko": {},
@@ -276,7 +274,7 @@ stables_mapping = {
     "mode": {},
     "real": {},
     "redstone": {},
-    
+
     #"gravity": {},
     #"mint": {},
     #"metis": {},
