@@ -1229,8 +1229,8 @@ class JSONCreation():
                     "symbol": "ETH",
                     "metrics": {}
                 },
-                "top_contracts": {
-                }
+                "top_contracts": {},
+                "top_applications": {},
             }
         }
 
@@ -1255,6 +1255,7 @@ class JSONCreation():
          ## put all origin_keys from main_config in a list where in_api is True
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
 
+        ## TODO: remove top contracts section once deprecated frontend side
         #if 'ethereum' exists in chain_keys, remove it
         if 'ethereum' in chain_keys:
             chain_keys.remove('ethereum')
@@ -1279,6 +1280,19 @@ class JSONCreation():
                 'types': contracts.columns.to_list(),
                 'data': contracts.values.tolist()
             }
+
+        ## fill top applications
+        df_gainers, df_losers = self.get_apps_landing(['optimism', 'arbitrum', 'mode', 'base'])
+        landing_dict['data']['top_applications'] = {
+            'gainers': {
+                'types': df_gainers.columns.to_list(),
+                'data': df_gainers.values.tolist()
+            },
+            'losers': {
+                'types': df_losers.columns.to_list(),
+                'data': df_losers.values.tolist()
+            }
+        }
 
         landing_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
         landing_dict = fix_dict_nan(landing_dict, 'landing_page')
@@ -2072,9 +2086,49 @@ class JSONCreation():
     #######################################################################
     ### APPS
     #######################################################################
+    def get_app_overview_data(self, chains:list, timeframe:int):
+        chains_str = ', '.join([f"'{chain}'" for chain in chains])
+        exec_string = f"""
+            with apps_mat as (
+            SELECT 
+                fact.owner_project, 
+                fact.origin_key,
+                COUNT(DISTINCT fact.address) AS num_contracts,
+                COALESCE(SUM(fees_paid_eth) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS gas_fees_eth, 
+                COALESCE(SUM(fees_paid_eth) FILTER (WHERE fact."date" < current_date - interval '{timeframe} days'), 0) AS prev_gas_fees_eth, 
+                COALESCE(SUM(fees_paid_usd) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS gas_fees_usd, 
+                COALESCE(SUM(txcount) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS txcount, 
+                COALESCE(SUM(txcount) FILTER (WHERE fact."date" < current_date - interval '{timeframe} days'), 0) AS prev_txcount
+            FROM vw_apps_contract_level_materialized fact
+            WHERE fact."date" >= current_date - interval '{timeframe*2} days'
+                AND fact.origin_key IN ({chains_str})
+            GROUP BY 1,2
+            HAVING SUM(txcount) > 30
+            )
+            select 
+                fact.*,
+                greatest(aa.daa, 1) AS daa,
+                greatest(aa.prev_daa, 0) AS prev_daa
+            from apps_mat fact
+            LEFT JOIN (
+                SELECT 
+                    owner_project,
+                    origin_key, 
+                    coalesce(hll_cardinality(hll_union_agg(case when "date" > current_date - interval '{timeframe+1} days' then hll_addresses end))::int, 0) as daa, 
+                    coalesce(hll_cardinality(hll_union_agg(case when "date" < current_date - interval '{timeframe} days' then hll_addresses end))::int, 0) as prev_daa
+                FROM public.fact_active_addresses_contract_hll fact
+                JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+                WHERE "date" >= current_date - interval '{timeframe*2} days'
+                    AND fact.origin_key IN ({chains_str})
+                    AND oli.owner_project IS NOT NULL
+                GROUP BY 1, 2
+            ) aa USING (owner_project, origin_key)
+        """
+
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        return df
 
     def create_app_overview_json(self, chains:list):
-        chains_str = ', '.join([f"'{chain}'" for chain in chains])
         timeframes = [1,7,30,90,365,9999]
         for timeframe in timeframes:
             if timeframe == 9999:
@@ -2083,45 +2137,8 @@ class JSONCreation():
                 timeframe_key = f'{timeframe}d'
 
             print(f'Creating App overview for for {timeframe_key}')
-
-            exec_string = f"""
-                with apps_mat as (
-                SELECT 
-                    fact.owner_project, 
-                    fact.origin_key,
-                    COUNT(DISTINCT fact.address) AS num_contracts,
-                    COALESCE(SUM(fees_paid_eth) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS gas_fees_eth, 
-                    COALESCE(SUM(fees_paid_eth) FILTER (WHERE fact."date" < current_date - interval '{timeframe} days'), 0) AS prev_gas_fees_eth, 
-                    COALESCE(SUM(fees_paid_usd) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS gas_fees_usd, 
-                    COALESCE(SUM(txcount) FILTER (WHERE fact."date" > current_date - interval '{timeframe+1}  days'), 0) AS txcount, 
-                    COALESCE(SUM(txcount) FILTER (WHERE fact."date" < current_date - interval '{timeframe} days'), 0) AS prev_txcount
-                FROM vw_apps_contract_level_materialized fact
-                WHERE fact."date" >= current_date - interval '{timeframe*2} days'
-                    AND fact.origin_key IN ({chains_str})
-                GROUP BY 1,2
-                HAVING SUM(txcount) > 30
-                )
-                select 
-                    fact.*,
-                    greatest(aa.daa, 1) AS daa,
-                    greatest(aa.prev_daa, 0) AS prev_daa
-                from apps_mat fact
-                LEFT JOIN (
-                    SELECT 
-                        owner_project,
-                        origin_key, 
-                        coalesce(hll_cardinality(hll_union_agg(case when "date" > current_date - interval '{timeframe+1} days' then hll_addresses end))::int, 0) as daa, 
-                        coalesce(hll_cardinality(hll_union_agg(case when "date" < current_date - interval '{timeframe} days' then hll_addresses end))::int, 0) as prev_daa
-                    FROM public.fact_active_addresses_contract_hll fact
-                    JOIN vw_oli_labels_materialized oli USING (address, origin_key)
-                    WHERE "date" >= current_date - interval '{timeframe*2} days'
-                        AND fact.origin_key IN ({chains_str})
-                        AND oli.owner_project IS NOT NULL
-                    GROUP BY 1, 2
-                ) aa USING (owner_project, origin_key)
-            """
-
-            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+            df = self.get_app_overview_data(chains, timeframe)
+            
             projects_dict = {
                 'data': {
                     'types': df.columns.to_list(),
@@ -2138,6 +2155,46 @@ class JSONCreation():
                 upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/apps/app_overview_{timeframe_key}', projects_dict, self.cf_distribution_id)
 
             print(f'DONE -- App overview export for {timeframe_key}')
+
+    
+    def get_apps_landing(self, origin_keys:list):
+        df = self.get_app_overview_data(origin_keys,7)
+
+        ## group df by owner_project and aggregate values 
+        df = df.groupby(['owner_project']).agg({
+            'origin_key':lambda x: ', '.join(x),
+            'num_contracts':'sum', 
+            'gas_fees_eth':'sum', 
+            'prev_gas_fees_eth':'sum', 
+            'gas_fees_usd':'sum', 
+            'txcount':'sum', 
+            'prev_txcount':'sum'        
+        }).reset_index()
+
+        ## add % change columns
+        df['gas_fees_change_%'] = (df['gas_fees_eth'] - df['prev_gas_fees_eth']) / df['prev_gas_fees_eth']
+        df['txcount_change_%'] = (df['txcount'] - df['prev_txcount']) / df['prev_txcount']
+
+        ## order df by txcount descending
+        df = df.sort_values(by='txcount', ascending=False)
+
+        ## calc median txcount
+        median_txcount= df['txcount'].median()
+
+        ## filter df to only include projects with txcount > median_txcount
+        df = df[df['txcount'] > median_txcount]
+        ## filter out projects with pre_txcount = 0
+        df = df[df['prev_txcount'] > 0]
+
+        ## add rank column
+        df['rank'] = df['txcount'].rank(ascending=False)
+
+        ## keep top and bottom 3 as gainers and losers
+        df_gainers = df.sort_values(by='txcount_change_%', ascending=False).head(3).copy()
+        df_losers = df.sort_values(by='txcount_change_%', ascending=True).head(3).copy()
+
+        return df_gainers, df_losers
+
 
     def fill_missing_dates(self, df):
         # Make sure date is in datetime format
