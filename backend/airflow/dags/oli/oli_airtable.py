@@ -16,9 +16,9 @@ from src.misc.airflow_utils import alert_via_webhook
         'retry_delay' : timedelta(minutes=5),
         'on_failure_callback': lambda context: alert_via_webhook(context, user='lorenz')
     },
-    dag_id='utility_airtable',
+    dag_id='oli_airtable',
     description='Update Airtable for contracts labelling',
-    tags=['utility', 'daily'],
+    tags=['oli', 'daily'],
     start_date=datetime(2023,9,10),
     schedule='20 01 * * *' #after coingecko and after sql_blockspace, before sql materialize
 )
@@ -64,7 +64,7 @@ def etl():
             df['added_on'] = datetime.now()
             df.set_index(['address', 'origin_key', 'tag_id'], inplace=True)
 
-            db_connector.upsert_table('oli_tag_mapping', df)
+            db_connector.upsert_table('oli_tag_mapping', df) # TODO: make this create attestations to the OLI label pool rather than upserting it into oli_tag_mapping
             print(f"Uploaded {len(df)} labels to the database")
         
         # read owner_project update table
@@ -77,12 +77,34 @@ def etl():
                 db_connector.update_owner_projects(row['old_owner_project'], row['owner_project'])
 
     @task()
+    def refresh_trusted_entities(): # TODO: add new tags automatically to public.oli_tags from OLI github
+        from src.misc.helper_functions import get_trusted_entities
+        from src.db_connector import DbConnector
+        db_connector = DbConnector()
+
+        # get trusted entities from gtp-dna Github, rows with '*' are expanded based on public.oli_tags
+        df = get_trusted_entities(db_connector)
+
+        # turn attester into bytea
+        df['attester'] = df['attester'].apply(lambda x: '\\x' + x[2:])
+
+        # set attester & tag_id as index
+        df = df.set_index(['attester', 'tag_id'])
+
+        # upsert to oli_trusted_entities table, making sure to delete first for full refresh
+        db_connector.delete_all_rows('oli_trusted_entities')
+        db_connector.upsert_table('oli_trusted_entities', df)
+    
+    @task()
     def run_refresh_materialized_view():
         from src.db_connector import DbConnector
+        db_connector = DbConnector()
 
         # refresh the materialized view for OLI tags, so not the same contracts are shown in the airtable
-        db_connector = DbConnector()
         db_connector.refresh_materialized_view('vw_oli_labels_materialized')
+
+        # also refresh the materialized view for the oli_label_pool_gold
+        db_connector.refresh_materialized_view('vw_oli_label_pool_gold')
 
     @task()
     def write_oss_projects():
@@ -284,7 +306,7 @@ def etl():
             df = df.set_index(['address', 'origin_key', 'tag_id'])
             # initialize db connection & upsert labels
             db_connector = DbConnector()
-            db_connector.upsert_table('oli_tag_mapping', df)
+            db_connector.upsert_table('oli_tag_mapping', df) # TODO: rather than upserting, reattest to OLI label pool here!
             print(f"Uploaded {len(df)} labels to the database")
             # delete just uploaded rows from airtable
             at.delete_airtable_ids(table, ids)
@@ -292,6 +314,7 @@ def etl():
     # all tasks
     read = read_airtable_contracts()
     read_pool = read_label_pool_reattest()
+    trusted_entities = refresh_trusted_entities()
     refresh = run_refresh_materialized_view()
     write_oss = write_oss_projects()
     write_chain = write_chain_info()
@@ -299,6 +322,6 @@ def etl():
     write_owner_project = write_depreciated_owner_project()
 
     # Define execution order
-    read >> read_pool >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
+    read >> read_pool >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
 
 etl()

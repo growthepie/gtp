@@ -18,12 +18,12 @@ from src.misc.airflow_utils import alert_via_webhook
     },
     dag_id='oli_metadata',
     description='Loads contract data using the ContractLoader',
-    tags=['contracts', 'daily'],
+    tags=['contracts', 'daily', 'oli'],
     start_date=datetime(2023, 6, 5),
     schedule='05 02 * * *',
 )
 
-def load_metadata():
+def load_metadata(): # TODO: make this create attestations to the OLI label pool rather than upserting it into oli_tag_mapping
     @task()
     def run_contract_loader():
         from src.db_connector import DbConnector
