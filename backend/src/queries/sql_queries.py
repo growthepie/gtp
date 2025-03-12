@@ -142,6 +142,8 @@ sql_queries = [
         ,*standard_evm_queries("manta")
         ## Zircuit
         ,*standard_evm_queries("zircuit")
+        ## Unichain
+        ,*standard_evm_queries("unichain")
 
         # Others EVM Custom Gas Token
         ## Mantle (also custom gas query)
