@@ -18,6 +18,7 @@ WITH filtered_labels AS (
     public.oli_label_pool_silver
   WHERE 
     attester NOT IN (SELECT attester FROM oli_trusted_entities)
+    AND chain_id IN (SELECT caip2 FROM sys_chains)
     AND revoked = FALSE
     AND tag_id IN ('contract_name', 'owner_project', 'usage_category')
     AND time_created > {{ time_created }}

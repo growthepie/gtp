@@ -54,14 +54,13 @@ class AdapterLabelPool(AbstractAdapter):
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
         print_load(self.name + ' bronze', {}, df.shape)
 
-        # upsert attestations from bronze to silver table #TODO: implement a check if decoded data json in the attestation is really a json!
+        # upsert attestations from bronze to silver table #TODO: implement further tests for edge cases in tag_json
         if df.empty == False:
             if self.upsert_from_bronze_to_silver(): # executes a jinja sql query
                 print("Successfully upserted attestations from bronze to silver.")
 
-        # add untrusted owner_project attestations to airtable (eventually to be replaced with trust algorithms) #TODO: whitelist chain_id
+        # add untrusted owner_project attestations to airtable (eventually to be replaced with trust algorithms)
         if df.empty == False:
-            from src.misc.helper_functions import get_trusted_entities, df_to_postgres_values
             from eth_utils import to_checksum_address
             import src.misc.airtable_functions as at
             from pyairtable import Api
