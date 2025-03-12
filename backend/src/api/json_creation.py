@@ -224,7 +224,7 @@ class JSONCreation():
 
 
     # this method returns a list of lists with the unix timestamp and all associated values for a certain metric_id and chain_id
-    def generate_daily_list(self, df, metric_id, origin_key, start_date = None, metric_type='default'):
+    def generate_daily_list(self, df, metric_id, origin_key, start_date = None, metric_type='default', rolling_avg = False):
         tmp_metrics_dict = self.get_metric_dict(metric_type)            
 
         mks = tmp_metrics_dict[metric_id]['metric_keys']
@@ -272,6 +272,9 @@ class JSONCreation():
             mk_list_int = [[int(i[0]),i[1], i[2]] for i in mk_list] ## convert the first element of each list to int (unix timestamp)
         else:
             raise NotImplementedError("Only 1 or 2 units are supported")
+        
+        if rolling_avg == True:
+            mk_list_int = self.create_7d_rolling_avg(mk_list_int)
         
         return mk_list_int, df_tmp.columns.to_list()
     
@@ -1238,14 +1241,18 @@ class JSONCreation():
             }
         }
 
-        start_date = datetime.now() - timedelta(days=731)
-        start_date = start_date.replace(tzinfo=timezone.utc) 
+        #start_date = datetime.now() - timedelta(days=731)
+        #start_date = start_date.replace(tzinfo=timezone.utc) 
+        ## start date should be 2023-01-01
+        start_date = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        ## calculate the days between start_date and today
+        days = (datetime.now(timezone.utc) - start_date).days
 
         for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
-            landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True)
+            landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True, days=days)
 
             if metric_id != 'rent_paid':
-                eth_values, eth_types = self.generate_daily_list(df, metric_id, 'ethereum', start_date=start_date)
+                eth_values, eth_types = self.generate_daily_list(df, metric_id, 'ethereum', start_date=start_date, rolling_avg=True)
                 landing_dict['data']['ethereum']['metrics'][metric_id] = {
                     "metric_name": self.metrics[metric_id]['name'],
                     "source": [],
