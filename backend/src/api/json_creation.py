@@ -1238,7 +1238,7 @@ class JSONCreation():
             }
         }
 
-        start_date = datetime.now() - timedelta(days=730)
+        start_date = datetime.now() - timedelta(days=731)
         start_date = start_date.replace(tzinfo=timezone.utc) 
 
         for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
