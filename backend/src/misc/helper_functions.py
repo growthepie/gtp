@@ -4,7 +4,7 @@ import sys
 import json
 import pandas as pd
 import unicodedata
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import boto3
 import os
 import eth_utils
@@ -443,21 +443,41 @@ def get_files_df_from_s3(bucket_name, prefix):
     df = pd.DataFrame(files, columns=['key', 'last_modified'])
     df.sort_values(by='last_modified', ascending=False, inplace=True)
     return df
+
+def upload_image_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id, file_type):
+    """
+    Uploads an image (PNG or SVG) to an S3 bucket and invalidates the CloudFront cache.
     
-def upload_png_to_cf_s3(bucket, s3_path, local_path, cf_distribution_id):
-    print(f'...uploading png from {local_path} to {s3_path} in bucket {bucket}')
-    # Upload JSON String to an S3 Object
+    :param bucket: S3 bucket name
+    :param s3_path: Destination path in S3 (without extension)
+    :param local_path: Local file path (with extension)
+    :param cf_distribution_id: CloudFront distribution ID
+    :param file_type: Image file type ('png' or 'svg')
+    """
+    valid_types = {'png': 'image/png', 'svg': 'image/svg+xml'}
+    if file_type not in valid_types:
+        raise ValueError("Unsupported file type. Use 'png' or 'svg'.")
+
+    s3_key = f"{s3_path}.{file_type}"
+    content_type = valid_types[file_type]
+
+    print(f'...uploading {file_type} from {local_path} to {s3_key} in bucket {bucket}')
+    
+    # Upload file to S3
     s3 = boto3.client('s3')
     with open(local_path, 'rb') as image:
         s3.put_object(
             Bucket=bucket, 
-            Key=f'{s3_path}.png',
+            Key=s3_key,
             Body=image.read(),
-            ContentType='image/png'
+            ContentType=content_type
         )
 
-    print(f'..uploaded to {s3_path}')
-    empty_cloudfront_cache(cf_distribution_id, f'/{s3_path}.png')
+    print(f'..uploaded to {s3_key}')
+    
+    # Invalidate CloudFront cache
+    empty_cloudfront_cache(cf_distribution_id, f'/{s3_key}')
+
 
 def upload_parquet_to_cf_s3(bucket, path_name, df, cf_distribution_id):
     s3_url = f"s3://{bucket}/{path_name}.parquet"
@@ -560,6 +580,81 @@ def get_trusted_entities(db_connector):
     df = df.reset_index(drop=True)
     return df
 
+def get_files_from_github_folder_large(repo_name, path="", token=None):
+    """
+    Retrieves all file names in a single GitHub repository folder,
+    using the Git Trees API which better handles large directories.
+    
+    Args:
+        repo_name (str): Name of the repository (e.g., "owner/repo").
+        path (str, optional): Path within the repository. Defaults to root.
+        github_token (str, optional): Personal access token for GitHub API. Defaults to None.
+    
+    Returns:
+        list: List of filenames in the specified folder
+    """
+    print(f"Getting files in {repo_name}/{path}...")
+    # First, get the default branch
+    repo_url = f"https://api.github.com/repos/{repo_name}"
+    headers = {}
+    if token:
+        headers["Authorization"] = f"{token}"
+
+    repo_response = requests.get(repo_url, headers=headers)
+    
+    if repo_response.status_code != 200:
+        print(f"Error getting repository: {repo_response.status_code}")
+        print(repo_response.text)
+        return []
+    
+    default_branch = repo_response.json()["default_branch"]
+    
+    # Get the reference to the latest commit on the default branch
+    ref_url = f"https://api.github.com/repos/{repo_name}/git/refs/heads/{default_branch}"
+    ref_response = requests.get(ref_url, headers=headers)
+    
+    if ref_response.status_code != 200:
+        print(f"Error getting reference: {ref_response.status_code}")
+        return []
+    
+    commit_sha = ref_response.json()["object"]["sha"]
+    
+    # Get the tree using the recursive parameter
+    tree_url = f"https://api.github.com/repos/{repo_name}/git/trees/{commit_sha}?recursive=1"
+    tree_response = requests.get(tree_url, headers=headers)
+    
+    if tree_response.status_code != 200:
+        print(f"Error getting tree: {tree_response.status_code}")
+        return []
+    
+    # Filter for files in the specified path
+    tree_data = tree_response.json()
+    files = []
+    
+    # Normalize path to ensure consistent formatting
+    if path and not path.endswith('/'):
+        path += '/'
+    
+    for item in tree_data["tree"]:
+        # Only include files (not trees/directories)
+        if item["type"] == "blob":
+            item_path = item["path"]
+            
+            # Check if the item is in the specified path
+            if not path or item_path.startswith(path):
+                # Extract just the filename from the path
+                if path:
+                    relative_path = item_path[len(path):]
+                else:
+                    relative_path = item_path
+                
+                # Only include items directly in the folder (no subdirectories)
+                if '/' not in relative_path:
+                    files.append(relative_path)
+    
+    print(f"Found {len(files)} files in {repo_name}/{path}:")
+    return files
+
 # Convert a pandas DataFrame into a SQL SELECT query.
 def df_to_postgres_values(df, table_alias="df"):
     # Get column names from DataFrame
@@ -583,9 +678,73 @@ def df_to_postgres_values(df, table_alias="df"):
     values_str = ",\n    ".join(rows)
     # Build the full query with comments
     query = f"""SELECT 
-    *
-FROM (
-    VALUES -- {', '.join(columns)}
-    {values_str}
-) AS {table_alias} ({column_names})"""
+        *
+    FROM (
+        VALUES -- {', '.join(columns)}
+        {values_str}
+    ) AS {table_alias} ({column_names})"""
     return query
+
+## get app logos from Github
+def get_app_logo_files(repo, file_path:str, days:int, branch='main'):
+    # get the latest commits
+    commits = repo.get_commits(path=file_path, sha=branch)
+
+    # check if there was a new commit in the last d days hours
+    if commits[0].commit.author.date < datetime.now(timezone.utc) - timedelta(days=days):
+        print(f"No new commit found in the last {24*days} hours.")
+    else:
+        print(f"New commit found in the last {24*days} hours.")
+
+    ## loop through the commits and only keep the commits that are in the last d days. In addition, start a list of the files that were changed
+    files_to_upload = []
+    files_to_remove = []
+    for commit in commits:
+        if commit.commit.author.date > datetime.now(timezone.utc) - timedelta(days=days):
+            for file in commit.files:
+                if file_path in file.filename:
+                    if file.status in ["added", "modified"]:
+                        files_to_upload.append(file)
+                    elif file.status == "removed":
+                        files_to_remove.append(file)
+    return files_to_upload, files_to_remove
+
+def upload_app_logo_files_to_s3(repo, files_to_upload, cf_bucket_name, cf_distribution_id, branch='main'):
+    ## TODO:iterate over files to remove? files_to_remove
+    ## for each file in files_to_upload, download the file, write to to a temp file and then push it to S3
+    for file in files_to_upload:
+        print(f"Uploading {file.filename} to S3.")
+        content = repo.get_contents(file.filename, ref=branch)
+        content = content.decoded_content
+        file_name = file.filename.split("/")[-1]
+        file_type = file_name.split(".")[-1]
+        file_name = file_name.split(".")[0]
+        with open(f'local/temp.{file_type}', "wb") as f:
+            f.write(content)
+
+        upload_image_to_cf_s3(
+            bucket=cf_bucket_name, 
+            s3_path=f'v1/apps/logos/{file_name}', 
+            local_path=f'local/temp.{file_type}', 
+            cf_distribution_id = cf_distribution_id, 
+            file_type = file_type)
+        
+    print("All files uploaded to S3.")
+
+## This function gets the current list of files in the folder and removes any duplicates that have .png in the filename
+## It returns a pandas dataframe with the filenames and the logo_path
+## TODO: if we have logos in our repo that aren't in OSS dir we will add a new row to our oli_oss_dir table which should be avoided
+def get_current_file_list(repo_name, file_path, github_token):
+    current_files = get_files_from_github_folder_large(repo_name, file_path, github_token)
+    ## load the files into a pandas dataframe and add 2nd column called "owner_project" with the filename without the extension
+    df = pd.DataFrame(current_files, columns=["logo_path"])
+    df['name'] = df['logo_path'].str.split(".").str[:-1].str.join(".")
+
+    ## in df check for duplicates in the "name" column and remove the one the duplicate that has .png in the "logo_path" column
+    df_duplicates = df[df.duplicated(subset=["name"], keep=False)]
+    df_duplicates = df_duplicates[df_duplicates["logo_path"].str.contains(".png")]
+    df = df[~df["logo_path"].isin(df_duplicates["logo_path"])]
+    print(f"..removed {len(df_duplicates)} duplicates with .png in the filename.")
+
+    df.set_index("name", inplace=True)
+    return df

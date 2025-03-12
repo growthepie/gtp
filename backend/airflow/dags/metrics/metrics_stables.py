@@ -48,8 +48,8 @@ def etl():
             'days': days, 
             'load_type': 'block_data'
         }
-        block_df = stablecoin_adapter.extract(block_params)
-        stablecoin_adapter.load(block_df)
+        block_df = stablecoin_adapter.extract(block_params, update=True)
+        #stablecoin_adapter.load(block_df)
         print(f"Loaded {len(block_df)} block records")
 
         # Step 2: Get bridged stablecoin supply

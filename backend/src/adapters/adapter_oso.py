@@ -68,15 +68,6 @@ class AdapterOSO(AbstractAdapter):
         df['active'] = True # project is marked active because it is in the OSS directory
         df['source'] = 'OSS_DIRECTORY'
 
-        ## load logo mapping from github
-        url = "https://raw.githubusercontent.com/growthepie/gtp-dna/refs/heads/main/logos/logo-mapping.csv"
-        df_logos = pd.read_csv(url)
-        df_logos = df_logos[['logo', 'owner_project']]
-        df_logos.rename(columns={'owner_project': 'name', 'logo':'logo_path'}, inplace=True)
-
-        ## merge df with logos on name
-        df = pd.merge(df, df_logos, on='name', how='left')
-
         return df	
 
     ## Projects that are in our db (df_active_projects) but not in the export from OSS (df_oss) are dropped projects
