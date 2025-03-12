@@ -167,7 +167,7 @@ class JSONCreation():
         first_non_zero_index = group['value'].ne(0).idxmax()  # Find first non-zero index in each group
         return group.loc[first_non_zero_index:]  # Return the DataFrame slice starting from this index
     
-    def get_ranking(self, df, metric_id, origin_key, incl_value = False):
+    def get_ranking(self, df, metric_id, origin_key, incl_value = False, filter_ethereum = True):
         mks = self.metrics[metric_id]['metric_keys']
         ## remove elements in mks list that end with _eth
         mks = [x for x in mks if not x.endswith('_eth')]
@@ -186,8 +186,9 @@ class JSONCreation():
         if self.api_version != 'dev':
             df_tmp = df_tmp.loc[(df_tmp.origin_key.isin(self.chains_list_in_api_prod))]
 
-        ## filter out ethereum TODO: include Ethereum for new landing
-        df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
+        ## filter out ethereum if filter_ethereum is True
+        if filter_ethereum:
+            df_tmp = df_tmp.loc[(df_tmp.origin_key != 'ethereum')]
 
         ## assign rank based on order (descending order if metric_key is not 'txcosts')
         if metric_id != 'txcosts':
@@ -808,9 +809,11 @@ class JSONCreation():
             ##if chain.api_in_main == True and chain.origin_key != 'ethereum':
             if chain.api_in_main == True:
                 ranking_dict = {}
+                ranking_dict_w_eth = {}
                 for metric in self.metrics:
                     if self.metrics[metric]['ranking_landing']:
-                        ranking_dict[metric] = self.get_ranking(df, metric, chain.origin_key, incl_value=True)
+                        ranking_dict[metric] = self.get_ranking(df, metric, chain.origin_key, incl_value=True, filter_ethereum=True)
+                        ranking_dict_w_eth[metric] = self.get_ranking(df, metric, chain.origin_key, incl_value=True, filter_ethereum=False)
 
                 chains_dict[chain.origin_key] = {
                     "chain_name": chain.name,
@@ -819,7 +822,8 @@ class JSONCreation():
                     "users": self.get_aa_last7d(df, chain.origin_key),
                     "user_share": round(self.get_aa_last7d(df, chain.origin_key)/all_users,4),
                     "cross_chain_activity": self.get_cross_chain_activity(df, chain),
-                    "ranking": ranking_dict
+                    "ranking": ranking_dict,
+                    "ranking_w_eth": ranking_dict_w_eth
                 }
         
         return chains_dict
@@ -1177,10 +1181,10 @@ class JSONCreation():
         df = df.loc[(df.origin_key.isin(chain_keys))]
 
         composition_ts_dict = self.generate_engagement_by_composition_dict()
-        cur_l2 = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['single_l2'][-1][1]
-        prev_l2 = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['single_l2'][-2][1]
-        cur_eth = composition_ts_dict['compositions']['only_l1'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
-        prev_eth = composition_ts_dict['compositions']['only_l1'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
+        cur_l2 = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['single_l2'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
+        prev_l2 = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['single_l2'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
+        cur_eth = composition_ts_dict['compositions']['only_l1'][-1][1]
+        prev_eth = composition_ts_dict['compositions']['only_l1'][-2][1]
         cur_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
         prev_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
 
