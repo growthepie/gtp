@@ -22,12 +22,12 @@ class AdapterLabelPool(AbstractAdapter):
 
     """
     load_params require the following fields:
-        optional: time (int), from when to load data
+        optional: time_created (int), from when to load data
     """
     def extract(self, load_params:dict = None):
         if load_params is None:
             # "time_created" is the time when the label is indexed, "time" is the time the user defines when he creates the label; therefore we use "time_created" to get the latest labels
-            load_params = {'time': int(self.db_connector.get_max_value('oli_label_pool_bronze', 'time_created'))}
+            load_params = {'time_created': int(self.db_connector.get_max_value('oli_label_pool_bronze', 'time_created'))}
         self.load_params = load_params
         # get latest new attestations
         df_new = self.get_latest_new_attestations(self.load_params)
@@ -54,22 +54,18 @@ class AdapterLabelPool(AbstractAdapter):
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
         print_load(self.name + ' bronze', {}, df.shape)
 
-        # upsert attestations from bronze to silver table #TODO: implement a check if decoded data json in the attestation is really a json!
+        # upsert attestations from bronze to silver table #TODO: implement further tests for edge cases in tag_json
         if df.empty == False:
             if self.upsert_from_bronze_to_silver(): # executes a jinja sql query
                 print("Successfully upserted attestations from bronze to silver.")
 
-        # add untrusted owner_project attestations to airtable (eventually to be replaced with trust algorithms) #TODO: whitelist chain_id
+        # add untrusted owner_project attestations to airtable (eventually to be replaced with trust algorithms)
         if df.empty == False:
-            from src.db_connector import DbConnector
-            from src.misc.helper_functions import get_trusted_entities, df_to_postgres_values
             from eth_utils import to_checksum_address
             import src.misc.airtable_functions as at
             from pyairtable import Api
             import os
             # get new untrusted owner_project attestations
-            df_entities = get_trusted_entities()
-            self.load_params['trusted_entities'] = df_to_postgres_values(df_entities)
             df_air = self.db_connector.execute_jinja('/oli/extract_labels_for_review.sql.j2', self.load_params, load_into_df=True)
             if df_air.empty == False:
                 # push to airtable
@@ -106,12 +102,12 @@ class AdapterLabelPool(AbstractAdapter):
 
     def upsert_from_bronze_to_silver(self):
         # upsert attestations from bronze to silver
-        self.db_connector.execute_jinja('/oli/label_pool_from_bronze_to_silver.sql.j2', {'time_created': self.load_params['time']})
+        self.db_connector.execute_jinja('/oli/label_pool_from_bronze_to_silver.sql.j2', {'time_created': self.load_params['time_created']})
         return True # return True if successful (no exception)
 
     def get_latest_new_attestations(self, load_params):
         # get latest attestations
-        j = self.graphql_query_attestations(self.schemaId, 999999, load_params['time'], 0)
+        j = self.graphql_query_attestations(self.schemaId, 999999, load_params['time_created'], 0)
         if len(j['data']['attestations']) == 0:
             return pd.DataFrame()
         # create df from json
@@ -124,7 +120,7 @@ class AdapterLabelPool(AbstractAdapter):
 
     def get_latest_revoked_attestations(self, load_params):
         # get latest revoked attestations
-        j = self.graphql_query_attestations(self.schemaId, 999999, 0, load_params['time'])
+        j = self.graphql_query_attestations(self.schemaId, 999999, 0, load_params['time_created'])
         if len(j['data']['attestations']) == 0:
             return pd.DataFrame()
         # create df from json
