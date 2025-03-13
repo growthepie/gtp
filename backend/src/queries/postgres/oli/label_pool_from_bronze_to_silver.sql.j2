@@ -45,20 +45,25 @@ WITH base_data AS (
         OR revocation_time > {{ time_created }}
 ),
 tags_expanded AS (
-    SELECT 
+    SELECT
         id,
         chain_id,
         recipient AS address,
         tag_entry.key AS tag_id,
         trim(BOTH '"' FROM tag_entry.value::text) AS tag_value,
-        attester, 
+        attester,
         time_created,
         revocation_time,
         revoked,
         is_offchain
-    FROM 
+    FROM
         base_data,
-        jsonb_each(tags_json_string::jsonb) AS tag_entry
+        jsonb_each(
+            CASE
+                WHEN tags_json_string IS NULL OR tags_json_string = '' THEN '{}'::jsonb
+                ELSE tags_json_string::jsonb
+            END
+        ) AS tag_entry
 )
 SELECT 
     id,

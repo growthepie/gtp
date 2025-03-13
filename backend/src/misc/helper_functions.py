@@ -719,13 +719,13 @@ def upload_app_logo_files_to_s3(repo, files_to_upload, cf_bucket_name, cf_distri
         file_name = file.filename.split("/")[-1]
         file_type = file_name.split(".")[-1]
         file_name = file_name.split(".")[0]
-        with open(f'local/temp.{file_type}', "wb") as f:
+        with open(f'temp_img.{file_type}', "wb") as f:
             f.write(content)
 
         upload_image_to_cf_s3(
             bucket=cf_bucket_name, 
             s3_path=f'v1/apps/logos/{file_name}', 
-            local_path=f'local/temp.{file_type}', 
+            local_path=f'temp_img.{file_type}', 
             cf_distribution_id = cf_distribution_id, 
             file_type = file_type)
         
