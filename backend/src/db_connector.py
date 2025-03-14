@@ -1833,8 +1833,9 @@ class DbConnector:
                         select otm.*
                         from oli_tag_mapping otm 
                         left join active_projects ip on ip.name = otm.value
-                        where tag_id = 'owner_project'
-                        and ip.name is null
+                        where 
+                                tag_id = 'owner_project'
+                                and ip.name is null
                         order by value asc
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
