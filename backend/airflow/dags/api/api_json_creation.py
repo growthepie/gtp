@@ -114,6 +114,13 @@ def etl():
         json_creator.create_export_labels_parquet('top50k')
 
     @task()
+    def run_oli_s3_export():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
+        json_creator.create_export_oli_parquet()
+
+    @task()
     def run_create_blockspace_overview():
         db_connector = DbConnector()
         blockspace_json_creator = BlockspaceJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
@@ -169,6 +176,9 @@ def etl():
 
     ## Labels
     run_create_labels()
+
+    ## OLI
+    run_oli_s3_export()
 
     ## Misc
     run_create_glo()
