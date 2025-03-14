@@ -255,6 +255,7 @@ def etl():
         from pyairtable import Api
         from src.db_connector import DbConnector
         import src.misc.airtable_functions as at
+        from src.misc.helper_functions import send_discord_message
         
         #initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
@@ -268,8 +269,17 @@ def etl():
         # db connection
         db_connector = DbConnector()
 
-        # fill table with new data
+        # get inactive projects
         df = db_connector.get_tags_inactive_projects()
+
+        # send alert to discord
+        if df.shape[0] > 0:
+            print(f"Inactive contracts found: {df['value'].unique().tolist()}")
+            send_discord_message(f"<@874921624720257037> Inactive projects with assigned contracts (update in oli_tag_mapping): {df['value'].unique().tolist()}", os.getenv('DISCORD_CONTRACTS'))
+        else:
+            print("No inactive projects with contracts assigned found")
+
+        # group by owner_project and then write to airtable
         df = df.rename(columns={'value': 'old_owner_project'})
         df = df.groupby('old_owner_project').size()
         df = df.reset_index(name='count')

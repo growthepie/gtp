@@ -107,15 +107,4 @@ class AdapterOSO(AbstractAdapter):
         df_oss.set_index('name', inplace=True)
 
         return df_oss
-    
-    # not used as of now, current work in progress
-    def check_inactive_projects(self):
-        print("Checking for inactive projects with contracts assigned")
-        df = self.db_connector.get_tags_inactive_projects()
-        if df.shape[0] > 0:
-            print(f"Projects that currently inactive but have contracts assigned (need to be updated in oli_tag_mapping): {df['value'].unique().tolist()}")
-            send_discord_message(f"<@874921624720257037> Projects that currently inactive but have contracts assigned (need to be updated in oli_tag_mapping): {df['value'].unique().tolist()}", self.webhook_url)
-        else:
-            print("No inactive projects with contracts assigned")
-
 
