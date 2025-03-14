@@ -295,6 +295,11 @@ stables_mapping = {
     "real": {},
     "redstone": {},
     "unichain": {
+        "bridged": {
+            "ethereum": [
+                "0x81014F44b0a345033bB2b3B21C7a1A308B35fEeA"  # Bridge contract locking USDT and DAI for Unichain
+            ]
+        },
         "direct": {
             "usdc": {
                 "token_address": "0x078D782b760474a361dDA0AF3839290b0EF57AD6",  # USDC native on Unichain
