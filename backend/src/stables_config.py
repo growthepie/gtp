@@ -294,7 +294,14 @@ stables_mapping = {
     "mode": {},
     "real": {},
     "redstone": {},
-
+    "unichain": {
+        "direct": {
+            "usdc": {
+                "token_address": "0x078D782b760474a361dDA0AF3839290b0EF57AD6",  # USDC native on Unichain
+                "method_name": "totalSupply",
+            }
+        }
+    },
     #"gravity": {},
     #"mint": {},
     #"metis": {},
