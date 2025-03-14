@@ -42,8 +42,6 @@ def etl():
         df = ad.extract(load_params)
         # load
         ad.load(df)
-
-        ad.check_inactive_projects()
     
     run_oss()
 

@@ -1188,7 +1188,7 @@ class DbConnector:
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and cl.origin_key = '{chain}'
-                                and bl.usage_category is not null 
+                                and bl.usage_category is not null and bl.usage_category <> 'contract_deployment'
                         group by 1,2,3
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
@@ -1833,8 +1833,9 @@ class DbConnector:
                         select otm.*
                         from oli_tag_mapping otm 
                         left join active_projects ip on ip.name = otm.value
-                        where tag_id = 'owner_project'
-                        and ip.name is null
+                        where 
+                                tag_id = 'owner_project'
+                                and ip.name is null
                         order by value asc
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())

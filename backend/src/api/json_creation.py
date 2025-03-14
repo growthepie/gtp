@@ -2645,6 +2645,27 @@ class JSONCreation():
         upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/export_labels_{subset}', df, self.cf_distribution_id)
         print(f'DONE -- labels export_labels_{subset}.parquet export')
 
+    def create_export_oli_parquet(self):        
+        exec_string = f"""
+            SELECT concat('0x',encode(id, 'hex')) as id, attester, recipient, is_offchain, revoked, ipfs_hash, tx_id, decoded_data_json, "time", time_created, revocation_time
+            FROM public.oli_label_pool_bronze;
+        """
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = db_addresses_to_checksummed_addresses(df, ['attester', 'recipient'])
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/oli/labels_raw', df, self.cf_distribution_id)
+        print(f'DONE -- OLI labels_raw.parquet export')
+
+        exec_string = f"""
+            SELECT concat('0x',encode(id, 'hex')) as id, chain_id, address, tag_id, tag_value, attester, time_created, revocation_time, revoked, is_offchain
+            FROM public.oli_label_pool_silver;
+        """
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = db_addresses_to_checksummed_addresses(df, ['address', 'attester'])
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/oli/labels_decoded', df, self.cf_distribution_id)
+        print(f'DONE -- OLI labels_decoded.parquet export')
+
 
     #######################################################################
     ### EIM
