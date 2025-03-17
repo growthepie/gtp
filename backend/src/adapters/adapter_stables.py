@@ -22,6 +22,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
     adapter_params require the following fields:
         stables_metadata: dict - Metadata for stablecoins (name, symbol, decimals, etc.)
         stables_mapping: dict - Mapping of bridge contracts and token addresses
+        origin_keys: list (optional) - Specific chains to process
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Stablecoin Supply", adapter_params, db_connector)
@@ -32,30 +33,30 @@ class AdapterStablecoinSupply(AbstractAdapter):
         
         # Initialize web3 connections to different chains
         self.connections = {}
-        self.supported_chains = ['ethereum']  # Base chain
+        self.supported_chains = ['ethereum']  # Default supported chains
         
         # Add L2 chains that are in the mapping
         for chain_name in self.stables_mapping.keys():
             if chain_name not in self.supported_chains:
                 self.supported_chains.append(chain_name)
+
+        self.chains = adapter_params.get('origin_keys', self.supported_chains)
+        self.chains.append('ethereum')  # Always include Ethereum as source chain
         
         # Create connections to each chain
-        for chain in self.supported_chains:
-            if chain != 'ethereum' and (self.stables_mapping[chain].get("direct") is None or len(self.stables_mapping[chain]["direct"]) == 0):
-                print(f"skipping {chain} as it doesn't have direct tokens")
-            else:
-                try:
-                    rpc_url = self.db_connector.get_special_use_rpc(chain)
-                    w3 = Web3(Web3.HTTPProvider(rpc_url))
+        for chain in self.chains:
+            try:
+                rpc_url = self.db_connector.get_special_use_rpc(chain)
+                w3 = Web3(Web3.HTTPProvider(rpc_url))
+                
+                # Apply middleware for PoA chains if needed
+                if chain != 'ethereum':
+                    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
                     
-                    # Apply middleware for PoA chains if needed
-                    if chain != 'ethereum':
-                        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-                        
-                    self.connections[chain] = w3
-                    print(f"Connected to {chain}")
-                except Exception as e:
-                    print(f"Failed to connect to {chain}: {e}")
+                self.connections[chain] = w3
+                print(f"Connected to {chain}")
+            except Exception as e:
+                print(f"Failed to connect to {chain}: {e}")
         
         print_init(self.name, self.adapter_params)
 
@@ -66,12 +67,10 @@ class AdapterStablecoinSupply(AbstractAdapter):
         load_params require the following fields:
             days: int - Days of historical data to load
             load_type: str - Type of data to load ('block_data', 'bridged_supply', 'direct_supply', 'total_supply')
-            origin_keys: list (optional) - Specific chains to process
             stablecoins: list (optional) - Specific stablecoins to track
         """
         self.days = load_params['days']
         self.load_type = load_params['load_type']
-        self.chains = load_params.get('origin_keys', self.supported_chains)
         self.stablecoins = load_params.get('stablecoins', list(self.stables_metadata.keys()))
         
         if self.load_type == 'block_data':
@@ -98,6 +97,18 @@ class AdapterStablecoinSupply(AbstractAdapter):
         print_load(self.name, upserted, tbl_name)
 
     #### Helper functions ###
+    def get_block_date(self, w3: Web3, block_number: int):
+        """
+        Get the date of a block based on its block number.
+
+        :param w3: Web3 object to connect to the EVM blockchain.
+        :param block_number: Block number to find the date for.
+        :return: Date of the block or None if the block is not found.
+        """
+        day_unix = w3.eth.get_block(block_number)['timestamp']
+        day = datetime.datetime.utcfromtimestamp(day_unix)
+        return day
+
     def get_erc20_balance(self, w3: Web3, token_contract: str, token_abi: dict, address, at_block='latest'):
         """
         Retrieves the ERC20 token balance for a given token contract and address at a specified block.
@@ -505,9 +516,10 @@ class AdapterStablecoinSupply(AbstractAdapter):
             print("No block data for Ethereum, generating...")
             raise ValueError("No block data for Ethereum")
         
-        df_blocknumbers['block'] = df_blocknumbers['value'].astype(int).astype(str)
+        df_blocknumbers['block'] = df_blocknumbers['value'].astype(int)
         df_blocknumbers.drop(columns=['value', 'origin_key'], inplace=True)
-        df_blocknumbers = df_blocknumbers.sort_values(by='block', ascending=False)
+        df_blocknumbers = df_blocknumbers.sort_values(by='block', ascending=True)
+        df_blocknumbers['block'] = df_blocknumbers['block'].astype(str)
 
         df_main = pd.DataFrame()
         
@@ -529,7 +541,13 @@ class AdapterStablecoinSupply(AbstractAdapter):
             
             # Get bridge contracts for this chain
             bridge_config = self.stables_mapping[chain]['bridged']
-            
+
+            # Get date of first block of this chain
+            if chain not in self.connections:
+                raise ValueError(f"Chain {chain} not connected to RPC, please add RPC connection (assign special_use in sys_rpc_config)")
+            first_block_date = self.get_block_date(self.connections[chain], 1)
+            print(f"First block date for {chain}: {first_block_date}")
+
             # Process each source chain (usually Ethereum)
             ## TODO: add support for other source chains
             for source_chain, bridge_addresses in bridge_config.items():
@@ -568,6 +586,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
                     df = df_blocknumbers.copy()
                     df['origin_key'] = chain
                     df['token_key'] = stablecoin_id
+                    df['value'] = 0.0  # Initialize balance column
                     
                     # Create contract instance
                     try:
@@ -580,6 +599,10 @@ class AdapterStablecoinSupply(AbstractAdapter):
                     contract_deployed = True
                     for i in range(len(df)-1, -1, -1):  # Go backwards in time
                         date = df['date'].iloc[i]
+                        if date < first_block_date:
+                            print(f"Reached first block date ({first_block_date}) for {chain}, stopping")
+                            break  # Stop if we reach the first block date
+
                         block = df['block'].iloc[i]
                         print(f"...retrieving bridged balance for {symbol} at block {block} ({date})")
                         
@@ -607,8 +630,8 @@ class AdapterStablecoinSupply(AbstractAdapter):
                         if not contract_deployed:
                             print(f"Contract for {symbol} not deployed at block {block}, stopping")
                             break
-                            
-                        df.loc[i, 'value'] = total_balance
+                        
+                        df.loc[df.index[i], 'value'] = total_balance
                     
                     df_main = pd.concat([df_main, df])
         
@@ -657,10 +680,11 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 },
                 days=self.days
             )
-            
-            df_blocknumbers['block'] = df_blocknumbers['value'].astype(int).astype(str)
+
+            df_blocknumbers['block'] = df_blocknumbers['value'].astype(int)
             df_blocknumbers.drop(columns=['value', 'origin_key'], inplace=True)
-            df_blocknumbers = df_blocknumbers.sort_values(by='block', ascending=False)
+            df_blocknumbers = df_blocknumbers.sort_values(by='block', ascending=True)
+            df_blocknumbers['block'] = df_blocknumbers['block'].astype(str)
             
             # Get web3 connection for this chain
             w3 = self.connections[chain]
@@ -698,6 +722,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 df = df_blocknumbers.copy()
                 df['origin_key'] = chain
                 df['token_key'] = stablecoin_id
+                df['value'] = 0.0
                 
                 # Create contract instance
                 try:
@@ -720,7 +745,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
                         
                         # Convert to proper decimal representation
                         adjusted_supply = total_supply / (10 ** decimals)
-                        df.loc[i, 'value'] = adjusted_supply
+                        df.loc[df.index[i], 'value'] = adjusted_supply
                         
                     except Exception as e:
                         print(f"....Error getting total supply for {symbol} at block {block}: {e}")
