@@ -622,7 +622,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
                                 
                             except Exception as e:
                                 print(f"....Error getting balance for {symbol} in {bridge_address} at block {block}: {e}")
-                                if 'execution reverted' in str(e):
+                                if 'execution reverted' in str(e) or 'Could not decode contract function call' in str(e):
                                     # Contract might not be deployed yet
                                     contract_deployed = False
                                     break
