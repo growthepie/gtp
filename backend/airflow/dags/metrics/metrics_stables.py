@@ -58,7 +58,7 @@ def etl():
             'days': days,
             'load_type': 'bridged_supply'
         }
-        bridged_df = stablecoin_adapter.extract(bridged_params)
+        bridged_df = stablecoin_adapter.extract(bridged_params, update=True)
         stablecoin_adapter.load(bridged_df)
         print(f"Loaded {len(bridged_df)} bridged stablecoin records")
 
@@ -68,7 +68,7 @@ def etl():
             'days': days,
             'load_type': 'direct_supply'
         }
-        direct_df = stablecoin_adapter.extract(direct_params)
+        direct_df = stablecoin_adapter.extract(direct_params, update=True)
         stablecoin_adapter.load(direct_df)
         print(f"Loaded {len(direct_df)} direct stablecoin records")
 

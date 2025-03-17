@@ -76,9 +76,9 @@ class AdapterStablecoinSupply(AbstractAdapter):
         if self.load_type == 'block_data':
             df = self.get_block_data(update=update)
         elif self.load_type == 'bridged_supply':
-            df = self.get_bridged_supply()
+            df = self.get_bridged_supply(update=update)
         elif self.load_type == 'direct_supply':
-            df = self.get_direct_supply()
+            df = self.get_direct_supply(update=update)
         elif self.load_type == 'total_supply':
             df = self.get_total_supply()
         else:
@@ -498,7 +498,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
         
         return df_main
     
-    def get_bridged_supply(self):
+    def get_bridged_supply(self, update=False):
         """
         Get supply of stablecoins locked in bridge contracts on Ethereum
         """
@@ -633,14 +633,23 @@ class AdapterStablecoinSupply(AbstractAdapter):
                         
                         df.loc[df.index[i], 'value'] = total_balance
                     
-                    df_main = pd.concat([df_main, df])
-        
-        # Create metric_key column 
-        df_main['metric_key'] = 'supply_bridged'
-        
-        # Drop unneeded columns
-        df_main.drop(columns=['block'], inplace=True)
+                    df['metric_key'] = 'supply_bridged'
+                    # Drop unneeded columns
+                    df.drop(columns=['block'], inplace=True)
 
+                    df_main = pd.concat([df_main, df])
+                    
+                    if update and not df.empty and 'value' in df.columns:
+                        df = df[df['value'] != 0]
+                        df = df.dropna()
+                        df.drop_duplicates(subset=['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+                        df.set_index(['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+
+                        # If col index in df_main, drop it
+                        if 'index' in df.columns:
+                            df.drop(columns=['index'], inplace=True)
+                        self.load(df)                    
+        
         # Clean up data
         df_main = df_main[df_main['value'] != 0]
         df_main.drop_duplicates(subset=['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
@@ -648,7 +657,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
         df_main.set_index(['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
         return df_main
     
-    def get_direct_supply(self):
+    def get_direct_supply(self, update=False):
         """
         Get supply of stablecoins that are natively minted on L2 chains
         """
@@ -757,19 +766,31 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 if not contract_deployed:
                     print(f"Contract for {symbol} not deployed at that time, skipping older blocks")
                     # Still add what we have so far
-                
+
+                df['metric_key'] = 'supply_direct'
+                # Drop unneeded columns
+                df.drop(columns=['block'], inplace=True)
+
                 df_main = pd.concat([df_main, df])
+
+                if update and not df.empty and 'value' in df.columns:
+                    df = df[df['value'] != 0]
+                    df = df.dropna()
+                    df.drop_duplicates(subset=['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+                    df.set_index(['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+
+                    # If col index in df_main, drop it
+                    if 'index' in df.columns:
+                        df.drop(columns=['index'], inplace=True)
+                    self.load(df)
+
+                
         
-        # Create metric_key column 
-        df_main['metric_key'] = 'supply_direct'
-        
-        # Drop unneeded columns
-        df_main.drop(columns=['block'], inplace=True)
 
         # Clean up data
         df_main = df_main[df_main['value'] != 0]
-        df_main.drop_duplicates(subset=['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
         df_main = df_main.dropna()
+        df_main.drop_duplicates(subset=['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
         df_main.set_index(['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
         return df_main
     
