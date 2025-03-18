@@ -519,6 +519,25 @@ l2_maturity_levels = {
         }
     }
 
+composition_types = {
+    "only_l1": {
+        "name": "Ethereum Mainnet",
+        "description": "Only users that interacted with Ethereum Mainnet but not with any L2.",
+    },
+    "cross_layer": {
+        "name": "Cross-Layer",
+        "description": "Users that interacted with Ethereum Mainnet and at least one L2.",
+    },
+    "multiple_l2s": {
+        "name": "Multiple Layer 2s",
+        "description": "Users that interacted with multiple L2s but not Ethereum Mainnet.",
+    },
+    "single_l2": {
+        "name": "Single Layer 2",
+        "description": "Users that interacted with a single L2 but not Ethereum Mainnet.",
+    }
+}
+
 eim_metrics = {
         'eth_exported': {
             'name': 'ETH exported',

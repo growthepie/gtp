@@ -20,7 +20,7 @@ from eim.funcs import get_eim_yamls
 from src.misc.jinja_helper import execute_jinja_query
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src.config import gtp_units, gtp_metrics, gtp_da_metrics, gtp_app_metrics, gtp_fees_types, gtp_fees_timespans, l2_maturity_levels, eim_metrics
+from src.config import gtp_units, gtp_metrics, gtp_da_metrics, gtp_app_metrics, gtp_fees_types, gtp_fees_timespans, l2_maturity_levels, eim_metrics, composition_types
 
 import warnings
 
@@ -62,6 +62,7 @@ class JSONCreation():
         self.fees_timespans = gtp_fees_timespans
         self.maturity_levels = l2_maturity_levels
         self.eim_metrics = eim_metrics
+        self.composition_types = composition_types
 
         for metric_key, metric_value in self.metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
@@ -1167,7 +1168,8 @@ class JSONCreation():
                 'sub_categories' : sub_category_dict,
                 'mapping' : mapping_dict,
             },
-            'maturity_levels': self.maturity_levels
+            'maturity_levels': self.maturity_levels,
+            'composition_types': self.composition_types,
         }
 
         master_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
