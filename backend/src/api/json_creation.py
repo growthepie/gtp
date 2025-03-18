@@ -2385,7 +2385,7 @@ class JSONCreation():
                     }
                 }
 
-                for origin_key in chains:
+                for origin_key in self.chains_list_in_api_apps:
                     ## check if origin_key is in df
                     if origin_key in df.origin_key.unique():
                         mk_list = self.generate_daily_list(df, metric, origin_key, metric_type='app')
@@ -2422,7 +2422,7 @@ class JSONCreation():
                 timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
                 days = timeframe if timeframe != 'max' else 9999
                 
-                contracts = self.get_app_contracts(project, chains, days)
+                contracts = self.get_app_contracts(project, self.chains_list_in_api_apps, days)
                 contract_dict = {
                     'types': contracts.columns.to_list(),
                     'data': contracts.values.tolist()
