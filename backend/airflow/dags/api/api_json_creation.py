@@ -78,8 +78,9 @@ def etl():
         db_connector = DbConnector()
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
 
-        json_creator.create_app_overview_json(chains=['optimism', 'arbitrum', 'mode', 'base'])
-        json_creator.run_app_details_jsons_all(chains=['optimism', 'arbitrum', 'mode', 'base'])
+        json_creator.create_app_overview_json()
+        json_creator.run_app_details_jsons_all()
+        json_creator.create_projects_filtered_json()
         json_creator.clean_app_files()
 
     @task()

@@ -1756,20 +1756,39 @@ class DbConnector:
                 
 
         ### OLI functions, Open Labels Initative
-        def get_active_projects(self, add_category=False):
-                # if multiple githubs, websites or socials, it will always take the first one in the list!
-                exec_string = """
-                        SELECT 
-                                "name", 
-                                display_name, 
-                                description, 
-                                replace((github->0->>'url'), 'https://github.com/', '') AS main_github,
-                                replace(replace((social->'twitter'->0->>'url'), 'https://twitter.com/', ''),'https://x.com/', '') AS twitter,
-                                (websites->0->>'url') AS website,
-                                logo_path
-                        FROM public.oli_oss_directory 
-                        WHERE active = true
-                        """
+        def get_active_projects(self, add_category=False, filtered_by_chains=[]):
+                # If filtered is True, only return projects that have more than 30 tx alltime (same filter as for app overview page)
+                if len(filtered_by_chains) >0:
+                        chains_str = ', '.join([f"'{chain}'" for chain in filtered_by_chains])
+                        exec_string = f"""
+                                SELECT 
+                                        fact.owner_project as name, 
+                                        ood.display_name, 
+                                        ood.description, 
+                                        replace((ood.github->0->>'url'), 'https://github.com/', '') AS main_github,
+                                        replace(replace((ood.social->'twitter'->0->>'url'), 'https://twitter.com/', ''),'https://x.com/', '') AS twitter,
+                                        (ood.websites->0->>'url') AS website,
+                                        ood.logo_path
+                                FROM vw_apps_contract_level_materialized fact
+                                INNER JOIN oli_oss_directory ood on fact.owner_project = ood.name
+                                WHERE fact.origin_key IN ({chains_str})
+                                        AND ood.active = true
+                                GROUP BY 1,2,3,4,5,6,7
+                                HAVING SUM(txcount) > 30
+                                """       
+                else:
+                        exec_string = """
+                                SELECT 
+                                        "name", 
+                                        display_name, 
+                                        description, 
+                                        replace((github->0->>'url'), 'https://github.com/', '') AS main_github,
+                                        replace(replace((social->'twitter'->0->>'url'), 'https://twitter.com/', ''),'https://x.com/', '') AS twitter,
+                                        (websites->0->>'url') AS website,
+                                        logo_path
+                                FROM public.oli_oss_directory 
+                                WHERE active = true
+                                """
                 df = pd.read_sql(exec_string, self.engine.connect())
 
                 if add_category:

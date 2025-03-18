@@ -95,8 +95,10 @@ class JSONCreation():
         self.chains_list_in_api_prod = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and chain.api_deployment_flag=='PROD']
         #only chains that are in the api output and deployment is "PROD" and in_labels_api is True
         self.chains_list_in_api_labels = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and chain.api_in_labels == True]
-
+        #only chains that are in the api output and deployment is "PROD" and in_labels_api is True
         self.chains_list_in_api_economics = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True]
+        #only chains that are in the api output and deployment is "PROD" and api_in_apps is True
+        self.chains_list_in_api_apps = [chain.origin_key for chain in self.main_config if chain.api_in_apps == True]
 
         self.da_layers_list = [x.da_layer for x in self.da_config]
         self.da_layer_overview = [x.da_layer for x in self.da_config if x.incl_in_da_overview == True]
@@ -2139,7 +2141,7 @@ class JSONCreation():
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
         return df
 
-    def create_app_overview_json(self, chains:list):
+    def create_app_overview_json(self):
         timeframes = [1,7,30,90,365,9999]
         for timeframe in timeframes:
             if timeframe == 9999:
@@ -2148,7 +2150,7 @@ class JSONCreation():
                 timeframe_key = f'{timeframe}d'
 
             print(f'Creating App overview for for {timeframe_key}')
-            df = self.get_app_overview_data(chains, timeframe)
+            df = self.get_app_overview_data(self.chains_list_in_api_apps, timeframe)
             
             projects_dict = {
                 'data': {
@@ -2359,8 +2361,8 @@ class JSONCreation():
             return val
 
 
-    def create_app_details_json(self, project:str, chains:list, timeframes, is_all=False):
-        df = self.load_app_data(project, chains)
+    def create_app_details_json(self, project:str, timeframes, is_all=False):
+        df = self.load_app_data(project, self.chains_list_in_api_apps)
         if len(df) > 0:
             df_first_seen = df.groupby('origin_key').agg({'date': 'min'}).copy()
             df_first_seen.reset_index(inplace=True)
@@ -2455,9 +2457,9 @@ class JSONCreation():
                 print(f'..done with {project}. {counter}/{len(owner_projects)}')    
                 counter += 1
 
-    def run_app_details_jsons_all(self, chains:list):
+    def run_app_details_jsons_all(self):
         ## get all active projects with contracts assigned
-        chains_str = ', '.join([f"'{chain}'" for chain in chains])
+        chains_str = ', '.join([f"'{chain}'" for chain in self.chains_list_in_api_apps])
         exec_string = f"""
                 select distinct(owner_project) as name
                 from vw_apps_contract_level_materialized
@@ -2467,7 +2469,7 @@ class JSONCreation():
         projects = df_projects.name.to_list()
         print(f'..starting: App details export for all projects. Number of projects: {len(projects)}')
 
-        self.run_app_details_jsons(projects, chains, is_all=True)
+        self.run_app_details_jsons(projects, self.chains_list_in_api_apps, is_all=True)
         empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/apps/details/*')
 
     #######################################################################
@@ -2598,10 +2600,31 @@ class JSONCreation():
         projects_dict = fix_dict_nan(projects_dict, f'projects')
 
         if self.s3_bucket == None:
-            self.save_to_json(projects_dict, f'prpjects')
+            self.save_to_json(projects_dict, f'projects')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', projects_dict, self.cf_distribution_id)
         print(f'DONE -- projects export')
+
+    def create_projects_filtered_json(self):        
+        df = self.db_connector.get_active_projects(add_category=True, filtered_by_chains=self.chains_list_in_api_apps)
+        df = df.rename(columns={'name': 'owner_project'})
+        df = df.replace({np.nan: None})        
+
+        projects_dict = {
+            'data': {
+                'types': df.columns.to_list(),
+                'data': df.values.tolist()
+            }
+        }
+
+        projects_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        projects_dict = fix_dict_nan(projects_dict, f'projects_filtered')
+
+        if self.s3_bucket == None:
+            self.save_to_json(projects_dict, f'projects_filtered')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects_filtered', projects_dict, self.cf_distribution_id)
+        print(f'DONE -- projects_filtered export')
 
     def create_export_labels_json(self, limit, origin_key=None):
         if origin_key == None:
