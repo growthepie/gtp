@@ -2447,13 +2447,13 @@ class JSONCreation():
             print(f'..skipped: App details export for {project}. No data found')
         return project
 
-    def run_app_details_jsons(self, owner_projects:list, chains:list, is_all=False):
+    def run_app_details_jsons(self, owner_projects:list, is_all=False):
         timeframes = [1,7,30,90,180,365,'max']
         counter = 1
 
         ## run steps in parallel
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.create_app_details_json, i, chains, timeframes, is_all) for i in owner_projects]
+            futures = [executor.submit(self.create_app_details_json, i, timeframes, is_all) for i in owner_projects]
             for future in as_completed(futures):
                 project = future.result()
                 print(f'..done with {project}. {counter}/{len(owner_projects)}')    
@@ -2471,7 +2471,7 @@ class JSONCreation():
         projects = df_projects.name.to_list()
         print(f'..starting: App details export for all projects. Number of projects: {len(projects)}')
 
-        self.run_app_details_jsons(projects, self.chains_list_in_api_apps, is_all=True)
+        self.run_app_details_jsons(projects, is_all=True)
         empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/apps/details/*')
 
     #######################################################################
