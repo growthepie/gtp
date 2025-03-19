@@ -1297,7 +1297,7 @@ class JSONCreation():
             }
 
         ## fill top applications
-        df_gainers, df_losers = self.get_apps_landing(['optimism', 'arbitrum', 'mode', 'base'])
+        df_gainers, df_losers = self.get_apps_landing(self.chains_list_in_api_apps)
         landing_dict['data']['top_applications'] = {
             'gainers': {
                 'types': df_gainers.columns.to_list(),
@@ -2187,8 +2187,8 @@ class JSONCreation():
         }).reset_index()
 
         ## add % change columns
-        df['gas_fees_change_%'] = (df['gas_fees_eth'] - df['prev_gas_fees_eth']) / df['prev_gas_fees_eth']
-        df['txcount_change_%'] = (df['txcount'] - df['prev_txcount']) / df['prev_txcount']
+        df['gas_fees_change_%'] = (df['gas_fees_eth'] - df['prev_gas_fees_eth']) / df['prev_gas_fees_eth'] * 100
+        df['txcount_change_%'] = (df['txcount'] - df['prev_txcount']) / df['prev_txcount'] * 100
 
         ## order df by txcount descending
         df = df.sort_values(by='txcount', ascending=False)
