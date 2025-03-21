@@ -2144,6 +2144,7 @@ class JSONCreation():
         return df
 
     def create_app_overview_json(self):
+        print(f'Creating App overview for chains: {self.chains_list_in_api_apps}')
         timeframes = [1,7,30,90,365,9999]
         for timeframe in timeframes:
             if timeframe == 9999:
@@ -2460,6 +2461,7 @@ class JSONCreation():
                 counter += 1
 
     def run_app_details_jsons_all(self):
+        print(f'Creating App details for all apps for chains: {self.chains_list_in_api_apps}')
         ## get all active projects with contracts assigned
         chains_str = ', '.join([f"'{chain}'" for chain in self.chains_list_in_api_apps])
         exec_string = f"""
