@@ -11,6 +11,8 @@
 # logo: (optional) the logo is a link to the token's logo 
 # addresses: the addresses are the contract addresses for the token on the Ethereum network
 
+#TODO: add logic for non-usd backed stables (should be enough to add the token to the total supply calculation)
+
 stables_metadata = {
     "usdc": {
         "name": "USD Coin",
@@ -32,6 +34,7 @@ stables_metadata = {
         "logo": "https://coin-images.coingecko.com/coins/images/325/large/Tether.png?1696501661",
         "addresses": {
             "ethereum": "0xdac17f958d2ee523a2206206994597c13d831ec7",
+            "celo": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e",
         }
     },
     "dai": {
@@ -232,6 +235,29 @@ stables_metadata = {
             "ethereum": "0x73a15fed60bf67631dc6cd7bc5b6e8da8190acf5",
         }
     },
+    "celo-dollar": {
+        "name": "Celo Dollar",
+        "symbol": "cUSD",
+        "decimals": 18,
+        "coingecko_id": "celo-dollar",
+        "fiat": "usd",
+        "logo": None,
+        "addresses": {
+            "celo": "0x765DE816845861e75A25fCA122bb6898B8B1282a",
+        }
+    },
+    "glo-dollar": {
+        "name": "Glo Dollar",
+        "symbol": "USDGLO",
+        "decimals": 18,
+        "coingecko_id": "glo-dollar",
+        "fiat": "usd",
+        "logo": None,
+        "addresses": {
+            "ethereum": "0x4f604735c1cf31399c6e711d5962b2b3e0225ad3",
+            "celo": "0x4f604735c1cf31399c6e711d5962b2b3e0225ad3"
+        }
+    }
 }
 
 
@@ -241,6 +267,9 @@ stables_metadata = {
 
 ## direct: token is directly minted on Layer 2
 ### Call method to get total supply of the token on the chain
+
+## locked_supply: list of tokens that should be subtracted from the total supply
+### This is useful for tokens that are locked in contracts of the issuer
 
 stables_mapping = {
     "swell": {
@@ -304,6 +333,33 @@ stables_mapping = {
             "usdc": {
                 "token_address": "0x078D782b760474a361dDA0AF3839290b0EF57AD6",  # USDC native on Unichain
                 "method_name": "totalSupply",
+            }
+        }
+    },
+    "celo": {
+        "direct": {
+            "tether": {
+                "token_address": "0x48065fbBE25f71C9282ddf5e1cD6D6A887483D5e", 
+                "method_name": "totalSupply",
+            },
+            "usdc": {
+                "token_address": "0xcebA9300f2b948710d2653dD7B07f33A8B32118C",  
+                "method_name": "totalSupply",
+            },
+            "celo-dollar": {
+                "token_address": "0x765DE816845861e75A25fCA122bb6898B8B1282a",  
+                "method_name": "totalSupply",
+            },
+            "glo-dollar": {
+                "token_address": "0x4F604735c1cF31399C6E711D5962b2B3E0225AD3",  
+                "method_name": "totalSupply",
+            }
+        },
+        "locked_supply": {
+            "tether": {
+                "celo": [
+                    "0x5754284f345afc66a98fbB0a0Afe71e0F007B949"  # Tether Treasury
+                ]
             }
         }
     },

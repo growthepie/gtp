@@ -6,6 +6,7 @@ from web3.middleware import geth_poa_middleware
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
+from src.stables_config import stables_metadata, stables_mapping
 
 ## TODO: add days 'auto' functionality. if blocks are missing, fetch all. If tokens are missing, fetch all
 ## This should also work for new tokens being added etc
@@ -20,16 +21,14 @@ class AdapterStablecoinSupply(AbstractAdapter):
     2. Direct stablecoins: Tokens that are natively minted on the target chain
     
     adapter_params require the following fields:
-        stables_metadata: dict - Metadata for stablecoins (name, symbol, decimals, etc.)
-        stables_mapping: dict - Mapping of bridge contracts and token addresses
         origin_keys: list (optional) - Specific chains to process
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Stablecoin Supply", adapter_params, db_connector)
         
         # Store stablecoin metadata and mapping
-        self.stables_metadata = adapter_params['stables_metadata']
-        self.stables_mapping = adapter_params['stables_mapping']
+        self.stables_metadata = stables_metadata
+        self.stables_mapping = stables_mapping
         
         # Initialize web3 connections to different chains
         self.connections = {}
@@ -79,6 +78,8 @@ class AdapterStablecoinSupply(AbstractAdapter):
             df = self.get_bridged_supply(update=update)
         elif self.load_type == 'direct_supply':
             df = self.get_direct_supply(update=update)
+        elif self.load_type == 'locked_supply':
+            df = self.get_locked_supply(update=update)
         elif self.load_type == 'total_supply':
             df = self.get_total_supply()
         else:
@@ -500,27 +501,8 @@ class AdapterStablecoinSupply(AbstractAdapter):
     
     def get_bridged_supply(self, update=False):
         """
-        Get supply of stablecoins locked in bridge contracts on Ethereum
+        Get supply of stablecoins locked in bridge contracts on source chain (currently only Ethereum).
         """
-        # Get block numbers for Ethereum
-        df_blocknumbers = self.db_connector.get_data_from_table(
-                "fact_kpis", 
-                filters={
-                    "metric_key": "first_block_of_day",
-                    "origin_key": 'ethereum'
-                },
-                days=self.days
-            )
-        
-        if df_blocknumbers.empty:
-            print("No block data for Ethereum, generating...")
-            raise ValueError("No block data for Ethereum")
-        
-        df_blocknumbers['block'] = df_blocknumbers['value'].astype(int)
-        df_blocknumbers.drop(columns=['value', 'origin_key'], inplace=True)
-        df_blocknumbers = df_blocknumbers.sort_values(by='block', ascending=True)
-        df_blocknumbers['block'] = df_blocknumbers['block'].astype(str)
-
         df_main = pd.DataFrame()
         
         # Process each L2 chain
@@ -558,6 +540,25 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 if source_chain not in self.connections:
                     print(f"Source chain {source_chain} not connected, skipping")
                     continue
+
+                # Get block numbers for source chain
+                df_blocknumbers = self.db_connector.get_data_from_table(
+                        "fact_kpis", 
+                        filters={
+                            "metric_key": "first_block_of_day",
+                            "origin_key": source_chain
+                        },
+                        days=self.days
+                    )
+                
+                if df_blocknumbers.empty:
+                    print(f"No block data for source chain {source_chain}")
+                    raise ValueError("No block data for source chain")
+                
+                df_blocknumbers['block'] = df_blocknumbers['value'].astype(int)
+                df_blocknumbers.drop(columns=['value', 'origin_key'], inplace=True)
+                df_blocknumbers = df_blocknumbers.sort_values(by='block', ascending=True)
+                df_blocknumbers['block'] = df_blocknumbers['block'].astype(str)
                 
                 # Get web3 connection for source chain
                 w3 = self.connections[source_chain]
@@ -758,7 +759,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
                         
                     except Exception as e:
                         print(f"....Error getting total supply for {symbol} at block {block}: {e}")
-                        if 'execution reverted' in str(e):
+                        if 'execution reverted' in str(e) or 'Could not decode contract function call' in str(e):
                             # Contract might not be deployed yet
                             contract_deployed = False
                             break
@@ -794,15 +795,167 @@ class AdapterStablecoinSupply(AbstractAdapter):
         df_main.set_index(['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
         return df_main
     
+
+    ## Logic is very similar to get_bridged_supply, could potentialy be refactored and simplified
+    def get_locked_supply(self, update=False):
+        """
+        Get supply of stablecoins locked in treasury contracts (not actually in supply)
+        """
+        df_main = pd.DataFrame()
+        
+        # Process each L2 chain
+        for chain in self.chains:
+            if chain not in self.stables_mapping:
+                print(f"No mapping found for {chain}, skipping")
+                continue
+            
+            # Check if chain has bridged tokens
+            if 'locked_supply' not in self.stables_mapping[chain]:
+                print(f"No locked tokens defined for {chain}")
+                continue
+
+            print(f"Processing locked (to be subtracted) stablecoins for {chain}")
+            
+            # Get bridge contracts for this chain
+            locked_supply_config = self.stables_mapping[chain]['locked_supply']
+
+            # Get date of first block of this chain
+            if chain not in self.connections:
+                raise ValueError(f"Chain {chain} not connected to RPC, please add RPC connection (assign special_use in sys_rpc_config)")
+            first_block_date = self.get_block_date(self.connections[chain], 1)
+            print(f"First block date for {chain}: {first_block_date}")
+
+            # Process each source chain
+            for stablecoin_id in locked_supply_config:
+                if stablecoin_id not in self.stables_metadata:
+                    print(f"Stablecoin {stablecoin_id} not in metadata, skipping")
+                    continue
+                for source_chain in locked_supply_config[stablecoin_id].keys():
+                    if source_chain not in self.connections:
+                        print(f"Source chain {source_chain} not connected, skipping")
+                        continue
+
+                    # Get block numbers for source chain
+                    df_blocknumbers = self.db_connector.get_data_from_table(
+                            "fact_kpis", 
+                            filters={
+                                "metric_key": "first_block_of_day",
+                                "origin_key": source_chain
+                            },
+                            days=self.days
+                        )
+                    
+                    if df_blocknumbers.empty:
+                        print(f"No block data for source chain {source_chain}")
+                        raise ValueError("No block data for source chain")
+                    
+                    df_blocknumbers['block'] = df_blocknumbers['value'].astype(int)
+                    df_blocknumbers.drop(columns=['value', 'origin_key'], inplace=True)
+                    df_blocknumbers = df_blocknumbers.sort_values(by='block', ascending=True)
+                    df_blocknumbers['block'] = df_blocknumbers['block'].astype(str)
+                    
+                    # Get web3 connection for source chain
+                    w3 = self.connections[source_chain]
+                
+                    stable_data = self.stables_metadata[stablecoin_id]
+                    symbol = stable_data['symbol']
+                    decimals = stable_data['decimals']
+                    
+                    print(f"Checking {symbol} locked in {chain} contracts")
+                    
+                    # Surce chain token address (e.g., USDT on Ethereum)
+                    token_address = self.stables_metadata[stablecoin_id]['addresses'][source_chain]
+                    
+                    # Basic ERC20 ABI for balanceOf function
+                    token_abi = [
+                        {"constant":True,"inputs":[{"name":"_owner","type":"address"}],"name":"balanceOf","outputs":[{"name":"balance","type":"uint256"}],"type":"function"}
+                    ]
+                    
+                    # Create a DataFrame for this stablecoin
+                    df = df_blocknumbers.copy()
+                    df['origin_key'] = chain
+                    df['token_key'] = stablecoin_id
+                    df['value'] = 0.0  # Initialize balance column
+                    
+                    # Create contract instance
+                    try:
+                        token_contract = w3.eth.contract(address=Web3.to_checksum_address(token_address), abi=token_abi)
+                    except Exception as e:
+                        print(f"Failed to create contract instance for {stablecoin_id}: {e}")
+                        continue
+                    
+                    # Check balance in each bridge address for each block
+                    contract_deployed = True
+                    for i in range(len(df)-1, -1, -1):  # Go backwards in time
+                        date = df['date'].iloc[i]
+                        if date < first_block_date:
+                            print(f"Reached first block date ({first_block_date}) for {chain}, stopping")
+                            break  # Stop if we reach the first block date
+
+                        block = df['block'].iloc[i]
+                        print(f"...retrieving locked balance for {symbol} at block {block} ({date})")
+                        
+                        total_balance = 0
+                            
+                        # Check balances for defined stablecoin in locked contract
+                        for address in locked_supply_config[stablecoin_id][source_chain]:
+                            try:
+                                # Call balanceOf function
+                                balance = token_contract.functions.balanceOf(
+                                    Web3.to_checksum_address(address)
+                                ).call(block_identifier=int(block))
+                                
+                                # Convert to proper decimal representation
+                                adjusted_balance = balance / (10 ** decimals)
+                                total_balance += adjusted_balance
+                                
+                            except Exception as e:
+                                print(f"....Error getting balance for {symbol} in {address} at block {block}: {e}")
+                                if 'execution reverted' in str(e) or 'Could not decode contract function call' in str(e):
+                                    # Contract might not be deployed yet
+                                    contract_deployed = False
+                                    break
+                        
+                        if not contract_deployed:
+                            print(f"Contract for {symbol} not deployed at block {block}, stopping")
+                            break
+                        
+                        df.loc[df.index[i], 'value'] = total_balance * -1  # Subtract from supply
+                    
+                    df['metric_key'] = 'locked_supply'
+                    # Drop unneeded columns
+                    df.drop(columns=['block'], inplace=True)
+
+                    df_main = pd.concat([df_main, df])
+                    
+                    if update and not df.empty and 'value' in df.columns:
+                        df = df[df['value'] != 0]
+                        df = df.dropna()
+                        df.drop_duplicates(subset=['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+                        df.set_index(['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+
+                        # If col index in df_main, drop it
+                        if 'index' in df.columns:
+                            df.drop(columns=['index'], inplace=True)
+                        self.load(df)                    
+        
+        # Clean up data
+        df_main = df_main[df_main['value'] != 0]
+        df_main.drop_duplicates(subset=['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+        df_main = df_main.dropna()
+        df_main.set_index(['metric_key', 'origin_key', 'date', 'token_key'], inplace=True)
+        return df_main
+    
     def get_total_supply(self):
         """
-        Calculate the total stablecoin supply (bridged + direct) per chain
+        Calculate the total stablecoin supply (bridged + direct - locked) per chain
         
         This method:
         1. Retrieves bridged supply data from Ethereum bridge contracts
         2. Retrieves direct supply data from L2 native tokens
-        3. Combines them to get total stablecoin supply by chain and stablecoin
-        4. Also calculates a total across all stablecoins for each chain
+        3. Retrieves locked supply data from treasury contracts
+        4. Combines them to get total stablecoin supply by chain and stablecoin
+        5. Also calculates a total across all stablecoins for each chain
         """
         # Check if we have existing data in the database
         df_bridged = self.db_connector.get_data_from_table("fact_stables",
@@ -817,15 +970,23 @@ class AdapterStablecoinSupply(AbstractAdapter):
                     },
                     days=self.days
                 )
+        df_locked = self.db_connector.get_data_from_table("fact_stables",
+                    filters={
+                        "metric_key": "locked_supply"
+                    },
+                    days=self.days
+                )
         
         # Reset index to work with the dataframes
         if not df_bridged.empty:
             df_bridged = df_bridged.reset_index()
         if not df_direct.empty:
             df_direct = df_direct.reset_index()
+        if not df_locked.empty:
+            df_locked = df_locked.reset_index()
         
-        # Combine both datasets
-        df = pd.concat([df_bridged, df_direct])
+        # Combine datasets
+        df = pd.concat([df_bridged, df_direct, df_locked])
         
         if df.empty:
             print("No data available for total supply calculation")
