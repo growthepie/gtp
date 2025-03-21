@@ -924,6 +924,9 @@ class JSONCreation():
             else:
                 df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api_prod))]
 
+        ## filter out data where origin_key is 'celo' and date is before 2025-03-25
+        df_tmp = df_tmp.loc[~((df_tmp.origin_key=='celo') & (df_tmp.date < '2025-03-25'))]
+
         # filter df _tmp by date so that date is greather than the days set
         df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')]  
         

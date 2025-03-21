@@ -49,7 +49,17 @@ def etl():
                     'name': 'economics_da',
                     'query_id': 4046209,
                     'params': {'days': 7}
-                }
+                },
+                {
+                    'name': 'celo fundamentals',
+                    'query_id': 4877171,
+                    'params': {'days': 3}
+                },
+                {
+                    'name': 'celo aa_last7d',
+                    'query_id': 4882289,
+                    'params': {'days': 3, 'days_end': 12}
+                }     
             ],
             'prepare_df': 'prepare_df_metric_daily',
             'load_type': 'fact_kpis'
