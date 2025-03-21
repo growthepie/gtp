@@ -59,7 +59,12 @@ def etl():
                     'name': 'celo aa_last7d',
                     'query_id': 4882289,
                     'params': {'days': 3, 'days_end': 12}
-                }     
+                },
+                {
+                    'name': 'celo aa_last30d',
+                    'query_id': 4882595,
+                    'params': {'days': 3, 'days_end': 35}
+                },
             ],
             'prepare_df': 'prepare_df_metric_daily',
             'load_type': 'fact_kpis'
