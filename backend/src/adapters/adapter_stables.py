@@ -568,6 +568,10 @@ class AdapterStablecoinSupply(AbstractAdapter):
                     if stablecoin_id not in self.stables_metadata:
                         print(f"Stablecoin {stablecoin_id} not in metadata, skipping")
                         continue
+
+                    if source_chain not in self.stables_metadata[stablecoin_id]['addresses']:
+                        print(f"Stablecoin {stablecoin_id} not available on {source_chain}, skipping")
+                        continue
                     
                     stable_data = self.stables_metadata[stablecoin_id]
                     symbol = stable_data['symbol']
