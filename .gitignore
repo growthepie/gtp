@@ -43,3 +43,5 @@ backend/fundamentals_full.json
 backend/src/misc/discord_config.json
 backend/main_conf.pkl
 backend/da_conf.pkl
+
+node_modules
