@@ -6,8 +6,8 @@ import botocore
 import pandas as pd
 import os
 import random
-import json
 import time
+from src.misc.celo_handler import get_fee_currencies_rates_decimals
 from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
 from src.main_config import get_main_config 
@@ -179,29 +179,67 @@ def handle_l1_blob_base_fee_scalar(df):
 def calculate_tx_fee(df):
     """
     Calculates the transaction fee based on gas price, gas used, and L1 fee if applicable.
-    
+    - If 'fee_currency' is present -> call handle_celo_fee(df).
+    - Otherwise, do normal chains logic.
+
     Args:
         df (pd.DataFrame): The input DataFrame containing transaction data.
 
     Returns:
         pd.DataFrame: DataFrame with a new 'tx_fee' column added.
     """
-    if all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_fee']):
-        # OpChains calculation
-        df['tx_fee'] = (
-            (df['gas_price'] * df['gas_used']) + df['l1_fee']
-        ) / 1e18
-    elif all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_gas_used', 'l1_gas_price', 'l1_fee_scalar']):
-        # Default calculation
-        df['tx_fee'] = (
-            (df['gas_price'] * df['gas_used']) +
-            (df['l1_gas_used'] * df['l1_gas_price'] * df['l1_fee_scalar'])
-        ) / 1e18
-    elif all(col in df.columns for col in ['gas_price', 'gas_used']):
-        # Simple calculation
-        df['tx_fee'] = (df['gas_price'] * df['gas_used']) / 1e18
+    # Check if this is a Celo-style tx: tx_type == 123 or fee_currency is present and not all NaN
+    is_celo_tx = (
+        ("tx_type" in df.columns and (df["tx_type"] == 123).any()) and
+        ("fee_currency" in df.columns and not df["fee_currency"].isnull().all())
+    )
+
+    if is_celo_tx:
+        return handle_celo_fee(df)
+
+    # Else, normal OP-chains logic:
+    # 1) If we have 'gas_price', 'gas_used', and 'l1_fee', do:
+    if all(col in df.columns for col in ["gas_price", "gas_used", "l1_fee"]):
+        df["tx_fee"] = ((df["gas_price"] * df["gas_used"]) + df["l1_fee"]) / 1e18
+    elif all(col in df.columns for col in ["gas_price", "gas_used"]):
+        df["tx_fee"] = (df["gas_price"] * df["gas_used"]) / 1e18
     else:
-        df['tx_fee'] = np.nan
+        df["tx_fee"] = None
+    return df
+
+def handle_celo_fee(web3_instance, df):
+    """
+    Computes 'tx_fee' on Celo, where transactions can pay gas in various ERC20 tokens (USDC, USDT, cUSD, cEUR, etc.).
+    Uses the function `get_fee_currencies_rates_decimals` to look up token decimals dynamically.
+    """
+
+    # Fetch all fee currency info (including decimals) from on-chain contracts
+    fee_currencies_data = get_fee_currencies_rates_decimals(web3_instance)
+
+    # Build a dictionary mapping each token address -> token decimals
+    decimals_map = {
+        entry["address"].lower(): entry["decimals"] for entry in fee_currencies_data
+    }
+
+    df["fee_currency"] = df["fee_currency"].astype(str).str.lower()
+
+    required_cols = {"gas_price", "gas_used", "fee_currency"}
+    if not required_cols.issubset(df.columns):
+        df["tx_fee"] = None
+        return df
+
+    def compute_fee(row):
+        fc = row["fee_currency"]
+        decimals = decimals_map.get(fc, 18)  # default to 18 if not found
+
+        base_fee = (row["gas_price"] * row["gas_used"]) / (10 ** decimals)
+
+        l1_fee_val = row.get("l1_fee", 0)
+        total_fee = base_fee + (l1_fee_val / (10 ** decimals))
+
+        return total_fee
+
+    df["tx_fee"] = df.apply(compute_fee, axis=1)
     return df
 
 def handle_tx_hash(df, column_name='tx_hash'):
@@ -525,7 +563,12 @@ def prep_dataframe_new(df, chain):
     Returns:
         pd.DataFrame: The prepared DataFrame with necessary columns, data types, and operations applied.
     """
-    op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell', 'zircuit', 'lisk', 'unichain', 'celo']
+    op_chains = [
+        'zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast',
+        'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal',
+        'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell', 'zircuit',
+        'lisk', 'unichain', 'celo'
+    ]
     default_chains = ['manta', 'metis']
     arbitrum_nitro_chains = ['arbitrum', 'gravity', 'real', 'arbitrum_nova']
     

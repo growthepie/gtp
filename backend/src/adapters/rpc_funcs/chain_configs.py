@@ -426,7 +426,8 @@ chain_configs ={
       "l1BaseFeeScalar": "l1_base_fee_scalar",
       "l1BlobBaseFee": "l1_blob_base_fee",
       "l1BlobBaseFeeScalar": "l1_blob_base_fee_scalar",
-      "block_timestamp": "block_timestamp"
+      "block_timestamp": "block_timestamp",
+      "feeCurrency": "fee_currency"
     },
     "numeric_columns": [
       "gas_price",
@@ -454,7 +455,8 @@ chain_configs ={
     "bytea_columns": [
       "tx_hash",
       "to_address",
-      "from_address"
+      "from_address",
+      "fee_currency"
     ],
     "value_conversion": {
       "gas_price": 1000000000000000000,
