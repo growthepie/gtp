@@ -251,7 +251,7 @@ def send_discord_message(message, webhook_url=None):
 
 ## Binance functions
 def date_string_to_unix(date_string: str) -> int:
-    dt = datetime.datetime.strptime(date_string, '%Y-%m-%d')
+    dt = datetime.strptime(date_string, '%Y-%m-%d')
     timestamp = int(dt.timestamp() * 1000)
     return timestamp
 
