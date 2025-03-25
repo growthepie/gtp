@@ -519,22 +519,118 @@ l2_maturity_levels = {
         }
     }
 
-composition_types = {
-    "only_l1": {
-        "name": "Ethereum Mainnet",
-        "description": "Only users that interacted with Ethereum Mainnet but not with any L2.",
+main_chart_config = {
+    "defs": {
+        "gradients": [
+        {
+            "id": "cross_layer_background_gradient",
+            "config": {
+            "type": "linearGradient",
+            "linearGradient": { "x1": 1.5, "y1": 1.5, "x2": -1, "y2": -1 },
+            "stops": [[0, "#FE5468"], [1, "#FFDF27"]]
+            }
+        }
+        ],
+        "patterns": []
     },
-    "cross_layer": {
-        "name": "Cross-Layer",
-        "description": "Users that interacted with Ethereum Mainnet and at least one L2.",
-    },
-    "multiple_l2s": {
-        "name": "Multiple Layer 2s",
-        "description": "Users that interacted with multiple L2s but not Ethereum Mainnet.",
-    },
-    "single_l2": {
-        "name": "Single Layer 2",
-        "description": "Users that interacted with a single L2 but not Ethereum Mainnet.",
+    "composition_types": {
+        "main_l1": {
+            "order": 0,
+            "name": "Ethereum Mainnet",
+            "description": "Ethereum Mainnet data",
+            "fill": {
+                "type": "gradient",
+                "config": {
+                "type": "linearGradient",
+                "linearGradient": { "x1": 0, "y1": 0, "x2": 0, "y2": 1 },
+                "stops": [[0, "#94ABD3"], [1, "#596780"]]
+                }
+            }
+        },
+        "main_l2": {
+            "order": 1,
+            "name": "Layer 2",
+            "description": "Layer 2 scaling solutions",
+            "fill": {
+                "type": "gradient",
+                "config": {
+                "type": "linearGradient",
+                "linearGradient": { "x1": 0, "y1": 1, "x2": 0, "y2": 0 },
+                "stops": [[0, "#FE5468"], [1, "#FFDF27"]]
+                }
+            }
+        },
+        "only_l1": {
+            "order": 0,
+            "name": "Ethereum Mainnet",
+            "description": "Only users that interacted with Ethereum Mainnet but not with any L2.",
+            "fill": {
+                "type": "gradient",
+                "config": {
+                "type": "linearGradient",
+                "linearGradient": { "x1": 0, "y1": 0, "x2": 0, "y2": 1 },
+                "stops": [[0, "#94ABD3"], [1, "#596780"]]
+                }
+            }
+        },
+        "cross_layer": {
+            "order": 1,
+            "name": "Cross-Layer",
+            "description": "Users that interacted with Ethereum Mainnet and at least one L2.",
+            "fill": {
+                "type": "pattern",
+                "config": {
+                "type": "colored-hash",
+                "direction": "right",
+                "color": "#94ABD3",
+                "backgroundFill": "url(#cross_layer_background_gradient)"
+                }
+            }
+        },
+        "multiple_l2s": {
+            "order": 2,
+            "name": "Multiple Layer 2s",
+            "description": "Users that interacted with multiple L2s but not Ethereum Mainnet.",
+            "fill": {
+                "type": "gradient",
+                "config": {
+                "type": "linearGradient",
+                "linearGradient": { "x1": 0, "y1": 0, "x2": 1, "y2": 1 },
+                "stops": [[0, "#FE5468"], [1, "#FFDF27"]]
+                }
+            }
+            },
+        "single_l2": {
+            "order": 3,
+            "name": "Single Layer 2",
+            "description": "Users that interacted with a single L2 but not Ethereum Mainnet.",
+            "fill": {
+                "type": "gradient",
+                "config": {
+                "type": "linearGradient",
+                "linearGradient": { "x1": 0, "y1": 0, "x2": 1, "y2": 1 },
+                "stops": [[0, "#FE5468"], [1, "#FFDF27"]]
+                }
+            },
+            "mask": {
+                "config": {
+                "direction": "right"
+                }
+            }
+            },
+        "all_l2s": {
+            "order": 4,
+            "name": "All Layer 2s",
+            "description": "Users that interacted with all L2s.",
+            "fill": {
+                "type": "gradient",
+                "config": {
+                "type": "linearGradient",
+                "linearGradient": { "x1": 0, "y1": 1, "x2": 0, "y2": 0 },
+                "stops": [[0, "#FE5468"], [1, "#FFDF27"]]
+                }
+            }
+        }
     }
 }
 
