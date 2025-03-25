@@ -27,8 +27,11 @@ def etl():
     def run_market_chart():
         from src.db_connector import DbConnector
         from src.adapters.adapter_coingecko import AdapterCoingecko
+        import os
+        adapter_params = {
+            'api_key' : os.getenv("COINGECKO_API")
+        }
 
-        adapter_params = {}
         load_params = {
             'load_type' : 'project',
             'metric_keys' : ['price', 'volume', 'market_cap'],
@@ -49,8 +52,11 @@ def etl():
     def run_direct():
         from src.db_connector import DbConnector
         from src.adapters.adapter_coingecko import AdapterCoingecko
+        import os
+        adapter_params = {
+            'api_key' : os.getenv("COINGECKO_API")
+        }
         
-        adapter_params = {}
         load_params = {
             'load_type' : 'direct',
             'metric_keys' : ['price', 'volume', 'market_cap'],

@@ -17,9 +17,16 @@ class AdapterCoingecko(AbstractAdapter):
     """
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Coingecko", adapter_params, db_connector)
-        self.base_url = 'https://api.coingecko.com/api/v3/coins/'
+        self.base_url = 'https://pro-api.coingecko.com/api/v3/coins/'
+
         main_conf = get_main_config()
         self.projects = [chain for chain in main_conf if chain.aliases_coingecko is not None]
+
+        self.api_key = adapter_params.get('api_key', None)
+        self.headers = {
+            'x-cg-pro-api-key': self.api_key
+        }
+
         print_init(self.name, self.adapter_params)
 
     """
@@ -125,14 +132,14 @@ class AdapterCoingecko(AbstractAdapter):
             else:
                 day_val = int(days)
 
-            if day_val >= 365:
-                day_val = 365
-                print(f"... days set to 365 days (more isn't possible)")
+            if day_val >= 730:
+                day_val = 730
+                print(f"... days set to 730 days (more isn't possible)")
 
             for currency in vs_currencies:
                 url = f"{base_url}{naming}/market_chart?vs_currency={currency}&days={day_val}{interval}"
 
-                response_json = api_get_call(url, sleeper=10, retries=10)
+                response_json = api_get_call(url, sleeper=10, retries=10, header=self.headers)
                 if response_json:
                     dfAllFi = pd.json_normalize(response_json)
                     for fi in metric_keys:
@@ -155,7 +162,7 @@ class AdapterCoingecko(AbstractAdapter):
                     print(f"...{self.name} {origin_key} failed for {currency} with url {url}")
                     send_discord_message(f"Failed to load {origin_key} for {currency} with url {url}")
 
-                time.sleep(12) #only 10-50 calls allowed per minute with free tier
+                time.sleep(1) #only 10-50 calls allowed per minute with free tier
 
         ## Date prep
         if granularity == 'hourly':
