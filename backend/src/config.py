@@ -514,8 +514,8 @@ l2_maturity_levels = {
             }
         },
         "0_early_phase": {
-            "name" : "Early Phase",
-            "description" : "A project that just recently launched (<6 months) and hasn't acquired much capital.",
+            "name" : "Not Categorized",
+            "description" : "A project that just recently launched or that doesn't currently fall into any of the other categories.",
         }
     }
 
