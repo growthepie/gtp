@@ -17,7 +17,7 @@ SELECT
 FROM {{ origin_key }}_tx
 WHERE 1=1
 {% if origin_key != 'starknet' %}
-    AND gas_price <> 0
+    AND tx_fee > 0
 {% endif %}
     AND block_timestamp >= current_date - interval '{{ days }} days' 
     AND block_timestamp < current_date
