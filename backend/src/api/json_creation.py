@@ -20,7 +20,7 @@ from eim.funcs import get_eim_yamls
 from src.misc.jinja_helper import execute_jinja_query
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from src.config import gtp_units, gtp_metrics, gtp_da_metrics, gtp_app_metrics, gtp_fees_types, gtp_fees_timespans, l2_maturity_levels, eim_metrics
+from src.config import gtp_units, gtp_metrics, gtp_da_metrics, gtp_app_metrics, gtp_fees_types, gtp_fees_timespans, l2_maturity_levels, eim_metrics, composition_types
 
 import warnings
 
@@ -62,6 +62,7 @@ class JSONCreation():
         self.fees_timespans = gtp_fees_timespans
         self.maturity_levels = l2_maturity_levels
         self.eim_metrics = eim_metrics
+        self.composition_types = composition_types
 
         for metric_key, metric_value in self.metrics.items():
             metric_value['units'] = {key: merge_dicts(self.units.get(key, {}), value) for key, value in metric_value['units'].items()}
@@ -95,8 +96,10 @@ class JSONCreation():
         self.chains_list_in_api_prod = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and chain.api_deployment_flag=='PROD']
         #only chains that are in the api output and deployment is "PROD" and in_labels_api is True
         self.chains_list_in_api_labels = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and chain.api_in_labels == True]
-
+        #only chains that are in the api output and deployment is "PROD" and in_labels_api is True
         self.chains_list_in_api_economics = [chain.origin_key for chain in self.main_config if chain.api_in_economics == True]
+        #only chains that are in the api output and deployment is "PROD" and api_in_apps is True
+        self.chains_list_in_api_apps = [chain.origin_key for chain in self.main_config if chain.api_in_apps == True]
 
         self.da_layers_list = [x.da_layer for x in self.da_config]
         self.da_layer_overview = [x.da_layer for x in self.da_config if x.incl_in_da_overview == True]
@@ -921,6 +924,10 @@ class JSONCreation():
             else:
                 df_tmp = df.loc[(df.origin_key!='ethereum') & (df.metric_key.isin(mks)) & (df.origin_key.isin(self.chains_list_in_api_prod))]
 
+        ## TODO: standardize to move this date to chain_config
+        ## filter out data where origin_key is 'celo' and date is before 2025-03-25
+        df_tmp = df_tmp.loc[~((df_tmp.origin_key=='celo') & (df_tmp.date < '2025-03-25'))]
+
         # filter df _tmp by date so that date is greather than the days set
         df_tmp = df_tmp.loc[df_tmp.date >= (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')]  
         
@@ -1165,7 +1172,8 @@ class JSONCreation():
                 'sub_categories' : sub_category_dict,
                 'mapping' : mapping_dict,
             },
-            'maturity_levels': self.maturity_levels
+            'maturity_levels': self.maturity_levels,
+            'composition_types': self.composition_types,
         }
 
         master_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
@@ -1293,7 +1301,7 @@ class JSONCreation():
             }
 
         ## fill top applications
-        df_gainers, df_losers = self.get_apps_landing(['optimism', 'arbitrum', 'mode', 'base'])
+        df_gainers, df_losers = self.get_apps_landing(self.chains_list_in_api_apps)
         landing_dict['data']['top_applications'] = {
             'gainers': {
                 'types': df_gainers.columns.to_list(),
@@ -2139,7 +2147,8 @@ class JSONCreation():
         df = pd.read_sql(exec_string, self.db_connector.engine.connect())
         return df
 
-    def create_app_overview_json(self, chains:list):
+    def create_app_overview_json(self):
+        print(f'Creating App overview for chains: {self.chains_list_in_api_apps}')
         timeframes = [1,7,30,90,365,9999]
         for timeframe in timeframes:
             if timeframe == 9999:
@@ -2148,7 +2157,7 @@ class JSONCreation():
                 timeframe_key = f'{timeframe}d'
 
             print(f'Creating App overview for for {timeframe_key}')
-            df = self.get_app_overview_data(chains, timeframe)
+            df = self.get_app_overview_data(self.chains_list_in_api_apps, timeframe)
             
             projects_dict = {
                 'data': {
@@ -2183,8 +2192,8 @@ class JSONCreation():
         }).reset_index()
 
         ## add % change columns
-        df['gas_fees_change_%'] = (df['gas_fees_eth'] - df['prev_gas_fees_eth']) / df['prev_gas_fees_eth']
-        df['txcount_change_%'] = (df['txcount'] - df['prev_txcount']) / df['prev_txcount']
+        df['gas_fees_change_%'] = (df['gas_fees_eth'] - df['prev_gas_fees_eth']) / df['prev_gas_fees_eth'] * 100
+        df['txcount_change_%'] = (df['txcount'] - df['prev_txcount']) / df['prev_txcount'] * 100
 
         ## order df by txcount descending
         df = df.sort_values(by='txcount', ascending=False)
@@ -2359,8 +2368,8 @@ class JSONCreation():
             return val
 
 
-    def create_app_details_json(self, project:str, chains:list, timeframes, is_all=False):
-        df = self.load_app_data(project, chains)
+    def create_app_details_json(self, project:str, timeframes, is_all=False):
+        df = self.load_app_data(project, self.chains_list_in_api_apps)
         if len(df) > 0:
             df_first_seen = df.groupby('origin_key').agg({'date': 'min'}).copy()
             df_first_seen.reset_index(inplace=True)
@@ -2383,7 +2392,7 @@ class JSONCreation():
                     }
                 }
 
-                for origin_key in chains:
+                for origin_key in self.chains_list_in_api_apps:
                     ## check if origin_key is in df
                     if origin_key in df.origin_key.unique():
                         mk_list = self.generate_daily_list(df, metric, origin_key, metric_type='app')
@@ -2420,7 +2429,7 @@ class JSONCreation():
                 timeframe_key = f'{timeframe}d' if timeframe != 'max' else 'max'
                 days = timeframe if timeframe != 'max' else 9999
                 
-                contracts = self.get_app_contracts(project, chains, days)
+                contracts = self.get_app_contracts(project, self.chains_list_in_api_apps, days)
                 contract_dict = {
                     'types': contracts.columns.to_list(),
                     'data': contracts.values.tolist()
@@ -2443,21 +2452,22 @@ class JSONCreation():
             print(f'..skipped: App details export for {project}. No data found')
         return project
 
-    def run_app_details_jsons(self, owner_projects:list, chains:list, is_all=False):
+    def run_app_details_jsons(self, owner_projects:list, is_all=False):
         timeframes = [1,7,30,90,180,365,'max']
         counter = 1
 
         ## run steps in parallel
         with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(self.create_app_details_json, i, chains, timeframes, is_all) for i in owner_projects]
+            futures = [executor.submit(self.create_app_details_json, i, timeframes, is_all) for i in owner_projects]
             for future in as_completed(futures):
                 project = future.result()
                 print(f'..done with {project}. {counter}/{len(owner_projects)}')    
                 counter += 1
 
-    def run_app_details_jsons_all(self, chains:list):
+    def run_app_details_jsons_all(self):
+        print(f'Creating App details for all apps for chains: {self.chains_list_in_api_apps}')
         ## get all active projects with contracts assigned
-        chains_str = ', '.join([f"'{chain}'" for chain in chains])
+        chains_str = ', '.join([f"'{chain}'" for chain in self.chains_list_in_api_apps])
         exec_string = f"""
                 select distinct(owner_project) as name
                 from vw_apps_contract_level_materialized
@@ -2467,7 +2477,7 @@ class JSONCreation():
         projects = df_projects.name.to_list()
         print(f'..starting: App details export for all projects. Number of projects: {len(projects)}')
 
-        self.run_app_details_jsons(projects, chains, is_all=True)
+        self.run_app_details_jsons(projects, is_all=True)
         empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/apps/details/*')
 
     #######################################################################
@@ -2598,10 +2608,31 @@ class JSONCreation():
         projects_dict = fix_dict_nan(projects_dict, f'projects')
 
         if self.s3_bucket == None:
-            self.save_to_json(projects_dict, f'prpjects')
+            self.save_to_json(projects_dict, f'projects')
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects', projects_dict, self.cf_distribution_id)
         print(f'DONE -- projects export')
+
+    def create_projects_filtered_json(self):        
+        df = self.db_connector.get_active_projects(add_category=True, filtered_by_chains=self.chains_list_in_api_apps)
+        df = df.rename(columns={'name': 'owner_project'})
+        df = df.replace({np.nan: None})        
+
+        projects_dict = {
+            'data': {
+                'types': df.columns.to_list(),
+                'data': df.values.tolist()
+            }
+        }
+
+        projects_dict['last_updated_utc'] = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
+        projects_dict = fix_dict_nan(projects_dict, f'projects_filtered')
+
+        if self.s3_bucket == None:
+            self.save_to_json(projects_dict, f'projects_filtered')
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects_filtered', projects_dict, self.cf_distribution_id)
+        print(f'DONE -- projects_filtered export')
 
     def create_export_labels_json(self, limit, origin_key=None):
         if origin_key == None:
@@ -2644,6 +2675,27 @@ class JSONCreation():
 
         upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/export_labels_{subset}', df, self.cf_distribution_id)
         print(f'DONE -- labels export_labels_{subset}.parquet export')
+
+    def create_export_oli_parquet(self):        
+        exec_string = f"""
+            SELECT concat('0x',encode(id, 'hex')) as id, attester, recipient, is_offchain, revoked, ipfs_hash, tx_id, decoded_data_json, "time", time_created, revocation_time
+            FROM public.oli_label_pool_bronze;
+        """
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = db_addresses_to_checksummed_addresses(df, ['attester', 'recipient'])
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/oli/labels_raw', df, self.cf_distribution_id)
+        print(f'DONE -- OLI labels_raw.parquet export')
+
+        exec_string = f"""
+            SELECT concat('0x',encode(id, 'hex')) as id, chain_id, address, tag_id, tag_value, attester, time_created, revocation_time, revoked, is_offchain
+            FROM public.oli_label_pool_silver;
+        """
+        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        df = db_addresses_to_checksummed_addresses(df, ['address', 'attester'])
+
+        upload_parquet_to_cf_s3(self.s3_bucket, f'{self.api_version}/oli/labels_decoded', df, self.cf_distribution_id)
+        print(f'DONE -- OLI labels_decoded.parquet export')
 
 
     #######################################################################

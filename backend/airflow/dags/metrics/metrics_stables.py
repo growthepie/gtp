@@ -26,7 +26,6 @@ def etl():
     @task()
     def run_stables():
         from src.db_connector import DbConnector
-        from src.stables_config import stables_metadata, stables_mapping
         from src.adapters.adapter_stables import AdapterStablecoinSupply
 
         # Initialize DB Connector
@@ -35,8 +34,6 @@ def etl():
 
         # Create adapter params
         adapter_params = {
-            'stables_metadata': stables_metadata,
-            'stables_mapping': stables_mapping
         }
 
         # Initialize the Stablecoin Adapter
@@ -58,7 +55,7 @@ def etl():
             'days': days,
             'load_type': 'bridged_supply'
         }
-        bridged_df = stablecoin_adapter.extract(bridged_params)
+        bridged_df = stablecoin_adapter.extract(bridged_params, update=True)
         stablecoin_adapter.load(bridged_df)
         print(f"Loaded {len(bridged_df)} bridged stablecoin records")
 
@@ -68,11 +65,21 @@ def etl():
             'days': days,
             'load_type': 'direct_supply'
         }
-        direct_df = stablecoin_adapter.extract(direct_params)
+        direct_df = stablecoin_adapter.extract(direct_params, update=True)
         stablecoin_adapter.load(direct_df)
         print(f"Loaded {len(direct_df)} direct stablecoin records")
 
-        # Step 4: Calculate total stablecoin supply
+        # Step 4: Get locked stablecoin supply
+        print("\nStep 4: Getting locked supply...")
+        direct_params = {
+            'days': days,
+            'load_type': 'locked_supply'
+        }
+        locked_df = stablecoin_adapter.extract(direct_params)
+        stablecoin_adapter.load(locked_df)
+        print(f"Loaded {len(locked_df)} locked stablecoin records")
+
+        # Step 5: Calculate total stablecoin supply
         print("\nStep 4: Calculating total stablecoin supply...")
         total_params = {
             'days': days,

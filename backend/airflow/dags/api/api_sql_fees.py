@@ -58,7 +58,7 @@ def fees_json_gen_dag():
 
     aggregate_metrics_tasks = [
         create_aggregate_metrics_task(chain.origin_key)()
-        for chain in main_conf if chain.api_in_fees and chain.api_deployment_flag == 'PROD'
+        for chain in main_conf if chain.api_in_fees
     ]
    
     run_create_fees_json().set_upstream(aggregate_metrics_tasks)

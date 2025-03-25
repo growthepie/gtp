@@ -26,7 +26,7 @@ api_version = "v1"
     description='Create json files that are necessary to power the frontend.',
     tags=['api', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='30 05 * * *'
+    schedule='30 06 * * *'
 )
 
 def etl():
@@ -78,8 +78,9 @@ def etl():
         db_connector = DbConnector()
         json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
 
-        json_creator.create_app_overview_json(chains=['optimism', 'arbitrum', 'mode', 'base'])
-        json_creator.run_app_details_jsons_all(chains=['optimism', 'arbitrum', 'mode', 'base'])
+        json_creator.create_app_overview_json()
+        json_creator.run_app_details_jsons_all()
+        json_creator.create_projects_filtered_json()
         json_creator.clean_app_files()
 
     @task()
@@ -112,6 +113,13 @@ def etl():
         json_creator.create_projects_json()
 
         json_creator.create_export_labels_parquet('top50k')
+
+    @task()
+    def run_oli_s3_export():
+        db_connector = DbConnector()
+        json_creator = JSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+
+        json_creator.create_export_oli_parquet()
 
     @task()
     def run_create_blockspace_overview():
@@ -169,6 +177,9 @@ def etl():
 
     ## Labels
     run_create_labels()
+
+    ## OLI
+    run_oli_s3_export()
 
     ## Misc
     run_create_glo()

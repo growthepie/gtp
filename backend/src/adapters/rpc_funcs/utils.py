@@ -554,6 +554,10 @@ def prep_dataframe_new(df, chain):
     df = df[existing_columns]
     df = df.rename(columns=column_mapping)
 
+    # Ensure 'block_date' column exists and populate it
+    if "block_timestamp" in df.columns:
+        df["block_date"] = pd.to_datetime(df["block_timestamp"], unit="s").dt.date
+
     # Convert columns to numeric
     numeric_columns = config.get('numeric_columns', [])
     df = convert_columns_to_numeric(df, numeric_columns)
