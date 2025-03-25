@@ -27,9 +27,11 @@ def etl():
     def run_market_chart():
         from src.db_connector import DbConnector
         from src.adapters.adapter_coingecko import AdapterCoingecko
-
+        import os
         adapter_params = {
+            'api_key' : os.getenv("COINGECKO_API")
         }
+        
         load_params = {
             'load_type' : 'project',
             'granularity' : 'hourly', # 'daily' or 'hourly
