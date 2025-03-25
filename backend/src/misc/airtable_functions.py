@@ -210,14 +210,8 @@ def read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table):
     df = read_airtable(table)
 
     # return if empty
-    if df.empty:
-        print('no contracts need reattesting.')
-        return
-    
-    # check if anything new was approved
-    df = df[df['approve'] == True]
-    if df.empty:
-        print('no contracts were approved for reattesting.')
+    if df.empty or 'approve' not in df.columns:
+        print('no contracts marked for reattesting.')
         return
 
     # add all columns if they are missing, as api doesn't return empty columns
