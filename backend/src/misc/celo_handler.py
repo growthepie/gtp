@@ -302,7 +302,7 @@ class CeloFeeCache:
         'rates': {},     # address -> rate
         'last_update': None
     }
-    _cache_duration = 300  # Cache duration in seconds (5 minutes)
+    _cache_duration = 900  # Cache duration in seconds (15 minutes)
 
     def __new__(cls):
         if cls._instance is None:
