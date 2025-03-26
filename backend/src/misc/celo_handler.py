@@ -3,6 +3,7 @@ from web3 import Web3
 from web3.exceptions import ContractLogicError
 from src.adapters.rpc_funcs.utils import get_chain_config
 from src.db_connector import DbConnector
+import time
 
 # ---------------------------------------------------------------------
 # Contract ABIs
@@ -292,3 +293,61 @@ def print_fee_currencies_and_rates(web3_instance: Optional[Any] = None) -> None:
             print("  Exchange Rate: Unavailable")
         print()
     print("==========================\n")
+
+class CeloFeeCache:
+    """Singleton cache for Celo fee currency data"""
+    _instance = None
+    _cache = {
+        'decimals': {},  # address -> decimals
+        'rates': {},     # address -> rate
+        'last_update': None
+    }
+    _cache_duration = 300  # Cache duration in seconds (5 minutes)
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(CeloFeeCache, cls).__new__(cls)
+        return cls._instance
+
+    def _should_refresh_cache(self):
+        """Check if cache needs refreshing based on time elapsed"""
+        if self._cache['last_update'] is None:
+            return True
+        
+        current_time = time.time()
+        return (current_time - self._cache['last_update']) > self._cache_duration
+
+    def refresh_cache(self, web3_instance=None):
+        """Refresh the cache with current fee currency data"""
+        if web3_instance is None:
+            web3_instance = CeloWeb3Provider.get_instance()
+
+        fee_currencies_data = get_fee_currencies_rates_decimals(web3_instance)
+        
+        # Update cache
+        self._cache['decimals'] = {
+            entry["address"].lower(): entry["decimals"] 
+            for entry in fee_currencies_data
+        }
+        self._cache['rates'] = {
+            entry["address"].lower(): entry["rate"] 
+            for entry in fee_currencies_data 
+            if entry["rate"] is not None
+        }
+
+        # Add CELO defaults
+        CELO_ADDRESS = "0x471ece3750da237f93b8e339c536989b8978a438".lower()
+        self._cache['decimals'].setdefault(CELO_ADDRESS, 18)
+        self._cache['rates'].setdefault(CELO_ADDRESS, 1.0)
+
+        self._cache['last_update'] = time.time()
+
+    def get_cached_data(self, web3_instance=None):
+        """Get cached fee currency data, refreshing if necessary"""
+        if self._should_refresh_cache():
+            self.refresh_cache(web3_instance)
+        return self._cache['decimals'], self._cache['rates']
+
+    def force_refresh(self, web3_instance=None):
+        """Force a cache refresh regardless of time elapsed"""
+        self.refresh_cache(web3_instance)

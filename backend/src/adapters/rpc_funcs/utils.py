@@ -209,36 +209,19 @@ def calculate_tx_fee(df):
 def handle_celo_fee(df):
     """
     Computes both raw_tx_fee (in original token) and tx_fee (in CELO) for Celo transactions,
-    while preserving all other columns in the DataFrame.
+    using cached fee currency data.
     
     Args:
         df (pd.DataFrame): The input DataFrame containing transaction data.
         
     Returns:
-        pd.DataFrame: DataFrame with all original columns plus 'raw_tx_fee' (in original token) 
-                     and 'tx_fee' (in CELO).
+        pd.DataFrame: DataFrame with all original columns plus 'raw_tx_fee' and 'tx_fee'.
     """
-    from src.misc.celo_handler import get_fee_currencies_rates_decimals, CeloWeb3Provider
+    from src.misc.celo_handler import CeloFeeCache
 
-    # Get a Web3 instance for Celo
-    web3_instance = CeloWeb3Provider.get_instance()
-
-    # Fetch all fee currency info (including decimals and exchange rates)
-    fee_currencies_data = get_fee_currencies_rates_decimals(web3_instance)
-
-    # Build dictionaries for quick lookups
-    decimals_map = {
-        entry["address"].lower(): entry["decimals"] for entry in fee_currencies_data
-    }
-    rate_map = {
-        entry["address"].lower(): entry["rate"] for entry in fee_currencies_data
-        if entry["rate"] is not None  # Only include valid rates
-    }
-
-    # Default CELO decimals (18) and rate (1.0 since it's the base currency)
-    CELO_ADDRESS = "0x471ece3750da237f93b8e339c536989b8978a438".lower()
-    decimals_map.setdefault(CELO_ADDRESS, 18)
-    rate_map.setdefault(CELO_ADDRESS, 1.0)
+    # Get cached fee currency data
+    fee_cache = CeloFeeCache()
+    decimals_map, rate_map = fee_cache.get_cached_data()
 
     # Normalize fee_currency addresses to lowercase
     if 'fee_currency' in df.columns:
@@ -606,7 +589,7 @@ def prep_dataframe_new(df, chain):
         'zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast',
         'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal',
         'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell', 'zircuit',
-        'lisk', 'unichain', 'celo'
+        'lisk', 'unichain'
     ]
     default_chains = ['manta', 'metis']
     arbitrum_nitro_chains = ['arbitrum', 'gravity', 'real', 'arbitrum_nova']
