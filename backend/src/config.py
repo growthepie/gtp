@@ -463,6 +463,11 @@ gtp_fees_timespans = {
     }
 
 l2_maturity_levels = {
+        "10_foundational": {
+            "name": "Foundational",
+            "description": "Ethereum Mainnet, a fully decentralized and secure network that anchors the entire ecosystem.",
+            "conditions": "Be Ethereum"
+        },
         "4_robust": {
             "name" : "Robust",
             "description" : "Fully decentralized and secure network that cannot be tampered with or stopped by any individual or group, including its creators. This is a network that fulfills Ethereum's vision of decentralization.",
