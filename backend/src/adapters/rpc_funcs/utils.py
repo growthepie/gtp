@@ -243,7 +243,7 @@ def handle_celo_fee(df):
 
         # Convert to CELO using exchange rate
         rate = rate_map.get(fee_currency)
-        celo_tx_fee = raw_tx_fee * rate if rate is not None else None
+        celo_tx_fee = raw_tx_fee / rate if rate is not None else None
 
         return pd.Series({
             'raw_tx_fee': raw_tx_fee,
