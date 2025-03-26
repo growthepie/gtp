@@ -208,40 +208,45 @@ def calculate_tx_fee(df):
 
 def handle_celo_fee(df):
     """
-    Computes 'tx_fee' on Celo, where transactions can pay gas in various ERC20 tokens (USDC, USDT, cUSD, cEUR, etc.).
-    Uses the function `get_fee_currencies_rates_decimals` to look up token decimals dynamically.
+    Computes both raw_tx_fee (in original token) and tx_fee (in CELO) for Celo transactions,
+    while preserving all other columns in the DataFrame.
     
     Args:
         df (pd.DataFrame): The input DataFrame containing transaction data.
         
     Returns:
-        pd.DataFrame: DataFrame with 'tx_fee' column added based on Celo fee calculations.
+        pd.DataFrame: DataFrame with all original columns plus 'raw_tx_fee' (in original token) 
+                     and 'tx_fee' (in CELO).
     """
     from src.misc.celo_handler import get_fee_currencies_rates_decimals, CeloWeb3Provider
 
     # Get a Web3 instance for Celo
     web3_instance = CeloWeb3Provider.get_instance()
 
-    # Fetch all fee currency info (including decimals) from on-chain contracts
+    # Fetch all fee currency info (including decimals and exchange rates)
     fee_currencies_data = get_fee_currencies_rates_decimals(web3_instance)
 
-    # Build a dictionary mapping each token address -> token decimals
+    # Build dictionaries for quick lookups
     decimals_map = {
         entry["address"].lower(): entry["decimals"] for entry in fee_currencies_data
     }
+    rate_map = {
+        entry["address"].lower(): entry["rate"] for entry in fee_currencies_data
+        if entry["rate"] is not None  # Only include valid rates
+    }
+
+    # Default CELO decimals (18) and rate (1.0 since it's the base currency)
+    CELO_ADDRESS = "0x471ece3750da237f93b8e339c536989b8978a438".lower()
+    decimals_map.setdefault(CELO_ADDRESS, 18)
+    rate_map.setdefault(CELO_ADDRESS, 1.0)
 
     # Normalize fee_currency addresses to lowercase
-    df["fee_currency"] = df["fee_currency"].astype(str).str.lower()
+    if 'fee_currency' in df.columns:
+        df["fee_currency"] = df["fee_currency"].astype(str).str.lower()
 
-    # Check if we have the required columns for fee calculation
-    required_cols = {"gas_price", "gas_used", "fee_currency"}
-    if not required_cols.issubset(df.columns):
-        df["tx_fee"] = None
-        return df
-
-    def compute_fee(row):
+    def compute_fees(row):
         # Get the fee currency address used for this transaction
-        fee_currency = row["fee_currency"]
+        fee_currency = row.get("fee_currency")
         
         # Look up the decimals for this token, default to 18 if not found
         decimals = decimals_map.get(fee_currency, 18)
@@ -251,12 +256,29 @@ def handle_celo_fee(df):
 
         # Add L1 fee if present, also accounting for token decimals
         l1_fee_val = row.get("l1_fee", 0)
-        total_fee = base_fee + (l1_fee_val / (10 ** decimals))
+        raw_tx_fee = base_fee + (l1_fee_val / (10 ** decimals))
 
-        return total_fee
+        # Convert to CELO using exchange rate
+        rate = rate_map.get(fee_currency)
+        celo_tx_fee = raw_tx_fee * rate if rate is not None else None
 
-    # Apply the fee calculation to each row
-    df["tx_fee"] = df.apply(compute_fee, axis=1)
+        return pd.Series({
+            'raw_tx_fee': raw_tx_fee,
+            'tx_fee': celo_tx_fee
+        })
+
+    # Apply the fee calculations to each row
+    fee_columns = df.apply(compute_fees, axis=1)
+    
+    # Add the new columns to the DataFrame while preserving all existing columns
+    df['raw_tx_fee'] = fee_columns['raw_tx_fee']
+    df['tx_fee'] = fee_columns['tx_fee']
+
+    # Handle any failed conversions (where rate wasn't available)
+    failed_conversions = df["tx_fee"].isnull().sum()
+    if failed_conversions > 0:
+        print(f"Warning: Failed to convert {failed_conversions} transaction fees to CELO due to missing exchange rates")
+
     return df
 
 def handle_tx_hash(df, column_name='tx_hash'):

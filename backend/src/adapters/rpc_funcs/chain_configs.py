@@ -427,7 +427,8 @@ chain_configs ={
       "l1BlobBaseFee": "l1_blob_base_fee",
       "l1BlobBaseFeeScalar": "l1_blob_base_fee_scalar",
       "block_timestamp": "block_timestamp",
-      "feeCurrency": "fee_currency"
+      "feeCurrency": "fee_currency",
+      "type": "tx_type"
     },
     "numeric_columns": [
       "gas_price",
