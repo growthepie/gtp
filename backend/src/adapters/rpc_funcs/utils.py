@@ -6,7 +6,6 @@ import botocore
 import pandas as pd
 import os
 import random
-import json
 import time
 from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
@@ -179,29 +178,90 @@ def handle_l1_blob_base_fee_scalar(df):
 def calculate_tx_fee(df):
     """
     Calculates the transaction fee based on gas price, gas used, and L1 fee if applicable.
-    
+    - If 'fee_currency' is present -> call handle_celo_fee(df).
+    - Otherwise, do normal chains logic.
+
     Args:
         df (pd.DataFrame): The input DataFrame containing transaction data.
 
     Returns:
         pd.DataFrame: DataFrame with a new 'tx_fee' column added.
     """
-    if all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_fee']):
-        # OpChains calculation
-        df['tx_fee'] = (
-            (df['gas_price'] * df['gas_used']) + df['l1_fee']
-        ) / 1e18
-    elif all(col in df.columns for col in ['gas_price', 'gas_used', 'l1_gas_used', 'l1_gas_price', 'l1_fee_scalar']):
-        # Default calculation
-        df['tx_fee'] = (
-            (df['gas_price'] * df['gas_used']) +
-            (df['l1_gas_used'] * df['l1_gas_price'] * df['l1_fee_scalar'])
-        ) / 1e18
-    elif all(col in df.columns for col in ['gas_price', 'gas_used']):
-        # Simple calculation
-        df['tx_fee'] = (df['gas_price'] * df['gas_used']) / 1e18
+    # Check if this is a Celo-style tx: tx_type == 123 or fee_currency is present and not all NaN
+    is_celo_tx = (
+        ("tx_type" in df.columns and (df["tx_type"] == 123).any()) and
+        ("fee_currency" in df.columns and not df["fee_currency"].isnull().all())
+    )
+
+    if is_celo_tx:
+        return handle_celo_fee(df)
+
+    # Else, normal OP-chains logic:
+    # 1) If we have 'gas_price', 'gas_used', and 'l1_fee', do:
+    if all(col in df.columns for col in ["gas_price", "gas_used", "l1_fee"]):
+        df["tx_fee"] = ((df["gas_price"] * df["gas_used"]) + df["l1_fee"]) / 1e18
+    elif all(col in df.columns for col in ["gas_price", "gas_used"]):
+        df["tx_fee"] = (df["gas_price"] * df["gas_used"]) / 1e18
     else:
-        df['tx_fee'] = np.nan
+        df["tx_fee"] = None
+    return df
+
+def handle_celo_fee(df):
+    """
+    Computes both raw_tx_fee (in original token) and tx_fee (in CELO) for Celo transactions,
+    using cached fee currency data.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing transaction data.
+        
+    Returns:
+        pd.DataFrame: DataFrame with all original columns plus 'raw_tx_fee' and 'tx_fee'.
+    """
+    from src.misc.celo_handler import CeloFeeCache
+
+    # Get cached fee currency data
+    fee_cache = CeloFeeCache()
+    decimals_map, rate_map = fee_cache.get_cached_data()
+
+    # Normalize fee_currency addresses to lowercase
+    if 'fee_currency' in df.columns:
+        df["fee_currency"] = df["fee_currency"].astype(str).str.lower()
+
+    def compute_fees(row):
+        # Get the fee currency address used for this transaction
+        fee_currency = row.get("fee_currency")
+        
+        # Look up the decimals for this token, default to 18 if not found
+        decimals = decimals_map.get(fee_currency, 18)
+
+        # Calculate base gas fee in the token's denomination
+        base_fee = (row["gas_price"] * row["gas_used"]) / (10 ** decimals)
+
+        # Add L1 fee if present, also accounting for token decimals
+        l1_fee_val = row.get("l1_fee", 0)
+        raw_tx_fee = base_fee + (l1_fee_val / (10 ** decimals))
+
+        # Convert to CELO using exchange rate
+        rate = rate_map.get(fee_currency)
+        celo_tx_fee = raw_tx_fee / rate if rate is not None else None
+
+        return pd.Series({
+            'raw_tx_fee': raw_tx_fee,
+            'tx_fee': celo_tx_fee
+        })
+
+    # Apply the fee calculations to each row
+    fee_columns = df.apply(compute_fees, axis=1)
+    
+    # Add the new columns to the DataFrame while preserving all existing columns
+    df['raw_tx_fee'] = fee_columns['raw_tx_fee']
+    df['tx_fee'] = fee_columns['tx_fee']
+
+    # Handle any failed conversions (where rate wasn't available)
+    failed_conversions = df["tx_fee"].isnull().sum()
+    if failed_conversions > 0:
+        print(f"Warning: Failed to convert {failed_conversions} transaction fees to CELO due to missing exchange rates")
+
     return df
 
 def handle_tx_hash(df, column_name='tx_hash'):
@@ -525,7 +585,12 @@ def prep_dataframe_new(df, chain):
     Returns:
         pd.DataFrame: The prepared DataFrame with necessary columns, data types, and operations applied.
     """
-    op_chains = ['zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast', 'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal', 'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell', 'zircuit', 'lisk', 'unichain', 'celo']
+    op_chains = [
+        'zora', 'base', 'optimism', 'gitcoin_pgn', 'mantle', 'mode', 'blast',
+        'redstone', 'orderly', 'derive', 'karak', 'ancient8', 'kroma', 'fraxtal',
+        'cyber', 'worldchain', 'mint', 'ink', 'soneium', 'swell', 'zircuit',
+        'lisk', 'unichain'
+    ]
     default_chains = ['manta', 'metis']
     arbitrum_nitro_chains = ['arbitrum', 'gravity', 'real', 'arbitrum_nova']
     

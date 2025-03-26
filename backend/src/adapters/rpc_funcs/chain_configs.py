@@ -426,7 +426,7 @@ chain_configs ={
       "l1BaseFeeScalar": "l1_base_fee_scalar",
       "l1BlobBaseFee": "l1_blob_base_fee",
       "l1BlobBaseFeeScalar": "l1_blob_base_fee_scalar",
-      "block_timestamp": "block_timestamp"
+      "block_timestamp": "block_timestamp",
     },
     "numeric_columns": [
       "gas_price",
@@ -454,7 +454,85 @@ chain_configs ={
     "bytea_columns": [
       "tx_hash",
       "to_address",
-      "from_address"
+      "from_address",
+    ],
+    "value_conversion": {
+      "gas_price": 1000000000000000000,
+      "value": 1000000000000000000,
+      "l1_gas_price": 1000000000000000000,
+      "l1_fee": 1000000000000000000,
+      "l1_blob_base_fee": 1000000000000000000
+    },
+    "address_columns": [
+      "to_address"
+    ]
+  },
+  "celo": {
+    "required_columns": [
+      "l1GasUsed",
+      "l1GasPrice",
+      "l1Fee",
+      "l1BaseFeeScalar",
+      "l1BlobBaseFee",
+      "l1BlobBaseFeeScalar"
+    ],
+    "fillna_values": {
+      "l1_gas_price": "0",
+      "l1_fee": "0",
+      "l1_gas_used": "0",
+      "l1_base_fee_scalar": "0",
+      "l1_blob_base_fee": "0",
+      "l1_blob_base_fee_scalar": "0"
+    },
+    "column_mapping": {
+      "blockNumber": "block_number",
+      "hash": "tx_hash",
+      "from": "from_address",
+      "to": "to_address",
+      "gasPrice": "gas_price",
+      "gas": "gas_limit",
+      "gasUsed": "gas_used",
+      "value": "value",
+      "status": "status",
+      "input": "empty_input",
+      "l1GasUsed": "l1_gas_used",
+      "l1GasPrice": "l1_gas_price",
+      "l1Fee": "l1_fee",
+      "l1BaseFeeScalar": "l1_base_fee_scalar",
+      "l1BlobBaseFee": "l1_blob_base_fee",
+      "l1BlobBaseFeeScalar": "l1_blob_base_fee_scalar",
+      "block_timestamp": "block_timestamp",
+      "feeCurrency": "fee_currency",
+      "type": "tx_type"
+    },
+    "numeric_columns": [
+      "gas_price",
+      "gas_used",
+    ],
+    "special_operations": [
+      "handle_l1_gas_price",
+      "handle_l1_fee",
+      "handle_l1_fee_scalar",
+      "handle_l1_gas_used",
+      "handle_l1_base_fee_scalar",
+      "handle_l1_blob_base_fee",
+      "handle_l1_blob_base_fee_scalar",
+      "calculate_tx_fee",
+      "convert_input_to_boolean"
+    ],
+    "date_columns": {
+      "block_timestamp": "s"
+    },
+    "status_mapping": {
+      "0": 0,
+      "1": 1,
+      "default": -1
+    },
+    "bytea_columns": [
+      "tx_hash",
+      "to_address",
+      "from_address",
+      "fee_currency"
     ],
     "value_conversion": {
       "gas_price": 1000000000000000000,
