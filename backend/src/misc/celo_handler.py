@@ -1,5 +1,12 @@
+from typing import Dict, List, Optional, Tuple, Any, Union
 from web3 import Web3
+from web3.exceptions import ContractLogicError
+from src.adapters.rpc_funcs.utils import get_chain_config
+from src.db_connector import DbConnector
 
+# ---------------------------------------------------------------------
+# Contract ABIs
+# ---------------------------------------------------------------------
 ERC20_ABI = [
     {
         "constant": True,
@@ -40,13 +47,15 @@ EXCHANGE_RATE_ABI = [
 ]
 
 # ---------------------------------------------------------------------
-# Known addresses
+# Contract addresses
 # ---------------------------------------------------------------------
 FEE_CURRENCY_DIRECTORY_ADDRESS = Web3.to_checksum_address(
     "0x15F344b9E6c3Cb6F0376A36A64928b13F62C6276"
 )
 
-# Known tokens on the Celo network
+# ---------------------------------------------------------------------
+# Known Celo tokens
+# ---------------------------------------------------------------------
 KNOWN_TOKENS = {
     "0x471ece3750da237f93b8e339c536989b8978a438": "CELO",
     "0x765de816845861e75a25fca122bb6898b8b1282a": "cUSD",
@@ -64,93 +73,189 @@ KNOWN_TOKENS = {
     "0x4f604735c1cf31399c6e711d5962b2b3e0225ad3": "USDGLO",
 }
 
+# ---------------------------------------------------------------------
+# RPC connection
+# ---------------------------------------------------------------------
+class CeloWeb3Provider:
+    """Manages Web3 connection to Celo"""
+    
+    _instance = None
+    
+    @classmethod
+    def get_instance(cls) -> Union[Any, Web3]:
+        """
+        Singleton pattern to get or create a Web3 connection to Celo.
+        
+        Returns:
+            Web3CC: Connected Web3 instance
+            
+        Raises:
+            ConnectionError: If all connection attempts fail
+        """
+        if cls._instance is None:
+            from src.adapters.rpc_funcs.utils import Web3CC
+            
+            db_connector = DbConnector()
+            rpc_configs, _ = get_chain_config(db_connector, 'celo')
+            
+            for rpc_config in rpc_configs:
+                try:
+                    cls._instance = Web3CC(rpc_config)
+                    print(f"Connected to Celo RPC: {rpc_config['url']}")
+                    break
+                except Exception as e:
+                    print(f"Failed to connect to Celo RPC: {rpc_config['url']} with error: {e}")
+            
+            if cls._instance is None:
+                raise ConnectionError("Failed to connect to any Celo RPC node.")
+                
+        return cls._instance
 
 # ---------------------------------------------------------------------
 # Helper functions
 # ---------------------------------------------------------------------
 def get_token_symbol(token_address: str) -> str:
     """
-    Return the known symbol for a given token address, or 'UNKNOWN' if not found.
+    Get the symbol for a given token address.
+    
+    Args:
+        token_address (str): The token contract address
+        
+    Returns:
+        str: Token symbol or 'UNKNOWN' if not in known tokens list
     """
     return KNOWN_TOKENS.get(token_address.lower(), "UNKNOWN")
 
 
-def fetch_token_decimals(web3_instance: Web3, token_address: str, decimals_cache: dict) -> int:
+def fetch_token_decimals(web3_instance: Any, token_address: str, decimals_cache: Dict[str, int]) -> int:
     """
-    Return the 'decimals' for an ERC20 token from its on-chain contract.
-    Uses an in-memory cache to avoid repeated queries for the same address.
-    Defaults to 18 decimals if the contract call fails for any reason.
+    Fetch the decimals value for an ERC20 token from its contract.
+    
+    Args:
+        web3_instance: Web3 connection instance
+        token_address (str): The token contract address
+        decimals_cache (dict): Cache of already fetched decimals
+        
+    Returns:
+        int: Token decimals (defaults to 18 if fetch fails)
     """
     address_lower = token_address.lower()
+    
+    # Return cached value if available
     if address_lower in decimals_cache:
         return decimals_cache[address_lower]
 
-    default_decimals = 18  # fallback
+    default_decimals = 18  # Standard default for most tokens
+    
     try:
+        # Create contract instance and call decimals()
         token_contract = web3_instance.eth.contract(
             address=Web3.to_checksum_address(token_address),
             abi=ERC20_ABI
         )
         token_decimals = token_contract.functions.decimals().call()
+        
+        # Cache and return the result
         decimals_cache[address_lower] = token_decimals
         return token_decimals
-    except Exception:
+    except (ContractLogicError, ValueError) as e:
+        decimals_cache[address_lower] = default_decimals
+        return default_decimals
+    except Exception as e:
+        print(f"Unexpected error fetching decimals for token {token_address}: {e}")
         decimals_cache[address_lower] = default_decimals
         return default_decimals
 
 
-# ---------------------------------------------------------------------
-# Main function
-# ---------------------------------------------------------------------
-def get_fee_currencies_rates_decimals(web3_instance: Web3):
+def fetch_exchange_rate(
+        web3_instance: Any, 
+        rate_contract, 
+        token_address: str
+) -> Tuple[Optional[int], Optional[int], Optional[float]]:
     """
-    Retrieves all fee currency token addresses from the FeeCurrencyDirectory,
-    then fetches their exchange rate relative to CELO, as well as ERC20 decimals.
-
+    Fetch exchange rate for a token relative to CELO.
+    
+    Args:
+        web3_instance: Web3 connection instance
+        rate_contract: Initialized contract for exchange rate lookup
+        token_address (str): The token contract address
+        
     Returns:
-        list of dict: Each dict contains:
-            - address (str): token contract address
-            - symbol (str): known token symbol (or 'UNKNOWN')
-            - decimals (int): token decimals
-            - numerator (int or None): exchange rate numerator
-            - denominator (int or None): exchange rate denominator
-            - rate (float or None): numeric value of CELO per token
+        tuple: (numerator, denominator, rate) where rate is numerator/denominator
+               Returns (None, None, None) if the fetch fails
     """
+    try:
+        numerator, denominator = rate_contract.functions.getExchangeRate(token_address).call()
+        rate = numerator / denominator if denominator and denominator != 0 else None
+        return numerator, denominator, rate
+    except Exception as e:
+        symbol = get_token_symbol(token_address)
+        print(f"Error fetching exchange rate for {symbol} ({token_address}): {e}")
+        return None, None, None
+
+
+# ---------------------------------------------------------------------
+# Main functions
+# ---------------------------------------------------------------------
+def get_fee_currencies_rates_decimals(web3_instance: Optional[Any] = None) -> List[Dict[str, Any]]:
+    """
+    Retrieve fee currency info from Celo contracts including exchange rates and decimals.
+    
+    This function queries on-chain contracts to get:
+    1. The list of fee currencies allowed for gas payments
+    2. The exchange rate of each currency relative to CELO
+    3. The decimals for each currency token
+    
+    Args:
+        web3_instance (optional): Web3 connection to use. If None, creates one.
+        
+    Returns:
+        list: List of dictionaries with token info:
+            - address (str): Contract address
+            - symbol (str): Token symbol
+            - decimals (int): Token decimal places
+            - numerator (int): Exchange rate numerator or None
+            - denominator (int): Exchange rate denominator or None
+            - rate (float): CELO per token or None
+            
+    Raises:
+        ConnectionError: If web3_instance is None and no RPC connection can be established
+    """
+    # Use provided web3 instance or get the singleton instance
+    if web3_instance is None:
+        web3_instance = CeloWeb3Provider.get_instance()
+        
     results = []
-    decimals_cache = {}  # in-memory cache for token decimals
+    decimals_cache = {}  # Cache to avoid duplicate RPC calls
 
     try:
-        # Initialize the FeeCurrencyDirectory contract
+        # 1. Initialize contracts
         fee_contract = web3_instance.eth.contract(
             address=FEE_CURRENCY_DIRECTORY_ADDRESS,
             abi=FEE_CURRENCY_DIRECTORY_ABI
         )
-        currency_addresses = fee_contract.functions.getCurrencies().call()
-
-        # Initialize the exchange-rate contract
         rate_contract = web3_instance.eth.contract(
             address=FEE_CURRENCY_DIRECTORY_ADDRESS,
             abi=EXCHANGE_RATE_ABI
         )
+        
+        # 2. Fetch the list of allowed fee currencies
+        currency_addresses = fee_contract.functions.getCurrencies().call()
 
+        # 3. Process each token
         for addr in currency_addresses:
             checksum_addr = Web3.to_checksum_address(addr)
             symbol = get_token_symbol(checksum_addr)
-
-            # Fetch decimals
+            
+            # Get token decimals
             decimals = fetch_token_decimals(web3_instance, checksum_addr, decimals_cache)
+            
+            # Get exchange rate
+            numerator, denominator, rate = fetch_exchange_rate(
+                web3_instance, rate_contract, checksum_addr
+            )
 
-            # Fetch exchange rate
-            numerator = None
-            denominator = None
-            rate = None
-            try:
-                numerator, denominator = rate_contract.functions.getExchangeRate(checksum_addr).call()
-                if denominator and denominator != 0:
-                    rate = numerator / denominator
-            except Exception as exc:
-                print(f"Error fetching exchange rate for {symbol} ({addr}): {exc}")
-
+            # Add to results
             results.append({
                 "address": checksum_addr.lower(),
                 "symbol": symbol,
@@ -160,16 +265,25 @@ def get_fee_currencies_rates_decimals(web3_instance: Web3):
                 "rate": rate
             })
 
-    except Exception as exc:
-        print(f"Error fetching fee currencies: {exc}")
+    except Exception as e:
+        print(f"Error fetching Celo fee currencies: {e}")
 
     return results
 
-def print_fee_currencies_and_rates_and_decimals(web3_instance: Web3):
+def print_fee_currencies_and_rates(web3_instance: Optional[Any] = None) -> None:
+    """
+    Print a formatted report of all Celo fee currencies and their exchange rates.
+    
+    Args:
+        web3_instance (optional): Web3 connection to use. If None, creates one.
+    """
     data = get_fee_currencies_rates_decimals(web3_instance)
+    
+    print("\n=== Celo Fee Currencies ===")
     for entry in data:
         print(f"Token: {entry['symbol']} ({entry['address']})")
         print(f"  Decimals: {entry['decimals']}")
+        
         if entry['rate'] is not None:
             print(f"  Numerator: {entry['numerator']}")
             print(f"  Denominator: {entry['denominator']}")
@@ -177,3 +291,4 @@ def print_fee_currencies_and_rates_and_decimals(web3_instance: Web3):
         else:
             print("  Exchange Rate: Unavailable")
         print()
+    print("==========================\n")

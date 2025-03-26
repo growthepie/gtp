@@ -7,7 +7,6 @@ import pandas as pd
 import os
 import random
 import time
-from src.misc.celo_handler import get_fee_currencies_rates_decimals
 from src.adapters.rpc_funcs.web3 import Web3CC
 from sqlalchemy import text
 from src.main_config import get_main_config 
@@ -207,11 +206,21 @@ def calculate_tx_fee(df):
         df["tx_fee"] = None
     return df
 
-def handle_celo_fee(web3_instance, df):
+def handle_celo_fee(df):
     """
     Computes 'tx_fee' on Celo, where transactions can pay gas in various ERC20 tokens (USDC, USDT, cUSD, cEUR, etc.).
     Uses the function `get_fee_currencies_rates_decimals` to look up token decimals dynamically.
+    
+    Args:
+        df (pd.DataFrame): The input DataFrame containing transaction data.
+        
+    Returns:
+        pd.DataFrame: DataFrame with 'tx_fee' column added based on Celo fee calculations.
     """
+    from src.misc.celo_handler import get_fee_currencies_rates_decimals, CeloWeb3Provider
+
+    # Get a Web3 instance for Celo
+    web3_instance = CeloWeb3Provider.get_instance()
 
     # Fetch all fee currency info (including decimals) from on-chain contracts
     fee_currencies_data = get_fee_currencies_rates_decimals(web3_instance)
@@ -221,24 +230,32 @@ def handle_celo_fee(web3_instance, df):
         entry["address"].lower(): entry["decimals"] for entry in fee_currencies_data
     }
 
+    # Normalize fee_currency addresses to lowercase
     df["fee_currency"] = df["fee_currency"].astype(str).str.lower()
 
+    # Check if we have the required columns for fee calculation
     required_cols = {"gas_price", "gas_used", "fee_currency"}
     if not required_cols.issubset(df.columns):
         df["tx_fee"] = None
         return df
 
     def compute_fee(row):
-        fc = row["fee_currency"]
-        decimals = decimals_map.get(fc, 18)  # default to 18 if not found
+        # Get the fee currency address used for this transaction
+        fee_currency = row["fee_currency"]
+        
+        # Look up the decimals for this token, default to 18 if not found
+        decimals = decimals_map.get(fee_currency, 18)
 
+        # Calculate base gas fee in the token's denomination
         base_fee = (row["gas_price"] * row["gas_used"]) / (10 ** decimals)
 
+        # Add L1 fee if present, also accounting for token decimals
         l1_fee_val = row.get("l1_fee", 0)
         total_fee = base_fee + (l1_fee_val / (10 ** decimals))
 
         return total_fee
 
+    # Apply the fee calculation to each row
     df["tx_fee"] = df.apply(compute_fee, axis=1)
     return df
 
