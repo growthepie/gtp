@@ -51,11 +51,15 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 # Apply middleware for PoA chains if needed
                 if chain != 'ethereum':
                     w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-                    
-                self.connections[chain] = w3
-                print(f"Connected to {chain}")
+
+                ## Test the connection
+                if w3.is_connected():
+                    print(f"Connected to {chain}")
+                    self.connections[chain] = w3
+                else:   
+                    raise ValueError(f"Failed to connect to {chain} with RPC URL {rpc_url}")
             except Exception as e:
-                print(f"Failed to connect to {chain}: {e}")
+                print(f"Failed to connect to {chain} using RPC URL {rpc_url}: {e}")
         
         print_init(self.name, self.adapter_params)
 
