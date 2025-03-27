@@ -223,15 +223,33 @@ def handle_celo_fee(df):
     fee_cache = CeloFeeCache()
     decimals_map, rate_map = fee_cache.get_cached_data()
 
+    # If rate_map is empty, try forcing a refresh once
+    if not rate_map:
+        print("Exchange rate cache is empty. Forcing refresh...")
+        fee_cache.force_refresh()
+        decimals_map, rate_map = fee_cache.get_cached_data()
+
+    # Track missing rates to report at the end
+    missing_rates = set()
+
     # Normalize fee_currency addresses to lowercase
     if 'fee_currency' in df.columns:
         df["fee_currency"] = df["fee_currency"].astype(str).str.lower()
+        df["fee_currency"] = df["fee_currency"].replace('nan', None)
 
     def compute_fees(row):
         # Get the fee currency address used for this transaction
         fee_currency = row.get("fee_currency")
         
-        # Look up the decimals for this token, default to 18 if not found
+        # If fee_currency is None or NaN, calculate as a standard transaction
+        if pd.isna(fee_currency) or fee_currency is None or fee_currency == 'none':
+            standard_tx_fee = ((row["gas_price"] * row["gas_used"]) + row.get("l1_fee", 0)) / 1e18
+            return pd.Series({
+                'raw_tx_fee': standard_tx_fee,
+                'tx_fee': standard_tx_fee
+            })
+        
+        # For transactions with a fee currency, do CELO conversion
         decimals = decimals_map.get(fee_currency, 18)
 
         # Calculate base gas fee in the token's denomination
@@ -242,7 +260,7 @@ def handle_celo_fee(df):
         raw_tx_fee = base_fee + (l1_fee_val / (10 ** decimals))
 
         # Convert to CELO using exchange rate
-        rate = rate_map.get(fee_currency)
+        rate = rate_map.get(fee_currency)                
         celo_tx_fee = raw_tx_fee / rate if rate is not None else None
 
         return pd.Series({
@@ -261,6 +279,8 @@ def handle_celo_fee(df):
     failed_conversions = df["tx_fee"].isnull().sum()
     if failed_conversions > 0:
         print(f"Warning: Failed to convert {failed_conversions} transaction fees to CELO due to missing exchange rates")
+        if missing_rates:
+            print(f"Missing rates for tokens: {', '.join([f'{addr}' for addr in missing_rates])}")
 
     return df
 

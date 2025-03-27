@@ -81,11 +81,18 @@ class CeloWeb3Provider:
     """Manages Web3 connection to Celo"""
     
     _instance = None
+    _rpc_index = 0  # Track which RPC we're currently using
+    _last_switch_time = 0  # Track when we last switched RPCs
+    _switch_threshold = 60  # Seconds to wait before switching RPCs again
     
     @classmethod
-    def get_instance(cls) -> Union[Any, Web3]:
+    def get_instance(cls, force_new_connection=False) -> Union[Any, Web3]:
         """
         Singleton pattern to get or create a Web3 connection to Celo.
+        
+        Args:
+            force_new_connection (bool): If True, forces creation of a new connection
+                                        even if one already exists
         
         Returns:
             Web3CC: Connected Web3 instance
@@ -93,24 +100,68 @@ class CeloWeb3Provider:
         Raises:
             ConnectionError: If all connection attempts fail
         """
-        if cls._instance is None:
-            from src.adapters.rpc_funcs.utils import Web3CC
+        current_time = time.time()
+        
+        # If we already have an instance and don't need to force a new one
+        if cls._instance is not None and not force_new_connection:
+            # Check if the connection is still working
+            try:
+                _ = cls._instance.eth.block_number
+                return cls._instance
+            except Exception as e:
+                print(f"Existing Celo connection failed: {e}. Attempting to establish a new connection.")
+                cls._instance = None
+        
+        from src.adapters.rpc_funcs.utils import Web3CC
+        db_connector = DbConnector()
+        rpc_configs, _ = get_chain_config(db_connector, 'celo')
+        
+        # If we've switched RPCs recently, start with the one after the current one
+        if current_time - cls._last_switch_time < cls._switch_threshold:
+            cls._rpc_index = (cls._rpc_index + 1) % len(rpc_configs)
+            cls._last_switch_time = current_time
             
-            db_connector = DbConnector()
-            rpc_configs, _ = get_chain_config(db_connector, 'celo')
-            
-            for rpc_config in rpc_configs:
-                try:
-                    cls._instance = Web3CC(rpc_config)
-                    print(f"Connected to Celo RPC: {rpc_config['url']}")
-                    break
-                except Exception as e:
-                    print(f"Failed to connect to Celo RPC: {rpc_config['url']} with error: {e}")
-            
-            if cls._instance is None:
-                raise ConnectionError("Failed to connect to any Celo RPC node.")
+        # Try each RPC endpoint in turn, starting with the current index
+        connection_attempts = 0
+        max_attempts = len(rpc_configs) * 2
+        
+        while connection_attempts < max_attempts:
+            rpc_config = rpc_configs[cls._rpc_index]
+            try:
+                print(f"Attempting to connect to Celo RPC: {rpc_config['url']}")
+                cls._instance = Web3CC(rpc_config)
+                # Test the connection with a simple call
+                _ = cls._instance.eth.block_number
+                print(f"Successfully connected to Celo RPC: {rpc_config['url']}")
+                cls._last_switch_time = current_time
+                return cls._instance
+            except Exception as e:
+                connection_attempts += 1
+                error_msg = str(e).lower()
                 
-        return cls._instance
+                # If this appears to be a rate limit issue, quickly move to the next RPC
+                if "too many requests" in error_msg or "rate limit" in error_msg or "429" in error_msg:
+                    print(f"Rate limit hit for Celo RPC: {rpc_config['url']}. Switching to next endpoint.")
+                    cls._rpc_index = (cls._rpc_index + 1) % len(rpc_configs)
+                    cls._last_switch_time = current_time
+                    # Short delay before trying next endpoint
+                    time.sleep(0.5)
+                else:
+                    print(f"Failed to connect to Celo RPC: {rpc_config['url']} with error: {e}")
+                    cls._rpc_index = (cls._rpc_index + 1) % len(rpc_configs)
+                    # Slightly longer delay for non-rate-limit errors
+                    time.sleep(1)
+        
+        # If we've tried all RPCs and none worked
+        raise ConnectionError("Failed to connect to any Celo RPC node after multiple attempts.")
+    
+    @classmethod
+    def switch_rpc(cls):
+        """
+        Force a switch to the next available RPC endpoint.
+        Returns True if successful, False otherwise.
+        """
+        return cls.get_instance(force_new_connection=True) is not None
 
 # ---------------------------------------------------------------------
 # Helper functions
@@ -303,11 +354,45 @@ class CeloFeeCache:
         'last_update': None
     }
     _cache_duration = 900  # Cache duration in seconds (15 minutes)
-
+    _cache_file = "celo_fee_cache.json"
+    
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(CeloFeeCache, cls).__new__(cls)
+            # Load the persistent cache file if it exists
+            cls._instance._load_persistent_cache()
         return cls._instance
+    
+    def _load_persistent_cache(self):
+        """Load cached data from file if it exists"""
+        import json
+        import os
+        
+        try:
+            if os.path.exists(self._cache_file):
+                with open(self._cache_file, 'r') as f:
+                    stored_cache = json.load(f)
+                    
+                # Validate and use the cached data
+                if 'decimals' in stored_cache and 'rates' in stored_cache and 'last_update' in stored_cache:
+                    # Convert string keys back to proper types
+                    self._cache['decimals'] = {k: v for k, v in stored_cache['decimals'].items()}
+                    self._cache['rates'] = {k: v for k, v in stored_cache['rates'].items() if v is not None}
+                    self._cache['last_update'] = stored_cache['last_update']
+                    
+                    print(f"Loaded {len(self._cache['rates'])} exchange rates from persistent cache")
+        except Exception as e:
+            print(f"Error loading persistent cache: {e}")
+    
+    def _save_persistent_cache(self):
+        """Save current cache to file"""
+        import json
+        
+        try:
+            with open(self._cache_file, 'w') as f:
+                json.dump(self._cache, f)
+        except Exception as e:
+            print(f"Error saving persistent cache: {e}")
 
     def _should_refresh_cache(self):
         """Check if cache needs refreshing based on time elapsed"""
@@ -319,35 +404,65 @@ class CeloFeeCache:
 
     def refresh_cache(self, web3_instance=None):
         """Refresh the cache with current fee currency data"""
-        if web3_instance is None:
-            web3_instance = CeloWeb3Provider.get_instance()
-
-        fee_currencies_data = get_fee_currencies_rates_decimals(web3_instance)
+        # Store old cache values to fall back on in case of errors
+        old_decimals = self._cache['decimals'].copy()
+        old_rates = self._cache['rates'].copy()
         
-        # Update cache
-        self._cache['decimals'] = {
-            entry["address"].lower(): entry["decimals"] 
-            for entry in fee_currencies_data
-        }
-        self._cache['rates'] = {
-            entry["address"].lower(): entry["rate"] 
-            for entry in fee_currencies_data 
-            if entry["rate"] is not None
-        }
+        try:
+            if web3_instance is None:
+                web3_instance = CeloWeb3Provider.get_instance()
 
-        # Add CELO defaults
-        CELO_ADDRESS = "0x471ece3750da237f93b8e339c536989b8978a438".lower()
-        self._cache['decimals'].setdefault(CELO_ADDRESS, 18)
-        self._cache['rates'].setdefault(CELO_ADDRESS, 1.0)
+            fee_currencies_data = get_fee_currencies_rates_decimals(web3_instance)
+            
+            # Update cache, keeping old values if new ones aren't available
+            new_decimals = {
+                entry["address"].lower(): entry["decimals"] 
+                for entry in fee_currencies_data
+            }
+            
+            new_rates = {
+                entry["address"].lower(): entry["rate"] 
+                for entry in fee_currencies_data 
+                if entry["rate"] is not None
+            }
+            
+            # Merge with existing cache, preferring new values but keeping old ones if no new data
+            self._cache['decimals'].update(new_decimals)
+            
+            # For rates, only update if we have a valid new rate
+            for addr, rate in new_rates.items():
+                if rate is not None:
+                    self._cache['rates'][addr] = rate
+            
+            # Add CELO defaults
+            CELO_ADDRESS = "0x471ece3750da237f93b8e339c536989b8978a438".lower()
+            self._cache['decimals'].setdefault(CELO_ADDRESS, 18)
+            self._cache['rates'].setdefault(CELO_ADDRESS, 1.0)
 
-        self._cache['last_update'] = time.time()
+            self._cache['last_update'] = time.time()
+            
+            # Save to persistent cache
+            self._save_persistent_cache()
+        except Exception as e:
+            print(f"Error refreshing Celo fee cache: {e}. Using previous cached values.")
+            # Restore old values if we encountered an error
+            if old_decimals:
+                self._cache['decimals'] = old_decimals
+            if old_rates:
+                self._cache['rates'] = old_rates
 
     def get_cached_data(self, web3_instance=None):
         """Get cached fee currency data, refreshing if necessary"""
-        if self._should_refresh_cache():
-            self.refresh_cache(web3_instance)
+        try:
+            if self._should_refresh_cache():
+                self.refresh_cache(web3_instance)
+        except Exception as e:
+            print(f"Error refreshing cache: {e}. Using existing cache data if available.")
         return self._cache['decimals'], self._cache['rates']
 
     def force_refresh(self, web3_instance=None):
         """Force a cache refresh regardless of time elapsed"""
-        self.refresh_cache(web3_instance)
+        try:
+            self.refresh_cache(web3_instance)
+        except Exception as e:
+            print(f"Error during forced cache refresh: {e}")
