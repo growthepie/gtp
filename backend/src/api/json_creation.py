@@ -785,6 +785,7 @@ class JSONCreation():
         return int(df_tmp['value'].values[0])
     
     def get_cross_chain_activity(self, df, chain):
+        print(f'...calculating cross_chain_activity for {chain.origin_key}')
         if chain.runs_aggregate_addresses == False or chain.origin_key == 'starknet':
             print(f'...cross_chain_activity for {chain.origin_key} is not calculated because aggregate_addresses is set to False.')
             return 0
