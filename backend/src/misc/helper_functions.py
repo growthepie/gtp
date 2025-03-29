@@ -713,21 +713,24 @@ def upload_app_logo_files_to_s3(repo, files_to_upload, cf_bucket_name, cf_distri
     ## TODO:iterate over files to remove? files_to_remove
     ## for each file in files_to_upload, download the file, write to to a temp file and then push it to S3
     for file in files_to_upload:
-        print(f"Uploading {file.filename} to S3.")
-        content = repo.get_contents(file.filename, ref=branch)
-        content = content.decoded_content
-        file_name = file.filename.split("/")[-1]
-        file_type = file_name.split(".")[-1]
-        file_name = file_name.split(".")[0]
-        with open(f'temp_img.{file_type}', "wb") as f:
-            f.write(content)
+        print(f"Attempting to download {file.filename} from GitHub and uploading to S3.")
+        try:
+            content = repo.get_contents(file.filename, ref=branch)
+            content = content.decoded_content
+            file_name = file.filename.split("/")[-1]
+            file_type = file_name.split(".")[-1]
+            file_name = file_name.split(".")[0]
+            with open(f'temp_img.{file_type}', "wb") as f:
+                f.write(content)
 
-        upload_image_to_cf_s3(
-            bucket=cf_bucket_name, 
-            s3_path=f'v1/apps/logos/{file_name}', 
-            local_path=f'temp_img.{file_type}', 
-            cf_distribution_id = cf_distribution_id, 
-            file_type = file_type)
+            upload_image_to_cf_s3(
+                bucket=cf_bucket_name, 
+                s3_path=f'v1/apps/logos/{file_name}', 
+                local_path=f'temp_img.{file_type}', 
+                cf_distribution_id = cf_distribution_id, 
+                file_type = file_type)
+        except Exception as e:
+            print(f"Error uploading {file.filename} to S3: {str(e)}")
         
     print("All files uploaded to S3.")
 
