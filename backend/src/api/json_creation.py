@@ -1200,6 +1200,7 @@ class JSONCreation():
         cur_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
         prev_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
 
+        ## TODO: user_base key should be removed
         landing_dict = {
             "data": {
                 "metrics" : {
@@ -1274,32 +1275,6 @@ class JSONCreation():
 
          ## put all origin_keys from main_config in a list where in_api is True
         chain_keys = [chain.origin_key for chain in self.main_config if chain.api_in_main == True and 'blockspace' not in chain.api_exclude_metrics]
-
-        ## TODO: remove top contracts section once deprecated frontend side
-        #if 'ethereum' exists in chain_keys, remove it
-        if 'ethereum' in chain_keys:
-            chain_keys.remove('ethereum')
-
-        for days in [1,7,30,90,180,365]:
-            contracts = self.db_connector.get_top_contracts_for_all_chains_with_change(top_by='gas', days=days, origin_keys=chain_keys, limit=6)
-
-            # replace NaNs with Nones
-            contracts = contracts.replace({np.nan: None})
-            contracts = db_addresses_to_checksummed_addresses(contracts, ['address'])
-
-            contracts = contracts[
-                ['address', 'project_name', 'contract_name', "main_category_key", "sub_category_key", "origin_key", "gas_fees_eth", "gas_fees_usd", 
-                 "txcount", "daa", "gas_fees_eth_change", "gas_fees_usd_change", "txcount_change", "daa_change", "prev_gas_fees_eth", "prev_gas_fees_usd", 
-                 "prev_txcount", "prev_daa", "gas_fees_eth_change_percent", "gas_fees_usd_change_percent", "txcount_change_percent", "daa_change_percent"]
-            ]
-
-            ## change column names contract_name to name and origin_key to chain
-            contracts = contracts.rename(columns={'contract_name': 'name', 'origin_key': 'chain'})
-            
-            landing_dict['data']['top_contracts'][f"{days}d"] = {
-                'types': contracts.columns.to_list(),
-                'data': contracts.values.tolist()
-            }
 
         ## fill top applications
         df_gainers, df_losers = self.get_apps_landing(self.chains_list_in_api_apps)
