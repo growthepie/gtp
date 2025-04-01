@@ -186,6 +186,9 @@ sql_queries = [
         ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "gravity", jinja_path='chain_metrics/select_txcosts_median_custom_gas.sql.j2')
         
         ## Celo (op stack but CELO gas token and only data available start March 26th when L2 went live)
+        ,SQLQuery(metric_key = "maa", origin_key = "celo", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "aa_last7d", origin_key = "celo", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
+        ,SQLQuery(metric_key = "aa_last30d", origin_key = "celo", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
         ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "celo", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "celo", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
 
