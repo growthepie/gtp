@@ -370,6 +370,100 @@ class oliAPI:
             return f"0x{txn_hash.hex()}", f"0x{txn_receipt.logs[0].data.hex()}"
         else:
             raise Exception(f"Transaction failed: {txn_receipt}")
+        
+    def revoke_attestation(self, schema, uid_hex, gas_limit=1000000):
+        """
+        Revoke an attestation (onchain or offchain) using its UID.
+        
+        Args:
+            schema (str): Schema hash used for the attestation
+            uid_hex (str): UID of the attestation to revoke (in hex format)
+            gas_limit (int): Gas limit for the transaction
+            
+        Returns:
+            str: Transaction hash
+        """
+        # Create the transaction to revoke an attestation
+        transaction = self.eas.functions.revoke({
+            'schema': self.w3.to_bytes(hexstr=schema),
+            'data': {
+                'uid': self.w3.to_bytes(hexstr=uid_hex),
+                'value': 0
+            }
+        }).build_transaction({
+            'chainId': self.rpc_chain_number,
+            'gas': gas_limit,
+            'gasPrice': self.w3.eth.gas_price,
+            'nonce': self.w3.eth.get_transaction_count(self.address),
+        })
+
+        # Sign the transaction
+        signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key=self.private_key)
+
+        # Send the transaction
+        txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+
+        # Get the transaction receipt
+        txn_receipt = self.w3.eth.wait_for_transaction_receipt(txn_hash)
+        
+        # Check if the transaction was successful
+        if txn_receipt.status == 1:
+            return f"0x{txn_hash.hex()}"
+        else:
+            raise Exception(f"Transaction failed: {txn_receipt}")
+    
+    def multi_revoke_attestations(self, schema, uids, gas_limit=1000000):
+        """
+        Revoke multiple attestations (onchain or offchain) in a single transaction.
+        
+        Args:
+            schema (str): Schema hash used for the attestations
+            uids (list): List of UIDs to revoke (in hex format)
+            gas_limit (int): Gas limit for the transaction
+            
+        Returns:
+            str: Transaction hash
+            int: Number of attestations revoked
+        """
+        # Dynamically create the revocation data array based on the uids list
+        revocation_data = []
+        for uid in uids:
+            revocation_data.append({
+                'uid': self.w3.to_bytes(hexstr=uid),
+                'value': 0
+            })
+
+        # Create the multi-revocation request with all UIDs
+        multi_requests = [{
+            'schema': self.w3.to_bytes(hexstr=schema),
+            'data': revocation_data
+        }]
+
+        # Create the transaction to call the multiRevoke function
+        transaction = self.eas.functions.multiRevoke(
+            multi_requests
+        ).build_transaction({
+            'chainId': self.rpc_chain_number,
+            'gas': gas_limit,  # Increased gas limit for large revocations
+            'gasPrice': self.w3.eth.gas_price,
+            'nonce': self.w3.eth.get_transaction_count(self.address),
+        })
+
+        # Sign the transaction
+        signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key=self.private_key)
+
+        # Send the transaction
+        txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+
+        # Get the transaction receipt
+        txn_receipt = self.w3.eth.wait_for_transaction_receipt(txn_hash)
+        
+        # Check if the transaction was successful
+        if txn_receipt.status == 1:
+            return f"0x{txn_hash.hex()}", len(uids)
+        else:
+            raise Exception(f"Transaction failed: {txn_receipt}")
+        
 """
 
 # Example usage:
