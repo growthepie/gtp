@@ -54,44 +54,6 @@ class oliAPI:
         # Initialize EAS contract
         self.eas = self.w3.eth.contract(address=self.eas_address, abi=self.eas_abi)
     
-    def get_eas_abi(self):
-        """
-        Returns the ABI for the EAS contract
-        """
-        # This is a simplified ABI with just the attest function
-        # For a production environment, you should use the full ABI
-        return [
-            {
-                "inputs": [
-                    {
-                        "components": [
-                            {"internalType": "bytes32", "name": "schema", "type": "bytes32"},
-                            {
-                                "components": [
-                                    {"internalType": "address", "name": "recipient", "type": "address"},
-                                    {"internalType": "uint64", "name": "expirationTime", "type": "uint64"},
-                                    {"internalType": "bool", "name": "revocable", "type": "bool"},
-                                    {"internalType": "bytes32", "name": "refUID", "type": "bytes32"},
-                                    {"internalType": "bytes", "name": "data", "type": "bytes"},
-                                    {"internalType": "uint256", "name": "value", "type": "uint256"}
-                                ],
-                                "internalType": "struct AttestationRequestData",
-                                "name": "data",
-                                "type": "tuple"
-                            }
-                        ],
-                        "internalType": "struct AttestationRequest",
-                        "name": "request",
-                        "type": "tuple"
-                    }
-                ],
-                "name": "attest",
-                "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}],
-                "stateMutability": "payable",
-                "type": "function"
-            }
-        ]
-    
     def encode_label_data(self, chain_id, tags_json):
         """
         Encode label data in the OLI format.
