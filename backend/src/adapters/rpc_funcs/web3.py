@@ -1,5 +1,5 @@
 from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 import time
 import random
 from requests.exceptions import ReadTimeout, ConnectionError, HTTPError
@@ -23,7 +23,7 @@ class EthProxy:
 
         if callable(attr):
             def hooked(*args, **kwargs):
-                if name in ["get_block", "get_transaction_receipt", "get_transaction"]:
+                if name in ["get_block", "get_transaction_receipt", "get_transaction", "get_block_receipts"]:
                     self._increment_call_count()
                 return self.retry_operation(attr, name, *args, **kwargs)
             return hooked
@@ -103,10 +103,13 @@ class Web3CC:
     def _connect(self, url):
         w3 = Web3(HTTPProvider(url))
         response_normalizer = ResponseNormalizerMiddleware(w3)
+        
+        # Inject middlewares
         w3.middleware_onion.inject(response_normalizer, layer=0)
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+        
         return w3
-
+    
     def _increment_call_count_and_rate_limit(self):
         current_time = time.time()
 

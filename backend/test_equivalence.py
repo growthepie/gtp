@@ -1,6 +1,6 @@
 import numpy as np
 from web3 import Web3
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 from src.db_connector import DbConnector
 from backend.src.adapters.rpc_funcs.utils import prep_dataframe_new
 from src.adapters.rpc_funcs.utils import (
@@ -143,7 +143,8 @@ def check_chain(chain_name, db_connector):
         for rpc_url in rpc_urls:
             try:
                 w3 = Web3(Web3.HTTPProvider(rpc_url))
-                w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+
                 if w3.is_connected():
                     print(f"==> Successfully connected to {chain_name} with RPC URL {rpc_url}")
                     
@@ -158,6 +159,8 @@ def check_chain(chain_name, db_connector):
                     raise Exception(f"Failed to connect to {chain_name} with RPC URL {rpc_url}")
             except Exception as e:
                 print(f"Error connecting to RPC URL {rpc_url} for chain '{chain_name}': {e}")
+    except Exception as e:
+        print(f"Failed to retrieve chain config for '{chain_name}': {e}")
 
     except MaxWaitTimeExceededException as e:
         print(f"Error fetching chain config for chain '{chain_name}': {e}")

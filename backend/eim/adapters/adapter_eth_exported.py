@@ -1,7 +1,7 @@
 import pandas as pd
 from web3 import Web3
 from datetime import datetime
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
@@ -67,8 +67,8 @@ class AdapterEthExported(AbstractAdapter):
             print(f"Processing {chain}")
             rpc_url = self.db_connector.get_special_use_rpc(chain)
             w3 = Web3(Web3.HTTPProvider(rpc_url))
-            w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-            
+            w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+
             df = get_block_numbers(w3, days=self.days)
             df['origin_key'] = chain
             df['metric_key'] = 'first_block_of_day'

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field, validator
+from pydantic import BaseModel, HttpUrl, Field, field_validator, FieldValidationInfo
 from typing import Optional
 import zipfile
 import io
@@ -30,10 +30,10 @@ class DAConfig(BaseModel):
     socials_twitter: Optional[HttpUrl] = Field(alias="socials_twitter ")
 
     ## VALIDATOR to set default values if field exists with None in dictionary
-    @validator('logo', pre=True, always=True)
-    def set_default_if_none(cls, v, field):
+    @field_validator('logo', mode='before')
+    def set_default_if_none(cls, v, info: FieldValidationInfo):
         if v is None:
-            return field.default
+            return info.field_info.default
         return v
 
 def get_da_config_dict():

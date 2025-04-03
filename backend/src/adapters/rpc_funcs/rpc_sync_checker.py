@@ -2,7 +2,7 @@ import pandas as pd
 from web3 import Web3, HTTPProvider
 from sqlalchemy import exc
 import threading
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 from src.db_connector import DbConnector
 import sqlalchemy as sa
 import time
@@ -24,7 +24,8 @@ def connect_to_node(url):
     delay = 5
     w3 = Web3(HTTPProvider(url))
     
-    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    # Inject POA middleware for chains that need it (safe to inject even if not needed)
+    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
     
     for attempt in range(1, retries + 1):
         if w3.is_connected():
