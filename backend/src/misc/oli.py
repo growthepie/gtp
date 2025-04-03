@@ -73,7 +73,7 @@ class oliAPI:
         encoded_data = encode(['string', 'string'], [chain_id, tags_json])
         return f"0x{encoded_data.hex()}"
     
-    def create_offchain_attestation(self, recipient, schema, data, revocable=True, expiration_time=0, ref_uid="0x0000000000000000000000000000000000000000000000000000000000000000"):
+    def create_offchain_attestation(self, recipient, schema, data, ref_uid, revocable=True, expiration_time=0):
         """
         Create an attestation with the given parameters.
         
@@ -81,9 +81,9 @@ class oliAPI:
             recipient (str): Ethereum address of the contract to be labeled
             schema (str): Schema hash
             data (str): Hex-encoded data
+            ref_uid (str): Reference UID
             revocable (bool): Whether the attestation is revocable
             expiration_time (int): Expiration time in seconds since epoch
-            ref_uid (str): Reference UID
             
         Returns:
             dict: The signed attestation and UID
@@ -194,33 +194,30 @@ class oliAPI:
         response = requests.post(self.eas_api_url, json=payload, headers=headers)
         return response.json()
     
-    def create_offchain_label(self, address, chain, tags, chain_id=None):
+    def create_offchain_label(self, address, chain_id, tags, ref_uid="0x0000000000000000000000000000000000000000000000000000000000000000"):
         """
         Create an offchain OLI label attestation for a contract.
         
         Args:
             address (str): The contract address to label
-            tags (dict): Tag information (name, version, etc.)
-            chain_id (str): Chain ID in CAIP-2 format
+            chain_id (str): Chain ID in CAIP-2 format where the address/contract resides
+            tags (dict): OLI compliant tags as a dict  information (name, version, etc.)
+            ref_uid (str): Reference UID
             
         Returns:
             dict: API response
         """
-        # Use Base chain ID if not specified
-        if chain_id is None:
-            chain_id = f"eip155:{self.rpc_chain_number}"
-        elif chain_id.startswith('eip155:') == False:
-            raise ValueError("Chain ID must be in CAIP-2 format (e.g., Base -> 'eip155:8453')")
+        # Check all necessary input parameters
+        self.checks_address(address)
+        self.checks_chain_id(chain_id)
+        self.checks_tags(tags)
+        self.checks_ref_uid(ref_uid)
             
         # Encode the label data
         data = self.encode_label_data(chain_id, tags)
         
         # Create the attestation
-        attestation = self.create_offchain_attestation(
-            recipient=address,
-            schema=self.oli_label_pool_schema,
-            data=data
-        )
+        attestation = self.create_offchain_attestation(recipient=address, schema=self.oli_label_pool_schema, data=data, ref_uid=ref_uid)
         
         # Submit to the API
         return self.submit_offchain_attestation(attestation)
@@ -280,27 +277,27 @@ class oliAPI:
         uid = Web3.keccak(packed_data)
         return uid
     
-    def create_onchain_label(self, address, chain_id, tags, gas_limit=1000000, ref_uid="0x0000000000000000000000000000000000000000000000000000000000000000"):
+    def create_onchain_label(self, address, chain_id, tags, ref_uid="0x0000000000000000000000000000000000000000000000000000000000000000", gas_limit=1000000):
         """
         Create an onchain OLI label attestation for a contract.
         
         Args:
             address (str): The contract address to label
-            tags (dict): Tag information (name, version, etc.)
-            chain_id (str): Chain ID in CAIP-2 format where the address is deployed
-            gas_limit (int): Gas limit for the transaction
+            chain_id (str): Chain ID in CAIP-2 format where the address/contract resides
+            tags (dict): OLI compliant tags as a dict  information (name, version, etc.)
             ref_uid (str): Reference UID
+            gas_limit (int): Gas limit for the transaction
             
         Returns:
             str: Transaction hash
             str: UID of the attestation
         """
-        # Use Base chain ID if not specified
-        if chain_id is None:
-            chain_id = f"eip155:{self.rpc_chain_number}"
-        elif chain_id.startswith('eip155:') == False:
-            raise ValueError("Chain ID must be in CAIP-2 format (e.g., Base -> 'eip155:8453')")
-            
+        # Check all necessary input parameters
+        self.checks_address(address)
+        self.checks_chain_id(chain_id)
+        self.checks_tags(tags)
+        self.checks_ref_uid(ref_uid)
+
         # Encode the label data
         data = self.encode_label_data(chain_id, tags)
         
@@ -336,7 +333,151 @@ class oliAPI:
             return f"0x{txn_hash.hex()}", f"0x{txn_receipt.logs[0].data.hex()}"
         else:
             raise Exception(f"Transaction failed: {txn_receipt}")
+    
+    def create_multi_onchain_labels(self, labels, gas_limit=10000000):
+        """
+        Batch submit OLI labels in one transaction.
         
+        Args:
+            labels (list): List of labels to create, containing dictionaries with 'address', 'tags', and 'chain_id' (, optional 'ref_uid')
+                address (str): The contract address to label
+                chain_id (str): Chain ID in CAIP-2 format where the address/contract resides
+                tags (dict): OLI compliant tags as a dict  information (name, version, etc.)
+                ref_uid (str): Reference UID
+            gas_limit (int): Gas limit for the transaction, make sure to set it high enough for multiple attestations!
+            
+        Returns:
+            str: Transaction hash
+            list: List of UID of the attestation
+        """
+        # Prepare the list of "data" requests
+        full_data = []
+        for label in labels:
+            # check if address, chain_id & tags are provided
+            if 'chain_id' not in label:
+                raise ValueError("chain_id must be provided for each label in CAIP-2 format (e.g., Base -> 'eip155:8453')")
+            elif 'address' not in label:
+                raise ValueError("An address must be provided for each label")
+            elif 'tags' not in label:
+                raise ValueError("tags dictionary must be provided for each label")
+            
+            # run checks on each label
+            self.checks_chain_id(label.get('chain_id'))
+            self.checks_address(label.get('address'))
+            self.checks_tags(label.get('tags'))
+
+            # check if ref_uid is provided
+            if 'ref_uid' not in label:
+                label['ref_uid'] = "0x0000000000000000000000000000000000000000000000000000000000000000"
+            else:
+                self.checks_ref_uid(label.get('ref_uid'))
+            
+            # ABI encode data for each attestation
+            encoded_data = encode(['string', 'string'], [label.get('chain_id'), json.dumps(label.get('tags'))])
+            data = f"0x{encoded_data.hex()}"
+            full_data.append({
+                'recipient': self.w3.to_checksum_address(label.get('address')),
+                'expirationTime': 0,
+                'revocable': True,
+                'refUID': self.w3.to_bytes(hexstr=label.get('ref_uid')),
+                'data': self.w3.to_bytes(hexstr=data),
+                'value': 0
+            })
+
+        # Create the multi-attestation request
+        multi_requests = [{
+            'schema': self.w3.to_bytes(hexstr=self.oli_label_pool_schema),
+            'data': full_data
+        }]
+
+        # Create the transaction to call the multiAttest function
+        transaction = self.eas.functions.multiAttest(
+            multi_requests
+        ).build_transaction({
+            'chainId': self.rpc_chain_number, # for Base use: 8453 
+            'gas': gas_limit,  # Increased gas limit for multiple attestations
+            'gasPrice': self.w3.eth.gas_price,
+            'nonce': self.w3.eth.get_transaction_count(self.address),
+        })
+
+        # Sign the transaction with the private key
+        signed_txn = self.w3.eth.account.sign_transaction(transaction, private_key=self.private_key)
+        
+        # Send the transaction
+        txn_hash = self.w3.eth.send_raw_transaction(signed_txn.raw_transaction)
+        
+        # Wait for the transaction receipt
+        txn_receipt = self.w3.eth.wait_for_transaction_receipt(txn_hash)
+
+        # log the UIDs of the attestations in a list
+        uids = ['0x' + log.data.hex() for log in txn_receipt.logs]
+
+        return f"0x{txn_hash.hex()}", uids
+        
+    def checks_chain_id(self, chain_id):
+        """
+        Check if chain_id for a label is in CAIP-2 format.
+        
+        Args:
+            chain_id (str): Chain ID to check
+            
+        Returns:
+            bool: True if valid, raises Error otherwise
+        """
+        if chain_id.startswith('eip155:'):
+            return True
+        else:
+            print(chain_id)
+            raise ValueError("Chain ID must be in CAIP-2 format (e.g., Base -> 'eip155:8453')")
+
+    def checks_address(self, address):
+        """
+        Check if address is a valid Ethereum address.
+        
+        Args:
+            address (str): Address to check
+            
+        Returns:
+            bool: True if valid, raises Error otherwise
+        """
+        if self.w3.is_address(address):
+            return True
+        else:
+            print(address)
+            raise ValueError("address must be a valid Ethereum address in hex format")
+        
+    def checks_tags(self, tags):
+        """
+        Check if tags are in the correct format.
+        
+        Args:
+            tags (dict): Tags to check
+            
+        Returns:
+            bool: True if valid, raises Error otherwise
+        """
+        if isinstance(tags, dict):
+            return True
+        else:
+            print(tags)
+            raise ValueError("tags must be a dictionary with OLI compliant tags")
+
+    def checks_ref_uid(self, ref_uid):
+        """
+        Check if ref_uid is a valid UID.
+        
+        Args:
+            ref_uid (str): Reference UID to check
+            
+        Returns:
+            bool: True if valid, raises Error otherwise
+        """
+        if ref_uid.startswith('0x') and len(ref_uid) == 66:
+            return True
+        else:
+            print(ref_uid)
+            raise ValueError("ref_uid must be a valid UID in hex format, leave empty if not used")
+
     def revoke_attestation(self, uid_hex, onchain, gas_limit=200000):
         """
         Revoke an onchain attestation (onchain or offchain) using its UID.
@@ -469,6 +610,19 @@ print(f"UID of the attestation: {uid}")
 """ 
 
 """
+# Example of submitting multiple onchain attestations
+tx_hash, uids = oli.create_multi_onchain_labels(
+    [
+        {"address": address, "chain_id": chain, "tags": tags},
+        {"address": address, "chain_id": chain, "tags": tags} # of course you can add different/more labels here
+    ],
+    gas_limit=5000000 # make sure to set it high enough for multiple attestations!
+)
+print(f"Transaction successful with hash: {tx_hash}")
+print(f"UIDs of the attestations: {uids}")
+"""
+
+"""
 # Example of submitting one offchain attestation
 response = oli.create_offchain_label(address, chain, tags)
 print(json.dumps(response, indent=2))
@@ -483,8 +637,8 @@ print(f"Revocation transaction successful with hash: {tx_hash}")
 """
 # Example of revoking multiple attestations
 uids = [
-    '0x309346afea62228228bc70e158f64012f74a15dd075bfa2338db17db6b2bc002',
-    '0x106e867e255215a814d41625b515efd9e2b10df9527a7070bec4858f4e68869a'
+    '0x347711384c78ba2aca936115562f9a40c191e3a8dd60cb6a74a6da5e635e7780',
+    '0xb9022663266177751b492b3bc22fafba90464ef5cc2d5b70b6a9e8066d68b739'
 ]
 tx_hash, num_revoked = oli.multi_revoke_attestations(uids, onchain=False)
 print(f"Revocation transaction successful with hash: {tx_hash}")
