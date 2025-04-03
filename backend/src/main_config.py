@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field, validator
+from pydantic import BaseModel, HttpUrl, Field, field_validator, FieldValidationInfo
 from typing import Optional, List, Dict, Any
 from src.db_connector import DbConnector
 import zipfile
@@ -78,10 +78,10 @@ class MainConfig(BaseModel):
     cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function")
 
     ## VALIDATOR to set default values if field exists with None in dictionary
-    @validator('logo', 'l2beat_stage', pre=True, always=True)
-    def set_default_if_none(cls, v, field):
+    @field_validator('logo', 'l2beat_stage', mode='before')
+    def set_default_if_none(cls, v, info: FieldValidationInfo):
         if v is None:
-            return field.default
+            return info.field_info.default
         return v
 
 def get_main_config_dict():
