@@ -1014,7 +1014,7 @@ class JSONCreation():
 
         return dict
     
-    def get_default_selection(self, df):
+    def get_default_selection(self, df, top_n=5):
         df_tmp = df[df['metric_key'] == 'aa_last7d']
 
         ## filter out Ethereuem and only keep chains that are in the API and have a deployment of "PROD"
@@ -1023,9 +1023,9 @@ class JSONCreation():
 
         df_tmp = df_tmp.loc[df_tmp.date == df_tmp.date.max()]
         df_tmp = df_tmp.sort_values(by='value', ascending=False)
-        top_5 = df_tmp['origin_key'].head(5).tolist()
-        print(f'Default selection by aa_last7d: {top_5}')
-        return top_5
+        top_chains = df_tmp['origin_key'].head(top_n).tolist()
+        print(f'Default selection by aa_last7d: {top_chains}')
+        return top_chains
     
     def gen_l2beat_link(self, chain):
         if chain.aliases_l2beat:
@@ -1160,7 +1160,8 @@ class JSONCreation():
 
         master_dict = {
             'current_version' : self.api_version,
-            'default_chain_selection' : self.get_default_selection(df_data),
+            'default_chain_selection' : self.get_default_selection(df_data, top_n=5),
+            'default_chain_sorting' : ['ethereum'] + self.get_default_selection(df_data, top_n=999),
             'chains' : chain_dict,
             'custom_logos' : self.get_custom_logos(),
             'da_layers' : da_dict,
