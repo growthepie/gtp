@@ -17,7 +17,6 @@ class AdapterTotalSupply(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Total supply", adapter_params, db_connector)
         self.main_conf = get_main_config()
-        self.api_key = adapter_params['etherscan_api']
         print_init(self.name, self.adapter_params)
 
     """

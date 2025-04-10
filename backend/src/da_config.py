@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field, field_validator, FieldValidationInfo
+from pydantic import BaseModel, HttpUrl, Field, field_validator, ValidationInfo
 from typing import Optional
 import zipfile
 import io
@@ -10,7 +10,7 @@ class DAConfig(BaseModel):
     da_layer: str
     name: str
     name_short: str
-    block_explorers: Optional[dict]
+    block_explorers: Optional[dict] = None
 
     colors: dict
     logo: dict = {
@@ -23,17 +23,18 @@ class DAConfig(BaseModel):
     incl_in_da_overview: bool = Field(alias="incl_in_da_overview", default=False)
    
     ## METADATA
-    parameters: Optional[dict]
+    parameters: Optional[dict] = None
 
     ## SOCIALS
-    socials_website: Optional[HttpUrl] = Field(alias="socials_website")
-    socials_twitter: Optional[HttpUrl] = Field(alias="socials_twitter ")
+    socials_website: Optional[HttpUrl] = Field(alias="socials_website", default=None)
+    socials_twitter: Optional[HttpUrl] = Field(alias="socials_twitter ", default=None)
 
     ## VALIDATOR to set default values if field exists with None in dictionary
     @field_validator('logo', mode='before')
-    def set_default_if_none(cls, v, info: FieldValidationInfo):
+    @classmethod
+    def set_default_if_none(cls, v, info: ValidationInfo):
         if v is None:
-            return info.field_info.default
+            return cls.model_fields[info.field_name].default
         return v
 
 def get_da_config_dict():
