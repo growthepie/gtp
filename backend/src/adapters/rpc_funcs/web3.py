@@ -68,17 +68,17 @@ class ResponseNormalizerMiddleware:
     def __init__(self, web3):
         self.web3 = web3
 
+    def normalize_response(self, response):
+        if response is None:
+            return response
+        if 'result' in response and 'uncles' in response['result'] and response['result']['uncles'] is None:
+            response['result']['uncles'] = []
+        return response
+
     def __call__(self, make_request, web3):
         def middleware(method, params):
             response = make_request(method, params)
-            # Guard against response being None
-            if response is None:
-                #rpc_url = web3.provider.endpoint_uri
-                #print(f"WARNING: RPC {rpc_url} returned None for method {method} with params {params}")
-                return response
-            if 'result' in response and 'uncles' in response['result'] and response['result']['uncles'] is None:
-                response['result']['uncles'] = []
-            return response
+            return self.normalize_response(response)
         return middleware
     
 class Web3CC:
@@ -105,7 +105,7 @@ class Web3CC:
         response_normalizer = ResponseNormalizerMiddleware(w3)
         
         # Inject middlewares
-        w3.middleware_onion.inject(response_normalizer, layer=0)
+        w3.middleware_onion.add(response_normalizer)
         w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         
         return w3
