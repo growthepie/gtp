@@ -7,7 +7,7 @@ from eth_abi.abi import encode
 import eth_account
 from eth_keys import keys
 
-class oliAPI:
+class OLI:
     def __init__(self, private_key, is_production=True):
         """
         Initialize the OLI API client.
@@ -39,6 +39,7 @@ class oliAPI:
             private_key_bytes = private_key[2:]
         else:
             private_key_bytes = private_key
+            
         private_key_obj = keys.PrivateKey(bytes.fromhex(private_key_bytes))
         
         # Create account from private key
@@ -192,7 +193,7 @@ class oliAPI:
         
         # Post the data to the API
         response = requests.post(self.eas_api_url, json=payload, headers=headers)
-        return response.json()
+        return response
     
     def create_offchain_label(self, address, chain_id, tags, ref_uid="0x0000000000000000000000000000000000000000000000000000000000000000"):
         """
@@ -208,10 +209,10 @@ class oliAPI:
             dict: API response
         """
         # Check all necessary input parameters
-        self.checks_address(address)
-        self.checks_chain_id(chain_id)
-        self.checks_tags(tags)
-        self.checks_ref_uid(ref_uid)
+        address = self.checks_address(address)
+        chain_id = self.checks_chain_id(chain_id)
+        tags = self.checks_tags(tags)
+        ref_uid = self.checks_ref_uid(ref_uid)
             
         # Encode the label data
         data = self.encode_label_data(chain_id, tags)
@@ -293,10 +294,10 @@ class oliAPI:
             str: UID of the attestation
         """
         # Check all necessary input parameters
-        self.checks_address(address)
-        self.checks_chain_id(chain_id)
-        self.checks_tags(tags)
-        self.checks_ref_uid(ref_uid)
+        address = self.checks_address(address)
+        chain_id = self.checks_chain_id(chain_id)
+        tags = self.checks_tags(tags)
+        ref_uid = self.checks_ref_uid(ref_uid)
 
         # Encode the label data
         data = self.encode_label_data(chain_id, tags)
@@ -362,24 +363,24 @@ class oliAPI:
                 raise ValueError("tags dictionary must be provided for each label")
             
             # run checks on each label
-            self.checks_chain_id(label.get('chain_id'))
-            self.checks_address(label.get('address'))
-            self.checks_tags(label.get('tags'))
+            chain_id = self.checks_chain_id(label.get('chain_id'))
+            address = self.checks_address(label.get('address'))
+            tags = self.checks_tags(label.get('tags'))
 
             # check if ref_uid is provided
             if 'ref_uid' not in label:
                 label['ref_uid'] = "0x0000000000000000000000000000000000000000000000000000000000000000"
             else:
-                self.checks_ref_uid(label.get('ref_uid'))
+                ref_uid = self.checks_ref_uid(label.get('ref_uid'))
             
             # ABI encode data for each attestation
-            encoded_data = encode(['string', 'string'], [label.get('chain_id'), json.dumps(label.get('tags'))])
+            encoded_data = encode(['string', 'string'], [chain_id, tags])
             data = f"0x{encoded_data.hex()}"
             full_data.append({
-                'recipient': self.w3.to_checksum_address(label.get('address')),
+                'recipient': self.w3.to_checksum_address(address),
                 'expirationTime': 0,
                 'revocable': True,
-                'refUID': self.w3.to_bytes(hexstr=label.get('ref_uid')),
+                'refUID': self.w3.to_bytes(hexstr=ref_uid),
                 'data': self.w3.to_bytes(hexstr=data),
                 'value': 0
             })
@@ -422,10 +423,10 @@ class oliAPI:
             chain_id (str): Chain ID to check
             
         Returns:
-            bool: True if valid, raises Error otherwise
+            chain_id (str): Chain ID that was checked
         """
         if chain_id.startswith('eip155:'):
-            return True
+            return chain_id
         else:
             print(chain_id)
             raise ValueError("Chain ID must be in CAIP-2 format (e.g., Base -> 'eip155:8453')")
@@ -438,10 +439,12 @@ class oliAPI:
             address (str): Address to check
             
         Returns:
-            bool: True if valid, raises Error otherwise
+            address (str): Address in the correct format
         """
         if self.w3.is_address(address):
-            return True
+            return address
+        elif self.w3.is_address(address[2:]):
+            return '0x' + address[2:]
         else:
             print(address)
             raise ValueError("address must be a valid Ethereum address in hex format")
@@ -454,10 +457,10 @@ class oliAPI:
             tags (dict): Tags to check
             
         Returns:
-            bool: True if valid, raises Error otherwise
+            tags (dict): Tags that were checked
         """
         if isinstance(tags, dict):
-            return True
+            return tags
         else:
             print(tags)
             raise ValueError("tags must be a dictionary with OLI compliant tags")
@@ -470,10 +473,10 @@ class oliAPI:
             ref_uid (str): Reference UID to check
             
         Returns:
-            bool: True if valid, raises Error otherwise
+            ref_uid: Reference UID that was checked
         """
         if ref_uid.startswith('0x') and len(ref_uid) == 66:
-            return True
+            return ref_uid
         else:
             print(ref_uid)
             raise ValueError("ref_uid must be a valid UID in hex format, leave empty if not used")
@@ -580,12 +583,12 @@ class oliAPI:
         else:
             raise Exception(f"Transaction failed: {txn_receipt}")
         
-
+"""
 # Examples
 
 # Initialize the API
 private_key = "..."  # Replace with your private key
-oli = oliAPI(private_key, is_production=False)
+oli = OLI(private_key, is_production=False)
 
 # Example of a label in OLI format
 address = "0x498581ff718922c3f8e6a244956af099b2652b2b"
@@ -601,6 +604,7 @@ tags = {
     'source_code_verified': 'https://repo.sourcify.dev/contracts/partial_match/8453/0x498581fF718922c3f8e6A244956aF099B2652b2b/',
     'is_proxy': False
 }
+"""
 
 """
 # Example of submitting one onchain attestation
