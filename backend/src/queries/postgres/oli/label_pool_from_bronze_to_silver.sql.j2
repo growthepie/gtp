@@ -64,6 +64,8 @@ tags_expanded AS (
                 ELSE tags_json_string::jsonb
             END
         ) AS tag_entry
+    WHERE
+        tag_entry.value::text != 'nan' AND tag_entry.value::text != 'NaN' AND tag_entry.value::text != 'null'
 )
 SELECT 
     id,
