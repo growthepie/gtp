@@ -109,10 +109,10 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
     # get all records from airtable
     df = read_airtable(table)
 
-    # check if anything new was labelled: ONLY ACCOUNTS FOR LABELLED STUFF IF ALSO 'labelling_type' COLUMN WAS SET!
-    required_columns = ['labelling_type']
+    # check if anything new was labelled: ONLY ACCOUNTS FOR LABELLED STUFF IF ALSO 'approve' COLUMN WAS SET TO TRUE!
+    required_columns = ['approve']
     if not any(col in df.columns for col in required_columns):
-        print('no new labelled contracts found in airtable.')
+        print('no new approved contracts found in airtable.')
         return
 
     # show only contracts that have been labeled
@@ -126,16 +126,15 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
         df['owner_project'] = None
     if 'usage_category' not in df.columns:
         df['usage_category'] = None
-    if 'labelling_type' not in df.columns:
-        df['labelling_type'] = ''
-    if 'internal_description' not in df.columns:
-        df['internal_description'] = None
+    if 'approve' not in df.columns:
+        df['approve'] = None
+    if '_comment' not in df.columns:
+        df['_comment'] = None
     if 'is_proxy' not in df.columns:
         df['is_proxy'] = None
 
     # drop not needded columns and clean df
-    df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', 'labelling_type', 'internal_description', 'is_proxy']]
-    df.rename(columns={'labelling_type' : 'source'}, inplace=True)
+    df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', '_comment', 'is_proxy']]
 
     # origin_key, owner_project and usage_category are lists with 1 element, so we extract the element at index 0
     df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])
@@ -155,13 +154,10 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
         df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: df_usage_categories.loc[x]['Category'])
     if len(df[df["origin_key"].notna()]) > 0: # TODO: move this into a function
         df_chains = read_airtable(api.table(AIRTABLE_BASE_ID, 'Chain List'))
-        df_chains = df_chains[['id', 'origin_key']]
+        df_chains = df_chains[['id', 'caip2']]
         df_chains.set_index('id', inplace=True)
-        df['origin_key'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: df_chains.loc[x]['origin_key'])
-
-    # source is a dict with a name key, so we extract the first word
-    df['source'] = df['source'].replace('', float('nan')) # replace empty strings with nan
-    df['source'] = df[df['source'].notnull()]['source'].apply(lambda x: x['name'].split()[0])
+        df['chain_id'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: df_chains.loc[x]['caip2'])
+        df = df.drop(columns=['origin_key'])
 
     # convert address to bytes
     df['address'] = df['address'].apply(lambda x: x.replace('0x', '\\x'))
@@ -224,9 +220,6 @@ def read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table):
 
     # drop not needded columns and clean df
     df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', 'attester', 'id']]
-    
-    # add source column
-    df['source'] = 'Label Pool Approved'
 
     # origin_key, owner_project and usage_category are lists with 1 element, so we extract the element at index 0
     df['owner_project'] = df[df['owner_project'].notnull()]['owner_project'].apply(lambda x: x[0])
@@ -246,9 +239,10 @@ def read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table):
         df['usage_category'] = df[df['usage_category'].notnull()]['usage_category'].apply(lambda x: df_usage_categories.loc[x]['Category'])
     if len(df[df["origin_key"].notna()]) > 0: # TODO: move this into a function
         df_chains = read_airtable(api.table(AIRTABLE_BASE_ID, 'Chain List'))
-        df_chains = df_chains[['id', 'origin_key']]
+        df_chains = df_chains[['id', 'caip2']]
         df_chains.set_index('id', inplace=True)
-        df['origin_key'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: df_chains.loc[x]['origin_key'])
+        df['chain_id'] = df[df['origin_key'].notnull()]['origin_key'].apply(lambda x: df_chains.loc[x]['caip2'])
+        df = df.drop(columns=['origin_key'])
 
     # convert address to bytes
     df['address'] = df['address'].apply(lambda x: x.replace('0x', '\\x'))
