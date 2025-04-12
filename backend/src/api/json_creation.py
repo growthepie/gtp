@@ -822,6 +822,10 @@ class JSONCreation():
                         ranking_dict[metric] = self.get_ranking(df, metric, chain.origin_key, incl_value=True, filter_ethereum=True)
                         ranking_dict_w_eth[metric] = self.get_ranking(df, metric, chain.origin_key, incl_value=True, filter_ethereum=False)
 
+                ## reorder dict by keys - ['stables_mcap','tvl','daa', 'txcount', 'throughput', 'fees','txcosts', 'profit', 'rent_paid',  'market_cap', 'fdv'] 
+                ranking_dict = {k: ranking_dict[k] for k in ['stables_mcap','tvl','daa', 'txcount', 'throughput', 'fees','txcosts', 'profit', 'rent_paid',  'market_cap', 'fdv'] if k in ranking_dict}
+                ranking_dict_w_eth = {k: ranking_dict_w_eth[k] for k in ['stables_mcap','tvl','daa', 'txcount', 'throughput', 'fees','txcosts', 'profit', 'rent_paid',  'market_cap', 'fdv'] if k in ranking_dict_w_eth}
+
                 chains_dict[chain.origin_key] = {
                     "chain_name": chain.name,
                     "technology": chain.metadata_technology,
