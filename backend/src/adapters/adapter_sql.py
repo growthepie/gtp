@@ -434,7 +434,7 @@ class AdapterSQL(AbstractAdapter):
                                 FROM public.{origin_key}_tx
                                 {additional_join}
                                 WHERE tx_fee <> 0 
-                                    AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                    AND block_date >= current_date - interval '{days} days' 
                                     and  block_timestamp < {timestamp_end}                
                                 GROUP BY 1,2,3,4
                             """
@@ -459,7 +459,7 @@ class AdapterSQL(AbstractAdapter):
                                                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 
-                                            AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                            AND block_date >= current_date - interval '{days} days' 
                                             and  block_timestamp < {timestamp_end}   
                                         GROUP BY 1
                                 )
@@ -494,7 +494,7 @@ class AdapterSQL(AbstractAdapter):
                                                 PERCENTILE_CONT(0.9) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 
-                                            AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                            AND block_date >= current_date - interval '{days} days' 
                                             and  block_timestamp < {timestamp_end}   
                                         GROUP BY 1
                                 )
@@ -529,7 +529,7 @@ class AdapterSQL(AbstractAdapter):
                                                 PERCENTILE_CONT(0.1) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 
-                                            AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                            AND block_date >= current_date - interval '{days} days' 
                                             and  block_timestamp < {timestamp_end} 
                                         GROUP BY 1
                                 )
@@ -569,7 +569,7 @@ class AdapterSQL(AbstractAdapter):
                                                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 
-                                            AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                            AND block_date >= current_date - interval '{days} days' 
                                             and  block_timestamp < {timestamp_end}  
                                             {filter_string}
                                         GROUP BY 1
@@ -614,7 +614,7 @@ class AdapterSQL(AbstractAdapter):
                                                 PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS tx_fee
                                         FROM public.{origin_key}_tx
                                         WHERE tx_fee <> 0 
-                                            AND block_timestamp > date_trunc('day', now()) - interval '{days} days' 
+                                            AND block_date >= current_date - interval '{days} days' 
                                             and  block_timestamp < {timestamp_end}    
                                         AND gas_used between {gas_used_lower} AND {gas_used_upper}
                                         GROUP BY 1
@@ -644,7 +644,7 @@ class AdapterSQL(AbstractAdapter):
                                             Count(*) as value
                                     FROM public.{origin_key}_tx
                                     WHERE tx_fee <> 0 
-                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days'
+                                        AND block_date >= current_date - interval '{days} days' 
                                         and block_timestamp < {timestamp_end}                  
                                     GROUP BY 1,2,3,4
                             """
@@ -671,7 +671,7 @@ class AdapterSQL(AbstractAdapter):
                                             {gas_query} / {seconds_conversion} AS value
                                     FROM public.{origin_key}_tx
                                     WHERE tx_fee <> 0 
-                                        AND block_timestamp > date_trunc('day', now()) - interval '{days} days'
+                                        AND block_date >= current_date - interval '{days} days' 
                                         and  block_timestamp < {timestamp_end} 
                                     GROUP BY 1,2,3,4
                             """

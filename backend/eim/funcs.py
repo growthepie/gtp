@@ -16,14 +16,14 @@ def get_eim_yamls(file_names:list):
     """    
     yaml_dicts = []
 
-    repo_url = "https://github.com/ethismoney-xyz/data/tree/main/"
+    repo_url = "https://github.com/etherguild/ethismoney-data/tree/main/"
     _, _, _, owner, repo_name, _, branch, *path = repo_url.split('/')
     path = '/'.join(path)
     zip_url = f"https://github.com/{owner}/{repo_name}/archive/{branch}.zip"
     response = requests.get(zip_url)
     zip_content = io.BytesIO(response.content)
 
-    path_start = 'data-main/'
+    path_start = 'ethismoney-data-main/'
     with zipfile.ZipFile(zip_content) as zip_ref:
         nameslist = zip_ref.namelist()
         for file_name in file_names:
