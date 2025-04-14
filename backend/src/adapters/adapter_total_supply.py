@@ -1,13 +1,12 @@
 import time
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from web3 import Web3
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
-from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_missing_days_kpis, upsert_to_kpis, get_df_kpis_with_dates
+from src.misc.helper_functions import return_projects_to_load, check_projects_to_load, get_missing_days_kpis, upsert_to_kpis, get_df_kpis_with_dates
 from src.misc.helper_functions import print_init, print_load, print_extract
-
 
 class AdapterTotalSupply(AbstractAdapter):
     """
