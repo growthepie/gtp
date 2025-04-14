@@ -1,5 +1,6 @@
 from web3 import Web3, HTTPProvider
 from web3.middleware import ExtraDataToPOAMiddleware
+from web3.middleware.base import Web3Middleware
 import time
 import random
 from requests.exceptions import ReadTimeout, ConnectionError, HTTPError
@@ -64,22 +65,13 @@ class EthProxy:
 
         raise Exception(f"ERROR: for {current_rpc}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
 
-class ResponseNormalizerMiddleware:
-    def __init__(self, web3):
-        self.web3 = web3
-
-    def normalize_response(self, response):
+class ResponseNormalizerMiddleware(Web3Middleware):
+    def response_processor(self, method, response):
         if response is None:
             return response
         if 'result' in response and 'uncles' in response['result'] and response['result']['uncles'] is None:
             response['result']['uncles'] = []
         return response
-
-    def __call__(self, make_request, web3):
-        def middleware(method, params):
-            response = make_request(method, params)
-            return self.normalize_response(response)
-        return middleware
     
 class Web3CC:
     def __init__(self, rpc_config):
@@ -102,10 +94,9 @@ class Web3CC:
 
     def _connect(self, url):
         w3 = Web3(HTTPProvider(url))
-        response_normalizer = ResponseNormalizerMiddleware(w3)
         
         # Inject middlewares
-        w3.middleware_onion.add(response_normalizer)
+        w3.middleware_onion.add(ResponseNormalizerMiddleware)
         w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
         
         return w3
