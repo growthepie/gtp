@@ -103,7 +103,7 @@ def read_airtable(table):
 
 #-#-# SPECIFIC AIRTABLE FUNCTIONS #-#-#
 
-# get labelled items from airtable as a df
+# get labelled items from airtable as a df (airtable: Unlabeled Contracts)
 def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
 
     # get all records from airtable
@@ -164,7 +164,7 @@ def read_all_labeled_contracts_airtable(api, AIRTABLE_BASE_ID, table):
 
     return df
 
-# get labelled items from Remap Owner Project table as a df
+# get labelled items from Remap Owner Project table as a df (airtable: Remap Owner Project)
 def read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table):
 
     # get all records from airtable
@@ -199,7 +199,7 @@ def read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table):
 
     return df
 
-# get approved labels from untrusted owner_project airtable
+# get approved labels from untrusted owner_project airtable (airtable: Label Pool Reattest)
 def read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table):
 
     # get all records from airtable

@@ -1671,7 +1671,9 @@ class DbConnector:
                 print(f"{len(df)} records updated in sys_chains")
                 
 
-        ### OLI functions, Open Labels Initative
+        ### OLI functions, Open Labels Initative ###
+
+        ## This function is used to get all active projects from the OLI directory for json creation
         def get_active_projects(self, add_category=False, filtered_by_chains=[]):
                 # If filtered is True, only return projects that have more than 30 tx alltime (same filter as for app overview page)
                 if len(filtered_by_chains) >0:
@@ -1776,7 +1778,24 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
-        ## This function is used for our Airtable setup - get OLI silver table label
+        ## This function is used for our Airtable setup - it returns all rows from the gold table that match with an owner_project
+        def get_oli_labels_gold_by_owner_project(self, owner_project):
+                exec_string = f"""
+                        SELECT address, origin_key, caip2, tag_id, tag_value, attester, time_created
+                        FROM public.vw_oli_label_pool_gold
+                        WHERE (address, caip2) IN (
+                                SELECT DISTINCT address, caip2
+                                FROM public.vw_oli_label_pool_gold
+                                WHERE tag_id = 'owner_project'
+                                AND tag_value = '{owner_project}'
+                        );
+                """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                df['address'] = '\\x' + df['address'].apply(lambda x: x.hex())
+                df['attester'] = '\\x' + df['attester'].apply(lambda x: x.hex())
+                return df
+        
+        ## This function is used for our Airtable setup - get the latest OLI silver table label
         def get_oli_label_lastest(self, address, chain_id, attester = '0xA725646C05E6BB813D98C5ABB4E72DF4BCF00B56'):
                 if attester.startswith('0x') or attester.startswith('\\'):
                         attester = attester[2:]
@@ -1812,7 +1831,7 @@ class DbConnector:
                 df['attester'] = '\\x' + df['attester'].apply(lambda x: x.hex())
                 return df
         
-        ## This function is used for our Airtable setup - it returns our gold table label, aggregation of all trusted labels
+        ## This function is used for our Airtable setup - it returns the gold table label, aggregation of all trusted labels
         def get_oli_trusted_label_gold(self, address, chain_id):
                 if address.startswith('0x') or address.startswith('\\'):
                         address = address[2:]
@@ -1939,6 +1958,8 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 df['day_range'] = int(days)
                 return df
+
+        
 
         ## This function is used to generate the API endpoints for the OLI labels
         def get_oli_labels(self, chain_id='origin_key'):

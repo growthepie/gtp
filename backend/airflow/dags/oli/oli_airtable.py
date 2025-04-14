@@ -25,7 +25,7 @@ from src.misc.airflow_utils import alert_via_webhook
 
 def etl():
     @task()
-    def airtable_read_attest_contracts():
+    def airtable_read_contracts():
         import os
         import time
         import pandas as pd
@@ -57,43 +57,43 @@ def etl():
             df = df[df['value'].notnull()]
             df['address'] = df['address'].str.lower() # important, as db addresses are all lower
 
-        # go one by one and attest the new labels
-        for group in df.groupby(['address', 'chain_id']):
-            # add source column to keep track of origin
-            df_air = group[1]
-            df_air['source'] = 'airtable'
-            # get label from gold table to fill in missing tags
-            df_gold = db_connector.get_oli_trusted_label_gold(group[0][0], group[0][1])
-            df_gold = df_gold[['address', 'caip2', 'tag_id', 'value']]
-            df_gold = df_gold.rename(columns={'caip2': 'chain_id'})
-            df_gold['source'] = 'gold_table'
-            # merge (if not empty) and drop duplicates, keep airtable over gold tags in case of duplicates
-            if df_gold.empty:
-                df_merged = df_air
-            else:
-                df_merged = pd.concat([df_air, df_gold], ignore_index=True)
-            df_merged = df_merged.drop_duplicates(subset=['address', 'chain_id', 'tag_id'], keep='first')
-            df_merged = df_merged.drop(columns=['source'])
-            # attest the label
-            tags = df_merged.set_index('tag_id')['value'].to_dict() 
-            address = group[0][0]
-            chain_id = group[0][1]
-            # call the API
-            max_attempts = 5 # API has many internal server errors, therefor we retry x times
-            for attempt in range(1, max_attempts + 1):
-                # function to create the offchain label
-                response = oli.create_offchain_label(address, chain_id, tags)
-                if response.status_code == 200:
-                    break
+            # go one by one and attest the new labels
+            for group in df.groupby(['address', 'chain_id']):
+                # add source column to keep track of origin
+                df_air = group[1]
+                df_air['source'] = 'airtable'
+                # get label from gold table to fill in missing tags
+                df_gold = db_connector.get_oli_trusted_label_gold(group[0][0], group[0][1])
+                df_gold = df_gold[['address', 'caip2', 'tag_id', 'value']]
+                df_gold = df_gold.rename(columns={'caip2': 'chain_id'})
+                df_gold['source'] = 'gold_table'
+                # merge (if not empty) and drop duplicates, keep airtable over gold tags in case of duplicates
+                if df_gold.empty:
+                    df_merged = df_air
                 else:
-                    print(f"Attempt {attempt} failed: {response.text}")
-                    time.sleep(2 ** attempt)  # Exponential backoff
-            else:
-                print("Failed to get a 200 response after 5 attempts.")
-                print(f"Address: {address}")
-                print(f"Chain ID: {chain_id}")
-                print(f"Tags: {tags}")
-                raise ValueError(f"Final error: {response.text}")
+                    df_merged = pd.concat([df_air, df_gold], ignore_index=True)
+                df_merged = df_merged.drop_duplicates(subset=['address', 'chain_id', 'tag_id'], keep='first')
+                df_merged = df_merged.drop(columns=['source'])
+                # attest the label
+                tags = df_merged.set_index('tag_id')['value'].to_dict() 
+                address = group[0][0]
+                chain_id = group[0][1]
+                # call the API
+                max_attempts = 5 # API has many internal server errors, therefor we retry x times
+                for attempt in range(1, max_attempts + 1):
+                    # function to create the offchain label
+                    response = oli.create_offchain_label(address, chain_id, tags)
+                    if response.status_code == 200:
+                        break
+                    else:
+                        print(f"Attempt {attempt} failed: {response.text}")
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    print("Failed to get a 200 response after 5 attempts.")
+                    print(f"Address: {address}")
+                    print(f"Chain ID: {chain_id}")
+                    print(f"Tags: {tags}")
+                    raise ValueError(f"Final error: {response.text}")
 
     @task()
     def refresh_trusted_entities(): # TODO: add new tags automatically to public.oli_tags from OLI github
@@ -126,7 +126,7 @@ def etl():
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold')
 
     @task()
-    def write_oss_projects():
+    def airtable_write_oss_projects():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
@@ -149,7 +149,7 @@ def etl():
         at.push_to_airtable(table, df)
 
     @task()
-    def write_chain_info():
+    def airtable_write_chain_info():
         import pandas as pd
         import os
         import src.misc.airtable_functions as at
@@ -189,7 +189,7 @@ def etl():
             at.push_to_airtable(table, df_new.drop(columns=['id']))
 
     @task()
-    def write_airtable_contracts():
+    def airtable_write_contracts():
         import os
         import pandas as pd
         from pyairtable import Api
@@ -258,13 +258,13 @@ def etl():
         at.push_to_airtable(table, df)
 
     @task()
-    def write_depreciated_owner_project():
+    def airtable_write_depreciated_owner_project():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
         import src.misc.airtable_functions as at
         from src.misc.helper_functions import send_discord_message
-        
+
         #initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
@@ -282,13 +282,13 @@ def etl():
 
         # send alert to discord
         if df.shape[0] > 0:
-            print(f"Inactive contracts found: {df['value'].unique().tolist()}")
-            send_discord_message(f"<@874921624720257037> Inactive projects with assigned contracts (update in oli_tag_mapping): {df['value'].unique().tolist()}", os.getenv('DISCORD_CONTRACTS'))
+            print(f"Inactive contracts found: {df['tag_value'].unique().tolist()}")
+            send_discord_message(f"<@874921624720257037> Inactive projects with assigned contracts (update in oli_tag_mapping): {df['tag_value'].unique().tolist()}", os.getenv('DISCORD_CONTRACTS'))
         else:
             print("No inactive projects with contracts assigned found")
 
         # group by owner_project and then write to airtable
-        df = df.rename(columns={'value': 'old_owner_project'})
+        df = df.rename(columns={'tag_value': 'old_owner_project'})
         df = df.groupby('old_owner_project').size()
         df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
@@ -303,20 +303,18 @@ def etl():
         import pandas as pd
         import time
         import os
-        # initialize db connection
-        db_connector = DbConnector()
         # airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
         api = Api(AIRTABLE_API_KEY)
         table = api.table(AIRTABLE_BASE_ID, 'Label Pool Reattest')
-        # OLI instance
-        oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
         # read all approved labels in 'Label Pool Reattest'
         df = at.read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table)
-        if df is None:
-            print("No labels upserted.")
-        else:
+        if df != None:
+            # initialize db connection
+            db_connector = DbConnector()
+            # OLI instance
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
             # remove duplicates address, origin_key
             df = df.drop_duplicates(subset=['address', 'chain_id'])
             # keep track of ids
@@ -372,21 +370,71 @@ def etl():
 
     @task()
     def airtable_read_depreciated_owner_project(self):
-        pass
-        # read in table 'Remap Owner Project', then reattest all new names
+        import os
+        import time
+        from pyairtable import Api
+        from src.db_connector import DbConnector
+        import src.misc.airtable_functions as at
+        from src.misc.oli import OLI
+
+        #initialize Airtable instance
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+
+        # read the whole table
+        table = api.table(AIRTABLE_BASE_ID, 'Remap Owner Project')
+        df = at.read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table)
+
+        if df != None:
+            # db connection
+            db_connector = DbConnector()
+            # initialize OLI instance
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
+            # iterate over each owner_project that was changed
+            for i, row in df.iterrows():
+                # get the old and new owner project
+                old_owner_project = row['old_owner_project']
+                new_owner_project = row['owner_project']
+                # get all labels with the old owner project
+                df_labels = db_connector.get_oli_labels_gold_by_owner_project(old_owner_project)
+                # reattest the labels with the new owner project, going one by one and attest the new labels
+                for group in df_labels.groupby(['address', 'caip2']):
+                    tags = group[1].set_index('tag_id')['tag_value'].to_dict()
+                    address = group[0][0]
+                    chain_id = group[0][1]
+                    # replace with new owner project
+                    tags['owner_project'] = new_owner_project
+                    # call the API
+                    max_attempts = 5 # API has many internal server errors, therefor we retry x times
+                    for attempt in range(1, max_attempts + 1):
+                        # function to create the offchain label
+                        response = oli.create_offchain_label(address, chain_id, tags)
+                        if response.status_code == 200:
+                            print(response.json())
+                            break
+                        else:
+                            print(f"Attempt {attempt} failed: {response.text}")
+                            time.sleep(2 ** attempt)  # Exponential backoff
+                    else:
+                        print("Failed to get a 200 response after 5 attempts.")
+                        print(f"Address: {address}")
+                        print(f"Chain ID: {chain_id}")
+                        print(f"Tags: {tags}")
+                        raise ValueError(f"Final error: {response.text}")
 
     # all tasks
-    read_contracts = airtable_read_attest_contracts()
+    read_contracts = airtable_read_contracts()
     read_pool = airtable_read_label_pool_reattest()
-    # read_remap = airtable_read_depreciated_owner_project()
+    read_remap = airtable_read_depreciated_owner_project()
     trusted_entities = refresh_trusted_entities()
     refresh = run_refresh_materialized_view()
-    write_oss = write_oss_projects()
-    write_chain = write_chain_info()
-    write_contracts = write_airtable_contracts()
-    write_owner_project = write_depreciated_owner_project()
+    write_oss = airtable_write_oss_projects()
+    write_chain = airtable_write_chain_info()
+    write_contracts = airtable_write_contracts()
+    write_owner_project = airtable_write_depreciated_owner_project()
 
     # Define execution order
-    read_contracts >> read_pool >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
+    read_contracts >> read_pool >> read_remap >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
 
 etl()
