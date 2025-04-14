@@ -1,5 +1,6 @@
 from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
+from web3.middleware.base import Web3Middleware
 import time
 import random
 from requests.exceptions import ReadTimeout, ConnectionError, HTTPError
@@ -23,7 +24,7 @@ class EthProxy:
 
         if callable(attr):
             def hooked(*args, **kwargs):
-                if name in ["get_block", "get_transaction_receipt", "get_transaction"]:
+                if name in ["get_block", "get_transaction_receipt", "get_transaction", "get_block_receipts"]:
                     self._increment_call_count()
                 return self.retry_operation(attr, name, *args, **kwargs)
             return hooked
@@ -64,22 +65,13 @@ class EthProxy:
 
         raise Exception(f"ERROR: for {current_rpc}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
 
-class ResponseNormalizerMiddleware:
-    def __init__(self, web3):
-        self.web3 = web3
-
-    def __call__(self, make_request, web3):
-        def middleware(method, params):
-            response = make_request(method, params)
-            # Guard against response being None
-            if response is None:
-                #rpc_url = web3.provider.endpoint_uri
-                #print(f"WARNING: RPC {rpc_url} returned None for method {method} with params {params}")
-                return response
-            if 'result' in response and 'uncles' in response['result'] and response['result']['uncles'] is None:
-                response['result']['uncles'] = []
+class ResponseNormalizerMiddleware(Web3Middleware):
+    def response_processor(self, method, response):
+        if response is None:
             return response
-        return middleware
+        if 'result' in response and 'uncles' in response['result'] and response['result']['uncles'] is None:
+            response['result']['uncles'] = []
+        return response
     
 class Web3CC:
     def __init__(self, rpc_config):
@@ -102,11 +94,13 @@ class Web3CC:
 
     def _connect(self, url):
         w3 = Web3(HTTPProvider(url))
-        response_normalizer = ResponseNormalizerMiddleware(w3)
-        w3.middleware_onion.inject(response_normalizer, layer=0)
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        
+        # Inject middlewares
+        w3.middleware_onion.add(ResponseNormalizerMiddleware)
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+        
         return w3
-
+    
     def _increment_call_count_and_rate_limit(self):
         current_time = time.time()
 

@@ -2,7 +2,7 @@ import time
 import pandas as pd
 from web3 import Web3
 import datetime
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.misc.helper_functions import print_init, print_load, print_extract
@@ -50,7 +50,7 @@ class AdapterStablecoinSupply(AbstractAdapter):
                 
                 # Apply middleware for PoA chains if needed
                 if chain != 'ethereum':
-                    w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                    w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
                 ## Test the connection
                 if w3.is_connected():
