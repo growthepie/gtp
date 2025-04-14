@@ -390,10 +390,15 @@ class AdapterStarknet(AbstractAdapterRaw):
             else:
                 print(f"Skipping transaction with zero actual_fee: {tx['transaction_hash']}")
 
+            # Convert timestamp to datetime and extract date
+            block_timestamp = pd.to_datetime(full_block_data['timestamp'], unit='s')
+            block_date = block_timestamp.date()
+
             # Append transaction data
             tx_data = {
                 'block_number': full_block_data['block_number'],
-                'block_timestamp': pd.to_datetime(full_block_data['timestamp'], unit='s'),
+                'block_timestamp': block_timestamp,
+                'block_date': block_date,
                 'tx_hash': tx['transaction_hash'],
                 'tx_type': tx['type'],
                 'max_fee': max_fee,
