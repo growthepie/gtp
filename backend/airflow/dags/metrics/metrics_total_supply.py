@@ -29,9 +29,7 @@ def etl():
         from src.db_connector import DbConnector
         from src.adapters.adapter_total_supply import AdapterTotalSupply
         
-        adapter_params = {
-            'etherscan_api' : os.getenv("ETHERSCAN_API")
-        }
+        adapter_params = {}
         load_params = { 
             'days' : 'auto', ## days as int our 'auto'
             'origin_keys' : None, ## origin_keys as list or None
