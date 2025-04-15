@@ -528,7 +528,7 @@ class OLI:
         else:
             raise Exception(f"Transaction failed: {txn_receipt}")
     
-    def multi_revoke_attestations(self, uids, onchain, gas_limit=1000000):
+    def multi_revoke_attestations(self, uids:list, onchain:bool, gas_limit=1000000):
         """
         Revoke multiple attestations (onchain or offchain) in a single transaction.
         

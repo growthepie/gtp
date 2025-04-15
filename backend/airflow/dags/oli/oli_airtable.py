@@ -423,6 +423,30 @@ def etl():
                         print(f"Tags: {tags}")
                         raise ValueError(f"Final error: {response.text}")
 
+    @task()
+    def revoke_old_attestations():
+        from src.db_connector import DbConnector
+        from src.misc.oli import OLI
+        import os
+
+        db_connector = DbConnector()
+
+        df = db_connector.get_oli_to_be_revoked()
+        uids_offchain = df[df['is_offchain'] == True]['id_hex'].tolist()
+        uids_onchain = df[df['is_offchain'] == False]['id_hex'].tolist()
+
+        if uids_offchain == [] and uids_onchain == []:
+            print("No labels to be revoked")
+        else:
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=True)
+            # revoke with max 500 uids at once
+            for i in range(0, len(uids_offchain), 500):
+                tx_hash, count = oli.multi_revoke_attestations(uids_offchain[i:i + 500], onchain=False, gas_limit=15000000)
+                print(f"Revoked {count} offchain labels with tx_hash {tx_hash}")
+            for i in range(0, len(uids_onchain), 500):
+                tx_hash, count = oli.multi_revoke_attestations(uids_onchain[i:i + 500], onchain=True, gas_limit=15000000)
+                print(f"Revoked {count} onchain labels with tx_hash {tx_hash}")
+
     # all tasks
     read_contracts = airtable_read_contracts()
     read_pool = airtable_read_label_pool_reattest()
@@ -433,8 +457,9 @@ def etl():
     write_chain = airtable_write_chain_info()
     write_contracts = airtable_write_contracts()
     write_owner_project = airtable_write_depreciated_owner_project()
+    revoke_onchain = revoke_old_attestations()
 
     # Define execution order
-    read_contracts >> read_pool >> read_remap >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
+    read_contracts >> read_pool >> read_remap >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
 
 etl()
