@@ -1151,8 +1151,8 @@ class JSONCreation():
                     'name_short': da.name_short,
                     'url_key': url_key,
                     'block_explorers': da.block_explorers,
-                    'website': da.socials_website,
-                    'twitter': da.socials_twitter,
+                    'website': str(da.socials_website),
+                    'twitter': str(da.socials_twitter),
                     'logo': da.logo,
                     'colors': da.colors,
                     'incl_in_da_overview': da.incl_in_da_overview

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field, field_validator, ValidationInfo
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from typing import Optional, List, Dict, Any
 from src.db_connector import DbConnector
 import zipfile
