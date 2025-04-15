@@ -369,7 +369,7 @@ def etl():
             at.delete_airtable_ids(table, ids)
 
     @task()
-    def airtable_read_depreciated_owner_project(self):
+    def airtable_read_depreciated_owner_project():
         import os
         import time
         from pyairtable import Api
