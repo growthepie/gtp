@@ -54,9 +54,9 @@ class AdapterLabelPool(AbstractAdapter):
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
         print_load(self.name + ' bronze', {}, df.shape)
 
-        # upsert attestations from bronze to silver table #TODO: implement further tests for edge cases in tag_json
+        # upsert attestations from bronze to silver table #TODO: add more checks than just null, NaN, nan filters
         if df.empty == False:
-            if self.upsert_from_bronze_to_silver(): # executes a jinja sql query
+            if self.upsert_from_bronze_to_silver(): # executes label_pool_from_bronze_to_silver.sql.j2
                 print("Successfully upserted attestations from bronze to silver.")
 
         # add untrusted owner_project attestations to airtable (eventually to be replaced with trust algorithms)

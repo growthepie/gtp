@@ -25,16 +25,23 @@ from src.misc.airflow_utils import alert_via_webhook
 
 def etl():
     @task()
-    def read_airtable_contracts():
+    def airtable_read_contracts():
         import os
+        import time
+        import pandas as pd
         from pyairtable import Api
         from src.db_connector import DbConnector
         import src.misc.airtable_functions as at
+        from src.misc.oli import OLI
 
-        #initialize Airtable instance
+        # initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
         api = Api(AIRTABLE_API_KEY)
+        # initialize db connection
+        db_connector = DbConnector()
+        # initialize OLI instance
+        oli = OLI(os.getenv("OLI_gtp_pk"), is_production=True)
 
         # read current airtable labels
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
@@ -42,39 +49,51 @@ def etl():
         if df is None:
             print("No new labels detected")
         else:
-            # initialize db connection
-            db_connector = DbConnector()
-
-            if df[df['usage_category'] == 'inscriptions'].empty == False:
-                # add to incription table
-                df_inscriptions = df[df['usage_category'] == 'inscriptions'][['address', 'origin_key']]
-                df_inscriptions.set_index(['address', 'origin_key'], inplace=True)
-                db_connector.upsert_table('inscription_addresses', df_inscriptions)
-
-            # add to oli_tag_mapping table
-            df = df[df['usage_category'] != 'inscriptions']
-
-            ## remove duplicates address, origin_key
-            df.drop_duplicates(subset=['address', 'origin_key'], inplace=True)
-
-            ## keep columns address, origin_key, labelling type and unpivot the other columns
-            df = df.melt(id_vars=['address', 'origin_key', 'source'], var_name='tag_id', value_name='value')
-            ## filter out rows with empty values
+            # remove duplicates address, chain_id
+            df.drop_duplicates(subset=['address', 'chain_id'], inplace=True)
+            # keep columns address, chain_id, labelling type and unpivot the other columns
+            df = df.melt(id_vars=['address', 'chain_id'], var_name='tag_id', value_name='value')
+            # filter out rows with empty values & make address lower
             df = df[df['value'].notnull()]
-            df['added_on'] = datetime.now()
-            df.set_index(['address', 'origin_key', 'tag_id'], inplace=True)
+            df['address'] = df['address'].str.lower() # important, as db addresses are all lower
 
-            db_connector.upsert_table('oli_tag_mapping', df) # TODO: make this create attestations to the OLI label pool rather than upserting it into oli_tag_mapping
-            print(f"Uploaded {len(df)} labels to the database")
-        
-        # read owner_project update table
-        table = api.table(AIRTABLE_BASE_ID, 'Remap Owner Project')
-        df = at.read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table)
-        if df is None:
-            print("Nothing detected to remap")
-        else:
-            for i, row in df.iterrows():
-                db_connector.update_owner_projects(row['old_owner_project'], row['owner_project'])
+            # go one by one and attest the new labels
+            for group in df.groupby(['address', 'chain_id']):
+                # add source column to keep track of origin
+                df_air = group[1]
+                df_air['source'] = 'airtable'
+                # get label from gold table to fill in missing tags
+                df_gold = db_connector.get_oli_trusted_label_gold(group[0][0], group[0][1])
+                df_gold = df_gold[['address', 'caip2', 'tag_id', 'value']]
+                df_gold = df_gold.rename(columns={'caip2': 'chain_id'})
+                df_gold['source'] = 'gold_table'
+                # merge (if not empty) and drop duplicates, keep airtable over gold tags in case of duplicates
+                if df_gold.empty:
+                    df_merged = df_air
+                else:
+                    df_merged = pd.concat([df_air, df_gold], ignore_index=True)
+                df_merged = df_merged.drop_duplicates(subset=['address', 'chain_id', 'tag_id'], keep='first')
+                df_merged = df_merged.drop(columns=['source'])
+                # attest the label
+                tags = df_merged.set_index('tag_id')['value'].to_dict() 
+                address = group[0][0]
+                chain_id = group[0][1]
+                # call the API
+                max_attempts = 5 # API has many internal server errors, therefor we retry x times
+                for attempt in range(1, max_attempts + 1):
+                    # function to create the offchain label
+                    response = oli.create_offchain_label(address, chain_id, tags)
+                    if response.status_code == 200:
+                        break
+                    else:
+                        print(f"Attempt {attempt} failed: {response.text}")
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    print("Failed to get a 200 response after 5 attempts.")
+                    print(f"Address: {address}")
+                    print(f"Chain ID: {chain_id}")
+                    print(f"Tags: {tags}")
+                    raise ValueError(f"Final error: {response.text}")
 
     @task()
     def refresh_trusted_entities(): # TODO: add new tags automatically to public.oli_tags from OLI github
@@ -101,13 +120,13 @@ def etl():
         db_connector = DbConnector()
 
         # refresh the materialized view for OLI tags, so not the same contracts are shown in the airtable
-        db_connector.refresh_materialized_view('vw_oli_labels_materialized')
+        db_connector.refresh_materialized_view('vw_oli_labels_materialized') # TODO: remove all dependencies and move to vw_oli_label_pool_gold
 
         # also refresh the materialized view for the oli_label_pool_gold
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold')
 
     @task()
-    def write_oss_projects():
+    def airtable_write_oss_projects():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
@@ -130,7 +149,7 @@ def etl():
         at.push_to_airtable(table, df)
 
     @task()
-    def write_chain_info():
+    def airtable_write_chain_info():
         import pandas as pd
         import os
         import src.misc.airtable_functions as at
@@ -170,12 +189,11 @@ def etl():
             at.push_to_airtable(table, df_new.drop(columns=['id']))
 
     @task()
-    def write_airtable_contracts():
+    def airtable_write_contracts():
         import os
         import pandas as pd
         from pyairtable import Api
         from src.db_connector import DbConnector
-        from src.main_config import get_main_config
         import src.misc.airtable_functions as at
         from eth_utils import to_checksum_address
 
@@ -186,7 +204,6 @@ def etl():
         # db connection and airtable connection
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'Unlabeled Contracts')
-        main_config = get_main_config()
 
         at.clear_all_airtable(table)
         
@@ -219,15 +236,6 @@ def etl():
             df = df.merge(df_remove, on=['address', 'origin_key'], how='left', indicator=True)
             df = df[df['_merge'] == 'left_only'].drop(columns=['_merge'])
 
-        # add block explorer urls
-        block_explorer_mapping = [chain for chain in main_config if chain.block_explorers is not None]
-        for i, row in df.iterrows():
-            for m in block_explorer_mapping:
-                if row['origin_key'] == m.origin_key:
-                    df.at[i, 'Blockexplorer'] = next(iter(m.block_explorers.values())) + '/address/' + row['address']
-                    break
-        df = df[df['Blockexplorer'].notnull()]
-
         # exchange the category with the id & make it a list
         cat = api.table(AIRTABLE_BASE_ID, 'Usage Categories')
         df_cat = at.read_airtable(cat)
@@ -250,13 +258,13 @@ def etl():
         at.push_to_airtable(table, df)
 
     @task()
-    def write_depreciated_owner_project():
+    def airtable_write_depreciated_owner_project():
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
         import src.misc.airtable_functions as at
         from src.misc.helper_functions import send_discord_message
-        
+
         #initialize Airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
@@ -274,64 +282,184 @@ def etl():
 
         # send alert to discord
         if df.shape[0] > 0:
-            print(f"Inactive contracts found: {df['value'].unique().tolist()}")
-            send_discord_message(f"<@874921624720257037> Inactive projects with assigned contracts (update in oli_tag_mapping): {df['value'].unique().tolist()}", os.getenv('DISCORD_CONTRACTS'))
+            print(f"Inactive contracts found: {df['tag_value'].unique().tolist()}")
+            send_discord_message(f"<@874921624720257037> Inactive projects with assigned contracts (update in oli_tag_mapping): {df['tag_value'].unique().tolist()}", os.getenv('DISCORD_CONTRACTS'))
         else:
             print("No inactive projects with contracts assigned found")
 
         # group by owner_project and then write to airtable
-        df = df.rename(columns={'value': 'old_owner_project'})
+        df = df.rename(columns={'tag_value': 'old_owner_project'})
         df = df.groupby('old_owner_project').size()
         df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
 
     @task()
-    def read_label_pool_reattest():
+    def airtable_read_label_pool_reattest():
         # read in approved labels & delete approved labels from airtable
         from src.db_connector import DbConnector
-        from datetime import datetime
         import src.misc.airtable_functions as at
         from pyairtable import Api
+        from src.misc.oli import OLI
+        import pandas as pd
+        import time
         import os
+        # airtable instance
         AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
         AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
         api = Api(AIRTABLE_API_KEY)
         table = api.table(AIRTABLE_BASE_ID, 'Label Pool Reattest')
+        # read all approved labels in 'Label Pool Reattest'
         df = at.read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table)
-        if df is None:
-            print("No labels upserted.")
-        else:
+        if df != None:
+            # initialize db connection
+            db_connector = DbConnector()
+            # OLI instance
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
             # remove duplicates address, origin_key
-            df = df.drop_duplicates(subset=['address', 'origin_key'])
+            df = df.drop_duplicates(subset=['address', 'chain_id'])
             # keep track of ids
             ids = df['id'].tolist()
             # capitalize the first letter for contract_name
             df['contract_name'] = df['contract_name'].str.capitalize()
-            # keep columns address, origin_key, source and unpivot the other columns
-            df = df[['address', 'origin_key', 'source', 'contract_name', 'owner_project', 'usage_category']]
-            df = df.melt(id_vars=['address', 'origin_key', 'source'], var_name='tag_id', value_name='value')
+            # keep columns address, origin_key and unpivot the other columns
+            df = df[['address', 'chain_id', 'contract_name', 'owner_project', 'usage_category']]
+            df = df.melt(id_vars=['address', 'chain_id'], var_name='tag_id', value_name='value')
+            # turn address into lower case (IMPORTANT for later concatenation)
+            df['address'] = df['address'].str.lower()
             # filter out rows with empty values
             df = df[df['value'].notnull()]
-            df['added_on'] = datetime.now()
-            df = df.set_index(['address', 'origin_key', 'tag_id'])
-            # initialize db connection & upsert labels
-            db_connector = DbConnector()
-            db_connector.upsert_table('oli_tag_mapping', df) # TODO: rather than upserting, reattest to OLI label pool here!
-            print(f"Uploaded {len(df)} labels to the database")
-            # delete just uploaded rows from airtable
+            # go one by one and attest the new labels
+            for group in df.groupby(['address', 'chain_id']):
+                # add source column to keep track of origin
+                df_air = group[1]
+                df_air['source'] = 'airtable'
+                # get label from gold table to fill in missing tags
+                df_gold = db_connector.get_oli_trusted_label_gold(group[0][0], group[0][1])
+                df_gold = df_gold[['address', 'caip2', 'tag_id', 'value']]
+                df_gold = df_gold.rename(columns={'caip2': 'chain_id'})
+                df_gold['source'] = 'gold_table'
+                # merge (if not empty) and drop duplicates, keep airtable over gold tags in case of duplicates
+                if df_gold.empty:
+                    df_merged = df_air
+                else:
+                    df_merged = pd.concat([df_air, df_gold], ignore_index=True)
+                df_merged = df_merged.drop_duplicates(subset=['address', 'chain_id', 'tag_id'], keep='first')
+                df_merged = df_merged.drop(columns=['source'])
+                # attest the label
+                tags = df_merged.set_index('tag_id')['value'].to_dict()
+                address = group[0][0]
+                chain_id = group[0][1]
+                # call the API
+                max_attempts = 5 # API has many internal server errors, therefor we retry x times
+                for attempt in range(1, max_attempts + 1):
+                    # function to create the offchain label
+                    response = oli.create_offchain_label(address, chain_id, tags)
+                    if response.status_code == 200:
+                        break
+                    else:
+                        print(f"Attempt {attempt} failed: {response.text}")
+                        time.sleep(2 ** attempt)  # Exponential backoff
+                else:
+                    print("Failed to get a 200 response after 5 attempts.")
+                    print(f"Address: {address}")
+                    print(f"Chain ID: {chain_id}")
+                    print(f"Tags: {tags}")
+                    raise ValueError(f"Final error: {response.text}")
+            # at the end delete just uploaded rows from airtable
             at.delete_airtable_ids(table, ids)
 
+    @task()
+    def airtable_read_depreciated_owner_project(self):
+        import os
+        import time
+        from pyairtable import Api
+        from src.db_connector import DbConnector
+        import src.misc.airtable_functions as at
+        from src.misc.oli import OLI
+
+        #initialize Airtable instance
+        AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+        AIRTABLE_BASE_ID = os.getenv("AIRTABLE_BASE_ID")
+        api = Api(AIRTABLE_API_KEY)
+
+        # read the whole table
+        table = api.table(AIRTABLE_BASE_ID, 'Remap Owner Project')
+        df = at.read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table)
+
+        if df != None:
+            # db connection
+            db_connector = DbConnector()
+            # initialize OLI instance
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
+            # iterate over each owner_project that was changed
+            for i, row in df.iterrows():
+                # get the old and new owner project
+                old_owner_project = row['old_owner_project']
+                new_owner_project = row['owner_project']
+                # get all labels with the old owner project
+                df_labels = db_connector.get_oli_labels_gold_by_owner_project(old_owner_project)
+                # reattest the labels with the new owner project, going one by one and attest the new labels
+                for group in df_labels.groupby(['address', 'caip2']):
+                    tags = group[1].set_index('tag_id')['tag_value'].to_dict()
+                    address = group[0][0]
+                    chain_id = group[0][1]
+                    # replace with new owner project
+                    tags['owner_project'] = new_owner_project
+                    # call the API
+                    max_attempts = 5 # API has many internal server errors, therefor we retry x times
+                    for attempt in range(1, max_attempts + 1):
+                        # function to create the offchain label
+                        response = oli.create_offchain_label(address, chain_id, tags)
+                        if response.status_code == 200:
+                            print(response.json())
+                            break
+                        else:
+                            print(f"Attempt {attempt} failed: {response.text}")
+                            time.sleep(2 ** attempt)  # Exponential backoff
+                    else:
+                        print("Failed to get a 200 response after 5 attempts.")
+                        print(f"Address: {address}")
+                        print(f"Chain ID: {chain_id}")
+                        print(f"Tags: {tags}")
+                        raise ValueError(f"Final error: {response.text}")
+
+    @task()
+    def revoke_old_attestations():
+        from src.db_connector import DbConnector
+        from src.misc.oli import OLI
+        import os
+
+        db_connector = DbConnector()
+
+        df = db_connector.get_oli_to_be_revoked()
+        uids_offchain = df[df['is_offchain'] == True]['id_hex'].tolist()
+        uids_onchain = df[df['is_offchain'] == False]['id_hex'].tolist()
+
+        if uids_offchain == [] and uids_onchain == []:
+            print("No labels to be revoked")
+        else:
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=True)
+            # revoke with max 500 uids at once
+            for i in range(0, len(uids_offchain), 500):
+                tx_hash, count = oli.multi_revoke_attestations(uids_offchain[i:i + 500], onchain=False, gas_limit=15000000)
+                print(f"Revoked {count} offchain labels with tx_hash {tx_hash}")
+            for i in range(0, len(uids_onchain), 500):
+                tx_hash, count = oli.multi_revoke_attestations(uids_onchain[i:i + 500], onchain=True, gas_limit=15000000)
+                print(f"Revoked {count} onchain labels with tx_hash {tx_hash}")
+
     # all tasks
-    read = read_airtable_contracts()
-    read_pool = read_label_pool_reattest()
+    read_contracts = airtable_read_contracts()
+    read_pool = airtable_read_label_pool_reattest()
+    read_remap = airtable_read_depreciated_owner_project()
     trusted_entities = refresh_trusted_entities()
     refresh = run_refresh_materialized_view()
-    write_oss = write_oss_projects()
-    write_chain = write_chain_info()
-    write_contracts = write_airtable_contracts()
-    write_owner_project = write_depreciated_owner_project()
+    write_oss = airtable_write_oss_projects()
+    write_chain = airtable_write_chain_info()
+    write_contracts = airtable_write_contracts()
+    write_owner_project = airtable_write_depreciated_owner_project()
+    revoke_onchain = revoke_old_attestations()
 
     # Define execution order
-    read >> read_pool >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project
+    read_contracts >> read_pool >> read_remap >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
 
 etl()
