@@ -1608,89 +1608,6 @@ class DbConnector:
                 return df
         
 
-        ## This function is used for our Airtable setup - it returns the top unlabelled contracts (usage_category IS NULL) by gas fees
-        def get_unlabelled_contracts(self, number_of_contracts, days):
-                number_of_contracts = int(number_of_contracts)
-                exec_string = f'''
-                        WITH ranked_contracts AS (
-                                SELECT
-                                        cl.address, 
-                                        cl.origin_key, 
-                                        max(bl.deployment_date) AS deployment_date,
-                                        max(bl.internal_description) AS internal_description,
-                                        max(bl.contract_name) AS name,
-                                        bool_and(bl.is_proxy) AS is_proxy,
-                                        max(bl.source_code_verified) AS source_code_verified,
-                                        max(bl.owner_project) AS owner_project,
-                                        max(bl.usage_category) AS usage_category,
-                                        SUM(cl.gas_fees_eth) AS gas_eth, 
-                                        SUM(cl.txcount) AS txcount, 
-                                        ROUND(AVG(cl.daa)) AS avg_daa,   
-                                        AVG(cl.success_rate) AS avg_success,
-                                        SUM(cl.gas_fees_eth)/SUM(cl.txcount) AS avg_contract_txcost_eth,
-                                        ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num_gas,
-                                        ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(daa) DESC) AS row_num_daa
-                                FROM public.blockspace_fact_contract_level cl 
-                                LEFT JOIN vw_oli_labels_materialized bl ON cl.address = bl.address AND cl.origin_key = bl.origin_key 
-                                WHERE bl.usage_category IS NULL 
-                                        AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                        AND NOT EXISTS (
-                                                SELECT 1
-                                                FROM public.inscription_addresses ia
-                                                WHERE ia.address = cl.address
-                                        )
-                                GROUP BY 1,2
-                        ),
-                        chain_txcost AS(
-                                SELECT
-                                        origin_key,
-                                        AVG(value) AS avg_chain_txcost_median_eth
-                                FROM public.fact_kpis
-                                WHERE
-                                        metric_key = 'txcosts_median_eth'
-                                        AND "date" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
-                                GROUP BY origin_key
-                        )
-                        SELECT 
-                                rc.address, 
-                                rc.origin_key, 
-                                rc.deployment_date,
-                                rc.internal_description,
-                                rc.name AS contract_name,
-                                rc.is_proxy,
-                                rc.source_code_verified,
-                                rc.owner_project,
-                                rc.usage_category,
-                                rc.gas_eth, 
-                                rc.txcount, 
-                                rc.avg_daa,
-                                rc.avg_success,
-                                rc.avg_contract_txcost_eth / mc.avg_chain_txcost_median_eth - 1 AS rel_cost
-                        FROM ranked_contracts rc
-                        LEFT JOIN chain_txcost mc ON rc.origin_key = mc.origin_key
-                        WHERE row_num_gas <= {str(int(number_of_contracts/2))} OR row_num_daa <= {str(int(number_of_contracts/2))}
-                        ORDER BY origin_key, row_num_gas, row_num_daa
-                '''
-                df = pd.read_sql(exec_string, self.engine.connect())
-                df['day_range'] = int(days)
-                return df
-        
-        ## This function is used for our Airtable - it updates old owner_projects with new one set in the Remap Owner Project table
-        def update_owner_projects(self, old_owner_project, new_owner_project):
-                exec_string = f'''
-                        UPDATE 
-                                public.oli_tag_mapping
-                        SET 
-                                value = '{new_owner_project}', 
-                                "source" = 'orbal', 
-                                added_on = CURRENT_TIMESTAMP
-                        WHERE 
-                                tag_id = 'owner_project'
-                                AND value = '{old_owner_project}';
-                '''
-                self.engine.execute(exec_string)
-                print(f"Updated owner_project: {old_owner_project} to {new_owner_project} in oli_tag_mapping")
-
         # function to return the most used contracts by chain (used for blockscout adapter)
         def get_most_used_contracts(self, number_of_contracts, origin_key, days):
                 number_of_contracts = int(number_of_contracts)
@@ -1717,7 +1634,6 @@ class DbConnector:
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
-
 
         ### Sys Chains functions
         # This function takes a dataframe with origin_key and an additional columns as input and updates row-by-row the table sys_chains without overwriting other columns
@@ -1755,7 +1671,9 @@ class DbConnector:
                 print(f"{len(df)} records updated in sys_chains")
                 
 
-        ### OLI functions, Open Labels Initative
+        ### OLI functions, Open Labels Initative ###
+
+        ## This function is used to get all active projects from the OLI directory for json creation
         def get_active_projects(self, add_category=False, filtered_by_chains=[]):
                 # If filtered is True, only return projects that have more than 30 tx alltime (same filter as for app overview page)
                 if len(filtered_by_chains) >0:
@@ -1855,22 +1773,205 @@ class DbConnector:
 
         def get_tags_inactive_projects(self):
                 exec_string = """
-                        with active_projects as (
-                                select * 
-                                from oli_oss_directory ood 
-                                where active = true 
+                        WITH active_projects AS (
+                                SELECT * 
+                                FROM oli_oss_directory ood 
+                                WHERE active = True 
                         )
 
-                        select otm.*
-                        from oli_tag_mapping otm 
-                        left join active_projects ip on ip.name = otm.value
-                        where 
+                        SELECT gt.*
+                        FROM vw_oli_label_pool_gold gt 
+                        LEFT JOIN active_projects ip ON ip.name = gt.tag_value
+                        WHERE 
                                 tag_id = 'owner_project'
-                                and ip.name is null
-                        order by value asc
+                                and ip.name IS NULL
+                        ORDER BY tag_value ASC
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+        
+        ## This function is used for our Airtable setup - it returns all rows from the gold table that match with an owner_project
+        def get_oli_labels_gold_by_owner_project(self, owner_project):
+                exec_string = f"""
+                        SELECT address, origin_key, caip2, tag_id, tag_value, attester, time_created
+                        FROM public.vw_oli_label_pool_gold
+                        WHERE (address, caip2) IN (
+                                SELECT DISTINCT address, caip2
+                                FROM public.vw_oli_label_pool_gold
+                                WHERE tag_id = 'owner_project'
+                                AND tag_value = '{owner_project}'
+                        );
+                """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                df['address'] = '\\x' + df['address'].apply(lambda x: x.hex())
+                df['attester'] = '\\x' + df['attester'].apply(lambda x: x.hex())
+                return df
+        
+        ## This function is used for our Airtable setup - get the latest OLI silver table label
+        def get_oli_label_lastest(self, address, chain_id, attester = '0xA725646C05E6BB813D98C5ABB4E72DF4BCF00B56'):
+                if attester.startswith('0x') or attester.startswith('\\'):
+                        attester = attester[2:]
+                if address.startswith('0x') or address.startswith('\\'):
+                        address = address[2:]
+                exec_string = f'''
+                        SELECT 
+                                id, 
+                                chain_id, 
+                                address, 
+                                tag_id, 
+                                tag_value AS value, 
+                                attester, 
+                                time_created, 
+                                revocation_time, 
+                                revoked, 
+                                is_offchain
+                        FROM (
+                                SELECT 
+                                        *,
+                                        MAX(time_created) OVER () AS max_time_created
+                                FROM public.oli_label_pool_silver
+                                WHERE 
+                                        attester = decode('{attester}', 'hex')
+                                        AND address = decode('{address}', 'hex')
+                                        AND chain_id = '{chain_id}'
+                                        AND revoked = false
+                        ) sub
+                        WHERE time_created = max_time_created;
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                df['address'] = '\\x' + df['address'].apply(lambda x: x.hex())
+                df['attester'] = '\\x' + df['attester'].apply(lambda x: x.hex())
+                return df
+        
+        ## This function is used for our Airtable setup - it returns the gold table label, aggregation of all trusted labels
+        def get_oli_trusted_label_gold(self, address, chain_id):
+                if address.startswith('0x') or address.startswith('\\'):
+                        address = address[2:]
+                exec_string = f'''
+                        SELECT 
+                                address, 
+                                origin_key, 
+                                caip2, 
+                                tag_id, 
+                                tag_value as value,
+                                attester,
+                                time_created
+                        FROM public.vw_oli_label_pool_gold
+                        where 
+                                address = decode('{address}', 'hex')
+                                and caip2 = '{chain_id}';
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                df['address'] = '\\x' + df['address'].apply(lambda x: x.hex())
+                df['attester'] = '\\x' + df['attester'].apply(lambda x: x.hex())
+                return df
+        
+        # This function is used for our Airtable setup - it returns list of all attestations that can be revoked, table has two columns UID (hex) & is_offchain (boolean). Based on later time_created value.
+        def get_oli_to_be_revoked(self, attester = '0xA725646C05E6BB813D98C5ABB4E72DF4BCF00B56'):
+                if attester.startswith('0x') or attester.startswith('\\'):
+                        attester = attester[2:]
+                exec_string = f'''
+                        WITH filtered_labels AS (
+                                SELECT *
+                                FROM public.oli_label_pool_silver
+                                WHERE 
+                                        attester = decode('{attester}', 'hex')
+                                        AND revoked = false
+                        ),
+                        with_max_time AS (
+                                SELECT *,
+                                        MAX(time_created) OVER (PARTITION BY chain_id, address) AS max_time_created
+                                FROM filtered_labels
+                        )
+                        SELECT DISTINCT ON (id)
+                                '0x' || encode(id, 'hex') AS id_hex,
+                                is_offchain
+                        FROM with_max_time
+                        WHERE time_created < max_time_created;
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
+
+        ## This function is used for our Airtable setup - it returns the top unlabelled contracts (usage_category IS NULL) by gas fees
+        def get_unlabelled_contracts(self, number_of_contracts, days):
+                number_of_contracts = int(number_of_contracts)
+                exec_string = f'''
+                        WITH pivoted_gold AS(
+                                SELECT
+                                        address,
+                                        caip2,
+                                        MAX(origin_key) AS origin_key,
+                                        MAX(CASE WHEN tag_id = 'contract_name' THEN tag_value END) AS contract_name,
+                                        MAX(CASE WHEN tag_id = 'is_proxy' THEN tag_value END) AS is_proxy,
+                                        MAX(CASE WHEN tag_id = 'owner_project' THEN tag_value END) AS owner_project,
+                                        MAX(CASE WHEN tag_id = 'usage_category' THEN tag_value END) AS usage_category,
+                                        MAX(CASE WHEN tag_id = '_comment' THEN tag_value END) AS _comment
+                                FROM public.vw_oli_label_pool_gold
+                                GROUP BY
+                                        address, caip2
+                        ),
+                        ranked_contracts AS (
+                                SELECT
+                                        cl.address, 
+                                        cl.origin_key, 
+                                        max(pg._comment) AS _comment,
+                                        max(pg.contract_name) AS name,
+                                        bool_and(
+                                                CASE 
+                                                        WHEN pg.is_proxy = 'true' THEN true
+                                                        WHEN pg.is_proxy = 'false' THEN false
+                                                        ELSE NULL
+                                                END) AS is_proxy,
+                                        max(pg.owner_project) AS owner_project,
+                                        max(pg.usage_category) AS usage_category,
+                                        SUM(cl.gas_fees_eth) AS gas_eth, 
+                                        SUM(cl.txcount) AS txcount, 
+                                        ROUND(AVG(cl.daa)) AS avg_daa,   
+                                        AVG(cl.success_rate) AS avg_success,
+                                        SUM(cl.gas_fees_eth)/SUM(cl.txcount) AS avg_contract_txcost_eth,
+                                        ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(gas_fees_eth) DESC) AS row_num_gas,
+                                        ROW_NUMBER() OVER (PARTITION BY cl.origin_key ORDER BY SUM(daa) DESC) AS row_num_daa
+                                FROM public.blockspace_fact_contract_level cl 
+                                LEFT JOIN pivoted_gold pg ON cl.address = pg.address AND cl.origin_key = pg.origin_key 
+                                WHERE 
+                                        pg.usage_category IS NULL 
+                                        AND cl.date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                GROUP BY 1,2
+                        ),
+                        chain_txcost AS(
+                                SELECT
+                                        origin_key,
+                                        AVG(value) AS avg_chain_txcost_median_eth
+                                FROM public.fact_kpis
+                                WHERE
+                                        metric_key = 'txcosts_median_eth'
+                                        AND "date" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                GROUP BY origin_key
+                        )
+                        SELECT 
+                                rc.address, 
+                                rc.origin_key,
+                                rc._comment,
+                                rc.name AS contract_name,
+                                rc.is_proxy,
+                                rc.owner_project,
+                                rc.usage_category,
+                                rc.gas_eth, 
+                                rc.txcount, 
+                                rc.avg_daa,
+                                rc.avg_success,
+                                rc.avg_contract_txcost_eth / mc.avg_chain_txcost_median_eth - 1 AS rel_cost
+                        FROM ranked_contracts rc
+                        LEFT JOIN chain_txcost mc ON rc.origin_key = mc.origin_key
+                        WHERE row_num_gas <= {str(int(number_of_contracts/2))} OR row_num_daa <= {str(int(number_of_contracts/2))}
+                        ORDER BY origin_key, row_num_gas, row_num_daa
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                df['day_range'] = int(days)
+                return df
+
+        
 
         ## This function is used to generate the API endpoints for the OLI labels
         def get_oli_labels(self, chain_id='origin_key'):
@@ -1995,11 +2096,12 @@ class DbConnector:
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
         
-        def get_gtp_labels_export_oli_compliant(self): # export all labels created by us (gtp) in an OLI compliant table
+        # export all labels created by us (gtp) in an OLI compliant table, only used for one time exports
+        def get_labels_export_tag_mapping(self):
                 exec_string = f"""
                         SELECT
                                 '0x' || encode(address, 'hex') AS address,
-                                CASE 
+                                CASE
                                         WHEN origin_key = 'arbitrum' THEN 'eip155:42161'
                                         WHEN origin_key = 'base' THEN 'eip155:8453'
                                         WHEN origin_key = 'blast' THEN 'eip155:81457'
@@ -2016,6 +2118,9 @@ class DbConnector:
                                         WHEN origin_key = 'taiko' THEN 'eip155:167000'
                                         WHEN origin_key = 'zksync_era' THEN 'eip155:324'
                                         WHEN origin_key = 'zora' THEN 'eip155:7777777'
+                                        WHEN origin_key = 'arbitrum_nova' THEN 'eip155:42170'
+                                        WHEN origin_key = 'swell' THEN 'eip155:1923'
+                                        WHEN origin_key = 'unichain' THEN 'eip155:130'
                                         ELSE NULL
                                 END AS chain_id,
                                 MAX(CASE WHEN tag_id = 'is_eoa' THEN value END) AS is_eoa,
@@ -2028,22 +2133,57 @@ class DbConnector:
                                 MAX(CASE WHEN tag_id = 'deployer_address' THEN value END) AS deployer_address,
                                 MAX(CASE WHEN tag_id = 'owner_project' THEN value END) AS owner_project,
                                 MAX(CASE WHEN tag_id = 'deployment_date' THEN value END) AS deployment_date,
-                                MAX(CASE WHEN tag_id = 'erc_type' THEN value END) AS erc_type, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc20.symbol' THEN value END) AS erc20.symbol,
-                                MAX(CASE WHEN tag_id = 'erc20.decimals' THEN value END) AS erc20.decimals,
-                                MAX(CASE WHEN tag_id = 'erc721.name' THEN value END) AS erc721.name, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc721.symbol' THEN value END) AS erc721.symbol, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc1155.name' THEN value END) AS erc1155.name, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'erc1155.symbol' THEN value END) AS erc1155.symbol, -- not yet used as of 15.01.2025
+                                MAX(CASE WHEN tag_id = 'erc_type' THEN value END) AS erc_type,
+                                MAX(CASE WHEN tag_id = 'erc20.symbol' THEN value END) AS "erc20.symbol",
+                                MAX(CASE WHEN tag_id = 'erc20.decimals' THEN value END) AS "erc20.decimals",
+                                MAX(CASE WHEN tag_id = 'erc721.name' THEN value END) AS "erc721.name",
+                                MAX(CASE WHEN tag_id = 'erc721.symbol' THEN value END) AS "erc721.symbol",
+                                MAX(CASE WHEN tag_id = 'erc1155.name' THEN value END) AS "erc1155.name",
+                                MAX(CASE WHEN tag_id = 'erc1155.symbol' THEN value END) AS "erc1155.symbol",
                                 MAX(CASE WHEN tag_id = 'usage_category' THEN value END) AS usage_category,
-                                MAX(CASE WHEN tag_id = 'version' THEN value END) AS version, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'audit' THEN value END) AS audit, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'contract_monitored' THEN value END) AS contract_monitored, -- not yet used as of 15.01.2025
-                                MAX(CASE WHEN tag_id = 'source_code_verified' THEN value END) AS source_code_verified
-                                FROM public.oli_tag_mapping
-                                WHERE origin_key <> 'gitcoin_pgn' -- Exclude all rows with gitcoin_pgn
-                                GROUP BY address, origin_key
-                                HAVING MAX(CASE WHEN "source" = 'orbal' OR "source" = 'Matthias' OR "source" IS NULL THEN 'gtp' ELSE '000' END) = 'gtp';
+                                MAX(CASE WHEN tag_id = 'version' THEN value END) AS version,
+                                MAX(CASE WHEN tag_id = 'audit' THEN value END) AS audit,
+                                MAX(CASE WHEN tag_id = 'contract_monitored' THEN value END) AS contract_monitored,
+                                MAX(CASE WHEN tag_id = 'source_code_verified' THEN value END) AS source_code_verified,
+                                MAX(CASE WHEN tag_id = 'internal_description' THEN value END) AS _comment
+                        FROM public.oli_tag_mapping
+                        WHERE origin_key <> 'gitcoin_pgn'
+                        GROUP BY address, origin_key
+                        HAVING MAX(CASE WHEN "source" = 'orbal' OR "source" = 'Matthias' OR "source" = '' OR "source" = 'Label Pool Approved' OR "source" IS NULL THEN 'gtp' ELSE '000' END) = 'gtp';
+                """
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+        
+        def get_labels_export_gold_table(self):
+                exec_string = f"""
+                        SELECT
+                                '0x' || encode(address, 'hex') AS address,
+                                caip2 AS chain_id,
+                                MAX(CASE WHEN tag_id = 'is_eoa' THEN tag_value END) AS is_eoa,
+                                MAX(CASE WHEN tag_id = 'is_contract' THEN tag_value END) AS is_contract,
+                                MAX(CASE WHEN tag_id = 'is_factory_contract' THEN tag_value END) AS is_factory_contract,
+                                MAX(CASE WHEN tag_id = 'is_proxy' THEN tag_value END) AS is_proxy,
+                                MAX(CASE WHEN tag_id = 'is_safe_contract' THEN tag_value END) AS is_safe_contract,
+                                MAX(CASE WHEN tag_id = 'contract_name' THEN tag_value END) AS contract_name,
+                                MAX(CASE WHEN tag_id = 'deployment_tx' THEN tag_value END) AS deployment_tx,
+                                MAX(CASE WHEN tag_id = 'deployer_address' THEN tag_value END) AS deployer_address,
+                                MAX(CASE WHEN tag_id = 'owner_project' THEN tag_value END) AS owner_project,
+                                MAX(CASE WHEN tag_id = 'deployment_date' THEN tag_value END) AS deployment_date,
+                                MAX(CASE WHEN tag_id = 'erc_type' THEN tag_value END) AS erc_type,
+                                MAX(CASE WHEN tag_id = 'erc20.symbol' THEN tag_value END) AS "erc20.symbol",
+                                MAX(CASE WHEN tag_id = 'erc20.decimals' THEN tag_value END) AS "erc20.decimals",
+                                MAX(CASE WHEN tag_id = 'erc721.name' THEN tag_value END) AS "erc721.name",
+                                MAX(CASE WHEN tag_id = 'erc721.symbol' THEN tag_value END) AS "erc721.symbol",
+                                MAX(CASE WHEN tag_id = 'erc1155.name' THEN tag_value END) AS "erc1155.name",
+                                MAX(CASE WHEN tag_id = 'erc1155.symbol' THEN tag_value END) AS "erc1155.symbol",
+                                MAX(CASE WHEN tag_id = 'usage_category' THEN tag_value END) AS usage_category,
+                                MAX(CASE WHEN tag_id = 'version' THEN tag_value END) AS version,
+                                MAX(CASE WHEN tag_id = 'audit' THEN tag_value END) AS audit,
+                                MAX(CASE WHEN tag_id = 'contract_monitored' THEN tag_value END) AS contract_monitored,
+                                MAX(CASE WHEN tag_id = 'source_code_verified' THEN tag_value END) AS source_code_verified,
+                                MAX(CASE WHEN tag_id = '_comment' THEN tag_value END) AS _comment
+                        FROM public.vw_oli_label_pool_gold
+                        GROUP BY 1, 2
                 """
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
