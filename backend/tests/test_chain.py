@@ -22,7 +22,7 @@ def run_celo():
 
     # Initial load parameters
     load_params = {
-        'block_start': 31056500,
+        'block_start': 'auto',
         'batch_size': batch_size,
     }
 

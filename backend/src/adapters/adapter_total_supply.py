@@ -1,13 +1,12 @@
 import time
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime
 from web3 import Web3
 
 from src.adapters.abstract_adapters import AbstractAdapter
 from src.main_config import get_main_config
-from src.misc.helper_functions import api_get_call, return_projects_to_load, check_projects_to_load, get_missing_days_kpis, upsert_to_kpis, get_df_kpis_with_dates
+from src.misc.helper_functions import return_projects_to_load, check_projects_to_load, get_missing_days_kpis, upsert_to_kpis, get_df_kpis_with_dates
 from src.misc.helper_functions import print_init, print_load, print_extract
-
 
 class AdapterTotalSupply(AbstractAdapter):
     """
@@ -17,7 +16,6 @@ class AdapterTotalSupply(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
         super().__init__("Total supply", adapter_params, db_connector)
         self.main_conf = get_main_config()
-        self.api_key = adapter_params['etherscan_api']
         print_init(self.name, self.adapter_params)
 
     """
@@ -71,10 +69,25 @@ class AdapterTotalSupply(AbstractAdapter):
                 df['origin_key'] = coin.origin_key
                 df['metric_key'] = 'total_supply'
                 if coin.cs_deployment_origin_key == 'ethereum':
-                    for index, row in df.iterrows():
-                        t = int((row['date'] + timedelta(hours=23, minutes=59, seconds=59)).timestamp())
-                        df.loc[index, 'block_number'] = api_get_call(f"https://api.etherscan.io/api?module=block&action=getblocknobytime&timestamp={t}&closest=before&apikey={self.api_key}")['result']
-                        time.sleep(1)
+                    block_df = self.db_connector.get_data_from_table(
+                        "fact_kpis",
+                        filters={
+                            "metric_key": "first_block_of_day",
+                            "origin_key": "ethereum"
+                        },
+                        days=days
+                    )
+
+                    if block_df.empty:
+                        raise ValueError("Missing block data in fact_kpis for Ethereum")
+
+                    block_df = block_df.reset_index()
+                    block_df['block_number'] = block_df['value'].astype(int)
+                    block_df = block_df[['date', 'block_number']]
+                    
+                    # Merge with df
+                    df = df.merge(block_df, on='date', how='left')
+
                     rpc = self.db_connector.get_special_use_rpc('ethereum')
                 elif coin.origin_key == 'zksync_era':
                     df['value'] = 21000000000
@@ -90,10 +103,28 @@ class AdapterTotalSupply(AbstractAdapter):
                     df = df.merge(df2, on='date', how='left')
                     rpc = self.db_connector.get_special_use_rpc(coin.origin_key)
 
-                # load in the contract
+                # Defined a basic ABI for totalSupply and decimals
+                token_abi = [
+                    {
+                        "constant": True,
+                        "inputs": [],
+                        "name": "totalSupply",
+                        "outputs": [{"name": "", "type": "uint256"}],
+                        "type": "function"
+                    },
+                    {
+                        "constant": True,
+                        "inputs": [],
+                        "name": "decimals",
+                        "outputs": [{"name": "", "type": "uint8"}],
+                        "type": "function"
+                    }
+                ]
+
+                # load the contract with the basic ABI
                 w3 = Web3(Web3.HTTPProvider(rpc))
                 token_address = coin.cs_token_address if Web3.is_checksum_address(coin.cs_token_address) else Web3.to_checksum_address(coin.cs_token_address)
-                contract = w3.eth.contract(address=token_address, abi=coin.cs_token_abi)
+                contract = w3.eth.contract(address=token_address, abi=token_abi)
                 print(f'...connected to {coin.cs_deployment_origin_key} at {rpc}')
                 time.sleep(1)
 

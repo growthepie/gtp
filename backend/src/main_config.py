@@ -1,4 +1,4 @@
-from pydantic import BaseModel, HttpUrl, Field, validator
+from pydantic import BaseModel, Field, field_validator, ValidationInfo
 from typing import Optional, List, Dict, Any
 from src.db_connector import DbConnector
 import zipfile
@@ -12,12 +12,12 @@ class MainConfig(BaseModel):
     chain_type: str
     l2beat_stage: str = "NA" ## default NA
     maturity: str = "NA" ## default NA
-    caip2: Optional[str]
-    evm_chain_id: Optional[int]
+    caip2: Optional[str] = None
+    evm_chain_id: Optional[int] = None
     name: str
     name_short: str
     bucket: str
-    block_explorers: Optional[dict]
+    block_explorers: Optional[dict] = None
     colors: dict
     logo: dict = {
         'body': "<svg width=\"15\" height=\"15\" viewBox=\"0 0 15 15\" fill=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"7.5\" cy=\"7.5\" r=\"7.5\" fill=\"currentColor\"/></svg>",
@@ -28,60 +28,60 @@ class MainConfig(BaseModel):
 
     ## API
     api_in_main: bool = Field(alias="api_in_api_main", default=False)
-    api_in_fees: Optional[bool] = Field(alias="api_in_api_fees")
-    api_in_economics: Optional[bool] = Field(alias="api_in_api_economics")
-    api_in_labels: Optional[bool] = Field(alias="api_in_api_labels")
-    api_in_apps: Optional[bool] = Field(alias="api_in_api_apps")
-    api_deployment_flag: Optional[str] = Field(alias="api_api_deployment_flag")
-    api_exclude_metrics: Optional[List[str]] = Field(alias="api_api_exclude_metrics")
+    api_in_fees: Optional[bool] = Field(alias="api_in_api_fees", default=None)
+    api_in_economics: Optional[bool] = Field(alias="api_in_api_economics", default=None)
+    api_in_labels: Optional[bool] = Field(alias="api_in_api_labels", default=None)
+    api_in_apps: Optional[bool] = Field(alias="api_in_api_apps", default=None)
+    api_deployment_flag: Optional[str] = Field(alias="api_api_deployment_flag", default=None)
+    api_exclude_metrics: Optional[List[str]] = Field(alias="api_api_exclude_metrics", default=None)
 
     ## ALIASES
-    aliases_l2beat: Optional[str] = Field(alias="aliases_l2beat")
-    aliases_l2beat_slug: Optional[str] = Field(alias="aliases_l2beat_slug")
-    aliases_coingecko: Optional[str] = Field(alias="aliases_coingecko")
-    aliases_rhino: Optional[str] = Field(alias="aliases_rhino")
-    aliases_blockscout_url: Optional[str] = Field(alias="aliases_blockscout_url")
+    aliases_l2beat: Optional[str] = Field(alias="aliases_l2beat", default=None)
+    aliases_l2beat_slug: Optional[str] = Field(alias="aliases_l2beat_slug", default=None)
+    aliases_coingecko: Optional[str] = Field(alias="aliases_coingecko", default=None)
+    aliases_rhino: Optional[str] = Field(alias="aliases_rhino", default=None)
+    aliases_blockscout_url: Optional[str] = Field(alias="aliases_blockscout_url", default=None)
 
     ## METADATA
-    metadata_description: Optional[str] = Field(alias="metadata_description")
-    metadata_symbol: Optional[str] = Field(alias="metadata_symbol")
-    metadata_launch_date: Optional[str] = Field(alias="metadata_launch_date")
-    metadata_da_layer: Optional[str] = Field(alias="metadata_da_layer")
-    metadata_technology: Optional[str] = Field(alias="metadata_technology")
-    metadata_purpose: Optional[str] = Field(alias="metadata_purpose")
-    metadata_stack: Optional[Dict] = Field(alias="metadata_stack")
-    metadata_raas: Optional[str] = Field(alias="metadata_raas")
+    metadata_description: Optional[str] = Field(alias="metadata_description", default=None)
+    metadata_symbol: Optional[str] = Field(alias="metadata_symbol", default=None)
+    metadata_launch_date: Optional[str] = Field(alias="metadata_launch_date", default=None)
+    metadata_da_layer: Optional[str] = Field(alias="metadata_da_layer", default=None)
+    metadata_technology: Optional[str] = Field(alias="metadata_technology", default=None)
+    metadata_purpose: Optional[str] = Field(alias="metadata_purpose", default=None)
+    metadata_stack: Optional[Dict] = Field(alias="metadata_stack", default=None)
+    metadata_raas: Optional[str] = Field(alias="metadata_raas", default=None)
 
     ## SOCIALS
-    socials_website: Optional[HttpUrl] = Field(alias="socials_website")
-    socials_twitter: Optional[HttpUrl] = Field(alias="socials_twitter ")
+    socials_website: Optional[str] = Field(alias="socials_website", default=None)
+    socials_twitter: Optional[str] = Field(alias="socials_twitter ", default=None)
 
     ## RUNS
-    runs_aggregate_blockspace: Optional[bool] = Field(alias="runs_aggregate_blockspace")
-    runs_aggregate_addresses: Optional[bool] = Field(alias="runs_aggregate_addresses ")
-    runs_aggregate_apps: Optional[bool] = Field(alias="runs_aggregate_apps")
-    runs_contract_metadata: Optional[bool] = Field(alias="runs_contract_metadata")
+    runs_aggregate_blockspace: Optional[bool] = Field(alias="runs_aggregate_blockspace", default=None)
+    runs_aggregate_addresses: Optional[bool] = Field(alias="runs_aggregate_addresses ", default=None)
+    runs_aggregate_apps: Optional[bool] = Field(alias="runs_aggregate_apps", default=None)
+    runs_contract_metadata: Optional[bool] = Field(alias="runs_contract_metadata", default=None)
 
     ## RPC CONFIG
-    backfiller_on: Optional[bool] = Field(alias="backfiller_backfiller_on")
+    backfiller_on: Optional[bool] = Field(alias="backfiller_backfiller_on", default=None)
     backfiller_batch_size: Optional[int] = Field(20, alias="backfiller_batch_size")
 
     ## CROSS CHECK
-    cross_check_url: Optional[HttpUrl] = Field(alias="cross_check_url")
-    cross_check_type: Optional[str] = Field(alias="cross_check_type")
+    cross_check_url: Optional[str] = Field(alias="cross_check_url", default=None)
+    cross_check_type: Optional[str] = Field(alias="cross_check_type", default=None)
 
     ## CIRCULATING SUPPLY
-    cs_token_address: Optional[str] = Field(alias="circulating_supply_token_address")
-    cs_token_abi: Optional[Any] = Field(alias="circulating_supply_token_abi")
-    cs_deployment_date: Optional[str] = Field(alias="circulating_supply_token_deployment_date")
-    cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key")
-    cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function")
+    cs_token_address: Optional[str] = Field(alias="circulating_supply_token_address", default=None)
+    cs_token_abi: Optional[Any] = Field(alias="circulating_supply_token_abi", default=None)
+    cs_deployment_date: Optional[str] = Field(alias="circulating_supply_token_deployment_date", default=None)
+    cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key", default=None)
+    cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function", default=None)
 
-    ## VALIDATOR to set default values if field exists with None in dictionary
-    @validator('logo', 'l2beat_stage', pre=True, always=True)
-    def set_default_if_none(cls, v, field):
+    @field_validator('logo', 'l2beat_stage', mode='before')
+    @classmethod
+    def set_default_if_none(cls, v, info: ValidationInfo):
         if v is None:
-            return field.default
+            return cls.model_fields[info.field_name].default
         return v
 
 def get_main_config_dict():

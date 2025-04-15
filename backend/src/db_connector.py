@@ -1721,16 +1721,28 @@ class DbConnector:
                                         where "date" >= current_date - interval '365 days'
                                         and vw.sub_category_key is not null
                                         group by 1,2
+                        ),
+
+                        sub_cats as (
+                                select 
+                                        owner_project,
+                                        array_agg(distinct sub_category_key) as category_ids
+                                from vw_apps_contract_level_materialized vw
+                                where "date" >= current_date - interval '365 days'
+                                and vw.sub_category_key is not null
+                                group by 1
                         )
 
                         SELECT 
                                 owner_project as "name", 
                                 oc.name as "sub_category",
-                                ocm."name" as main_category
+                                ocm."name" as main_category,
+                                sc.category_ids as "sub_categories"
                         FROM raw_counts r
                         left join oli_categories oc using (category_id)
                         left join oli_categories_main ocm using (main_category_id)
-                        WHERE row_num = 1;
+                        left join sub_cats sc using (owner_project)
+                        WHERE row_num = 1
                         """
                         df_categories = pd.read_sql(exec_string, self.engine.connect())
                         df = df.merge(df_categories, on='name', how='left')

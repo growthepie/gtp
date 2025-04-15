@@ -760,7 +760,8 @@ def get_latest_block(w3):
 def fetch_block_transaction_details(w3, block):
     """
     Fetches detailed information for all transactions in a given block.
-    
+    Tries to use `eth_getBlockReceipts` first, and falls back to individual calls if not available.
+
     Args:
         w3: The Web3 instance for interacting with the blockchain.
         block (dict): The block data containing transactions.
@@ -771,29 +772,45 @@ def fetch_block_transaction_details(w3, block):
     transaction_details = []
     block_timestamp = block['timestamp']  # Get the block timestamp
     base_fee_per_gas = block['baseFeePerGas'] if 'baseFeePerGas' in block else None  # Fetch baseFeePerGas from the block
+    block_hash = block['hash']
+    txs = block['transactions']
 
-    for tx in block['transactions']:
-        tx_hash = tx['hash']
-        receipt = w3.eth.get_transaction_receipt(tx_hash)
-        
-        # Convert the receipt and transaction to dictionary if it is not
-        if not isinstance(receipt, dict):
-            receipt = dict(receipt)
-        if not isinstance(tx, dict):
+    try:
+        # Primary method: get all receipts in one call
+        receipts = w3.eth.get_block_receipts(block_hash)
+
+        if len(receipts) != len(txs):
+            raise ValueError("Mismatch between number of receipts and transactions")
+
+        for tx, receipt in zip(txs, receipts):
             tx = dict(tx)
-        
-        # Merge transaction and receipt dictionaries
-        merged_dict = {**receipt, **tx}
-        
-        # Add or update specific fields
-        merged_dict['hash'] = tx['hash'].hex()
-        merged_dict['block_timestamp'] = block_timestamp
-        if base_fee_per_gas:
-            merged_dict['baseFeePerGas'] = base_fee_per_gas
-        
-        # Add the transaction receipt dictionary to the list
-        transaction_details.append(merged_dict)
-        
+            receipt = dict(receipt)
+            merged = {**receipt, **tx}
+            merged['hash'] = tx['hash'].hex()
+            merged['block_timestamp'] = block_timestamp
+            if base_fee_per_gas:
+                merged['baseFeePerGas'] = base_fee_per_gas
+            transaction_details.append(merged)
+
+    except Exception as e:
+        print(f"[Fallback] Block receipt fetch failed: {str(e)}")
+        print("Falling back to per-transaction receipt fetch...")
+
+        for tx in txs:
+            try:
+                tx = dict(tx)
+                receipt = w3.eth.get_transaction_receipt(tx['hash'])
+                receipt = dict(receipt)
+
+                merged = {**receipt, **tx}
+                merged['hash'] = tx['hash'].hex()
+                merged['block_timestamp'] = block_timestamp
+                if base_fee_per_gas:
+                    merged['baseFeePerGas'] = base_fee_per_gas
+                transaction_details.append(merged)
+            except Exception as inner_e:
+                print(f"Failed to fetch receipt for tx {tx['hash'].hex()}: {str(inner_e)}")
+
     return transaction_details
     
 def fetch_data_for_range(w3, block_start, block_end):

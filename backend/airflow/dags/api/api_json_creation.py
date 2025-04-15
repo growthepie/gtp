@@ -26,7 +26,7 @@ api_version = "v1"
     description='Create json files that are necessary to power the frontend.',
     tags=['api', 'daily'],
     start_date=datetime(2023,4,24),
-    schedule='30 06 * * *'
+    schedule='30 05 * * *'
 )
 
 def etl():

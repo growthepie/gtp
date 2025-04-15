@@ -2,7 +2,7 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 
 from src.misc.helper_functions import db_addresses_to_checksummed_addresses, string_addresses_to_checksummed_addresses
 import pandas as pd
@@ -66,8 +66,7 @@ class Glo:
         ## Resolve ENS addresses
         url = self.db_connector.get_special_use_rpc('ethereum')
         w3 = Web3(HTTPProvider(url))
-        w3.middleware_onion.inject(geth_poa_middleware, layer=0)
-        w3.is_connected()
+        w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
 
         # Check connection
         if not w3.is_connected():

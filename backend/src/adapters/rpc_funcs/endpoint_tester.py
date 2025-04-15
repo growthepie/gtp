@@ -3,7 +3,7 @@ import logging
 import threading
 import time
 from web3 import Web3, HTTPProvider
-from web3.middleware import geth_poa_middleware
+from web3.middleware import ExtraDataToPOAMiddleware
 import math
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -46,12 +46,14 @@ class EndpointTester:
         
     def connect_to_node(self):
         """
-        Connects to the Ethereum node using the specified RPC URL. Injects the geth POA middleware for compatibility with certain chains.
+        Connects to the Ethereum node using the specified RPC URL.
+        Injects the POA middleware for compatibility with certain chains (e.g., Geth POA).
         
         Logs whether the connection was successful or failed.
         """
         self.w3 = Web3(HTTPProvider(self.url))
-        self.w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        self.w3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
+
         if self.w3.is_connected():
             logging.info("Web3 instance is connected to node: {}".format(self.w3.is_connected()))
         else:
