@@ -120,7 +120,8 @@ def etl():
         db_connector = DbConnector()
 
         # refresh the materialized view for OLI tags, so not the same contracts are shown in the airtable
-        db_connector.refresh_materialized_view('vw_oli_labels_materialized') # TODO: remove all dependencies and move to vw_oli_label_pool_gold
+        # TODO: remove all dependencies and move to vw_oli_label_pool_gold
+        # db_connector.refresh_materialized_view('vw_oli_labels_materialized')
 
         # also refresh the materialized view for the oli_label_pool_gold
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold')
@@ -369,7 +370,7 @@ def etl():
             at.delete_airtable_ids(table, ids)
 
     @task()
-    def airtable_read_depreciated_owner_project(self):
+    def airtable_read_depreciated_owner_project():
         import os
         import time
         from pyairtable import Api
