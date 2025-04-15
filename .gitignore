@@ -6,6 +6,7 @@ my_env/
 myenv/
 myenv312/
 local_env/
+test_env/
 venv/
 .venv/
 

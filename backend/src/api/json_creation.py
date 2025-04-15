@@ -1263,7 +1263,7 @@ class JSONCreation():
         ## calculate the days between start_date and today
         days = (datetime.now(timezone.utc) - start_date).days
 
-        for metric_id in ['txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
+        for metric_id in ['throughput', 'txcount', 'stables_mcap', 'fees', 'rent_paid', 'market_cap']:
             landing_dict['data']['all_l2s']['metrics'][metric_id] = self.generate_all_l2s_metric_dict(df, metric_id, rolling_avg=True, days=days)
 
             if metric_id != 'rent_paid':
