@@ -337,10 +337,67 @@ def handle_bytea_columns(df, bytea_columns):
     for col in bytea_columns:
         if col in df.columns:
             df[col] = df[col].replace(['nan', 'None', 'NaN'], np.nan)
-            df[col] = df[col].apply(lambda x: str(x) if pd.notna(x) else x)
-            df[col] = df[col].apply(lambda x: x.replace('0x', '\\x') if pd.notna(x) else x)
-
+            
+            # Process each value depending on its type
+            df[col] = df[col].apply(lambda x: process_bytea_value(x) if pd.notna(x) else x)
+    
     return df
+
+def process_bytea_value(value):
+    """
+    Process a value for PostgreSQL bytea format, handling various input formats.
+    
+    Args:
+        value: The value to process (can be string, bytes, etc.)
+        
+    Returns:
+        str: Properly formatted string for PostgreSQL bytea type.
+    """
+    # If it's already in PostgreSQL bytea format
+    if isinstance(value, str) and value.startswith('\\x'):
+        return value
+        
+    # If it's a hex string with 0x prefix
+    if isinstance(value, str) and value.startswith('0x'):
+        return '\\x' + value[2:]
+        
+    # If it's Python bytes object
+    if isinstance(value, bytes):
+        return '\\x' + value.hex()
+        
+    # If it's a string representation of bytes (like "b'\x01\x02'")
+    if isinstance(value, str) and (value.startswith("b'") or value.startswith('b"')) and '\\x' in value:
+        try:
+            import ast
+            byte_obj = ast.literal_eval(value)
+            if isinstance(byte_obj, bytes):
+                return '\\x' + byte_obj.hex()
+        except (SyntaxError, ValueError):
+            hex_parts = []
+            parts = value.split('\\x')
+            for i, part in enumerate(parts):
+                if i > 0:
+                    if len(part) >= 2:
+                        hex_parts.append(part[:2])
+            if hex_parts:
+                return '\\x' + ''.join(hex_parts)
+    
+    # Special case for plain string representation of bytes without hex codes
+    if isinstance(value, str) and (value.startswith("b'") or value.startswith('b"')):
+        try:
+            import ast
+            byte_obj = ast.literal_eval(value)
+            if isinstance(byte_obj, bytes):
+                return '\\x' + byte_obj.hex()
+        except (SyntaxError, ValueError):
+            pass
+    
+    # For any string, try to ensure it's properly formatted
+    if isinstance(value, str):
+        return str(value).replace('0x', '\\x')
+    
+    # For any other type, convert to string
+    return str(value).replace('0x', '\\x')
 
 def handle_status(df, status_mapping):
     """
@@ -439,7 +496,9 @@ def shorten_input_data(df):
         pd.DataFrame: DataFrame with shortened 'input_data' column.
     """
     if 'input_data' in df.columns:
-        df['input_data'] = df['input_data'].apply(lambda x: x[:10] if x else None)
+        df['input_data'] = df['input_data'].apply(
+            lambda x: process_bytea_value(x)[:10] if x else None
+        )
     return df
 
 def convert_type_to_bytea(df):
@@ -775,6 +834,28 @@ def fetch_block_transaction_details(w3, block):
     block_hash = block['hash']
     txs = block['transactions']
 
+    def _convert_bytes_to_hex(d: dict, key: str):
+        """If d[key] is bytes or string representation of bytes, convert it to a hex string."""
+        if key not in d:
+            return
+
+        value = d[key]
+
+        if isinstance(value, bytes):
+            d[key] = '0x' + value.hex()
+
+        elif isinstance(value, str) and value.startswith("b'") and '\\x' in value:
+            try:
+                import ast
+                byte_obj = ast.literal_eval(value)
+                if isinstance(byte_obj, bytes):
+                    d[key] = '0x' + byte_obj.hex()
+            except (SyntaxError, ValueError):
+                if value.startswith("b'") or value.startswith('b"'):
+                    d[key] = '0x' + value[2:-1].replace('\\x', '')
+
+    byte_fields = ['input', 'input_data', 'data']
+
     try:
         # Primary method: get all receipts in one call
         receipts = w3.eth.get_block_receipts(block_hash)
@@ -785,6 +866,11 @@ def fetch_block_transaction_details(w3, block):
         for tx, receipt in zip(txs, receipts):
             tx = dict(tx)
             receipt = dict(receipt)
+
+            for field in byte_fields:
+                _convert_bytes_to_hex(receipt, field)
+                _convert_bytes_to_hex(tx, field)
+
             merged = {**receipt, **tx}
             merged['hash'] = tx['hash'].hex()
             merged['block_timestamp'] = block_timestamp
@@ -794,13 +880,17 @@ def fetch_block_transaction_details(w3, block):
 
     except Exception as e:
         print(f"[Fallback] Block receipt fetch failed: {str(e)}")
-        print("Falling back to per-transaction receipt fetch...")
+        print(f"Falling back to per-transaction receipt fetch using RPC: {w3.get_rpc_url()}")
 
         for tx in txs:
             try:
                 tx = dict(tx)
                 receipt = w3.eth.get_transaction_receipt(tx['hash'])
                 receipt = dict(receipt)
+
+                for field in byte_fields:
+                    _convert_bytes_to_hex(receipt, field)
+                    _convert_bytes_to_hex(tx, field)
 
                 merged = {**receipt, **tx}
                 merged['hash'] = tx['hash'].hex()
