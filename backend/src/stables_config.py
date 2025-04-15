@@ -315,7 +315,26 @@ stables_mapping = {
     "linea": {},
     "mantle": {},
     "ink": {},
-    "zksync_era": {},
+    "zksync_era": {
+        "bridged": {
+            "ethereum": [
+                "0xbeD1EB542f9a5aA6419Ff3deb921A372681111f6",  # Shared brigde with other zkStack chains
+                "0x57891966931Eb4Bb6FB81430E6cE0A03AAbDe063",  # Legacy escrow bridge
+                "0xD7f9f54194C633F36CCD5F3da84ad4a1c38cB2cB"
+            ],
+        },
+        "direct": {
+            "usdc": {
+                "token_address": "0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4",  # USDC native on zkSync Era
+                "method_name": "totalSupply",
+            },
+            "mountain-protocol-usdm": {
+                "token_address": "0x7715c206A14Ac93Cb1A6c0316A6E5f8aD7c9Dc31",  # USDM
+                "method_name": "totalSupply",
+            },
+        }
+
+    },
     "worldchain": {},
     "manta": {},
     "scroll": {},
