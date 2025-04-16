@@ -149,7 +149,7 @@ gtp_metrics = {
             'fundamental': True,
             'metric_keys': ['txcosts_median_usd', 'txcosts_median_eth'],
             'units': {
-                'usd': {'decimals': 3, 'decimals_tooltip': 3, 'agg_tooltip': False, 'agg': False}, 
+                'usd': {'decimals': 4, 'decimals_tooltip': 4, 'agg_tooltip': False, 'agg': False}, 
                 'eth': {'decimals': 8, 'decimals_tooltip': 8, 'agg_tooltip': False, 'agg': False}
             },
             'avg': True,
