@@ -49,11 +49,6 @@ def etl():
                     'name': 'economics_da',
                     'query_id': 4046209,
                     'params': {'days': 7}
-                },
-                {
-                    'name': 'celo fundamentals',
-                    'query_id': 4877171,
-                    'params': {'days': 3}
                 }
             ],
             'prepare_df': 'prepare_df_metric_daily',
