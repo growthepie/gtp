@@ -19,7 +19,7 @@ from src.misc.airflow_utils import alert_via_webhook
     description='Load data from Octant API for tracker.',
     tags=['other', 'near-real-time'],
     start_date=datetime(2024,7,22),
-    schedule='*/5 * * * *'
+    schedule='*/30 * * * *'
 )
 
 def run_dag():
@@ -41,6 +41,7 @@ def run_dag():
         
         print('### CREATE ALL OCTANT JSONS ###')
         octantv2.run_create_all_octant_jsons()
-    
+
+
     run_octant_v2()
 run_dag()

@@ -10,7 +10,7 @@ import simplejson as json
 import logging
 from sqlalchemy import inspect
 import math
-from src.misc.helper_functions import upload_json_to_cf_s3
+from src.misc.helper_functions import upload_json_to_cf_s3, empty_cloudfront_cache
 
 from src.misc.octant_lib.helpers import (
     generate_create_table_sql,
@@ -817,7 +817,7 @@ class OctantV2():
                 "/trackers/octant/community.json community JSON saved")
         else:
             upload_json_to_cf_s3(
-                self.s3_bucket, f'{self.api_version}/trackers/octant/community', compiled_data, self.cf_distribution_id)
+                self.s3_bucket, f'{self.api_version}/trackers/octant/community', compiled_data, self.cf_distribution_id, invalidate=False)
             logging.info(
                 "/trackers/octant/community.json uploaded to S3")
 
@@ -881,7 +881,7 @@ class OctantV2():
                 "/trackers/octant/project_funding.json funding JSON saved")
         else:
             upload_json_to_cf_s3(
-                self.s3_bucket, f'{self.api_version}/trackers/octant/project_funding', compiled_data, self.cf_distribution_id)
+                self.s3_bucket, f'{self.api_version}/trackers/octant/project_funding', compiled_data, self.cf_distribution_id, invalidate=False)
             logging.info(
                 "/trackers/octant/project_funding.json uploaded to S3")
 
@@ -944,7 +944,7 @@ class OctantV2():
                 "/trackers/octant/project_metadata.json metadata JSON saved")
         else:
             upload_json_to_cf_s3(
-                self.s3_bucket, f'{self.api_version}/trackers/octant/project_metadata', compiled_data, self.cf_distribution_id)
+                self.s3_bucket, f'{self.api_version}/trackers/octant/project_metadata', compiled_data, self.cf_distribution_id, invalidate=False)
             logging.info(
                 "/trackers/octant/project_metadata.json uploaded to S3")
 
@@ -999,7 +999,7 @@ class OctantV2():
                 "/trackers/octant/summary.json summary JSON saved")
         else:
             upload_json_to_cf_s3(
-                self.s3_bucket, f'{self.api_version}/trackers/octant/summary', compiled_data, self.cf_distribution_id)
+                self.s3_bucket, f'{self.api_version}/trackers/octant/summary', compiled_data, self.cf_distribution_id, invalidate=False)
             logging.info(
                 "/trackers/octant/summary.json uploaded to S3")
 
@@ -1054,3 +1054,5 @@ class OctantV2():
         # creates the project_metadata.json from data in the DB
         logging.info(f"# Creating Octant Project Metadata JSON")
         self.create_project_metadata_json()
+
+        empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/trackers/octant/*')
