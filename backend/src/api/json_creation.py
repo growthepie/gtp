@@ -1205,23 +1205,9 @@ class JSONCreation():
         cur_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-1][1] + composition_ts_dict['compositions']['cross_layer'][-1][1]
         prev_multi_chain = composition_ts_dict['compositions']['multiple_l2s'][-2][1] + composition_ts_dict['compositions']['cross_layer'][-2][1]
 
-        ## TODO: user_base key should be removed
         landing_dict = {
             "data": {
                 "metrics" : {
-                    "user_base" : {
-                        "metric_name": "Ethereum ecosystem user-base",
-                        "source": self.db_connector.get_metric_sources('user_base', []),
-                        "weekly": {
-                            "latest_total": self.chain_users(df, 'weekly', 'all_l2s'),
-                            "latest_total_comparison": self.create_chain_users_comparison_value(df, 'weekly', 'all_l2s'),
-                            "l2_dominance": self.l2_user_share(df, 'weekly'),
-                            "l2_dominance_comparison": self.create_l2_user_share_comparison_value(df, 'weekly'),
-                            "cross_chain_users": self.cross_chain_users(df),
-                            "cross_chain_users_comparison": self.create_cross_chain_users_comparison_value(df),
-                            "chains": self.generate_chains_userbase_dict(df, 'weekly')
-                            }
-                        },
                     "engagement" : {
                         "metric_name": "Ethereum ecosystem engagement",
                         "source": ['RPC'],
