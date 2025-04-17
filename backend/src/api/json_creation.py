@@ -1629,9 +1629,11 @@ class JSONCreation():
         if self.s3_bucket == None:
             self.save_to_json(fees_dict, f'fees/linechart')
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart_test', fees_dict, self.cf_distribution_id)
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart_test', fees_dict, self.cf_distribution_id, invalidate=False)
             fees_dict['chain_data'].pop('ethereum', None)
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id)
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/fees/linechart', fees_dict, self.cf_distribution_id, invalidate=False)
+            empty_cloudfront_cache(self.cf_distribution_id, f'/{self.api_version}/fees/linechart*')
+        
         print(f'DONE -- fees/linechart.json export')
 
     #######################################################################
