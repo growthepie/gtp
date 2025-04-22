@@ -119,8 +119,9 @@ def etl():
         from src.db_connector import DbConnector
         db_connector = DbConnector()
 
-        # also refresh the materialized view for the oli_label_pool_gold
+        # also refresh the materialized view for the oli_label_pool_gold and the pivoted view
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold')
+        db_connector.refresh_materialized_view('vw_oli_label_pool_gold_pivoted')
 
     @task()
     def airtable_write_oss_projects():
