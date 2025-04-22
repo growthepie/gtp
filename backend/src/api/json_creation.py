@@ -2105,7 +2105,7 @@ class JSONCreation():
                     coalesce(hll_cardinality(hll_union_agg(case when "date" > current_date - interval '{timeframe+1} days' then hll_addresses end))::int, 0) as daa, 
                     coalesce(hll_cardinality(hll_union_agg(case when "date" < current_date - interval '{timeframe} days' then hll_addresses end))::int, 0) as prev_daa
                 FROM public.fact_active_addresses_contract_hll fact
-                JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+                JOIN vw_oli_label_pool_gold_pivoted oli USING (address, origin_key)
                 WHERE "date" >= current_date - interval '{timeframe*2} days'
                     AND fact.origin_key IN ({chains_str})
                     AND oli.owner_project IS NOT NULL
@@ -2304,7 +2304,7 @@ class JSONCreation():
                     origin_key, 
                     hll_cardinality(hll_union_agg(hll_addresses))::int AS daa
                 FROM public.fact_active_addresses_contract_hll fact
-                JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+                JOIN vw_oli_label_pool_gold_pivoted oli USING (address, origin_key)
                 WHERE 
                     oli.owner_project  = '{owner_project}'
                     AND fact.origin_key IN ({chains_str})
@@ -2324,7 +2324,7 @@ class JSONCreation():
             SELECT 
                 coalesce(hll_cardinality(hll_union_agg(case when "date" > current_date - interval '{timeframe+1} days' then hll_addresses end))::int, 0) as val
             FROM public.fact_active_addresses_contract_hll fact
-            JOIN vw_oli_labels_materialized oli USING (address, origin_key)
+            JOIN vw_oli_label_pool_gold_pivoted oli USING (address, origin_key)
             WHERE 
                 owner_project = '{owner_project}'
                 AND fact.origin_key = '{origin_key}'

@@ -670,6 +670,7 @@ class BlockspaceJSONCreation():
 
             # create dict for each main category
             for main_cat in main_cat_agg_df['main_category_key'].unique():
+                print(f"...processing main category {main_cat} for {timeframe} days")
                 if main_cat not in comparison_dict['data']:
                     comparison_dict['data'][main_cat] = {
                         "aggregated": {

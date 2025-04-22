@@ -1184,7 +1184,7 @@ class DbConnector:
                                 sum(txcount) as txcount,
                                 sum(daa) as daa
                         FROM public.blockspace_fact_contract_level cl
-                        inner join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                        inner join vw_oli_label_pool_gold_pivoted bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                         where date < DATE_TRUNC('day', NOW())
                                 and date >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                                 and cl.origin_key = '{chain}'
@@ -1278,7 +1278,7 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join vw_oli_label_pool_gold_pivoted bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                                 left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id) 
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where 
@@ -1356,7 +1356,7 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key
+                                left join vw_oli_label_pool_gold_pivoted bl on cl.address = bl.address and cl.origin_key = bl.origin_key
                                 left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id)
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where
@@ -1458,7 +1458,7 @@ class DbConnector:
                                         sum(txcount) as txcount,
                                         round(avg(daa)) as daa
                                 FROM public.blockspace_fact_contract_level cl
-                                left join vw_oli_labels_materialized bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
+                                left join vw_oli_label_pool_gold_pivoted bl on cl.address = bl.address and cl.origin_key = bl.origin_key 
                                 left join vw_oli_category_mapping bcm on lower(bl.usage_category) = lower(bcm.category_id) 
                                 left join oli_oss_directory oss on bl.owner_project = oss.name
                                 where 
@@ -1993,7 +1993,7 @@ class DbConnector:
                                 deployment_tx,
                                 deployer_address,
                                 deployment_date
-                        FROM public.vw_oli_labels_materialized
+                        FROM public.vw_oli_label_pool_gold_pivoted
                         LEFT JOIN sys_chains USING (origin_key)
                         WHERE owner_project IS NOT NULL
                         """
@@ -2049,7 +2049,7 @@ class DbConnector:
                                 (cl.daa - prev.daa) / prev.daa as daa_change
                         FROM current_period cl
                         left join prev_period prev using (address, origin_key)
-                        left join vw_oli_labels_materialized lab using (address, origin_key)
+                        left join vw_oli_label_pool_gold_pivoted lab using (address, origin_key)
                         left join oli_oss_directory oss on oss.name = lab.owner_project
                         left join sys_chains syc on cl.origin_key = syc.origin_key
                         where cl.origin_key IN ('{"','".join(origin_keys)}')
@@ -2083,7 +2083,7 @@ class DbConnector:
                                 lab.deployment_date
                                 {aggregation}
                         FROM public.blockspace_fact_contract_level cl
-                        left join vw_oli_labels_materialized lab using (address, origin_key)
+                        left join vw_oli_label_pool_gold_pivoted lab using (address, origin_key)
                         left join sys_chains syc on cl.origin_key = syc.origin_key
                         where cl."date"  >= current_date - interval '180 days'
                                 and cl."date" < current_date
