@@ -287,6 +287,7 @@ def handle_celo_fee(df):
 def handle_tx_hash(df, column_name='tx_hash'):
     """
     Converts the 'tx_hash' column values into the proper '\\x' hex format if applicable.
+    Ensures transaction hashes are consistently 32 bytes (64 hex characters).
     
     Args:
         df (pd.DataFrame): The input DataFrame containing the 'tx_hash' column.
@@ -297,14 +298,67 @@ def handle_tx_hash(df, column_name='tx_hash'):
     """
     if column_name in df.columns:
         df[column_name] = df[column_name].apply(
-            lambda tx_hash: '\\x' + (
-                tx_hash[2:] if isinstance(tx_hash, str) and tx_hash.startswith('0x') 
-                else tx_hash.hex()[2:] if isinstance(tx_hash, bytes) 
-                else tx_hash.hex() if isinstance(tx_hash, bytes) 
-                else tx_hash
-            ) if pd.notnull(tx_hash) else None
+            lambda tx_hash: format_tx_hash(tx_hash) if pd.notnull(tx_hash) else None
         )
     return df
+
+def format_tx_hash(tx_hash):
+    """
+    Formats transaction hash to ensure it's properly formatted for PostgreSQL bytea storage.
+    Ensures the hash is the full 32 bytes (64 hex characters).
+    
+    Args:
+        tx_hash: The transaction hash to format (can be string, bytes, etc.)
+        
+    Returns:
+        str: Properly formatted transaction hash with '\\x' prefix
+    """
+    # If it's already a properly formatted PostgreSQL bytea
+    if isinstance(tx_hash, str) and tx_hash.startswith('\\x'):
+        hex_part = tx_hash[2:]  # Remove \\x prefix
+        # Ensure it's a full-length hash (64 hex characters)
+        if len(hex_part) == 64:
+            return tx_hash
+        else:
+            # This shouldn't happen for transaction hashes, but log for debugging
+            print(f"Warning: Found tx_hash with unexpected length: {tx_hash}")
+            return tx_hash
+    
+    # If it's a hex string with 0x prefix (common Ethereum format)
+    if isinstance(tx_hash, str) and tx_hash.startswith('0x'):
+        hex_part = tx_hash[2:]  # Remove 0x prefix
+        if len(hex_part) == 64:
+            return '\\x' + hex_part
+        else:
+            print(f"Warning: Found tx_hash with unexpected length: {tx_hash}")
+            return '\\x' + hex_part
+    
+    # If it's bytes (common from Web3 libraries)
+    if isinstance(tx_hash, bytes):
+        hex_part = tx_hash.hex()
+        return '\\x' + hex_part
+    
+    # If it's a plain hex string without prefix
+    if isinstance(tx_hash, str) and all(c in '0123456789abcdefABCDEF' for c in tx_hash):
+        if len(tx_hash) == 64:
+            return '\\x' + tx_hash
+        else:
+            print(f"Warning: Found tx_hash with unexpected length: {tx_hash}")
+            return '\\x' + tx_hash
+    
+    # For any other string format, first try to clean it up
+    if isinstance(tx_hash, str):
+        cleaned = tx_hash.replace('0x', '').replace('\\x', '')
+        if cleaned.startswith("b'") or cleaned.startswith('b"'):
+            cleaned = cleaned[2:]
+        if cleaned.endswith("'") or cleaned.endswith('"'):
+            cleaned = cleaned[:-1]
+            
+        if all(c in '0123456789abcdefABCDEF' for c in cleaned) and len(cleaned) == 64:
+            return '\\x' + cleaned
+    
+    # Fallback: return the cleaned hex string
+    return '\\x' + str(tx_hash).replace('0x', '').replace('\\x', '')
 
 def handle_tx_hash_polygon_zkevm(df, column_name='tx_hash'):
     """
@@ -872,7 +926,14 @@ def fetch_block_transaction_details(w3, block):
                 _convert_bytes_to_hex(tx, field)
 
             merged = {**receipt, **tx}
-            merged['hash'] = tx['hash'].hex()
+
+            if isinstance(tx['hash'], bytes):
+                merged['hash'] = '0x' + tx['hash'].hex()
+            elif isinstance(tx['hash'], str) and not tx['hash'].startswith('0x'):
+                merged['hash'] = '0x' + tx['hash']
+            else:
+                merged['hash'] = tx['hash']
+                
             merged['block_timestamp'] = block_timestamp
             if base_fee_per_gas:
                 merged['baseFeePerGas'] = base_fee_per_gas
