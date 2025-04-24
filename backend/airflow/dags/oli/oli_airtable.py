@@ -25,10 +25,13 @@ from src.misc.airflow_utils import alert_via_webhook
 
 def etl():
     """
-    This task reads the contracts from Airtable and attests them to the OLI label pool.
+    This DAG is responsible for reading and writing data to and from Airtable as well as attesting new labels and syncing the label pool with the database.
     """
     @task()
     def airtable_read_contracts():
+        """
+        This task reads the contracts from Airtable and attests them to the OLI label pool.
+        """
         import os
         import time
         import pandas as pd
@@ -98,11 +101,11 @@ def etl():
                     print(f"Tags: {tags}")
                     raise ValueError(f"Final error: {response.text}")
 
-    """
-    This task gets the trusted entities from the gtp-dna Github and upserts them to the oli_trusted_entities table.
-    """
     @task()
     def refresh_trusted_entities(): # TODO: add new tags automatically to public.oli_tags from OLI github
+        """
+        This task gets the trusted entities from the gtp-dna Github and upserts them to the oli_trusted_entities table.
+        """
         from src.misc.helper_functions import get_trusted_entities
         from src.db_connector import DbConnector
         db_connector = DbConnector()
@@ -122,6 +125,10 @@ def etl():
     
     @task()
     def run_refresh_materialized_view():
+        """
+        This task refreshes the materialized view for the label pool.
+        It also refreshes the materialized view for the pivoted view.
+        """
         from src.db_connector import DbConnector
         db_connector = DbConnector()
 
@@ -129,11 +136,11 @@ def etl():
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold')
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold_pivoted')
 
-    """
-    This task writes the oss projects from the DB to Airtable.
-    """
     @task()
     def airtable_write_oss_projects():
+        """
+        This task writes the oss projects from the DB to Airtable.
+        """
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
@@ -155,11 +162,11 @@ def etl():
         # write to airtable
         at.push_to_airtable(table, df)
 
-    """
-    This task writes the chain info from the main config to Airtable.
-    """
     @task()
     def airtable_write_chain_info():
+        """
+        This task writes the chain info from the main config to Airtable.
+        """
         import pandas as pd
         import os
         import src.misc.airtable_functions as at
@@ -198,12 +205,12 @@ def etl():
         if df_new.empty == False:
             at.push_to_airtable(table, df_new.drop(columns=['id']))
 
-    """
-    This task writes the top unlabeled contracts from the DB to Airtable.
-    It also removes any duplicates that are already in the airtable due to temp_owner_project.
-    """
     @task()
     def airtable_write_contracts():
+        """
+        This task writes the top unlabeled contracts from the DB to Airtable.
+        It also removes any duplicates that are already in the airtable due to temp_owner_project.
+        """
         import os
         import pandas as pd
         from pyairtable import Api
@@ -271,11 +278,11 @@ def etl():
         # write to airtable
         at.push_to_airtable(table, df)
 
-    """
-    This task writes the remap owner project table to Airtable.
-    """
     @task()
     def airtable_write_depreciated_owner_project():
+        """
+        This task writes the remap owner project table to Airtable.
+        """
         import os
         from pyairtable import Api
         from src.db_connector import DbConnector
@@ -310,12 +317,12 @@ def etl():
         df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
     
-    """
-    This task reads other attestations from the label pool from Airtable and attests the approved labels to the label pool as growthepie.
-    It also reads the remap owner project table and reattests the labels with the new owner project.
-    """
     @task()
     def airtable_read_label_pool_reattest():
+        """
+        This task reads other attestations from the label pool from Airtable and attests the approved labels to the label pool as growthepie.
+        It also reads the remap owner project table and reattests the labels with the new owner project.
+        """
         # read in approved labels & delete approved labels from airtable
         from src.db_connector import DbConnector
         import src.misc.airtable_functions as at
@@ -389,11 +396,11 @@ def etl():
             # at the end delete just uploaded rows from airtable
             at.delete_airtable_ids(table, ids)
 
-    """
-    This task reads the remap owner project table and reattests the labels with the new owner project.
-    """
     @task()
     def airtable_read_depreciated_owner_project():
+        """
+        This task reads the remap owner project table and reattests the labels with the new owner project.
+        """
         import os
         import time
         from pyairtable import Api
@@ -447,12 +454,12 @@ def etl():
                         print(f"Tags: {tags}")
                         raise ValueError(f"Final error: {response.text}")
 
-    """
-    This task revokes old attestations from the label pool.
-    It reads the labels from the DB and revokes them in batches of 500.
-    """
     @task()
     def revoke_old_attestations():
+        """
+        This task revokes old attestations from the label pool.
+        It reads the labels from the DB and revokes them in batches of 500.
+        """
         from src.db_connector import DbConnector
         from src.misc.oli import OLI
         import os
@@ -475,12 +482,12 @@ def etl():
                 tx_hash, count = oli.multi_revoke_attestations(uids_onchain[i:i + 500], onchain=True, gas_limit=15000000)
                 print(f"Revoked {count} onchain labels with tx_hash {tx_hash}")
 
-    """
-    This task syncs the attestations from the label pool to the DB.
-    It's the same as in the oli_label_pool DAG
-    """
     @task()
     def sync_attestations():
+        """
+        This task syncs the attestations from the label pool to the DB.
+        It's the same as in the oli_label_pool DAG
+        """
         from src.db_connector import DbConnector
         from src.adapters.adapter_oli_label_pool import AdapterLabelPool
 
