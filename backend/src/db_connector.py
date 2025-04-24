@@ -122,11 +122,14 @@ class DbConnector:
                         return pd.DataFrame()
                 
 # ------------------------- additional db functions --------------------------------
-        def execute_query(self, query:str):
-                with self.engine.connect() as connection:
-                        result = connection.execute(query)
-                print(f"Query executed: {query}")
-                return result
+        def execute_query(self, query:str):        
+                conn = self.engine.connect()
+                trans = conn.begin()
+                try:
+                        conn.execute(query)
+                        trans.commit()
+                finally:
+                        conn.close()
                 
         def refresh_materialized_view(self, view_name:str):
                 exec_string = f"REFRESH MATERIALIZED VIEW {view_name};"

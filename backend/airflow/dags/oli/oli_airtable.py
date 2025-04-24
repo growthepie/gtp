@@ -24,6 +24,9 @@ from src.misc.airflow_utils import alert_via_webhook
 )
 
 def etl():
+    """
+    This task reads the contracts from Airtable and attests them to the OLI label pool.
+    """
     @task()
     def airtable_read_contracts():
         import os
@@ -95,6 +98,9 @@ def etl():
                     print(f"Tags: {tags}")
                     raise ValueError(f"Final error: {response.text}")
 
+    """
+    This task gets the trusted entities from the gtp-dna Github and upserts them to the oli_trusted_entities table.
+    """
     @task()
     def refresh_trusted_entities(): # TODO: add new tags automatically to public.oli_tags from OLI github
         from src.misc.helper_functions import get_trusted_entities
@@ -123,6 +129,9 @@ def etl():
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold')
         db_connector.refresh_materialized_view('vw_oli_label_pool_gold_pivoted')
 
+    """
+    This task writes the oss projects from the DB to Airtable.
+    """
     @task()
     def airtable_write_oss_projects():
         import os
@@ -146,6 +155,9 @@ def etl():
         # write to airtable
         at.push_to_airtable(table, df)
 
+    """
+    This task writes the chain info from the main config to Airtable.
+    """
     @task()
     def airtable_write_chain_info():
         import pandas as pd
@@ -186,6 +198,10 @@ def etl():
         if df_new.empty == False:
             at.push_to_airtable(table, df_new.drop(columns=['id']))
 
+    """
+    This task writes the top unlabeled contracts from the DB to Airtable.
+    It also removes any duplicates that are already in the airtable due to temp_owner_project.
+    """
     @task()
     def airtable_write_contracts():
         import os
@@ -255,6 +271,9 @@ def etl():
         # write to airtable
         at.push_to_airtable(table, df)
 
+    """
+    This task writes the remap owner project table to Airtable.
+    """
     @task()
     def airtable_write_depreciated_owner_project():
         import os
@@ -290,7 +309,11 @@ def etl():
         df = df.groupby('old_owner_project').size()
         df = df.reset_index(name='count')
         at.push_to_airtable(table, df)
-
+    
+    """
+    This task reads other attestations from the label pool from Airtable and attests the approved labels to the label pool as growthepie.
+    It also reads the remap owner project table and reattests the labels with the new owner project.
+    """
     @task()
     def airtable_read_label_pool_reattest():
         # read in approved labels & delete approved labels from airtable
@@ -366,6 +389,9 @@ def etl():
             # at the end delete just uploaded rows from airtable
             at.delete_airtable_ids(table, ids)
 
+    """
+    This task reads the remap owner project table and reattests the labels with the new owner project.
+    """
     @task()
     def airtable_read_depreciated_owner_project():
         import os
@@ -421,6 +447,10 @@ def etl():
                         print(f"Tags: {tags}")
                         raise ValueError(f"Final error: {response.text}")
 
+    """
+    This task revokes old attestations from the label pool.
+    It reads the labels from the DB and revokes them in batches of 500.
+    """
     @task()
     def revoke_old_attestations():
         from src.db_connector import DbConnector
@@ -445,19 +475,41 @@ def etl():
                 tx_hash, count = oli.multi_revoke_attestations(uids_onchain[i:i + 500], onchain=True, gas_limit=15000000)
                 print(f"Revoked {count} onchain labels with tx_hash {tx_hash}")
 
+    """
+    This task syncs the attestations from the label pool to the DB.
+    It's the same as in the oli_label_pool DAG
+    """
+    @task()
+    def sync_attestations():
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_oli_label_pool import AdapterLabelPool
+
+        db_connector = DbConnector()
+        ad = AdapterLabelPool({}, db_connector)
+
+        # get new labels from the GraphQL endpoint
+        df = ad.extract()
+        
+        # load labels into bronze table, then also increment to silver and lastly pushes untrusted owner_project labels to airtable
+        ad.load(df)
+
     # all tasks
-    read_contracts = airtable_read_contracts()
-    read_pool = airtable_read_label_pool_reattest()
-    read_remap = airtable_read_depreciated_owner_project()
-    trusted_entities = refresh_trusted_entities()
-    refresh = run_refresh_materialized_view()
-    write_oss = airtable_write_oss_projects()
-    write_chain = airtable_write_chain_info()
-    write_contracts = airtable_write_contracts()
-    write_owner_project = airtable_write_depreciated_owner_project()
-    revoke_onchain = revoke_old_attestations()
+    read_contracts = airtable_read_contracts()  ## read in contracts from airtable and attest
+    read_pool = airtable_read_label_pool_reattest() ## read in approved labels from airtable and attest
+    read_remap = airtable_read_depreciated_owner_project() ## read in remap owner project from airtable and attest
+    trusted_entities = refresh_trusted_entities() ## read in trusted entities from gtp-dna Github and upsert to DB
+    sync_to_db = sync_attestations()
+    refresh = run_refresh_materialized_view() ## refresh materialized views vw_oli_label_pool_gold and vw_oli_label_pool_gold_pivoted
+    write_oss = airtable_write_oss_projects() ## write oss projects from DB to airtable
+    write_chain = airtable_write_chain_info() ## write chain info from main config to airtable
+    write_contracts = airtable_write_contracts()  ## write contracts from DB to airtable
+    write_owner_project = airtable_write_depreciated_owner_project() ## write remap owner project from DB to airtable
+    revoke_onchain = revoke_old_attestations() ## revoke old attestations from the label pool
 
     # Define execution order
-    read_contracts >> read_pool >> read_remap >> trusted_entities >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
+    read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
 
 etl()
+
+
+## When writing to DB in general? when bronze and silver getting filled?
