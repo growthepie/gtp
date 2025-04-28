@@ -70,7 +70,7 @@ stables_metadata = {
             "ethereum": "0x4c9edd5852cd905f086c759e8383e09bff1e68b3",
         }
     },
-    "bincance_usd": {
+    "binance_usd": {
         "name": "Binance USD",
         "symbol": "BUSD",
         "decimals": 18,
