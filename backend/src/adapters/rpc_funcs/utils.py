@@ -954,7 +954,14 @@ def fetch_block_transaction_details(w3, block):
                     _convert_bytes_to_hex(tx, field)
 
                 merged = {**receipt, **tx}
-                merged['hash'] = tx['hash'].hex()
+
+                if isinstance(tx['hash'], bytes):
+                    merged['hash'] = '0x' + tx['hash'].hex()
+                elif isinstance(tx['hash'], str) and not tx['hash'].startswith('0x'):
+                    merged['hash'] = '0x' + tx['hash']
+                else:
+                    merged['hash'] = tx['hash']
+
                 merged['block_timestamp'] = block_timestamp
                 if base_fee_per_gas:
                     merged['baseFeePerGas'] = base_fee_per_gas
