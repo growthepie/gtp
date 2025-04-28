@@ -101,6 +101,7 @@ def etl():
         json_creator.create_fundamentals_full_json(df)
         json_creator.create_metrics_export_json(df)
         json_creator.create_da_fundamentals_json()
+        json_creator.run_top_contracts_jsons()
 
     @task()
     def run_create_labels():

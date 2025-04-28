@@ -2603,13 +2603,13 @@ class JSONCreation():
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/labels/projects_filtered', projects_dict, self.cf_distribution_id)
         print(f'DONE -- projects_filtered export')
 
-    def create_export_labels_json(self, limit, origin_key=None):
+    def create_top_contracts_json(self, limit, origin_key=None):
         if origin_key == None:
             origin_keys = self.chains_list_in_api_labels
         else:
             origin_keys = [origin_key]
 
-        df = self.db_connector.get_labels_export_df(limit=limit, origin_keys=origin_keys, incl_aggregation=False)
+        df = self.db_connector.get_labels_export_df(limit=limit, origin_keys=origin_keys, incl_aggregation=True)
         df = db_addresses_to_checksummed_addresses(df, ['address'])
         df = string_addresses_to_checksummed_addresses(df, ['deployer_address'])
         df['deployment_tx'] = df['deployment_tx'].str.lower()
@@ -2625,12 +2625,20 @@ class JSONCreation():
             self.save_to_json(labels_dict, f'export_labels')
         else:
             if origin_key == None:
-                full_name = f'{self.api_version}/labels/export_labels'
+                full_name = f'{self.api_version}/top_contracts/export_all'
             else:
-                full_name = f'{self.api_version}/labels/export_labels_{origin_key}'
+                full_name = f'{self.api_version}/top_contracts/export_{origin_key}'
 
             upload_json_to_cf_s3(self.s3_bucket, full_name, labels_dict, self.cf_distribution_id)
-        print(f'DONE -- labels {full_name} export')
+        print(f'DONE -- top contracts {full_name} export')
+
+    def run_top_contracts_jsons(self):
+        ## run create_top_contracts_json for all chains that are in self.chains_list_in_api_labels
+        print(f'Creating Top contracts for chains: {self.chains_list_in_api_labels}')
+        for chain in self.chains_list_in_api_labels:
+            print(f'..creating Top contracts for {chain}')
+            self.create_top_contracts_json(100, chain)
+
 
     def create_export_labels_parquet(self, subset = 'top50k'):
         if subset == 'top50k':
