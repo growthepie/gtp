@@ -36,11 +36,6 @@ def etl():
         load_params = {
             'queries': [
                 {
-                    'name': 'fundamentals',
-                    'query_id': 2607041,
-                    'params': {'days': 7}
-                },
-                {
                     'name': 'stables_mcap',
                     'query_id': 2608415,
                     'params': {'days': 7}

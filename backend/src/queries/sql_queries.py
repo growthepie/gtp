@@ -41,12 +41,17 @@ sql_queries = [
         # --- Layer 1 ---
         # Ethereum
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "ethereum", jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_price"}, currency_dependent = False)
+        ,SQLQuery(metric_key = "txcount", origin_key = "ethereum", jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_price"}, currency_dependent = False)
+        ,SQLQuery(metric_key = "daa", origin_key = "ethereum", jinja_path='chain_metrics/select_daa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "waa", origin_key = "ethereum", jinja_path='chain_metrics/select_waa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "maa", origin_key = "ethereum", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "ethereum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "ethereum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "ethereum", jinja_path='chain_metrics/select_gas_per_second.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "ethereum", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "ethereum", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "ethereum", jinja_path='chain_metrics/select_fees_paid.sql.j2')
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "ethereum", jinja_path='chain_metrics/select_txcosts_median.sql.j2')
         
         # --- DA Layers ---
         # Celestia
@@ -60,11 +65,16 @@ sql_queries = [
         # Different filter col on txcounts (gas_used instead of gas_price)
         ## Arbitrum (some data pulled via Dune)
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "arbitrum", jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_used"}, currency_dependent = False)
+        ,SQLQuery(metric_key = "txcount", origin_key = "arbitrum", jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_used"}, currency_dependent = False)
+        ,SQLQuery(metric_key = "daa", origin_key = "arbitrum", jinja_path='chain_metrics/select_daa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "maa", origin_key = "arbitrum", jinja_path='chain_metrics/select_maa.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last7d", origin_key = "arbitrum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2', query_parameters={"timerange" : 7}, currency_dependent = False)
         ,SQLQuery(metric_key = "aa_last30d", origin_key = "arbitrum", jinja_path='chain_metrics/select_aa_lastXXd.sql.j2',query_parameters={"timerange" : 30}, currency_dependent = False)
+        ,SQLQuery(metric_key = "gas_per_second", origin_key = "arbitrum", jinja_path='chain_metrics/select_gas_per_second.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "cca_last7d_exclusive", origin_key = "arbitrum", jinja_path='chain_metrics/select_cca_last7d.sql.j2', currency_dependent = False)
         ,SQLQuery(metric_key = "cca_weekly_exclusive", origin_key = "arbitrum", jinja_path='chain_metrics/select_cca_weekly.sql.j2', currency_dependent = False)
+        ,SQLQuery(metric_key = "fees_paid_eth", origin_key = "arbitrum", jinja_path='chain_metrics/select_fees_paid.sql.j2')
+        ,SQLQuery(metric_key = "txcosts_median_eth", origin_key = "arbitrum", jinja_path='chain_metrics/select_txcosts_median.sql.j2')
 
         ## Real
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "real", jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_used"}, currency_dependent = False)
