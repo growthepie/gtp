@@ -217,7 +217,6 @@ chain_configs ={
     ],
     "special_operations": [
       "handle_effective_gas_price",
-      "convert_type_to_bytea",
       "handle_tx_hash_polygon_zkevm",
       "calculate_tx_fee",
       "convert_input_to_boolean"
@@ -266,7 +265,6 @@ chain_configs ={
       "gas_used"
     ],
     "special_operations": [
-      "convert_type_to_bytea",
       "calculate_tx_fee",
       "convert_input_to_boolean"
     ],
