@@ -555,23 +555,6 @@ def shorten_input_data(df):
         )
     return df
 
-def convert_type_to_bytea(df):
-    """
-    Converts the 'type' column values to bytea format for storage in PostgreSQL.
-    
-    Args:
-        df (pd.DataFrame): The input DataFrame containing the 'type' column.
-
-    Returns:
-        pd.DataFrame: DataFrame with 'type' values converted to bytea.
-    """
-    if 'type' in df.columns:
-        df['type'] = df['type'].apply(
-            lambda x: '\\x' + int(x).to_bytes(4, byteorder='little', signed=True).hex() 
-            if pd.notnull(x) and isinstance(x, (int, float)) else None
-        )
-    return df
-
 # Custom operation for Scroll
 def handle_l1_fee_scroll(df):
     """
