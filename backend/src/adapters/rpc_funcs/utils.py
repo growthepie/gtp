@@ -565,7 +565,7 @@ def convert_type_to_bytea(df):
     Returns:
         pd.DataFrame: DataFrame with 'type' values converted to bytea.
     """
-    if 'type' in df.columns:
+    if 'type' in df.columns and 'tx_type' not in df.columns:
         df['type'] = df['type'].apply(
             lambda x: '\\x' + int(x).to_bytes(4, byteorder='little', signed=True).hex() 
             if pd.notnull(x) and isinstance(x, (int, float)) else None
