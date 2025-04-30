@@ -384,9 +384,10 @@ def etl():
                     # function to create the offchain label
                     response = oli.create_offchain_label(address, chain_id, tags)
                     if response.status_code == 200:
+                        print(f"Successfully attested label for {address} on {chain_id}: {response.json()}")
                         break
                     else:
-                        print(f"Attempt {attempt} failed: {response.text}")
+                        print(f"Attempt {attempt} failed, will retry for {chain_id}:{address}: {response.text}")
                         time.sleep(2 ** attempt)  # Exponential backoff
                 else:
                     print("Failed to get a 200 response after 5 attempts.")
