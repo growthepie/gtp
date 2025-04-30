@@ -73,7 +73,7 @@ class AdapterCelestia(AbstractAdapterRaw):
             attempt = 0
             while attempt < retry_limit:
                 try:
-                    self.fetch_and_process_range(block_start, block_end, self.chain, self.table_name, self.s3_connection, self.bucket_name, self.db_connector)
+                    self.fetch_and_process_range(block_start, block_end, self.chain, self.table_name, self.bucket_name, self.db_connector)
                     break
                 except Exception as e:
                     attempt += 1
@@ -258,7 +258,7 @@ class AdapterCelestia(AbstractAdapterRaw):
 
         return pd.DataFrame(data)
 
-    def fetch_and_process_range(self, current_start, current_end, chain, table_name, s3_connection, bucket_name, db_connector):
+    def fetch_and_process_range(self, current_start, current_end, chain, table_name, bucket_name, db_connector):
         base_wait_time = 5   # Base wait time in seconds
         print(f"...processing blocks {current_start} to {current_end}...")
         while True:
@@ -272,7 +272,7 @@ class AdapterCelestia(AbstractAdapterRaw):
                     return
 
                 # Save data to S3
-                save_data_for_range(df, current_start, current_end, chain, s3_connection, bucket_name)
+                save_data_for_range(df, current_start, current_end, chain, bucket_name)
 
                 # Remove duplicates and set index
                 df.drop_duplicates(subset=['tx_hash'], inplace=True)

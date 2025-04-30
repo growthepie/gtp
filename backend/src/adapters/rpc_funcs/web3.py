@@ -26,6 +26,14 @@ class EthProxy:
             def hooked(*args, **kwargs):
                 if name in ["get_block", "get_transaction_receipt", "get_transaction", "get_block_receipts"]:
                     self._increment_call_count()
+                    
+                # Check if this method is known to be unsupported for this RPC
+                if name == "get_block_receipts":
+                    rpc_url = self._web3cc.get_rpc_url()
+                    if not Web3CC.is_method_supported(rpc_url, name):
+                        # Method not supported, raise exception to trigger fallback
+                        raise ValueError(f"Method '{name}' is known to be unsupported for RPC: {rpc_url}")
+                
                 return self.retry_operation(attr, name, *args, **kwargs)
             return hooked
         else:
@@ -61,7 +69,14 @@ class EthProxy:
                 else:
                     raise e
             except Exception as e:
-                raise e
+                # For specific method not supported errors related to get_block_receipts
+                if method_name == "get_block_receipts" and any(x in str(e).lower() for x in ["method not found", "not supported", "method not supported", "not implemented"]):
+                    # Mark this RPC as not supporting get_block_receipts
+                    Web3CC.method_not_supported(current_rpc, method_name)
+                    # Raise the exception to trigger fallback
+                    raise e
+                else:
+                    raise e
 
         raise Exception(f"ERROR: for {current_rpc}: Operation failed after {max_retries} retries for {method_name} with parameters {args}, {kwargs}.")
 
@@ -74,6 +89,9 @@ class ResponseNormalizerMiddleware(Web3Middleware):
         return response
     
 class Web3CC:
+    # Static cache to track RPCs that don't support get_block_receipts
+    _unsupported_methods_cache = {}
+    
     def __init__(self, rpc_config):
         #print(f"Initializing Web3CC with RPC URL: {rpc_config['url']}")
         self._w3 = self._connect(rpc_config['url'])
@@ -131,3 +149,34 @@ class Web3CC:
         url = raw_url.split("//")[-1]
 
         return url
+
+    @classmethod
+    def method_not_supported(cls, rpc_url, method_name):
+        """
+        Marks a method as not supported for a specific RPC URL
+        
+        Args:
+            rpc_url (str): The RPC URL
+            method_name (str): The name of the unsupported method
+        """
+        if rpc_url not in cls._unsupported_methods_cache:
+            cls._unsupported_methods_cache[rpc_url] = set()
+        
+        cls._unsupported_methods_cache[rpc_url].add(method_name)
+        print(f"Marked method '{method_name}' as unsupported for RPC: {rpc_url}")
+    
+    @classmethod
+    def is_method_supported(cls, rpc_url, method_name):
+        """
+        Checks if a method is supported by a specific RPC URL
+        
+        Args:
+            rpc_url (str): The RPC URL
+            method_name (str): The method name to check
+            
+        Returns:
+            bool: True if the method is supported or unknown, False if known to be unsupported
+        """
+        if rpc_url in cls._unsupported_methods_cache:
+            return method_name not in cls._unsupported_methods_cache[rpc_url]
+        return True

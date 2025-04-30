@@ -892,40 +892,57 @@ def fetch_block_transaction_details(w3, block):
                     d[key] = '0x' + value[2:-1].replace('\\x', '')
 
     byte_fields = ['input', 'input_data', 'data']
+    
+    # Get the RPC URL
+    rpc_url = w3.get_rpc_url()
+    
+    # Skip batch receipt fetch if this RPC is known not to support it
+    if not Web3CC.is_method_supported(rpc_url, "get_block_receipts"):
+        print(f"Skipping batch receipt fetch for RPC {rpc_url} (known to not support get_block_receipts)")
+        use_fallback = True
+    else:
+        use_fallback = False
 
-    try:
-        # Primary method: get all receipts in one call
-        receipts = w3.eth.get_block_receipts(block_hash)
+    if not use_fallback:
+        try:
+            # Primary method: get all receipts in one call
+            receipts = w3.eth.get_block_receipts(block_hash)
 
-        if len(receipts) != len(txs):
-            raise ValueError("Mismatch between number of receipts and transactions")
+            if len(receipts) != len(txs):
+                raise ValueError("Mismatch between number of receipts and transactions")
 
-        for tx, receipt in zip(txs, receipts):
-            tx = dict(tx)
-            receipt = dict(receipt)
+            for tx, receipt in zip(txs, receipts):
+                tx = dict(tx)
+                receipt = dict(receipt)
 
-            for field in byte_fields:
-                _convert_bytes_to_hex(receipt, field)
-                _convert_bytes_to_hex(tx, field)
+                for field in byte_fields:
+                    _convert_bytes_to_hex(receipt, field)
+                    _convert_bytes_to_hex(tx, field)
 
-            merged = {**receipt, **tx}
+                merged = {**receipt, **tx}
 
-            if isinstance(tx['hash'], bytes):
-                merged['hash'] = '0x' + tx['hash'].hex()
-            elif isinstance(tx['hash'], str) and not tx['hash'].startswith('0x'):
-                merged['hash'] = '0x' + tx['hash']
-            else:
-                merged['hash'] = tx['hash']
-                
-            merged['block_timestamp'] = block_timestamp
-            if base_fee_per_gas:
-                merged['baseFeePerGas'] = base_fee_per_gas
-            transaction_details.append(merged)
+                if isinstance(tx['hash'], bytes):
+                    merged['hash'] = '0x' + tx['hash'].hex()
+                elif isinstance(tx['hash'], str) and not tx['hash'].startswith('0x'):
+                    merged['hash'] = '0x' + tx['hash']
+                else:
+                    merged['hash'] = tx['hash']
+                    
+                merged['block_timestamp'] = block_timestamp
+                if base_fee_per_gas:
+                    merged['baseFeePerGas'] = base_fee_per_gas
+                transaction_details.append(merged)
 
-    except Exception as e:
-        print(f"[Fallback] Block receipt fetch failed: {str(e)}")
-        print(f"Falling back to per-transaction receipt fetch using RPC: {w3.get_rpc_url()}")
+        except Exception as e:
+            print(f"[Fallback] Block receipt fetch failed: {str(e)}")
+            print(f"Falling back to per-transaction receipt fetch using RPC: {rpc_url}")
+            use_fallback = True
+            
+            # If this is a method not supported error, mark this RPC as not supporting get_block_receipts
+            if any(x in str(e).lower() for x in ["method not found", "not supported", "method not supported", "not implemented"]):
+                Web3CC.method_not_supported(rpc_url, "get_block_receipts")
 
+    if use_fallback:
         for tx in txs:
             try:
                 tx = dict(tx)
@@ -990,7 +1007,7 @@ def fetch_data_for_range(w3, block_start, block_end):
     except Exception as e:
         raise e
 
-def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket_name):
+def save_data_for_range(df, block_start, block_end, chain, bucket_name):
     """
     Saves the transaction data for a range of blocks to an S3 bucket in parquet format.
     
@@ -999,7 +1016,6 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
         block_start (int): The starting block number.
         block_end (int): The ending block number.
         chain (str): The name of the blockchain chain.
-        s3_connection: The S3 connection object.
         bucket_name (str): The name of the S3 bucket.
     """
     # Convert any 'object' dtype columns to string
@@ -1020,7 +1036,7 @@ def save_data_for_range(df, block_start, block_end, chain, s3_connection, bucket
     s3_path = f"s3://{bucket_name}/{file_key}"
     df.to_parquet(s3_path, index=False)
 
-def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s3_connection, bucket_name, db_connector, rpc_url):
+def fetch_and_process_range(current_start, current_end, chain, w3, table_name, bucket_name, db_connector, rpc_url):
     """
     Fetches and processes transaction data for a range of blocks, saves it to S3, and inserts it into the database.
     Retries the operation on failure with exponential backoff.
@@ -1031,7 +1047,6 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
         chain (str): The name of the blockchain chain.
         w3: The Web3 instance for interacting with the blockchain.
         table_name (str): The database table name to insert data into.
-        s3_connection: The S3 connection object.
         bucket_name (str): The name of the S3 bucket.
         db_connector: The database connector object.
         rpc_url (str): The RPC URL used for fetching data.
@@ -1052,7 +1067,7 @@ def fetch_and_process_range(current_start, current_end, chain, w3, table_name, s
                 print(f"...skipping blocks {current_start} to {current_end} due to no data.")
                 return
 
-            save_data_for_range(df, current_start, current_end, chain, s3_connection, bucket_name)
+            save_data_for_range(df, current_start, current_end, chain, bucket_name)
 
             df_prep = prep_dataframe_new(df, chain)
 
