@@ -1627,8 +1627,11 @@ class JSONCreation():
     #######################################################################
 
     def aggregate_metric(self, df, origin_key, metric_key, days):
+        start_date = datetime.now() - timedelta(days=days+1)
+        start_date = start_date.replace(tzinfo=timezone.utc) 
+
         df = df[(df['origin_key'] == origin_key) & (df['metric_key'] == metric_key)]
-        df = df[(df['date'] >= df['date'].max() - pd.DateOffset(days=days-1))]
+        df = df[(df['date'] >= start_date)]
         val = df['value'].sum()
         return val
 

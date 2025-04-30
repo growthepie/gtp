@@ -36,19 +36,19 @@ def etl():
         load_params = {
             'queries': [
                 {
-                    'name': 'fundamentals',
-                    'query_id': 2607041,
-                    'params': {'days': 7}
-                },
-                {
                     'name': 'stables_mcap',
                     'query_id': 2608415,
-                    'params': {'days': 7}
+                    'params': {'days': 5}
                 },
                 {
                     'name': 'economics_da',
                     'query_id': 4046209,
-                    'params': {'days': 7}
+                    'params': {'days': 5}
+                },
+                {
+                    'name': 'starknet_aa', #starknet daa, maa, user_base, aa_last7d, aa_last30d
+                    'query_id': 5057380,
+                    'params': {'days': 5}
                 }
             ],
             'prepare_df': 'prepare_df_metric_daily',
