@@ -343,7 +343,7 @@ def etl():
             # initialize db connection
             db_connector = DbConnector()
             # OLI instance
-            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=True)
             # remove duplicates address, origin_key
             df = df.drop_duplicates(subset=['address', 'chain_id'])
             # keep track of ids
@@ -423,7 +423,7 @@ def etl():
             # db connection
             db_connector = DbConnector()
             # initialize OLI instance
-            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=True)
             # iterate over each owner_project that was changed
             for i, row in df.iterrows():
                 # get the old and new owner project
