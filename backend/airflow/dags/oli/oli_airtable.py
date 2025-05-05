@@ -176,7 +176,6 @@ def etl():
         df_remove = df_air[mask]
         if df_remove.empty == False:
             at.delete_airtable_ids(table, df_remove['id'].tolist())
-            print(f"Removed {len(df_remove)} records from Airtable.")
 
     @task()
     def airtable_write_chain_info():
@@ -227,7 +226,6 @@ def etl():
         df_remove = df_air[mask]
         if df_remove.empty == False:
             at.delete_airtable_ids(table, df_remove['id'].tolist())
-            print(f"Removed {len(df_remove)} records from Airtable.")
 
     @task()
     def airtable_write_contracts():
