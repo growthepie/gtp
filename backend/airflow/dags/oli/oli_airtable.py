@@ -160,7 +160,8 @@ def etl():
 
         # merge current table with the new data
         table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
-        df = df.merge(at.read_airtable(table)[['Name', 'id']], how='left', left_on='Name', right_on='Name')
+        df_air = at.read_airtable(table)[['Name', 'id']]
+        df = df.merge(df_air, how='left', left_on='Name', right_on='Name')
 
         # update existing records (primary key is the id)
         at.update_airtable(table, df)
@@ -169,6 +170,13 @@ def etl():
         df_new = df[df['id'].isnull()]
         if df_new.empty == False:
             at.push_to_airtable(table, df_new.drop(columns=['id']))
+
+        # remove old records
+        mask = ~df_air['Name'].isin(df['Name'])
+        df_remove = df_air[mask]
+        if df_remove.empty == False:
+            at.delete_airtable_ids(table, df_remove['id'].tolist())
+            print(f"Removed {len(df_remove)} records from Airtable.")
 
     @task()
     def airtable_write_chain_info():
@@ -203,7 +211,8 @@ def etl():
 
         # merge current table with the new data
         table = api.table(AIRTABLE_BASE_ID, 'Chain List')
-        df = df.merge(at.read_airtable(table)[['origin_key', 'id']], how='left', left_on='origin_key', right_on='origin_key')
+        df_air = at.read_airtable(table)[['origin_key', 'id']]
+        df = df.merge(df_air, how='left', left_on='origin_key', right_on='origin_key')
 
         # update existing records (primary key is the id)
         at.update_airtable(table, df)
@@ -212,6 +221,13 @@ def etl():
         df_new = df[df['id'].isnull()]
         if df_new.empty == False:
             at.push_to_airtable(table, df_new.drop(columns=['id']))
+
+        # remove old records
+        mask = ~df_air['origin_key'].isin(df['origin_key'])
+        df_remove = df_air[mask]
+        if df_remove.empty == False:
+            at.delete_airtable_ids(table, df_remove['id'].tolist())
+            print(f"Removed {len(df_remove)} records from Airtable.")
 
     @task()
     def airtable_write_contracts():
