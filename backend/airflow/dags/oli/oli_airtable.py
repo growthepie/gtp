@@ -339,7 +339,7 @@ def etl():
         table = api.table(AIRTABLE_BASE_ID, 'Label Pool Reattest')
         # read all approved labels in 'Label Pool Reattest'
         df = at.read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table)
-        if not df.empty:
+        if df and not df.empty:
             # initialize db connection
             db_connector = DbConnector()
             # OLI instance
