@@ -54,7 +54,8 @@ class AdapterLabelPool(AbstractAdapter):
             self.db_connector.upsert_table('oli_label_pool_bronze', df, if_exists='update')
         print_load(self.name + ' bronze', {}, df.shape)
 
-        # upsert attestations from bronze to silver table #TODO: add more checks than just null, NaN, nan filters
+        # upsert attestations from bronze to silver table (starting from the time_created timestamp passed in extract function)
+            # TODO: add more checks than just null, NaN, nan filters
         if df.empty == False:
             if self.upsert_from_bronze_to_silver(): # executes label_pool_from_bronze_to_silver.sql.j2
                 print("Successfully upserted attestations from bronze to silver.")
