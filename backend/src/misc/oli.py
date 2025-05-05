@@ -585,13 +585,13 @@ class OLI:
         else:
             raise Exception(f"Transaction failed: {txn_receipt}")
 
-    def graphql_query_attestations(self, attester=None, recipient=None, timeCreated=None, revocationTime=None):
+    def graphql_query_attestations(self, address=None, attester=None, timeCreated=None, revocationTime=None):
         """
         Queries attestations from the EAS GraphQL API based on the specified filters.
         
         Args:
+            address (str, optional): Ethereum address of the labeled contract
             attester (str, optional): Ethereum address of the attester
-            recipient (str, optional): Ethereum address of the recipient
             timeCreated (int, optional): Filter for attestations created after this timestamp
             revocationTime (int, optional): Filter for attestations with revocation time >= this timestamp
             
@@ -631,14 +631,14 @@ class OLI:
                 }
             ]
         }
+        
+        # Add address to where clause if not None
+        if address is not None:
+            variables["where"]["recipient"] = {"equals": address}
 
         # Add attester to where clause if not None
         if attester is not None:
             variables["where"]["attester"] = {"equals": attester}
-        
-        # Add recipient to where clause if not None
-        if recipient is not None:
-            variables["where"]["recipient"] = {"equals": recipient}
         
         # Add timeCreated to where clause if not None, ensuring it's an int
         if timeCreated is not None:
