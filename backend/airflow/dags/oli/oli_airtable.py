@@ -493,6 +493,11 @@ def etl():
         uids_offchain = df[df['is_offchain'] == True]['id_hex'].tolist()
         uids_onchain = df[df['is_offchain'] == False]['id_hex'].tolist()
 
+        ### remove toxic uids (GraphQL error as of 2025-05-05)
+        toxic_uids = ['0x10ad46514c42ba85efd1b2893904093257cf2aea73bedd992d52c3921ac8f27d']
+        uids_offchain = [uid for uid in uids_offchain if uid not in toxic_uids]
+        uids_onchain = [uid for uid in uids_onchain if uid not in toxic_uids]
+
         if uids_offchain == [] and uids_onchain == []:
             print("No labels to be revoked")
         else:
