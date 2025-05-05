@@ -139,7 +139,7 @@ def etl():
     @task()
     def airtable_write_oss_projects():
         """
-        This task writes the oss projects from the DB to Airtable.
+        This task writes OSS projects from the DB to Airtable.
         """
         import os
         from pyairtable import Api
@@ -155,13 +155,20 @@ def etl():
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
 
-        ## TODO: instead of Clear all (which breaks mapping in Reattest table) handle it differently
-        # delete every row in airtable
-        at.clear_all_airtable(table)
         # get active projects from db
         df = db_connector.get_projects_for_airtable()
-        # write to airtable
-        at.push_to_airtable(table, df)
+
+        # merge current table with the new data
+        table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
+        df = df.merge(at.read_airtable(table)[['Name', 'id']], how='left', left_on='Name', right_on='Name')
+
+        # update existing records (primary key is the id)
+        at.update_airtable(table, df)
+
+        # add any new records/chains if present
+        df_new = df[df['id'].isnull()]
+        if df_new.empty == False:
+            at.push_to_airtable(table, df_new.drop(columns=['id']))
 
     @task()
     def airtable_write_chain_info():
@@ -509,16 +516,15 @@ def etl():
     trusted_entities = refresh_trusted_entities() ## read in trusted entities from gtp-dna Github and upsert to DB
     sync_to_db = sync_attestations()
     refresh = run_refresh_materialized_view() ## refresh materialized views vw_oli_label_pool_gold and vw_oli_label_pool_gold_pivoted
-    #write_oss = airtable_write_oss_projects() ## write oss projects from DB to airtable
+    write_oss = airtable_write_oss_projects() ## write oss projects from DB to airtable
     write_chain = airtable_write_chain_info() ## write chain info from main config to airtable
     write_contracts = airtable_write_contracts()  ## write contracts from DB to airtable
     write_owner_project = airtable_write_depreciated_owner_project() ## write remap owner project from DB to airtable
     revoke_onchain = revoke_old_attestations() ## revoke old attestations from the label pool
 
     # Define execution order
-    #read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
-    read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
-
+    read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
+    
 etl()
 
 
