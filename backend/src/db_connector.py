@@ -1888,7 +1888,8 @@ class DbConnector:
                                         AND revoked = false
                         ),
                         with_max_time AS (
-                                SELECT *,
+                                SELECT 
+                                        *,
                                         MAX(time_created) OVER (PARTITION BY chain_id, address) AS max_time_created
                                 FROM filtered_labels
                         )

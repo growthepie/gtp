@@ -139,7 +139,7 @@ def etl():
     @task()
     def airtable_write_oss_projects():
         """
-        This task writes the oss projects from the DB to Airtable.
+        This task writes OSS projects from the DB to Airtable.
         """
         import os
         from pyairtable import Api
@@ -155,13 +155,27 @@ def etl():
         db_connector = DbConnector()
         table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
 
-        ## TODO: instead of Clear all (which breaks mapping in Reattest table) handle it differently
-        # delete every row in airtable
-        at.clear_all_airtable(table)
         # get active projects from db
         df = db_connector.get_projects_for_airtable()
-        # write to airtable
-        at.push_to_airtable(table, df)
+
+        # merge current table with the new data
+        table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
+        df_air = at.read_airtable(table)[['Name', 'id']]
+        df = df.merge(df_air, how='left', left_on='Name', right_on='Name')
+
+        # update existing records (primary key is the id)
+        at.update_airtable(table, df)
+
+        # add any new records/chains if present
+        df_new = df[df['id'].isnull()]
+        if df_new.empty == False:
+            at.push_to_airtable(table, df_new.drop(columns=['id']))
+
+        # remove old records
+        mask = ~df_air['Name'].isin(df['Name'])
+        df_remove = df_air[mask]
+        if df_remove.empty == False:
+            at.delete_airtable_ids(table, df_remove['id'].tolist())
 
     @task()
     def airtable_write_chain_info():
@@ -196,7 +210,8 @@ def etl():
 
         # merge current table with the new data
         table = api.table(AIRTABLE_BASE_ID, 'Chain List')
-        df = df.merge(at.read_airtable(table)[['origin_key', 'id']], how='left', left_on='origin_key', right_on='origin_key')
+        df_air = at.read_airtable(table)[['origin_key', 'id']]
+        df = df.merge(df_air, how='left', left_on='origin_key', right_on='origin_key')
 
         # update existing records (primary key is the id)
         at.update_airtable(table, df)
@@ -205,6 +220,12 @@ def etl():
         df_new = df[df['id'].isnull()]
         if df_new.empty == False:
             at.push_to_airtable(table, df_new.drop(columns=['id']))
+
+        # remove old records
+        mask = ~df_air['origin_key'].isin(df['origin_key'])
+        df_remove = df_air[mask]
+        if df_remove.empty == False:
+            at.delete_airtable_ids(table, df_remove['id'].tolist())
 
     @task()
     def airtable_write_contracts():
@@ -339,11 +360,11 @@ def etl():
         table = api.table(AIRTABLE_BASE_ID, 'Label Pool Reattest')
         # read all approved labels in 'Label Pool Reattest'
         df = at.read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table)
-        if not df.empty:
+        if df and not df.empty:
             # initialize db connection
             db_connector = DbConnector()
             # OLI instance
-            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=True)
             # remove duplicates address, origin_key
             df = df.drop_duplicates(subset=['address', 'chain_id'])
             # keep track of ids
@@ -423,7 +444,7 @@ def etl():
             # db connection
             db_connector = DbConnector()
             # initialize OLI instance
-            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=False)
+            oli = OLI(os.getenv("OLI_gtp_pk"), is_production=True)
             # iterate over each owner_project that was changed
             for i, row in df.iterrows():
                 # get the old and new owner project
@@ -472,6 +493,11 @@ def etl():
         uids_offchain = df[df['is_offchain'] == True]['id_hex'].tolist()
         uids_onchain = df[df['is_offchain'] == False]['id_hex'].tolist()
 
+        ### remove toxic uids (GraphQL error as of 2025-05-05)
+        toxic_uids = ['0x10ad46514c42ba85efd1b2893904093257cf2aea73bedd992d52c3921ac8f27d']
+        uids_offchain = [uid for uid in uids_offchain if uid not in toxic_uids]
+        uids_onchain = [uid for uid in uids_onchain if uid not in toxic_uids]
+
         if uids_offchain == [] and uids_onchain == []:
             print("No labels to be revoked")
         else:
@@ -509,16 +535,15 @@ def etl():
     trusted_entities = refresh_trusted_entities() ## read in trusted entities from gtp-dna Github and upsert to DB
     sync_to_db = sync_attestations()
     refresh = run_refresh_materialized_view() ## refresh materialized views vw_oli_label_pool_gold and vw_oli_label_pool_gold_pivoted
-    #write_oss = airtable_write_oss_projects() ## write oss projects from DB to airtable
+    write_oss = airtable_write_oss_projects() ## write oss projects from DB to airtable
     write_chain = airtable_write_chain_info() ## write chain info from main config to airtable
     write_contracts = airtable_write_contracts()  ## write contracts from DB to airtable
     write_owner_project = airtable_write_depreciated_owner_project() ## write remap owner project from DB to airtable
     revoke_onchain = revoke_old_attestations() ## revoke old attestations from the label pool
 
     # Define execution order
-    #read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
-    read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
-
+    read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
+    
 etl()
 
 
