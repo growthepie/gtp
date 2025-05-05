@@ -19,11 +19,13 @@ class OLI:
         # Set network based on environment
         if is_production:
             self.rpc = "https://mainnet.base.org"
+            self.graphql = "https://base.easscan.org/graphql"
             self.rpc_chain_number = 8453
             self.eas_api_url = "https://base.easscan.org/offchain/store"
             self.eas_address = "0x4200000000000000000000000000000000000021"  # EAS contract address on mainnet
         else:
-            self.rpc = "https://sepolia.base.org"  # Updated to match your script
+            self.rpc = "https://sepolia.base.org"
+            self.graphql = "https://base-sepolia.easscan.org/graphql"
             self.rpc_chain_number = 84532
             self.eas_api_url = "https://base-sepolia.easscan.org/offchain/store"
             self.eas_address = "0x4200000000000000000000000000000000000021"  # EAS contract address on testnet
@@ -582,7 +584,84 @@ class OLI:
             return f"0x{txn_hash.hex()}", len(uids)
         else:
             raise Exception(f"Transaction failed: {txn_receipt}")
+
+    def graphql_query_attestations(self, attester=None, recipient=None, timeCreated=None, revocationTime=None):
+        """
+        Queries attestations from the EAS GraphQL API based on the specified filters.
         
+        Args:
+            attester (str, optional): Ethereum address of the attester
+            recipient (str, optional): Ethereum address of the recipient
+            timeCreated (int, optional): Filter for attestations created after this timestamp
+            revocationTime (int, optional): Filter for attestations with revocation time >= this timestamp
+            
+        Returns:
+            dict: JSON response containing matching attestation data
+        """
+        query = """
+            query Attestations($take: Int, $where: AttestationWhereInput, $orderBy: [AttestationOrderByWithRelationInput!]) {
+                attestations(take: $take, where: $where, orderBy: $orderBy) {
+                    attester
+                    decodedDataJson
+                    expirationTime
+                    id
+                    ipfsHash
+                    isOffchain
+                    recipient
+                    refUID
+                    revocable
+                    revocationTime
+                    revoked
+                    time
+                    timeCreated
+                    txid
+                }
+            }
+        """
+            
+        variables = {
+            "where": {
+                "schemaId": {
+                    "equals": self.oli_label_pool_schema
+                }
+            },
+            "orderBy": [
+                {
+                "timeCreated": "desc"
+                }
+            ]
+        }
+
+        # Add attester to where clause if not None
+        if attester is not None:
+            variables["where"]["attester"] = {"equals": attester}
+        
+        # Add recipient to where clause if not None
+        if recipient is not None:
+            variables["where"]["recipient"] = {"equals": recipient}
+        
+        # Add timeCreated to where clause if not None, ensuring it's an int
+        if timeCreated is not None:
+            timeCreated = int(timeCreated)
+            variables["where"]["timeCreated"] = {"gt": timeCreated}
+        
+        # Add revocationTime to where clause if not None, ensuring it's an int
+        if revocationTime is not None:
+            revocationTime = int(revocationTime)
+            variables["where"]["revocationTime"] = {"gte": revocationTime}
+        
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
+        response = requests.post(self.graphql, json={"query": query, "variables": variables}, headers=headers)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            raise Exception(f"GraphQL query failed with status code {response.status_code}: {response.text}")
+
+
 """
 # Examples
 
