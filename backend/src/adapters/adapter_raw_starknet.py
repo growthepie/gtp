@@ -160,7 +160,7 @@ class AdapterStarknet(AbstractAdapterRaw):
             try:
                 block_range = block_range_queue.get(timeout=5)
                 print(f"...processing block range {block_range[0]}-{block_range[1]} from {rpc_config['url']}")
-                self.fetch_and_process_range_starknet(block_range[0], block_range[1], self.chain, self.s3_connection, self.bucket_name, self.db_connector, rpc_config['url'])
+                self.fetch_and_process_range_starknet(block_range[0], block_range[1], self.chain, self.bucket_name, self.db_connector, rpc_config['url'])
             except Empty:
                 print("DONE: no more blocks to process. Worker is shutting down.")
                 return
@@ -188,7 +188,7 @@ class AdapterStarknet(AbstractAdapterRaw):
         else:
             raise Exception("Failed to retrieve the latest block number.")
 
-    def fetch_and_process_range_starknet(self, current_start, current_end, chain, s3_connection, bucket_name, db_connector, rpc_url):
+    def fetch_and_process_range_starknet(self, current_start, current_end, chain, bucket_name, db_connector, rpc_url):
         base_wait_time = 5
         while True:
             try:
@@ -201,7 +201,7 @@ class AdapterStarknet(AbstractAdapterRaw):
 
                 # Process and save transactions
                 if not transactions_df.empty:
-                    save_data_for_range(transactions_df, current_start, current_end, chain, s3_connection, bucket_name)
+                    save_data_for_range(transactions_df, current_start, current_end, chain, bucket_name)
                     self.insert_data_into_db(transactions_df, db_connector, 'starknet_tx', 'transaction')
                 
                 # # Process and save events

@@ -325,7 +325,7 @@ class NodeAdapter(AbstractAdapterRaw):
                 # Fetch and process the block range
                 rows_loaded = fetch_and_process_range(
                     block_range[0], block_range[1], self.chain, node_connection,
-                    self.table_name, self.s3_connection, self.bucket_name,
+                    self.table_name, self.bucket_name,
                     self.db_connector, rpc_config['url']
                 )
 

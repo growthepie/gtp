@@ -1,6 +1,6 @@
 import time
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 from web3 import Web3
 
 from src.adapters.abstract_adapters import AbstractAdapter
@@ -60,7 +60,11 @@ class AdapterTotalSupply(AbstractAdapter):
 
                 print(f"...loading {coin.origin_key} for {days} days.")
 
-                max_days = (datetime.now() - datetime.strptime(coin.cs_deployment_date , '%Y-%m-%d')).days
+                # Calculate max days from deployment date + 1 day
+                deployment_date = datetime.strptime(coin.cs_deployment_date, '%Y-%m-%d')
+                deployment_date = deployment_date + timedelta(days=1)  # Start one day later
+                max_days = (datetime.now() - deployment_date).days
+                
                 if days > max_days:
                     days = max_days
 
@@ -162,6 +166,10 @@ class AdapterTotalSupply(AbstractAdapter):
                 #raise e
                 continue
         
-        #print(dfMain.to_markdown())
-        dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+        # Only try to set the index if the dataframe is not empty
+        if not dfMain.empty:
+            dfMain.set_index(['metric_key', 'origin_key', 'date'], inplace=True)
+        else:
+            print("Warning: No data was retrieved for any of the specified projects.")
+            
         return dfMain
