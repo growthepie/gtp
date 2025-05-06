@@ -1,5 +1,5 @@
 {#
-    Get all attestations from untrusted attesters that have a owner_project tag from the label pool. Used to double check via airtable.
+    Get all attestations from external attesters that have a 'contract_name', 'owner_project' or 'usage_category' tag assigned to a label. Labels are reviewed and reattested via airtable.
     - Filters out revoked attestations
     - Filters out tag_ids that are not contract_name, owner_project, usage_category
     - Filters out attestations made by growthepie.attest
