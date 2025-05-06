@@ -17,7 +17,8 @@ WITH filtered_labels AS (
   FROM 
     public.oli_label_pool_silver
   WHERE 
-    attester NOT IN (SELECT attester FROM oli_trusted_entities)
+    -- attester NOT IN (SELECT attester FROM oli_trusted_entities)
+    attester != decode('A725646C05E6BB813D98C5ABB4E72DF4BCF00B56', 'hex') -- growthepie.attest
     AND chain_id IN (SELECT caip2 FROM sys_chains)
     AND revoked = FALSE
     AND tag_id IN ('contract_name', 'owner_project', 'usage_category')
