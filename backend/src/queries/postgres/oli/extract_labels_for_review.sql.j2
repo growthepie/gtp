@@ -1,11 +1,10 @@
 {#
-    Get all attestations from untrusted attesters that have a owner_project tag from the label pool. Used to double check via airtable.
+    Get all attestations from external attesters that have a 'contract_name', 'owner_project' or 'usage_category' tag assigned to a label. Labels are reviewed and reattested via airtable.
     - Filters out revoked attestations
     - Filters out tag_ids that are not contract_name, owner_project, usage_category
-    - Filters attestations to only include ones from untrusted entities
+    - Filters out attestations made by growthepie.attest
 
     Parameters:
-    - trusted_entities: An sql vlaue list of trusted entities (use function df_to_postgres_values)
     - time: time_created, default = 0; Only consider attestations newer than that time (int: Unix Timestamp).
 #}
 
@@ -17,7 +16,8 @@ WITH filtered_labels AS (
   FROM 
     public.oli_label_pool_silver
   WHERE 
-    attester NOT IN (SELECT attester FROM oli_trusted_entities)
+    -- attester NOT IN (SELECT attester FROM oli_trusted_entities)
+    attester != decode('A725646C05E6BB813D98C5ABB4E72DF4BCF00B56', 'hex') -- growthepie.attest
     AND chain_id IN (SELECT caip2 FROM sys_chains)
     AND revoked = FALSE
     AND tag_id IN ('contract_name', 'owner_project', 'usage_category')
