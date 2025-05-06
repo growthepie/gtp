@@ -93,6 +93,18 @@ class AdapterLabelPool(AbstractAdapter):
                 df_air['chain_id'] = df_air['chain_id'].apply(lambda x: [x])
                 # rename chain_id to origin_key
                 df_air = df_air.rename(columns={'chain_id': 'origin_key'})
+                # catch errors and log them in the error column (for owner_project and usage_category)
+                df_air['error'] = None
+                df_air['error'] = df_air.apply(
+                    lambda row: (row['error'] or '') + f" failed owner_project: '{row['owner_project'][0]}'" 
+                    if not row['owner_project'][0].startswith('rec') else row['error'], axis=1
+                )
+                df_air['error'] = df_air.apply(
+                    lambda row: (row['error'] or '') + f" failed usage_category: '{row['usage_category'][0]}'" 
+                    if not row['usage_category'][0].startswith('rec') else row['error'], axis=1
+                )
+                df_air['usage_category'] = df_air['usage_category'].apply(lambda x: x if x[0].startswith('rec') else [])
+                df_air['owner_project'] = df_air['owner_project'].apply(lambda x: x if x[0].startswith('rec') else [])
                 # write to airtable df
                 at.push_to_airtable(table, df_air)
                 # send discord message
