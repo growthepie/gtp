@@ -65,7 +65,5 @@ if __name__ == "__main__":
             run_backfill_task(chain_name, db_connector, start_date, end_date, batch_size)
         except Exception as e:
             print(f"Error processing {chain_name}: {e}")
-        finally:
-            db_connector.close()
     
     print("\nAll backfill tasks completed.") 
