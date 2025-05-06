@@ -138,7 +138,7 @@ class AdapterLoopring(AbstractAdapterRaw):
                 if current_end > latest_block:
                     current_end = latest_block
 
-                futures.append(executor.submit(self.fetch_and_process_range_loopring, current_start, current_end, self.chain, self.table_name, self.s3_connection, self.bucket_name, self.db_connector))
+                futures.append(executor.submit(self.fetch_and_process_range_loopring, current_start, current_end, self.chain, self.table_name, self.bucket_name, self.db_connector))
 
             # Wait for all threads to complete and handle any exceptions
             for future in as_completed(futures):
@@ -173,7 +173,7 @@ class AdapterLoopring(AbstractAdapterRaw):
 
         return all_blocks_df
 
-    def fetch_and_process_range_loopring(self, current_start, current_end, chain, table_name, s3_connection, bucket_name, db_connector):
+    def fetch_and_process_range_loopring(self, current_start, current_end, chain, table_name, bucket_name, db_connector):
         base_wait_time = 5   # Base wait time in seconds
         while True:
             try:
@@ -186,7 +186,7 @@ class AdapterLoopring(AbstractAdapterRaw):
                     return
 
                 # Save data to S3
-                save_data_for_range(df, current_start, current_end, chain, s3_connection, bucket_name)
+                save_data_for_range(df, current_start, current_end, chain, bucket_name)
 
                 # Dataframe preparation specific to Loopring
                 df_prep = self.prep_dataframe_loopring(df)

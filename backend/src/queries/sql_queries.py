@@ -155,6 +155,8 @@ sql_queries = [
         ## Unichain
         ,*standard_evm_queries("unichain")
 
+        ,*standard_evm_queries("lisk")
+
         # Others EVM Custom Gas Token
         ## Mantle (also custom gas query)
         ,SQLQuery(metric_key = "txcount_raw", origin_key = "mantle", jinja_path='chain_metrics/select_txcount.sql.j2', query_parameters={"filter_col" : "gas_price"}, currency_dependent = False)

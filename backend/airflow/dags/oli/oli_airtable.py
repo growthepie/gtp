@@ -102,7 +102,24 @@ def etl():
                     raise ValueError(f"Final error: {response.text}")
 
     @task()
-    def refresh_trusted_entities(): # TODO: add new tags automatically to public.oli_tags from OLI github
+    def refresh_oli_tags():
+        """
+        This task adds new oli tags to oli_tags table, only addative, doesn't remove tags!
+        """
+        from src.db_connector import DbConnector
+        from src.misc.helper_functions import get_all_oli_tags_from_github
+
+        # get tags from gtp-dna Github
+        df = get_all_oli_tags_from_github()
+
+        # upsert/update oli_tags table 
+        db_connector = DbConnector()
+        df = df.set_index('tag_id')
+        db_connector.upsert_table('oli_tags', df, if_exists='update')
+    
+    
+    @task()
+    def refresh_trusted_entities():
         """
         This task gets the trusted entities from the gtp-dna Github and upserts them to the oli_trusted_entities table.
         """
@@ -532,6 +549,7 @@ def etl():
     read_contracts = airtable_read_contracts()  ## read in contracts from airtable and attest
     read_pool = airtable_read_label_pool_reattest() ## read in approved labels from airtable and attest
     read_remap = airtable_read_depreciated_owner_project() ## read in remap owner project from airtable and attest
+    refresh_tags = refresh_oli_tags() ## read in oli tags from gtp-dna Github and upsert to DB table oli_tags
     trusted_entities = refresh_trusted_entities() ## read in trusted entities from gtp-dna Github and upsert to DB
     sync_to_db = sync_attestations() ## updates oli bronze and silver tables with new labels from the label pool
     refresh = run_refresh_materialized_view() ## refresh materialized views vw_oli_label_pool_gold and vw_oli_label_pool_gold_pivoted
@@ -542,7 +560,7 @@ def etl():
     revoke_onchain = revoke_old_attestations() ## revoke old attestations from the label pool
 
     # Define execution order
-    read_contracts >> read_pool >> read_remap >> trusted_entities >> sync_to_db >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
+    read_contracts >> read_pool >> read_remap >> refresh_tags >> trusted_entities >> sync_to_db >> refresh >> write_oss >> write_chain >> write_contracts >> write_owner_project >> revoke_onchain
     
 etl()
 
