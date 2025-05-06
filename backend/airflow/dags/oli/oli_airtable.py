@@ -493,10 +493,10 @@ def etl():
         uids_offchain = df[df['is_offchain'] == True]['id_hex'].tolist()
         uids_onchain = df[df['is_offchain'] == False]['id_hex'].tolist()
 
-        ### remove toxic uids (GraphQL error as of 2025-05-05)
-        toxic_uids = ['0x10ad46514c42ba85efd1b2893904093257cf2aea73bedd992d52c3921ac8f27d']
-        uids_offchain = [uid for uid in uids_offchain if uid not in toxic_uids]
-        uids_onchain = [uid for uid in uids_onchain if uid not in toxic_uids]
+        ### remove toxic uids (e.g. GraphQL indexing errors, message https://t.me/stevedakh to get fixed)
+        #toxic_uids = ['0x10ad46514c42ba85efd1b2893904093257cf2aea73bedd992d52c3921ac8f27d']
+        #uids_offchain = [uid for uid in uids_offchain if uid not in toxic_uids]
+        #uids_onchain = [uid for uid in uids_onchain if uid not in toxic_uids]
 
         if uids_offchain == [] and uids_onchain == []:
             print("No labels to be revoked")
@@ -533,7 +533,7 @@ def etl():
     read_pool = airtable_read_label_pool_reattest() ## read in approved labels from airtable and attest
     read_remap = airtable_read_depreciated_owner_project() ## read in remap owner project from airtable and attest
     trusted_entities = refresh_trusted_entities() ## read in trusted entities from gtp-dna Github and upsert to DB
-    sync_to_db = sync_attestations()
+    sync_to_db = sync_attestations() ## updates oli bronze and silver tables with new labels from the label pool
     refresh = run_refresh_materialized_view() ## refresh materialized views vw_oli_label_pool_gold and vw_oli_label_pool_gold_pivoted
     write_oss = airtable_write_oss_projects() ## write oss projects from DB to airtable
     write_chain = airtable_write_chain_info() ## write chain info from main config to airtable
