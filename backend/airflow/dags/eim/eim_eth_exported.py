@@ -228,7 +228,7 @@ def run():
     # Sequence 1
     first_block_of_day >> conversion_rates >> run_bridge_balances() >> run_exported_eth_equivalent() >> run_exported_in_usd()
 
-    # Seuqence 2
+    # Sequence 2
     [first_block_of_day, conversion_rates] >> run_onchain_balances() >> run_holders_eth_equivalent() >> run_offchain_balances() >> run_holders_in_usd()
 
 run()
