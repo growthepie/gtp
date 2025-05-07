@@ -108,7 +108,7 @@ class AdapterLabelPool(AbstractAdapter):
                 # write to airtable df
                 at.push_to_airtable(table, df_air)
                 # send discord message
-                send_discord_message(f"{df_air.shape[0]} new untrusted owner_project attestations submitted to label pool.", self.webhook)
+                send_discord_message(f"{df_air.shape[0]} new attestations submitted to label pool, please review in airtable.", self.webhook)
                 send_discord_message(f"```\n{df_air.to_markdown(index=False)}\n```", self.webhook)
 
 
