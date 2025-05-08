@@ -571,7 +571,7 @@ def get_trusted_entities(db_connector):
     df['tag_id_list'] = df['tag_id'].apply(lambda x: all_tags if x == "*" else [x])
     # expand the list of tag_ids into separate rows
     df = df.explode('tag_id_list')
-    # drop duplicates (only keep first occurances)
+    # drop duplicates (only keep first occurrences)
     df = df.sort_values(by=['attester', 'tag_id_list', 'tag_id'], ascending=[True, True, False])
     df = df.drop_duplicates(subset=['attester', 'tag_id_list'])
     # drop column tag_id and rename tag_id_list to tag_id
