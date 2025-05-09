@@ -72,7 +72,6 @@ class MainConfig(BaseModel):
 
     ## CIRCULATING SUPPLY
     cs_token_address: Optional[str] = Field(alias="circulating_supply_token_address", default=None)
-    cs_token_abi: Optional[Any] = Field(alias="circulating_supply_token_abi", default=None)
     cs_deployment_date: Optional[str] = Field(alias="circulating_supply_token_deployment_date", default=None)
     cs_deployment_origin_key: Optional[str] = Field(alias="circulating_supply_token_deployment_origin_key", default=None)
     cs_supply_function: Optional[str] = Field(alias="circulating_supply_token_supply_function", default=None)
@@ -111,7 +110,6 @@ def get_main_config_dict():
 
             main_path = f"{path}/main.json"
             logo_path = f"{path}/logo.json"
-            token_abi_path = f"{path}/token_abi.json"
 
             if main_path in nameslist:
                 with zip_ref.open(main_path) as file:
@@ -124,12 +122,6 @@ def get_main_config_dict():
                         content = file.read().decode('utf-8')
                         content = json.loads(content)
                         chain_data["logo"] = content
-                                    
-                if token_abi_path in nameslist:
-                    with zip_ref.open(token_abi_path) as file:
-                        content = file.read().decode('utf-8')
-                        content = json.loads(content)
-                        chain_data["circulating_supply_token_abi"] = content
 
                 main_config_dict.append(chain_data)
 
