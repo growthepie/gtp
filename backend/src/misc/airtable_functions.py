@@ -218,7 +218,10 @@ def read_all_approved_label_pool_reattest(api, AIRTABLE_BASE_ID, table):
     if 'usage_category' not in df.columns:
         df['usage_category'] = None
 
-    # drop not needded columns and clean df
+    # only keep rows where approve is set to true
+    df = df[df['approve'] == True]
+    
+    # drop not needded columns
     df = df[['address', 'origin_key', 'contract_name', 'owner_project', 'usage_category', 'attester', 'id']]
 
     # origin_key, owner_project and usage_category are lists with 1 element, so we extract the element at index 0

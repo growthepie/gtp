@@ -457,7 +457,7 @@ def etl():
         table = api.table(AIRTABLE_BASE_ID, 'Remap Owner Project')
         df = at.read_all_remap_owner_project(api, AIRTABLE_BASE_ID, table)
 
-        if df != None:
+        if df is not None and not df.empty:
             # db connection
             db_connector = DbConnector()
             # initialize OLI instance
