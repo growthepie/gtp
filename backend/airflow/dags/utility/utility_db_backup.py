@@ -31,17 +31,14 @@ def backup():
         from src.db_connector import DbConnector
 
         db_connector = DbConnector()
-        tables = ['fact_kpis', 'sys_chains', 'sys_rpc_config', 'oli_tag_mapping', 'oli_oss_directory']
+        tables = ['fact_kpis', 'sys_chains', 'sys_rpc_config', 'oli_oss_directory']
         #tables = ['fact_kpis', 'sys_chains', 'sys_rpc_config', 'oli_oss_directory']
         time_str = datetime.now().isoformat()[:10]
         bucket_name = os.getenv("S3_LONG_TERM_BUCKET")
 
         for table_name in tables:
             print(f'...loading {table_name}')
-            if table_name == 'oli_tag_mapping':
-                exec_string = f"""select * from oli_tag_mapping where added_on >= current_date - interval '90 days' """
-            else:
-                exec_string = f'select * from {table_name}'
+            exec_string = f'select * from {table_name}'
 
             df = pl.read_database_uri(query=exec_string, uri=db_connector.uri)
 

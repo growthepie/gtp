@@ -1480,7 +1480,7 @@ class JSONCreation():
                 #     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                 #     continue
 
-                if metric in ['blob_count', 'blob_producers'] and origin_key == 'da_ethereum_calldata':
+                if metric in ['blob_count', 'blob_producers', 'fees_per_mbyte', 'fees_paid'] and origin_key == 'da_ethereum_calldata':
                     print(f'..skipped: Metric details export for {origin_key} - {metric}. Metric is excluded')
                     continue
 
