@@ -36,97 +36,111 @@ def main():
 
         ## tracking time
         import time
+        import requests
         start_time = time.time()
+        consecutive_rate_limits = 0
 
         while True:
 
-            ## Onchain, attestations of labels & revocations of labels ##
-            extract_params_onchain = {
-                'from_block': 'last_run_block',  # add last run block
-                'to_block': 'latest',
-                'chunk_size': 100000
-            }
+            try:
+                ## Onchain, attestations of labels & revocations of labels ##
+                extract_params_onchain = {
+                    'from_block': 'last_run_block',  # add last run block
+                    'to_block': 'latest',
+                    'chunk_size': 100000
+                }
 
-            attest_topics = [
-                '0x8bf46bf4cfd674fa735a3d63ec1c9ad4153f033c290341f3a588b75685141b35', # Attest topic
-                None,
-                None,
-                '0xcff83309b59685fdae9dad7c63d969150676d51d8eeda66799d1c4898b84556a' # Schema topic
-            ]
-            revoke_topics = [
-                '0xf930a6e2523c9cc298691873087a740550b8fc85a0680830414c148ed927f615', # Revoke topic of onchain attestations
-                None,
-                None,
-                '0xcff83309b59685fdae9dad7c63d969150676d51d8eeda66799d1c4898b84556a' # Schema topic
-            ]
-
-            # extract onchain attestations
-            extract_params_onchain['topics'] = attest_topics
-            df_attest = ad_onchain.extract(extract_params_onchain)
-
-            # extract onchain revocations of onchain attestations
-            extract_params_onchain['topics'] = revoke_topics
-            df_revokes = ad_onchain.extract(extract_params_onchain)
-
-            # merge df_attest & df_revokes, if there are duplicate uid, then keep the one in df_revokes (overwrites tx_id)
-            df = pd.concat([df_revokes, df_attest]).drop_duplicates(subset=['uid']).reset_index(drop=True)
-
-            # load onchain attestations & revocations
-            ad_onchain.load(df, 'attestations')
-
-
-            ## Onchain, attestations of trust lists & revocations of trust lists ##
-            extract_params_onchain = {
-                'from_block': 'last_run_block',  # add last run block
-                'to_block': 'latest',
-                'chunk_size': 100000
-            }
-            attest_topics = [
-                '0x8bf46bf4cfd674fa735a3d63ec1c9ad4153f033c290341f3a588b75685141b35', # Attest topic
-                None,
-                None,
-                '0x6d780a85bfad501090cd82868a0c773c09beafda609d54888a65c106898c363d' # Schema topic
-            ]
-            revoke_topics = [
-                '0xf930a6e2523c9cc298691873087a740550b8fc85a0680830414c148ed927f615', # Revoke topic of onchain attestations
-                None,
-                None,
-                '0x6d780a85bfad501090cd82868a0c773c09beafda609d54888a65c106898c363d' # Schema topic
-            ]
-
-            # extract onchain attestations
-            extract_params_onchain['topics'] = attest_topics
-            df_attest = ad_onchain.extract(extract_params_onchain)
-
-            # extract onchain revocations of onchain attestations
-            extract_params_onchain['topics'] = revoke_topics
-            df_revokes = ad_onchain.extract(extract_params_onchain)
-
-            # merge df_attest & df_revokes, if there are duplicate uid, then keep the one in df_revokes (overwrites tx_id)
-            df = pd.concat([df_revokes, df_attest]).drop_duplicates(subset=['uid']).reset_index(drop=True)
-
-            # load onchain attestations & revocations
-            ad_onchain.load(df, 'trust_lists')
-
-
-            ## Offchain, revocations of trust lists and labels ##
-            extract_params_offchain = {
-                'from_block': 'last_run_block',  # add last run block
-                'to_block': 'latest',
-                'chunk_size': 100000,
-                'topics': [
-                    '0x92a1f7a41a7c585a8b09e25b195e225b1d43248daca46b0faf9e0792777a2229', # Revoke topic of offchain attestations (schema independent)
+                attest_topics = [
+                    '0x8bf46bf4cfd674fa735a3d63ec1c9ad4153f033c290341f3a588b75685141b35', # Attest topic
                     None,
                     None,
-                    None
+                    '0xcff83309b59685fdae9dad7c63d969150676d51d8eeda66799d1c4898b84556a' # Schema topic
                 ]
-            }
+                revoke_topics = [
+                    '0xf930a6e2523c9cc298691873087a740550b8fc85a0680830414c148ed927f615', # Revoke topic of onchain attestations
+                    None,
+                    None,
+                    '0xcff83309b59685fdae9dad7c63d969150676d51d8eeda66799d1c4898b84556a' # Schema topic
+                ]
 
-            # extract onchain revocations of offchain attestations
-            df_revokes = ad_offchain.extract(extract_params_offchain)
+                # extract onchain attestations
+                extract_params_onchain['topics'] = attest_topics
+                df_attest = ad_onchain.extract(extract_params_onchain)
 
-            # load offchain revocations
-            ad_offchain.load(df_revokes, table_names=['attestations', 'trust_lists'])
+                # extract onchain revocations of onchain attestations
+                extract_params_onchain['topics'] = revoke_topics
+                df_revokes = ad_onchain.extract(extract_params_onchain)
+
+                # merge df_attest & df_revokes, if there are duplicate uid, then keep the one in df_revokes (overwrites tx_id)
+                df = pd.concat([df_revokes, df_attest]).drop_duplicates(subset=['uid']).reset_index(drop=True)
+
+                # load onchain attestations & revocations
+                ad_onchain.load(df, 'attestations')
+
+
+                ## Onchain, attestations of trust lists & revocations of trust lists ##
+                extract_params_onchain = {
+                    'from_block': 'last_run_block',  # add last run block
+                    'to_block': 'latest',
+                    'chunk_size': 100000
+                }
+                attest_topics = [
+                    '0x8bf46bf4cfd674fa735a3d63ec1c9ad4153f033c290341f3a588b75685141b35', # Attest topic
+                    None,
+                    None,
+                    '0x6d780a85bfad501090cd82868a0c773c09beafda609d54888a65c106898c363d' # Schema topic
+                ]
+                revoke_topics = [
+                    '0xf930a6e2523c9cc298691873087a740550b8fc85a0680830414c148ed927f615', # Revoke topic of onchain attestations
+                    None,
+                    None,
+                    '0x6d780a85bfad501090cd82868a0c773c09beafda609d54888a65c106898c363d' # Schema topic
+                ]
+
+                # extract onchain attestations
+                extract_params_onchain['topics'] = attest_topics
+                df_attest = ad_onchain.extract(extract_params_onchain)
+
+                # extract onchain revocations of onchain attestations
+                extract_params_onchain['topics'] = revoke_topics
+                df_revokes = ad_onchain.extract(extract_params_onchain)
+
+                # merge df_attest & df_revokes, if there are duplicate uid, then keep the one in df_revokes (overwrites tx_id)
+                df = pd.concat([df_revokes, df_attest]).drop_duplicates(subset=['uid']).reset_index(drop=True)
+
+                # load onchain attestations & revocations
+                ad_onchain.load(df, 'trust_lists')
+
+
+                ## Offchain, revocations of trust lists and labels ##
+                extract_params_offchain = {
+                    'from_block': 'last_run_block',  # add last run block
+                    'to_block': 'latest',
+                    'chunk_size': 100000,
+                    'topics': [
+                        '0x92a1f7a41a7c585a8b09e25b195e225b1d43248daca46b0faf9e0792777a2229', # Revoke topic of offchain attestations (schema independent)
+                        None,
+                        None,
+                        None
+                    ]
+                }
+
+                # extract onchain revocations of offchain attestations
+                df_revokes = ad_offchain.extract(extract_params_offchain)
+
+                # load offchain revocations
+                ad_offchain.load(df_revokes, table_names=['attestations', 'trust_lists'])
+
+                consecutive_rate_limits = 0
+
+            except requests.exceptions.HTTPError as e:
+                # public Tenderly gateway rate limits us (429); last_run_block is only saved after a successful load, so skipping an iteration loses nothing
+                if e.response is None or e.response.status_code != 429:
+                    raise
+                consecutive_rate_limits += 1
+                if consecutive_rate_limits >= 5:
+                    raise
+                print(f"⚠️ Rate limited by RPC ({consecutive_rate_limits}x in a row), backing off.")
 
 
             ## break the loop if time reached ##
@@ -134,7 +148,7 @@ def main():
                 print("⏰ Approaching task timeout, exiting loop to allow for graceful restart.")
                 break
 
-            time.sleep(30)
+            time.sleep(30 * 2 ** consecutive_rate_limits)  # 30s normally, 60s/120s/240s/480s while rate limited
 
     sync()
 
