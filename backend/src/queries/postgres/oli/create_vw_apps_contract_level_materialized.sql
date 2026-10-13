@@ -20,6 +20,31 @@ AS WITH labeled_facts AS (
         ON fact.address = oli.address
         AND fact.origin_key = oli.origin_key
     WHERE oli.owner_project IS NOT NULL
+
+    UNION ALL
+
+    -- 'eth' app: all native transfers, mapped to the placeholder address 0x000000000000000000000000000000000000EeEe (0xEeee...EEeE is labeled as 'exactly' in OLI)
+    -- only chains with ETH as gas token have native transfer senders in fact_active_addresses_contract_hll (see aggregate_native_transfer_senders_hll)
+    SELECT
+        nt.date,
+        decode('000000000000000000000000000000000000eeee', 'hex') AS address,
+        nt.origin_key,
+        'Native transfers' AS contract_name,
+        'eth' AS owner_project,
+        'native_transfer' AS usage_category,
+        nt.txcount,
+        nt.gas_fees_eth,
+        nt.gas_fees_usd,
+        nt.daa,
+        1 AS success_rate -- not tracked for native transfers, these practically never revert
+    FROM public.blockspace_fact_category_level nt
+    WHERE nt.category_id = 'native_transfer'
+        AND EXISTS (
+            SELECT 1
+            FROM public.fact_active_addresses_contract_hll hll
+            WHERE hll.address = decode('000000000000000000000000000000000000eeee', 'hex')
+                AND hll.origin_key = nt.origin_key
+        )
 )
 SELECT
     labeled_facts.date,

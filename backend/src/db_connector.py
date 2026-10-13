@@ -2740,3 +2740,36 @@ class DbConnector:
                         result = connection.execute(text(query))
                         origin_keys = [row[0] for row in result]
                 return origin_keys
+
+        # This function stores the daily HLL of native transfer senders in fact_active_addresses_contract_hll under the placeholder address 0x000000000000000000000000000000000000EeEe (0xEeee...EEeE is labeled as 'exactly' in OLI).
+        # vw_apps_contract_level_materialized maps this address to the 'eth' app, so app pages pick up its active addresses like for any other contract.
+        # Must run after aggregate_unique_addresses_contracts_hll, otherwise a real tx to the placeholder address would overwrite these rows.
+        def aggregate_native_transfer_senders_hll(self, chain:str, days:int, days_end:int=None):
+                if days_end is None:
+                        days_end_string = "DATE_TRUNC('day', NOW())"
+                else:
+                        if days_end > days:
+                                raise ValueError("days_end must be smaller than days")
+                        days_end_string = f"DATE_TRUNC('day', NOW() - INTERVAL '{days_end} days')"
+
+                exec_string = f'''
+                        INSERT INTO fact_active_addresses_contract_hll (address, origin_key, date, hll_addresses)
+                                SELECT
+                                        decode('000000000000000000000000000000000000eeee', 'hex') as address,
+                                        '{chain}' as origin_key,
+                                        date_trunc('day', block_timestamp) as date,
+                                        hll_add_agg(hll_hash_bytea(from_address), 17,5,-1,1)
+                                FROM {chain}_tx
+                                WHERE
+                                        empty_input = true -- same definition of native transfers as in get_blockspace_native_transfers
+                                        AND block_timestamp < {days_end_string}
+                                        AND block_timestamp >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
+                                GROUP BY 1,2,3
+                        ON CONFLICT (address, origin_key, date)
+                        DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
+                '''
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"HLL hashes of native transfer senders for {chain} and {days} days loaded into fact_active_addresses_contract_hll.")
