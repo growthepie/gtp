@@ -80,19 +80,18 @@ class AdapterOSO(AbstractAdapter):
         zip_url = f"https://github.com/{owner}/{repo_name}/archive/{repo_ref}.zip"
         zip_content = _download_zip_with_retries(zip_url)
 
-        # Convert ZIP to df of projects
-        df = pd.DataFrame()
+        # Convert ZIP to df of projects (collect all files first, build the df once - concat per file is quadratic)
+        yaml_loader = getattr(yaml, 'CSafeLoader', yaml.SafeLoader) # libyaml C loader if available, much faster
+        contents = []
         with zipfile.ZipFile(zip_content) as zip_ref:
             for file_name in zip_ref.namelist():
                 file_path = file_name.split('/', 1)[1] if '/' in file_name else ''
                 if file_path.endswith('.yaml') and file_path.startswith(f"{path}/"):
                     with zip_ref.open(file_name) as file:
-                        content = file.read().decode('utf-8')
-                        content = yaml.safe_load(content)
-                        df_temp = pd.json_normalize(content)
-                        if 'social' in content:
-                            df_temp['social'] = [content['social']]
-                        df = pd.concat([df, df_temp], ignore_index=True)
+                        contents.append(yaml.load(file.read().decode('utf-8'), Loader=yaml_loader))
+        df = pd.json_normalize(contents)
+        # keep 'social' as a dict instead of the flattened 'social.*' columns
+        df['social'] = [content['social'] if 'social' in content else float('nan') for content in contents]
 
         # prepare df_projects for inserting into our db table 'oli_oss_directory'
         df = df.reindex(columns=['name', 'display_name', 'description', 'github', 'websites', 'npm', 'social', 'token_coingecko_api_id'])

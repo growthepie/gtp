@@ -83,6 +83,7 @@ def etl():
 
 
             ### Update Airtable projects (writes OSS projects from the DB to Airtable)
+            import pandas as pd
             from pyairtable import Api
             import src.misc.airtable_functions as at
 
@@ -97,11 +98,21 @@ def etl():
 
             # merge current table with the new data
             table = api.table(AIRTABLE_BASE_ID, 'OSS Projects')
-            df_air = at.read_airtable(table)[['Name', 'id']]
-            df = df.merge(df_air, how='left', left_on='Name', right_on='Name')
+            compare_cols = [c for c in df.columns if c != 'Name']
+            df_air_full = at.read_airtable(table).reindex(columns=['Name', 'id'] + compare_cols) # Airtable omits empty fields
+            df_air = df_air_full[['Name', 'id']]
+            df = df.merge(df_air_full, how='left', on='Name', suffixes=('', '_air'))
 
-            # update existing records (primary key is the id)
-            at.update_airtable(table, df)
+            # update only existing records whose values changed (Airtable rate limits make a full rewrite take minutes)
+            # empty fields come back missing from Airtable, so treat None/NaN/'' as equal; ignore surrounding whitespace
+            def _norm(s):
+                return s.where(s.notna(), '').astype(str).str.strip()
+            changed = pd.concat([_norm(df[c]).ne(_norm(df[f'{c}_air'])) for c in compare_cols], axis=1).any(axis=1)
+            df = df.drop(columns=[f'{c}_air' for c in compare_cols])
+            df_changed = df[changed & df['id'].notnull()]
+            print(f"{len(df_changed)} existing Airtable records changed.")
+            if df_changed.empty == False:
+                at.update_airtable(table, df_changed)
 
             # add any new records/chains if present
             df_new = df[df['id'].isnull()]
