@@ -28,6 +28,7 @@ from time import sleep
 
 import boto3
 import psycopg2
+from botocore.config import Config
 from botocore.exceptions import ClientError
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -38,6 +39,7 @@ HETZNER_ENDPOINT = "https://fsn1.your-objectstorage.com"
 PREFIX = "oli/attestations"
 PART_ROWS = 200_000
 FETCH_ROWS = 20_000
+S3_THREADS = 16
 
 # sum() over this is the per-day uid fingerprint; must match uid_fingerprint() below
 FINGERPRINT_SQL = "('x' || left(md5(uid), 15))::bit(60)::bigint"
@@ -75,6 +77,7 @@ def get_s3_client():
         endpoint_url=HETZNER_ENDPOINT,
         aws_access_key_id=os.getenv("HETZNER_ACCESS_KEY_ID"),
         aws_secret_access_key=os.getenv("HETZNER_SECRET_ACCESS_KEY"),
+        config=Config(max_pool_connections=S3_THREADS),
     )
 
 
@@ -122,7 +125,7 @@ def load_manifests(s3, bucket) -> dict:
     def fetch(key):
         return json.loads(s3.get_object(Bucket=bucket, Key=key)["Body"].read())
 
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    with ThreadPoolExecutor(max_workers=S3_THREADS) as ex:
         manifests = list(ex.map(fetch, keys))
     return {m["day"]: m for m in manifests}
 
@@ -284,7 +287,7 @@ def verify_parts_exist(s3, bucket, manifests: dict) -> list:
         except ClientError:
             return part["key"]
 
-    with ThreadPoolExecutor(max_workers=16) as ex:
+    with ThreadPoolExecutor(max_workers=S3_THREADS) as ex:
         return [k for k in ex.map(check, parts) if k]
 
 
