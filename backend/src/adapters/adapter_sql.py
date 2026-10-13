@@ -401,6 +401,11 @@ class AdapterSQL(AbstractAdapter):
             if origin_key in [chain.origin_key for chain in self.main_config if chain.runs_aggregate_apps == True]:
                 print(f"...HLL: aggregating + inserting app addresses data for {origin_key} and last {days} days and days_end set to {days_end}...")
                 self.db_connector.aggregate_unique_addresses_contracts_hll(origin_key, days, days_end)
+
+                ## native transfer senders for the 'eth' app, only where native transfers move ETH. Dune chains have no {chain}_tx table, their senders come from metrics_dune.run_native_transfer_aa
+                if origin_key in [chain.origin_key for chain in self.main_config if chain.metadata_gas_token == 'ETH'] and origin_key not in ['starknet', 'megaeth', 'polygon_pos', 'ronin', 'robinhood']:
+                    print(f"...HLL: aggregating + inserting native transfer senders for {origin_key} and last {days} days and days_end set to {days_end}...")
+                    self.db_connector.aggregate_native_transfer_senders_hll(origin_key, days, days_end)
             else:
                 print(f"...HLL: no app addresses for {origin_key} to be aggregated...")
 

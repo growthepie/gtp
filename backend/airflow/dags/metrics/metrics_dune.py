@@ -301,6 +301,39 @@ def etl():
         db_connector.upsert_table('fact_active_addresses', df_aa)
 
     @task()
+    def run_native_transfer_aa():
+        ## native transfer senders for the 'eth' app, mapped to placeholder address 0x000000000000000000000000000000000000EeEe
+        ## only loaded into fact_active_addresses_contract (senders are already part of fact_active_addresses via the *_aa tasks); the contract hll aggregation picks them up from there
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_dune import AdapterDune
+
+        adapter_params = {
+            'api_key' : os.getenv("DUNE_API")
+        }
+        db_connector = DbConnector()
+        ad = AdapterDune(adapter_params, db_connector)
+
+        for origin_key, query_id in [('megaeth', 8940601), ('robinhood', 8940600)]:
+            load_params = {
+                'queries': [
+                    {
+                        'name': f'{origin_key}_native_transfer_aa',
+                        'query_id': query_id,
+                        'params': {'days': 2}
+                    }
+                ],
+                'prepare_df': 'prepare_df_contract_level_aa_daily',
+                'load_type': 'CUSTOM'
+            }
+            df = ad.extract(load_params)
+            print(f"Loaded {df.shape[0]} rows for {origin_key} native transfer senders.")
+
+            df['origin_key'] = origin_key
+            df.set_index(['address', 'date', 'origin_key', 'from_address'], inplace=True)
+            db_connector.upsert_table('fact_active_addresses_contract', df)
+
+    @task()
     def run_robinhood_contract_level():
         import os
         from src.db_connector import DbConnector
@@ -637,7 +670,10 @@ def etl():
     run_robinhood_aa()
     run_robinhood_contract_level()
     run_robinhood_category_level()
-    
+
+    ## ETH app (native transfer senders on MegaETH & Robinhood)
+    run_native_transfer_aa()
+
     ## Starknet tasks
     run_starknet_contract_level()
     run_starknet_aa()
