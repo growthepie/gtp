@@ -1,11 +1,8 @@
 """
-Bulk Parquet backups of private OLI attestations to Hetzner Object Storage.
+Bulk Parquet backups of all offchain OLI attestations to Hetzner Object Storage, after which raw
+(the signed envelope, ~70% of public.attestations in the oli db) is dropped from Postgres.
 
-oli_indexer_ipfs skips private attesters (OLI_PRIVATE_ATTESTERS), so for these attestations the
-signed envelope in public.attestations.raw (oli db) exists nowhere else. These backups are the
-precondition for dropping raw from Postgres.
-
-Layout: s3://<HETZNER_BUCKET_NAME>/oli/attestations_private/date=YYYY-MM-DD/
+Layout: s3://<HETZNER_BUCKET_NAME>/oli/attestations/date=YYYY-MM-DD/
     part-<run_ts>-<n>.parquet   all attestation columns, one row per uid
     _manifest.json              parts, totals and the DB state the day was last verified against
 
@@ -17,7 +14,8 @@ Layout: s3://<HETZNER_BUCKET_NAME>/oli/attestations_private/date=YYYY-MM-DD/
   prefixes, computed identically in Postgres (FINGERPRINT_SQL) and Python (uid_fingerprint).
 - The current UTC day is never backed up (still growing); it is picked up by the next run.
 - Right after a part is verified (read back locally + uploaded size matches), raw is set to NULL in
-  Postgres for exactly that part's uids.
+  Postgres for exactly that part's uids. Rows that are already backed up but still have raw (e.g. an
+  interrupted run) get nulled the next time their day is processed.
 """
 
 import hashlib
@@ -35,10 +33,9 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from src.misc.helper_functions import upload_file_to_s3
-from src.oli.api.oli_private_attesters import require_private_attesters
 
 HETZNER_ENDPOINT = "https://fsn1.your-objectstorage.com"
-PREFIX = "oli/attestations_private"
+PREFIX = "oli/attestations"
 PART_ROWS = 200_000
 FETCH_ROWS = 20_000
 
@@ -95,12 +92,8 @@ def _connect(db_connector):
     return conn
 
 
-def _private_filter_params() -> dict:
-    return {"attesters": [psycopg2.Binary(a) for a in require_private_attesters()]}
-
-
 def get_db_day_stats(db_connector) -> dict:
-    """{'YYYY-MM-DD': (rows, uid_fingerprint)} for private offchain attestations before today (UTC)."""
+    """{'YYYY-MM-DD': (rows, uid_fingerprint)} for offchain attestations before today (UTC)."""
     conn = _connect(db_connector)
     try:
         with conn.cursor() as cur:
@@ -108,10 +101,9 @@ def get_db_day_stats(db_connector) -> dict:
                 SELECT ("time" AT TIME ZONE 'UTC')::date AS day, count(*), sum({FINGERPRINT_SQL})
                 FROM public.attestations
                 WHERE is_offchain
-                    AND attester = ANY(%(attesters)s)
                     AND "time" < date_trunc('day', now() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'
                 GROUP BY 1
-            """, _private_filter_params())
+            """)
             return {d.isoformat(): (int(n), int(fp)) for d, n, fp in cur.fetchall()}
     finally:
         conn.close()
@@ -213,13 +205,13 @@ def _write_part(s3, bucket, manifest, rows: list, key: str):
 
 def backup_day(db_connector, s3, bucket, day: str, manifest, run_ts: str) -> dict:
     """
-    Back up every private offchain attestation of `day` that is not yet in the bucket.
+    Back up every offchain attestation of `day` that is not yet in the bucket.
     Returns a summary; 'missing_raw' > 0 means rows exist in the DB without raw and without a backup.
     """
     if manifest is None:
         manifest = {
             "table": "oli.public.attestations",
-            "filter": "is_offchain AND attester IN OLI_PRIVATE_ATTESTERS",
+            "filter": "is_offchain",
             "partition": "UTC date of attestations.time",
             "day": day,
             "parts": [],
@@ -228,7 +220,7 @@ def backup_day(db_connector, s3, bucket, day: str, manifest, run_ts: str) -> dic
 
     start = datetime.combine(date.fromisoformat(day), time.min, tzinfo=timezone.utc)
     seen_rows, seen_fp, missing_raw, exported, nulled = 0, 0, 0, 0, 0
-    buffer = []
+    buffer, backed_up_with_raw = [], []
 
     def flush():
         nonlocal buffer, exported, nulled
@@ -249,9 +241,8 @@ def backup_day(db_connector, s3, bucket, day: str, manifest, run_ts: str) -> dic
                 SELECT {SELECT_COLUMNS}
                 FROM public.attestations
                 WHERE is_offchain
-                    AND attester = ANY(%(attesters)s)
                     AND "time" >= %(start)s AND "time" < %(end)s
-            """, _private_filter_params() | {"start": start, "end": start + timedelta(days=1)})
+            """, {"start": start, "end": start + timedelta(days=1)})
 
             for row in cur:
                 row = tuple(bytes(v) if isinstance(v, memoryview) else v for v in row)
@@ -259,6 +250,8 @@ def backup_day(db_connector, s3, bucket, day: str, manifest, run_ts: str) -> dic
                 seen_rows += 1
                 seen_fp += uid_fingerprint([uid])
                 if uid in backed_up:
+                    if row[RAW_IDX] is not None:
+                        backed_up_with_raw.append(uid)
                     continue
                 if row[RAW_IDX] is None:
                     missing_raw += 1
@@ -269,6 +262,7 @@ def backup_day(db_connector, s3, bucket, day: str, manifest, run_ts: str) -> dic
             flush()
     finally:
         conn.close()
+    nulled += _null_raw(db_connector, backed_up_with_raw)
 
     if missing_raw == 0:
         # every DB uid of this day is now in the bucket
@@ -317,7 +311,7 @@ def _wait_for_replication_slots(cur):
 
 def _null_raw(db_connector, uids: list) -> int:
     """
-    Set raw = NULL for these uids, restricted to private offchain rows. Separate connection, so the
+    Set raw = NULL for these uids. Separate connection, so the
     day's streaming cursor stays untouched. last_updated_time is left as is on purpose: the
     attestation itself doesn't change, only where raw is stored.
     """
@@ -332,9 +326,8 @@ def _null_raw(db_connector, uids: list) -> int:
                     SET raw = NULL
                     WHERE uid = ANY(%(uids)s)
                         AND is_offchain
-                        AND attester = ANY(%(attesters)s)
                         AND raw IS NOT NULL
-                """, _private_filter_params() | {"uids": [psycopg2.Binary(u) for u in uids[i:i + NULL_BATCH_ROWS]]})
+                """, {"uids": [psycopg2.Binary(u) for u in uids[i:i + NULL_BATCH_ROWS]]})
                 nulled += cur.rowcount
                 conn.commit()
     finally:

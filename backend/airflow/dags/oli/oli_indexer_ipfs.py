@@ -57,6 +57,7 @@ def main():
                 ) AS combined_tables
                 WHERE is_offchain = true
                     AND (ipfs_hash IS NULL OR ipfs_hash = '')
+                    AND raw IS NOT NULL -- raw of backed-up days is dropped by oli_raw_backup
                     {private_attester_filter}
                 ORDER BY time
                 LIMIT 250

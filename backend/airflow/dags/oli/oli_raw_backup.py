@@ -2,9 +2,8 @@ from datetime import datetime, timedelta
 from airflow.sdk import dag, task
 from src.misc.airflow_utils import alert_via_webhook
 
-# Backs up private OLI attestations (incl. raw) as bulk parquet to Hetzner Object Storage and drops
-# raw from Postgres once a part is verified. Private attesters are not pinned to IPFS, so the bucket
-# is the only copy of their raw afterwards.
+# Backs up all offchain OLI attestations (incl. raw) as bulk parquet to Hetzner Object Storage and
+# drops raw from Postgres once a part is verified. Hetzner is the backup of record for raw afterwards.
 # See src/oli/raw_backup.py for layout and completeness checks.
 @dag(
     default_args={
@@ -15,7 +14,7 @@ from src.misc.airflow_utils import alert_via_webhook
         'on_failure_callback': alert_via_webhook
     },
     dag_id='oli_raw_backup',
-    description='Daily bulk parquet backup of private OLI attestations to Hetzner Object Storage and drop backed-up raw from Postgres.',
+    description='Daily bulk parquet backup of offchain OLI attestations to Hetzner Object Storage and drop backed-up raw from Postgres.',
     tags=['oli', 'backup', 'daily'],
     start_date=datetime(2026, 10, 12),
     schedule='30 3 * * *',  # daily 03:30 UTC; backs up all complete UTC days, today's rows are picked up tomorrow
@@ -35,7 +34,7 @@ def main():
         manifests = raw_backup.load_manifests(raw_backup.get_s3_client(), raw_backup.get_bucket())
         days = raw_backup.find_incomplete_days(db_stats, manifests)
 
-        print(f"{len(db_stats)} days with private attestations, {len(days)} not fully backed up: {days}")
+        print(f"{len(db_stats)} days with offchain attestations, {len(days)} not fully backed up: {days}")
         return days
 
     @task()
