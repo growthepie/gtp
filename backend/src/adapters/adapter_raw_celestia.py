@@ -225,6 +225,7 @@ class AdapterCelestia(AbstractAdapterRaw):
             decoded_trx = decode_base64(trx)
             row = {}
             row['block_timestamp'] = timestamp
+            row['block_date'] = timestamp[:10] if timestamp else None  # RFC3339 UTC, used by utility_archive_delete
             row['block_number'] = block
             
             # Format tx_hash for bytea storage in PostgreSQL
