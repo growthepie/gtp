@@ -36,7 +36,7 @@ AS WITH labeled_facts AS (
         nt.gas_fees_eth,
         nt.gas_fees_usd,
         nt.daa,
-        1 AS success_rate -- not tracked for native transfers, these practically never revert
+        COALESCE(nt.success_rate, 1) AS success_rate -- set by get_blockspace_native_transfers / Dune category queries; fallback for days without it
     FROM public.blockspace_fact_category_level nt
     WHERE nt.category_id = 'native_transfer'
         AND EXISTS (

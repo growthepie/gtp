@@ -292,6 +292,9 @@ class AdapterDune(AbstractAdapter):
             "daa",
             "gas_used",
         ]
+        # some queries (e.g. robinhood, megaeth) append success_rate as 6th field
+        if not df.empty and len(df["metrics"].iloc[0]) == 6:
+            cols.append("success_rate")
 
         df[cols] = pd.DataFrame(df["metrics"].tolist(), index=df.index)
 
@@ -300,6 +303,8 @@ class AdapterDune(AbstractAdapter):
         df["txcount"]        = df["txcount"].astype(float)
         df["daa"]            = df["daa"].astype(float)
         df["gas_used"]       = df["gas_used"].astype(float)
+        if "success_rate" in cols:
+            df["success_rate"] = df["success_rate"].astype(float)
 
         df = df.drop(columns=["metrics"])
 

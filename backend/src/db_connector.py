@@ -1271,8 +1271,9 @@ class DbConnector:
                                 sum({tx_fee_eth_string}) as gas_fees_eth,
                                 sum({tx_fee_usd_string}) as gas_fees_usd,
                                 count(*) as txcount,
-                                count(distinct from_address) as daa
-                        FROM {chain}_tx tx 
+                                count(distinct from_address) as daa,
+                                sum(status)*1.0/count(*) as success_rate -- used by the 'eth' app in vw_apps_contract_level_materialized
+                        FROM {chain}_tx tx
                         LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
                         {additional_join}
                         where block_timestamp < DATE_TRUNC('day', NOW())

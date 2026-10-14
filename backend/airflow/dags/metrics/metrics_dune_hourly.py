@@ -356,8 +356,72 @@ def etl():
         df_contract_aa.set_index(['address', 'hour', 'origin_key', 'from_address'], inplace=True)
         db_connector.upsert_table('fact_active_addresses_contract_hourly', df_contract_aa)
         
+    @task()
+    def run_native_transfer_hourly():
+        ## hourly native transfers for the 'eth' app, mapped to placeholder address 0x000000000000000000000000000000000000EeEe
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_dune import AdapterDune
+
+        adapter_params = {
+            'api_key' : os.getenv("DUNE_API")
+        }
+        db_connector = DbConnector()
+        ad = AdapterDune(adapter_params, db_connector)
+
+        for origin_key, query_id in [('megaeth', 8944401), ('robinhood', 8944399)]:
+            load_params = {
+                'queries': [
+                    {
+                        'name': f'{origin_key}_native_transfer_hourly',
+                        'query_id': query_id,
+                        'params': {'hours': 3}
+                    }
+                ],
+                'prepare_df': 'prepare_df_contract_level_hourly',
+                'load_type': 'blockspace_fact_contract_level_hourly'
+            }
+            df = ad.extract(load_params)
+            print(f"Loaded {df.shape[0]} rows for {origin_key} hourly native transfers.")
+
+            df['origin_key'] = origin_key
+            df.set_index(['address', 'hour', 'origin_key'], inplace=True)
+            ad.load(df)
+
+    @task()
+    def run_native_transfer_aa_hourly():
+        ## hourly native transfer senders for the 'eth' app; the contract hourly hll aggregation (metrics_sql_hourly) picks them up from fact_active_addresses_contract_hourly
+        import os
+        from src.db_connector import DbConnector
+        from src.adapters.adapter_dune import AdapterDune
+
+        adapter_params = {
+            'api_key' : os.getenv("DUNE_API")
+        }
+        db_connector = DbConnector()
+        ad = AdapterDune(adapter_params, db_connector)
+
+        for origin_key, query_id in [('megaeth', 8944402), ('robinhood', 8944400)]:
+            load_params = {
+                'queries': [
+                    {
+                        'name': f'{origin_key}_native_transfer_aa_hourly',
+                        'query_id': query_id,
+                        'params': {'hours': 3}
+                    }
+                ],
+                'prepare_df': 'prepare_df_contract_level_aa_hourly',
+                'load_type': 'CUSTOM'
+            }
+            df = ad.extract(load_params)
+            print(f"Loaded {df.shape[0]} rows for {origin_key} hourly native transfer senders.")
+
+            df['origin_key'] = origin_key
+            df.set_index(['address', 'hour', 'origin_key', 'from_address'], inplace=True)
+            db_connector.upsert_table('fact_active_addresses_contract_hourly', df)
+
     run_fundamentals_hourly()
-    
+
     run_starknet_contract_level_hourly()
     run_starknet_contract_aa_hourly()
     
@@ -369,5 +433,9 @@ def etl():
 
     run_robinhood_contract_level_hourly()
     run_robinhood_contract_aa_hourly()
-    
+
+    ## ETH app (hourly native transfers on MegaETH & Robinhood)
+    run_native_transfer_hourly()
+    run_native_transfer_aa_hourly()
+
 etl()
