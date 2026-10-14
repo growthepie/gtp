@@ -242,8 +242,9 @@ class VerifierAllianceTests(unittest.TestCase):
             self.assertEqual(second["remaining_rows"], 0)
 
     def test_missing_join_does_not_advance_verification_checkpoint(self):
+        # A gap in an older file is a real data error, not the export tail.
         def listing(session, table):
-            return [dict(key=f"v2/{table}/{table}_0_100.parquet", etag="v1", size=10)]
+            return [dict(key=f"v2/{table}/{table}_{n}_{n + 100}.parquet", etag="v1", size=10) for n in (0, 100)]
         def batches(session, file, table, batch_size=500):
             if table == "verified_contracts":
                 yield [self.verification]
@@ -255,6 +256,60 @@ class VerifierAllianceTests(unittest.TestCase):
                 va.sync(directory, Mock(), Mock(), dry_run=False)
             with sqlite_connection(directory) as db:
                 self.assertEqual(db.execute("SELECT count(*) FROM files WHERE key LIKE '%verified_contracts%'").fetchone()[0], 0)
+
+    def run_export_tail(self, directory, version, deployments, client):
+        late = {**self.verification, "id": 2, "deployment_id": "late"}
+        self.row_count.return_value = 2
+        def listing(session, table):
+            return [dict(key=f"v2/{table}/{table}_0_100.parquet", etag=version, size=10)]
+        def batches(session, file, table, batch_size=500):
+            if table == "verified_contracts":
+                yield [self.verification, late]
+            elif table == "contract_deployments":
+                yield deployments
+            else:
+                yield [self.compilation]
+        with patch.object(va, "list_files", side_effect=listing), \
+                patch.object(va, "parquet_batches", side_effect=batches), \
+                patch.object(va, "existing_labels", side_effect=lambda *args: set()), \
+                patch.object(va, "sign_labels", side_effect=lambda oli, labels: [{"uid": l["address"]} for l in labels]):
+            return va.sync(directory, Mock(), client, dry_run=False)
+
+    def test_export_tail_stops_at_missing_dependency_and_resumes_after_next_export(self):
+        client = Mock(tag_definitions=DEFINITIONS)
+        client.api.post_bulk_attestations.return_value.json.return_value = {"accepted": 1, "duplicates": 0}
+        late_deployment = {**self.deployment, "id": "late", "address": b"\x78" * 20}
+        with tempfile.TemporaryDirectory() as directory:
+            first = self.run_export_tail(directory, "v1", [self.deployment], client)
+            self.assertEqual((first["scanned"], first["overall_scanned"], first["bounded"]), (1, 1, False))
+            self.assertIn("deployments/late", first["awaiting_export"])
+            with sqlite_connection(directory) as db:
+                self.assertEqual(db.execute("SELECT offset, complete FROM files WHERE key LIKE '%verified%'").fetchone(), (1, 0))
+            # Same export again: still waits, still no error.
+            again = self.run_export_tail(directory, "v1", [self.deployment], client)
+            self.assertEqual(again["scanned"], 0)
+            self.assertIn("awaiting_export", again)
+            second = self.run_export_tail(directory, "v2", [self.deployment, late_deployment], client)
+            # Rewritten file is rescanned; receipts prevent resubmitting the first row.
+            self.assertEqual((second["scanned"], second["overall_scanned"]), (2, 2))
+            self.assertNotIn("awaiting_export", second)
+            submitted = [call.args[0] for call in client.api.post_bulk_attestations.call_args_list]
+            self.assertEqual(submitted, [[{"uid": "0x" + "12" * 20}], [{"uid": "0x" + "78" * 20}]])
+
+    def test_export_tail_gap_surviving_a_new_export_raises(self):
+        client = Mock(tag_definitions=DEFINITIONS)
+        client.api.post_bulk_attestations.return_value.json.return_value = {"accepted": 1, "duplicates": 0}
+        with tempfile.TemporaryDirectory() as directory:
+            self.run_export_tail(directory, "v1", [self.deployment], client)
+            with self.assertRaisesRegex(va.MissingDependencyError, "still missing after a new export"):
+                self.run_export_tail(directory, "v2", [self.deployment], client)
+
+    def test_awaiting_export_completion_message(self):
+        stats = {"scanned": 5, "submitted": 1, "duplicates": 0, "bounded": False, "awaiting_export": "x"}
+        notify = Mock()
+        with patch.object(va, "_sync", return_value=stats):
+            va.sync("unused", Mock(), Mock(), dry_run=False, notify=notify)
+        self.assertIn("wait for their dependencies in the next export", notify.call_args.args[0])
 
     def test_changed_tail_includes_late_lower_id_without_duplicate_submissions(self):
         version = ["v1"]
