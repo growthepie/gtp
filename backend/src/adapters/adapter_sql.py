@@ -451,6 +451,11 @@ class AdapterSQL(AbstractAdapter):
             if origin_key in [chain.origin_key for chain in self.main_config if chain.runs_aggregate_apps == True]:
                 print(f"...HLL: aggregating + inserting app addresses data for {origin_key} and last {hours} hours and hours_end set to {hours_end}...")
                 self.db_connector.aggregate_unique_addresses_contracts_hll_hourly(origin_key, hours, hours_end)
+
+                ## hourly native transfer senders for the 'eth' app, same chain selection as in run_active_addresses_agg
+                if origin_key in [chain.origin_key for chain in self.main_config if chain.metadata_gas_token == 'ETH'] and origin_key not in ['starknet', 'megaeth', 'polygon_pos', 'ronin', 'robinhood']:
+                    print(f"...HLL: aggregating + inserting native transfer senders for {origin_key} and last {hours} hours and hours_end set to {hours_end}...")
+                    self.db_connector.aggregate_native_transfer_senders_hll_hourly(origin_key, hours, hours_end)
             else:
                 print(f"...HLL: no app addresses for {origin_key} to be aggregated...")
 

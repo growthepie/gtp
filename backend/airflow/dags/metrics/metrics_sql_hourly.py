@@ -32,7 +32,12 @@ def etl():
             if chain.runs_aggregate_blockspace and chain.origin_key not in ['starknet', 'polygon_pos', 'megaeth', 'ronin', 'robinhood']:
                 print(f"Updating blockspace data for {chain.origin_key} and last {hours} hours...")
                 db_connector.get_blockspace_contracts_hourly(chain.origin_key, hours)
-                
+
+                ## hourly native transfers for the 'eth' app (chains with ETH as gas token, which have app pages)
+                if chain.metadata_gas_token == 'ETH' and chain.runs_aggregate_apps:
+                    print(f"Updating hourly native transfers for {chain.origin_key} and last {hours} hours...")
+                    db_connector.get_blockspace_native_transfers_hourly(chain.origin_key, hours)
+
     @task()
     def run_active_addresses_agg_hourly():
         from src.db_connector import DbConnector

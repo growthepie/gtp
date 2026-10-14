@@ -2773,3 +2773,79 @@ class DbConnector:
                         with connection.begin():
                                 connection.execute(text(exec_string))
                 print(f"HLL hashes of native transfer senders for {chain} and {days} days loaded into fact_active_addresses_contract_hll.")
+
+        # Hourly native transfers for the 'eth' app: stored in blockspace_fact_contract_level_hourly under the placeholder address 0x000000000000000000000000000000000000EeEe,
+        # so load_app_data_hourly picks them up like any other contract. Only meant for chains with ETH as gas token (no custom gas token fee logic).
+        def get_blockspace_native_transfers_hourly(self, chain:str, hours:int):
+                exec_string = f'''
+                        with eth_price as (
+                                SELECT "date", value
+                                FROM fact_kpis
+                                WHERE metric_key = 'price_usd' and origin_key = 'ethereum'
+                        )
+
+                        INSERT INTO blockspace_fact_contract_level_hourly (address, hour, gas_fees_eth, gas_fees_usd, txcount, daa, origin_key, success_rate, median_tx_fee, gas_used)
+                                select
+                                        decode('000000000000000000000000000000000000eeee', 'hex') as address,
+                                        date_trunc('hour', block_timestamp) as hour,
+                                        sum(tx_fee) as gas_fees_eth,
+                                        sum(tx_fee * p.value) as gas_fees_usd,
+                                        count(*) as txcount,
+                                        count(distinct from_address) as daa,
+                                        '{chain}' as origin_key,
+                                        sum(status)*1.0/count(*) as success_rate,
+                                        PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY tx_fee) AS median_tx_fee,
+                                        sum(gas_used) as gas_used
+                                from {chain}_tx tx
+                                LEFT JOIN eth_price p on date_trunc('day', tx.block_timestamp) = p."date"
+                                where block_timestamp < DATE_TRUNC('hour', NOW())
+                                        and block_timestamp >= DATE_TRUNC('hour', NOW() - INTERVAL '{hours} hours')
+                                        and empty_input = true -- same definition of native transfers as in get_blockspace_native_transfers
+                                group by 1,2
+                        ON CONFLICT (origin_key, hour, address)
+                        DO UPDATE SET
+                                txcount = EXCLUDED.txcount,
+                                daa = EXCLUDED.daa,
+                                gas_fees_eth = EXCLUDED.gas_fees_eth,
+                                gas_fees_usd = EXCLUDED.gas_fees_usd,
+                                success_rate = EXCLUDED.success_rate,
+                                median_tx_fee = EXCLUDED.median_tx_fee,
+                                gas_used = EXCLUDED.gas_used;
+                '''
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"...native transfers inserted into blockspace_fact_contract_level_hourly for {chain} and {hours} hours.")
+
+        # Hourly HLL of native transfer senders for the 'eth' app, see aggregate_native_transfer_senders_hll.
+        # Must run after aggregate_unique_addresses_contracts_hll_hourly, otherwise a real tx to the placeholder address would overwrite these rows.
+        def aggregate_native_transfer_senders_hll_hourly(self, chain:str, hours:int, hours_end:int=None):
+                if hours_end is None:
+                        hours_end_string = "DATE_TRUNC('hour', NOW())"
+                else:
+                        if hours_end > hours:
+                                raise ValueError("hours_end must be smaller than hours")
+                        hours_end_string = f"DATE_TRUNC('hour', NOW() - INTERVAL '{hours_end} hours')"
+
+                exec_string = f'''
+                        INSERT INTO fact_active_addresses_contract_hourly_hll (address, origin_key, hour, hll_addresses)
+                                SELECT
+                                        decode('000000000000000000000000000000000000eeee', 'hex') as address,
+                                        '{chain}' as origin_key,
+                                        date_trunc('hour', block_timestamp) as hour,
+                                        hll_add_agg(hll_hash_bytea(from_address), 17,5,-1,1)
+                                FROM {chain}_tx
+                                WHERE
+                                        empty_input = true -- same definition of native transfers as in get_blockspace_native_transfers
+                                        AND block_timestamp < {hours_end_string}
+                                        AND block_timestamp >= DATE_TRUNC('hour', NOW() - INTERVAL '{hours} hours')
+                                GROUP BY 1,2,3
+                        ON CONFLICT (address, origin_key, hour)
+                        DO UPDATE SET hll_addresses = EXCLUDED.hll_addresses;
+                '''
+
+                with self.engine.connect() as connection:
+                        with connection.begin():
+                                connection.execute(text(exec_string))
+                print(f"HLL hashes of native transfer senders for {chain} and {hours} hours loaded into fact_active_addresses_contract_hourly_hll.")
