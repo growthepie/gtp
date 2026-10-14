@@ -45,6 +45,10 @@ class StorageLimitError(RuntimeError):
     pass
 
 
+class MissingDependencyError(RuntimeError):
+    pass
+
+
 def allowed_verifiers(session, oli=None):
     if oli is not None:
         definitions = oli.tag_definitions
@@ -326,8 +330,25 @@ class State:
     def dimension(self, kind, identifier):
         row = self.db.execute("SELECT data FROM dimensions WHERE kind=? AND id=?", (kind, str(identifier))).fetchone()
         if not row:
-            raise RuntimeError(f"Export dependency missing: {kind}/{identifier}; retry after next export")
+            raise MissingDependencyError(f"Export dependency missing: {kind}/{identifier}; retry after next export")
         return json.loads(row[0])
+
+
+def wait_for_export(state, file, row, exc):
+    """VerA dumps tables minutes apart, so the newest verifications can reference
+    deployments/compilations that only appear in the next export. Stop there and
+    resume from that row; a gap that survives a rewritten export is a real error.
+    """
+    blocked = json.dumps({"verification": str(row["id"]), "error": str(exc)}, sort_keys=True)
+    previous = state.db.execute("SELECT value FROM metadata WHERE key='awaiting_export'").fetchone()
+    if previous and json.loads(previous[0])["blocked"] == blocked and json.loads(previous[0])["etag"] != file["etag"]:
+        raise MissingDependencyError(f"{exc} (still missing after a new export of {file['key']})") from exc
+    if not previous or json.loads(previous[0])["blocked"] != blocked:
+        with state.db:
+            state.db.execute("INSERT OR REPLACE INTO metadata VALUES ('awaiting_export', ?)",
+                             (json.dumps({"blocked": blocked, "etag": file["etag"]}),))
+    LOG.warning("Stopping at export tail: verification %s waits for the next export (%s)", row["id"], exc)
+    return str(exc)
 
 
 def existing_labels(engine, labels):
@@ -491,6 +512,8 @@ def sync(directory, engine, oli=None, *, dry_run=True, max_batches=100, verifier
         raise
     if not dry_run:
         status = "Run limit reached; more work remains." if result["bounded"] else "Caught up with the export."
+        if result.get("awaiting_export"):
+            status += " Newest verifications wait for their dependencies in the next export."
         message = (f"VERA sync complete: {result['submitted']:,} new attestations submitted to OLI; "
                    f"{result['scanned']:,} verification rows checked. {status}")
         if "total_rows" in result:
@@ -564,6 +587,7 @@ def _sync(directory, engine, oli=None, *, dry_run=True, max_batches=100, verifie
                 with state.db:
                     state.checkpoint(file, count, True)
         batches = 0
+        newest = verified_files[-1]["key"]
         for file in verified_files:
             offset, complete = state.progress(file)
             if complete:
@@ -573,12 +597,22 @@ def _sync(directory, engine, oli=None, *, dry_run=True, max_batches=100, verifie
                 count += len(rows)
                 if count <= offset:
                     continue
-                labels = []
+                if count - len(rows) < offset:
+                    # Resume mid-batch after stopping at the export tail.
+                    rows = rows[offset - (count - len(rows)):]
+                labels, waiting = [], None
                 for row in rows:
-                    labels.append(make_label(row, state.dimension("contract_deployments", row["deployment_id"]),
-                                             state.dimension("compiled_contracts", row["compilation_id"]), verifier_map))
+                    try:
+                        labels.append(make_label(row, state.dimension("contract_deployments", row["deployment_id"]),
+                                                 state.dimension("compiled_contracts", row["compilation_id"]), verifier_map))
+                    except MissingDependencyError as exc:
+                        if file["key"] != newest:
+                            raise
+                        waiting = wait_for_export(state, file, row, exc)
+                        break
+                end = count - len(rows) + len(labels)
                 missing = missing_labels(labels, existing_labels(engine, labels), state)
-                stats["scanned"] += len(rows)
+                stats["scanned"] += len(labels)
                 stats["attestations"] += len(missing)
                 stats["tags"] += sum(sum(not k.startswith("_") for k in l["tags"]) for l in missing)
                 if missing and not dry_run:
@@ -591,9 +625,9 @@ def _sync(directory, engine, oli=None, *, dry_run=True, max_batches=100, verifie
                     stats["duplicates"] += submission["duplicates"]
                 if not dry_run:
                     with state.db:
-                        state.checkpoint(file, count)
-                    stats["overall_scanned"] += count - offset
-                    offset = count
+                        state.checkpoint(file, end)
+                    stats["overall_scanned"] += end - offset
+                    offset = end
                     stats["remaining_rows"] = stats["total_rows"] - stats["overall_scanned"]
                     stats["progress_pct"] = round(100 * stats["overall_scanned"] / stats["total_rows"], 6)
                     stats["receipts_pruned"] = stats.get("receipts_pruned", 0) + reconcile_receipts(state, engine)
@@ -604,6 +638,8 @@ def _sync(directory, engine, oli=None, *, dry_run=True, max_batches=100, verifie
                                 "The 90 GB database cap will stop growth; inspect cache/receipt reconciliation.",
                                 None if dry_run else notify)
                 LOG.info("Verifier Alliance progress: %s", stats)
+                if waiting:
+                    return {**stats, "bounded": False, "awaiting_export": waiting}
                 if batches >= max_batches:
                     return {**stats, "bounded": True}
             if not dry_run:
