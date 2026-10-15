@@ -26,6 +26,14 @@ SOURCES = {
     'fred_sndr': {'name': 'FRED / FDIC national deposit rates', 'url': 'https://fred.stlouisfed.org/series/SNDR'},
     'fred_dff': {'name': 'FRED / Federal Reserve', 'url': 'https://fred.stlouisfed.org/series/DFF'},
     'fred_ecbdfr': {'name': 'FRED / European Central Bank', 'url': 'https://fred.stlouisfed.org/series/ECBDFR'},
+    'bls': {'name': 'US Bureau of Labor Statistics via FRED', 'url': 'https://fred.stlouisfed.org/release/tables?rid=10&eid=34419'},
+    'eia_gas': {'name': 'US Energy Information Administration via FRED', 'url': 'https://fred.stlouisfed.org/series/GASREGW'},
+    'estat': {'name': 'Statistics Bureau of Japan (e-Stat), Retail Price Survey', 'url': 'https://www.e-stat.go.jp/en/statistics/00200571'},
+    'eurostat': {'name': 'Eurostat HICP', 'url': 'https://ec.europa.eu/eurostat/databrowser/view/prc_hicp_minr/default/table'},
+    'insee': {'name': 'INSEE average retail prices (France)', 'url': 'https://www.insee.fr/fr/statistiques/serie/000442423'},
+    'ons': {'name': 'Office for National Statistics', 'url': 'https://www.ons.gov.uk/economy/inflationandpriceindices'},
+    'numbeo': {'name': 'Numbeo (crowd-sourced)', 'url': 'https://www.numbeo.com/cost-of-living/'},
+    'fred_fx': {'name': 'FRED exchange rates', 'url': 'https://fred.stlouisfed.org/categories/94'},
     'yahoo': {'name': 'Yahoo Finance', 'url': 'https://finance.yahoo.com'},
     'companiesmarketcap': {'name': 'CompaniesMarketCap', 'url': 'https://companiesmarketcap.com'},
     'blockchain_com': {'name': 'Blockchain.com', 'url': 'https://www.blockchain.com/explorer/charts/total-bitcoins'},
@@ -60,6 +68,54 @@ BTC_SUPPLY_URL = 'https://api.blockchain.info/charts/total-bitcoins?timespan=7ye
 OIL_RESERVES_URL = 'https://ourworldindata.org/grapher/oil-proved-reserves.csv?useColumnShortNames=true'
 OIL_LOGO_URL = 'https://financialmodelingprep.com/image-stock/CLUSD.png'
 BARRELS_PER_M3 = 1 / 0.158987294928
+
+## ----- 'What one ETH actually buys' (purchasing power) -----
+## Prices per region and item. Methods:
+##   fred:   absolute US average prices (BLS monthly / EIA weekly) via FRED
+##   estat:  absolute retail prices from Japan's Retail Price Survey (Tokyo 23 wards, monthly) via the e-Stat API (env ESTAT_APP_ID)
+##   anchor: price = anchor price x index(month) / index(anchor month), index = official monthly CPI/HICP for that item.
+##           The anchor price is fetched once from an official series at a fixed month (INSEE, ONS) or, if none exists, set as a fixed value.
+## All prices are converted to the same unit in every region (STANDARD_UNITS): factor = standard units per source unit.
+LB_IN_G = 453.59237
+GALLON_IN_L = 3.785411784
+STANDARD_UNITS = {'bread': '500 g loaf', 'eggs': 'dozen', 'coffee': '500 g (ground)', 'fuel': 'litre', 'gold': 'gram'}
+PURCHASING_POWER_REGIONS = {
+    'us': {'name': 'United States', 'currency': 'USD', 'items': {
+        'bread':  {'source_unit': '1 lb (white bread)', 'factor': 500 / LB_IN_G, 'method': 'fred', 'series': 'APU0000702111', 'source': 'bls'},
+        'eggs':   {'source_unit': 'dozen (grade A large)', 'factor': 1, 'method': 'fred', 'series': 'APU0000708111', 'source': 'bls'},
+        'coffee': {'source_unit': '1 lb (100% ground roast)', 'factor': 500 / LB_IN_G, 'method': 'fred', 'series': 'APU0000717311', 'source': 'bls'},
+        'fuel':   {'source_unit': 'gallon (regular gasoline)', 'factor': 1 / GALLON_IN_L, 'method': 'fred', 'series': 'GASREGW', 'source': 'eia_gas'},
+    }},
+    'euro_area': {'name': 'Euro area', 'currency': 'EUR', 'items': {
+        ## anchors from France (INSEE average retail prices), moved with euro area HICP (Eurostat, ECOICOP v2)
+        'bread':  {'source_unit': '1 kg (baguette)', 'factor': 0.5, 'method': 'anchor', 'anchor': {'insee': '000442423', 'month': '2025-01'}, 'index': {'eurostat': 'CP01113'}},
+        'eggs':   {'source_unit': 'dozen', 'factor': 1, 'method': 'anchor', 'anchor': {'value': 3.65, 'month': '2026-08', 'source': 'numbeo'}, 'index': {'eurostat': 'CP01148'}},
+        'coffee': {'source_unit': '250 g (ground)', 'factor': 2, 'method': 'anchor', 'anchor': {'insee': '000442545', 'month': '2019-12'}, 'index': {'eurostat': 'CP01220'}},
+        'fuel':   {'source_unit': 'litre (unleaded 95)', 'factor': 1, 'method': 'anchor', 'anchor': {'insee': '000849411', 'month': '2025-01'}, 'index': {'eurostat': 'CP07222'}},
+    }},
+    'uk': {'name': 'United Kingdom', 'currency': 'GBP', 'items': {
+        ## anchors: last ONS average prices (RPI average price series, discontinued, in pence), moved with ONS CPI item indices
+        'bread':  {'source_unit': '800 g (white sliced)', 'factor': 500 / 800, 'method': 'anchor', 'anchor': {'ons': 'czoh', 'month': '2025-01', 'scale': 0.01}, 'index': {'ons': 'l78j'}},
+        'eggs':   {'source_unit': 'dozen', 'factor': 1, 'method': 'anchor', 'anchor': {'ons': 'j428', 'month': '2025-01', 'scale': 0.01}, 'index': {'ons': 'l79a'}},
+        'coffee': {'source_unit': '227 g (ground)', 'factor': 500 / 227, 'method': 'anchor', 'anchor': {'ons': 'czno', 'month': '2021-01', 'scale': 0.01}, 'index': {'ons': 'l7a6'}},
+        'fuel':   {'source_unit': 'litre (unleaded petrol)', 'factor': 1, 'method': 'anchor', 'anchor': {'ons': 'czmk', 'month': '2025-01', 'scale': 0.01}, 'index': {'ons': 'l7fp'}},
+    }},
+    'japan': {'name': 'Japan', 'currency': 'JPY', 'items': {
+        'bread':  {'source_unit': '1 kg (食パン)', 'factor': 0.5, 'method': 'estat', 'series': '01021'},
+        'eggs':   {'source_unit': 'pack of 10 (鶏卵)', 'factor': 1.2, 'method': 'estat', 'series': '01341'},
+        'coffee': {'source_unit': '100 g (ground, コーヒー豆)', 'factor': 5, 'method': 'estat', 'series': '01922'},
+        'fuel':   {'source_unit': 'litre (regular gasoline)', 'factor': 1, 'method': 'estat', 'series': '07301'},
+    }},
+}
+PURCHASING_POWER_ITEM_NAMES = {'bread': 'Bread', 'eggs': 'Eggs', 'coffee': 'Coffee', 'fuel': 'Fuel', 'gold': 'Gold'}
+## FX from FRED (daily): USD per unit of local currency (JPY is quoted the other way round and inverted)
+FX_SERIES = {'EUR': ('DEXUSEU', False), 'GBP': ('DEXUSUK', False), 'JPY': ('DEXJPUS', True)}
+ESTAT_RETAIL_PRICE_TABLE = '0003421913'   ## Retail Price Survey, major items by city (monthly)
+ESTAT_TOKYO_AREA = '13100'                ## Tokyo 23 wards
+EUROSTAT_HICP_URL = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?format=JSON&geo=EA&unit=I25&coicop18={}'
+INSEE_SERIES_URL = 'https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/{}'
+ONS_SERIES_URL = 'https://www.ons.gov.uk/generator?format=csv&uri=/economy/inflationandpriceindices/timeseries/{}/mm23'
+TROY_OZ_IN_GRAMS = 31.1034768
 
 ## World Bank Population Estimates and Projections (source 40), mid-year (July 1) world population incl. projections
 WORLD_POPULATION_URL = 'https://api.worldbank.org/v2/country/WLD/indicator/SP.POP.TOTL?format=json&source=40&date=2020:2040&per_page=100'
@@ -472,6 +528,170 @@ class EthAssetJSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/productive_asset', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
         print('DONE -- ETH asset productive asset json export done')
+        return details_dict
+
+    ## ----- monthly price/index series (all indexed by month start) -----
+
+    def get_eurostat_hicp(self, coicop:str):
+        response_json = api_get_call(EUROSTAT_HICP_URL.format(coicop), sleeper=10, retries=5)
+        if not response_json or not response_json.get('value'):
+            raise ValueError(f"No HICP data returned from Eurostat for {coicop}")
+        months = {pos: m for m, pos in response_json['dimension']['time']['category']['index'].items()}
+        return pd.Series({pd.Timestamp(months[int(pos)]): float(v) for pos, v in response_json['value'].items()}).sort_index()
+
+    def get_insee_series(self, idbank:str):
+        import re, requests
+        r = requests.get(INSEE_SERIES_URL.format(idbank), headers=HTTP_HEADERS, timeout=60)
+        r.raise_for_status()
+        obs = re.findall(r'TIME_PERIOD="(\d{4}-\d{2})" OBS_VALUE="([\d.]+)"', r.text)
+        if not obs:
+            raise ValueError(f"No data returned from INSEE for {idbank}")
+        return pd.Series({pd.Timestamp(t): float(v) for t, v in obs}).sort_index()
+
+    ## ONS rate limits quick successive requests (HTTP 429): pause between calls and back off on 429
+    def get_ons_series(self, cdid:str):
+        import io, time, requests
+        for attempt in range(6):
+            time.sleep(2 + attempt * 15)
+            r = requests.get(ONS_SERIES_URL.format(cdid), headers=HTTP_HEADERS, timeout=60)
+            if r.status_code != 429:
+                break
+            print(f"...ONS rate limit for {cdid}, retrying")
+        r.raise_for_status()
+        df = pd.read_csv(io.StringIO(r.text), header=None, names=['period', 'value'])
+        df = df[df['period'].astype(str).str.match(r'^\d{4} [A-Z]{3}$')]
+        return pd.Series(df['value'].astype(float).values, index=pd.to_datetime(df['period'], format='%Y %b')).sort_index()
+
+    ## Japan Retail Price Survey, Tokyo 23 wards: {item code: monthly price series in JPY}
+    def get_estat_prices(self, item_codes:list):
+        import os
+        start = (pd.Timestamp(datetime.now(timezone.utc).date()) - pd.DateOffset(months=26))
+        url = (f"https://api.e-stat.go.jp/rest/3.0/app/json/getStatsData?appId={os.getenv('ESTAT_APP_ID')}&statsDataId={ESTAT_RETAIL_PRICE_TABLE}"
+               f"&cdArea={ESTAT_TOKYO_AREA}&cdCat02={','.join(item_codes)}&cdTimeFrom={start.year}00{start.month:02d}{start.month:02d}")
+        response_json = api_get_call(url, sleeper=10, retries=5)
+        result = response_json['GET_STATS_DATA']
+        if result['RESULT']['STATUS'] != 0:
+            raise ValueError(f"e-Stat error: {result['RESULT']['ERROR_MSG']}")
+        out = {}
+        for v in result['STATISTICAL_DATA']['DATA_INF']['VALUE']:
+            t = v['@time']  ## e.g. 2026000808 -> 2026-08
+            out.setdefault(v['@cat02'], {})[pd.Timestamp(f"{t[:4]}-{t[6:8]}-01")] = float(v['$'])
+        return {k: pd.Series(d).sort_index() for k, d in out.items()}
+
+    ## (price series, sources) for an item config
+    def get_item_price_series(self, cfg:dict, estat_prices:dict):
+        if cfg['method'] == 'fred':
+            return self.get_fred_series(cfg['series']), [SOURCES[cfg['source']]]
+        if cfg['method'] == 'estat':
+            return estat_prices[cfg['series']], [SOURCES['estat']]
+
+        ## anchor x index
+        index_cfg, anchor_cfg = cfg['index'], cfg['anchor']
+        if 'eurostat' in index_cfg:
+            index, sources = self.get_eurostat_hicp(index_cfg['eurostat']), [SOURCES['eurostat']]
+        else:
+            index, sources = self.get_ons_series(index_cfg['ons']), [SOURCES['ons']]
+        month = pd.Timestamp(anchor_cfg['month'])
+        if 'insee' in anchor_cfg:
+            anchor, anchor_source = self.get_insee_series(anchor_cfg['insee'])[month], SOURCES['insee']
+        elif 'ons' in anchor_cfg:
+            anchor, anchor_source = self.get_ons_series(anchor_cfg['ons'])[month] * anchor_cfg.get('scale', 1), SOURCES['ons']
+        else:
+            anchor, anchor_source = anchor_cfg['value'], SOURCES[anchor_cfg['source']]
+        if anchor_source not in sources:
+            sources = [anchor_source] + sources
+        ## index at the anchor month (or the latest month before it, if not published yet)
+        return anchor * index / index[index.index <= month].iloc[-1], sources
+
+    ## USD per unit of local currency, daily
+    def get_fx_usd_per_unit(self, currency:str):
+        series_id, inverted = FX_SERIES[currency]
+        fx = self.get_fred_series(series_id)
+        return 1 / fx if inverted else fx
+
+    ## 'What one ETH actually buys' per region: units of everyday goods per ETH today vs. a year ago, and what drove the change.
+    ## The change in units is split exactly into: ETH price effect (at year-ago shop prices) + shop price effect (inflation, at today's ETH price).
+    ## ETH and gold are converted to local currency with daily FX, so the ETH price effect includes currency moves.
+    def get_purchasing_power_regions(self, eth_usd_now:float, eth_usd_year_ago:float, year_ago):
+        import yfinance as yf
+        gold = yf.Ticker('GC=F').history(period='13mo', interval='1d')['Close']
+        gold.index = gold.index.tz_localize(None)
+        gold_ago = gold[gold.index <= gold.index[-1] - pd.DateOffset(years=1)]
+
+        estat_codes = [c['series'] for c in PURCHASING_POWER_REGIONS['japan']['items'].values()]
+        estat_prices = self.get_estat_prices(estat_codes)
+
+        regions = {}
+        for region_key, region in PURCHASING_POWER_REGIONS.items():
+            currency = region['currency']
+            if currency == 'USD':
+                fx_now, fx_ago, fx_sources = 1.0, 1.0, []
+            else:
+                fx = self.get_fx_usd_per_unit(currency)
+                fx_now, fx_ago, fx_sources = float(fx.iloc[-1]), float(fx[fx.index <= pd.Timestamp(year_ago)].iloc[-1]), [SOURCES['fred_fx']]
+            eth_now, eth_ago = eth_usd_now / fx_now, eth_usd_year_ago / fx_ago
+
+            prices = {}
+            for item_key, cfg in region['items'].items():
+                series, sources = self.get_item_price_series(cfg, estat_prices)
+                ## convert to the standard unit
+                series = series.dropna() * cfg['factor']
+                latest = series.index[-1]
+                ago = series[series.index <= latest - pd.DateOffset(years=1)]
+                prices[item_key] = (float(series.iloc[-1]), float(ago.iloc[-1]), latest, cfg['source_unit'], sources)
+            prices['gold'] = (float(gold.iloc[-1]) / TROY_OZ_IN_GRAMS / fx_now, float(gold_ago.iloc[-1]) / TROY_OZ_IN_GRAMS / fx_ago,
+                              gold.index[-1], 'gram (gold futures price per troy ounce / 31.1035)', [SOURCES['yahoo']] + fx_sources)
+
+            items = []
+            for key, (p_now, p_ago, as_of, source_unit, sources) in prices.items():
+                units_now, units_ago = eth_now / p_now, eth_ago / p_ago
+                items.append({
+                    'key': key, 'name': PURCHASING_POWER_ITEM_NAMES[key], 'unit': STANDARD_UNITS[key], 'source_unit': source_unit,
+                    'units_per_eth': units_now,
+                    'units_per_eth_year_ago': units_ago,
+                    'change_pct': units_now / units_ago - 1,
+                    'change_units': {
+                        'eth_price': eth_now / p_ago - units_ago,
+                        'shop_price': units_now - eth_now / p_ago,
+                    },
+                    'price': p_now, 'price_year_ago': p_ago, 'price_as_of': as_of.strftime('%Y-%m-%d'),
+                    'sources': sources,
+                })
+            regions[region_key] = {
+                'name': region['name'], 'currency': currency,
+                'eth_price': eth_now, 'eth_price_year_ago': eth_ago,
+                'items': items,
+            }
+        return regions
+
+    def create_purchasing_power_json(self):
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        end_hour = pd.Timestamp(now).floor('h') - pd.Timedelta(hours=1)
+        df_hourly = self.get_hourly_data()
+        eth_now = float(self.value_at(df_hourly['price_usd'], end_hour))
+        year_ago = (pd.Timestamp(now.date()) - pd.DateOffset(years=1)).date()
+        eth_year_ago = float(self.db_connector.execute_query(f"""
+            SELECT value FROM public.fact_kpis WHERE origin_key = 'ethereum' AND metric_key = 'price_usd' AND "date" <= '{year_ago}' ORDER BY "date" DESC LIMIT 1
+        """, load_df=True)['value'].iloc[0])
+
+        details_dict = {
+            'data': {
+                'year_ago_date': str(year_ago),
+                'regions': self.get_purchasing_power_regions(eth_now, eth_year_ago, year_ago),
+                'eth_price_sources': [SOURCES['coingecko']],
+            },
+            'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        details_dict = fix_dict_nan(details_dict, 'eth_asset/purchasing_power')
+
+        if self.s3_bucket is None:
+            import os, json
+            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
+            with open(f'output/{self.api_version}/eth_asset/purchasing_power.json', 'w') as fp:
+                json.dump(details_dict, fp)
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/purchasing_power', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+        print('DONE -- ETH asset purchasing power json export done')
         return details_dict
 
     ## ETH used as collateral (latest daily snapshot), partitioned into lending / liquid staking / DEX without overlap

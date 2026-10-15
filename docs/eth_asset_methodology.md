@@ -1,6 +1,6 @@
 # ETH Asset Page — Data Methodology
 
-Data behind the "ETH the asset" page. Five JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
+Data behind the "ETH the asset" page. Six JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
 
 | JSON | Content |
 |---|---|
@@ -8,6 +8,7 @@ Data behind the "ETH the asset" page. Five JSONs, all regenerated hourly by the 
 | `v1/eth_asset/stats.json` | Single values the frontend extrapolates per second (`total_wallets`, `eth_per_person`) |
 | `v1/eth_asset/properties.json` | "ETH is 6 things at once" section: yield breakdown, scarcity, collateral, ETH paid as gas |
 | `v1/eth_asset/productive_asset.json` | "Yield on the asset itself" comparison: ETH staking yield vs. central bank rates, dividends, gold, BTC, savings |
+| `v1/eth_asset/purchasing_power.json` | "What one ETH actually buys": everyday goods per ETH today vs. a year ago, and what changed it |
 | `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
 Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
@@ -168,9 +169,43 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 
 ---
 
-## 5. Market caps (`market_caps.json`)
+## 5. Purchasing power (`purchasing_power.json`)
 
-Current market cap in USD, refetched on every hourly run. Nothing is hardcoded, and nothing needs manual updates.
+How many units of everyday goods 1 ETH buys today vs. a year ago, for 4 regions (`data.regions`: `us`, `euro_area`, `uk`, `japan`). Rebuilt **once a day** (07:00 UTC). Each region is computed in its local currency, and all items use the **same unit in every region**:
+
+| Item | Unit |
+|---|---|
+| Bread | 500 g loaf |
+| Eggs | dozen |
+| Coffee | 500 g, ground |
+| Fuel | litre |
+| Gold | gram |
+
+- ETH price: today = latest complete hour (`fact_kpis_granular`, CoinGecko, USD); a year ago = daily `price_usd` on the same date one year earlier. Converted to local currency with FRED daily FX (`DEXUSEU`, `DEXUSUK`, `DEXJPUS`) at the respective date, so the ETH price effect includes currency moves.
+- Gold: Yahoo Finance `GC=F` per troy ounce ÷ 31.1035 = per gram, converted with the same FX rates.
+- Each item's price is compared with its price one year before its latest observation. Official data lags 1–2 months; `price_as_of` says which month "today" refers to.
+- Source prices are converted to the standard unit (`source_unit` in the JSON shows the original):
+
+| Region | Bread (→ 500 g) | Eggs (→ dozen) | Coffee (→ 500 g ground) | Fuel (→ litre) |
+|---|---|---|---|---|
+| US (USD) | BLS `APU0000702111`, white bread per lb × 500/453.6 | BLS `APU0000708111`, dozen | BLS `APU0000717311`, ground roast per lb × 500/453.6 | EIA `GASREGW`, per gallon ÷ 3.785 (weekly) |
+| Euro area (EUR) | Anchor: INSEE baguette per kg (France, Jan 2025, `000442423`) × Eurostat HICP `CP01113` bread & bakery, × 0.5 | Anchor: €3.65 per dozen (Numbeo, average of DE/FR/IT/ES/NL, Aug 2026, **non-official**) × HICP `CP01148` eggs | Anchor: INSEE ground coffee 250 g (France, Dec 2019, `000442545`) × HICP `CP01220` coffee, × 2 | Anchor: INSEE unleaded 95 per litre (France, Jan 2025, `000849411`) × HICP `CP07222` petrol |
+| UK (GBP) | Anchor: ONS white sliced 800 g (Jan 2025, `CZOH`) × ONS CPI `L78J` bread, × 500/800 | Anchor: ONS dozen (Jan 2025, `J428`) × CPI `L79A` eggs | Anchor: ONS ground coffee 227 g (Jan 2021, `CZNO`) × CPI `L7A6` coffee, × 500/227 | Anchor: ONS unleaded petrol per litre (Jan 2025, `CZMK`) × CPI `L7FP` petrol |
+| Japan (JPY) | e-Stat Retail Price Survey, Tokyo 23 wards: 食パン per 1 kg × 0.5 | 鶏卵 pack of 10 × 1.2 | コーヒー豆 (ground regular coffee) per 100 g × 5 | Gasoline (regular) per litre |
+
+- **Anchor method** (Euro area, UK): `price(month) = anchor price × index(month) / index(anchor month)`. The anchor is fetched once from an official series at a fixed month: INSEE for the euro area (France as the starting level), and the ONS average price series for the UK (discontinued after Jan 2025; ground coffee after Jan 2021). The euro-area egg anchor is the only hardcoded value, because no official euro price exists. Month-to-month movement always follows the official price index, so the "shop price" bar is official inflation for that item. Euro-area HICP has no separate bread index at euro-area level, so "bread and bakery products" is used.
+- Japan units were verified against published survey tables: 食パン 1 kg, 鶏卵 pack of 10, コーヒー豆 100 g (ground regular coffee), gasoline 1 L.
+- **Japan** needs the env var `ESTAT_APP_ID` (free e-Stat API key), locally and in Airflow. Table `0003421913`, area `13100`.
+- ONS rate-limits quick successive requests. The code pauses between ONS calls and retries on HTTP 429.
+- `change_units` splits the change in units exactly into two parts that add up to `units_per_eth − units_per_eth_year_ago`:
+  - `eth_price` = ETH price change (in local currency) at year-ago shop prices: `eth_now / price_year_ago − eth_year_ago / price_year_ago`.
+  - `shop_price` = shop price change (inflation) at today's ETH price: `eth_now / price_now − eth_now / price_year_ago`.
+
+---
+
+## 6. Market caps (`market_caps.json`)
+
+Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardcoded, and nothing needs manual updates.
 
 - **Crypto**: ETH, BTC, USDT, USDC from CoinGecko `/coins/markets`.
 - **Companies**: the global top 10 by market cap from the CompaniesMarketCap CSV (`companiesmarketcap.com/?download=csv`, already in USD). New entrants appear automatically.
@@ -185,7 +220,7 @@ Current market cap in USD, refetched on every hourly run. Nothing is hardcoded, 
 
 ---
 
-## 6. Source reliability and fallbacks
+## 7. Source reliability and fallbacks
 
 | Source | Used for | If unavailable |
 |---|---|---|
@@ -194,7 +229,8 @@ Current market cap in USD, refetched on every hourly run. Nothing is hardcoded, 
 | Dune | Daily staked ETH, EL rewards, hourly staked fallback | Daily EL data retried on the next hourly run until yesterday is loaded |
 | World Bank | Population (stats) | Stats task fails; `kpis.json` is unaffected |
 | DefiLlama | Collateral | Collateral task fails/retries; previous `properties.json` stays live |
-| FRED | US dollar M2 (properties), Fed and ECB rates, savings rate (productive asset) | Affected task fails/retries; previous JSON stays live |
+| FRED | US dollar M2 (properties), Fed and ECB rates, savings rate (productive asset), US shop prices and FX (purchasing power) |
+| Eurostat / INSEE / ONS / e-Stat | Regional shop prices (purchasing power) | Purchasing power task fails/retries; previous `purchasing_power.json` stays live | Affected task fails/retries; previous JSON stays live |
 | CoinGecko / CompaniesMarketCap / OWID / Yahoo Finance | Market caps | Market caps task fails/retries; previous `market_caps.json` stays live |
 | gold.org (scrape) | Gold stock for scarcity | Reference data task fails; scarcity keeps using the last stored gold stock |
 | Own `ethereum_blocks` | Burn | — |

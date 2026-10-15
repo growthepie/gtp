@@ -147,6 +147,12 @@ def etl():
         from src.db_connector import DbConnector
         from src.api.eth_asset_json import EthAssetJSONCreation
 
+        from datetime import datetime, timezone
+        ## once a day is enough (underlying data changes daily at most)
+        if datetime.now(timezone.utc).hour != 7:
+            print("Only refreshed at 07:xx UTC, skipping.")
+            return
+
         db_connector = DbConnector()
         json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_market_caps_json()
@@ -186,5 +192,23 @@ def etl():
         json_creator.create_productive_asset_json()
 
     [supply, staking] >> run_create_productive_asset_json()
+
+    @task()
+    def run_create_purchasing_power_json():
+        from src.db_connector import DbConnector
+        from src.api.eth_asset_json import EthAssetJSONCreation
+
+        from datetime import datetime, timezone
+        ## once a day is enough (underlying data changes daily at most)
+        if datetime.now(timezone.utc).hour != 7:
+            print("Only refreshed at 07:xx UTC, skipping.")
+            return
+
+        db_connector = DbConnector()
+        json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        json_creator.create_purchasing_power_json()
+
+    ## ETH price comes from metrics_coingecko_hourly (runs before this DAG), shop prices from FRED
+    run_create_purchasing_power_json()
 
 etl()
