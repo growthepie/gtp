@@ -94,7 +94,7 @@ def etl():
         if df.empty:
             print("No daily staking data returned from Dune, retrying next run.")
             return
-        df = df[df.index.get_level_values('metric_key').isin(['eth_staked_eth', 'staking_rewards_el_eth', 'staking_yield_el'])]
+        df = df[df.index.get_level_values('metric_key').isin(['eth_staked_eth', 'staking_rewards_el_eth', 'staking_yield_el', 'staking_rewards_tips_eth', 'staking_rewards_mev_eth', 'staking_yield_tips', 'staking_yield_mev'])]
         ad.load(df)
 
     @task()
@@ -115,8 +115,37 @@ def etl():
         json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_stats_json()
 
+    @task()
+    def run_eth_collateral():
+        from datetime import datetime, timezone
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_eth_collateral import AdapterEthCollateral
+
+        db_connector = DbConnector()
+        ## daily snapshot (DefiLlama /protocol calls return the full history, ~500MB per run), skip if today is already loaded
+        today = datetime.now(timezone.utc).date()
+        last_date = db_connector.execute_query("SELECT MAX(date) AS d FROM eim_fact WHERE metric_key = 'collateral_lending_eth' AND origin_key = 'ethereum'", load_df=True)['d'].iloc[0]
+        if last_date is not None and last_date >= today:
+            print(f"Collateral already loaded for {last_date}, skipping.")
+            return
+
+        ad = AdapterEthCollateral({}, db_connector)
+        df = ad.extract({})
+        ad.load(df)
+
+    @task()
+    def run_create_properties_json():
+        from src.db_connector import DbConnector
+        from src.api.eth_asset_json import EthAssetJSONCreation
+
+        db_connector = DbConnector()
+        json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        json_creator.create_properties_json()
+
     supply = run_eth_supply_hourly()
-    [supply, run_eth_burned(), run_eth_staking()] >> run_create_kpis_json()
+    staking = run_eth_staking()
+    [supply, run_eth_burned(), staking] >> run_create_kpis_json()
     supply >> run_create_stats_json()
+    [supply, staking, run_eth_collateral()] >> run_create_properties_json()
 
 etl()

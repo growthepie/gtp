@@ -1,13 +1,14 @@
 # ETH Asset Page — Data Methodology
 
-Data behind the "ETH the asset" page. Two JSONs, both regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
+Data behind the "ETH the asset" page. Three JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
 
 | JSON | Content |
 |---|---|
 | `v1/eth_asset/kpis.json` | 5 KPI charts (timeseries per timeframe, current value, % change) |
 | `v1/eth_asset/stats.json` | Single values the frontend extrapolates per second (`total_wallets`, `eth_per_person`) |
+| `v1/eth_asset/properties.json` | "ETH is 6 things at once" section: yield breakdown, scarcity, collateral, ETH paid as gas |
 
-Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
+Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
 
 ---
 
@@ -51,6 +52,10 @@ Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_js
 | ETH burned | growthepie |
 | Total wallets | growthepie |
 | ETH per person | ultrasound.money, World Bank |
+| Yield breakdown | ethsupply.fyi, growthepie |
+| Scarcity | ultrasound.money (ETH), World Gold Council (gold), FRED (US dollar) |
+| Collateral | DefiLlama, growthepie |
+| ETH paid as gas | growthepie |
 
 **ETH price (USD)** — CoinGecko. Hourly in `fact_kpis_granular` (`price_usd`), daily in `fact_kpis`.
 
@@ -119,7 +124,35 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 
 ---
 
-## 3. Source reliability and fallbacks
+## 3. Properties (`properties.json`)
+
+**Yield breakdown**: the current staking yield split into issuance, tips and MEV. `total` is identical to `staking_yield.current` in `kpis.json`.
+- `issuance`: CL yield, trailing 24h average of hourly ethsupply.fyi data (same as the hourly KPI).
+- `tips` and `mev`: 7-day average of daily EL rewards ÷ staked ETH, split per block (Dune query 8951204, daily since the Merge):
+  - Locally built block: the proposer receives the priority fees. All of it counts as `tips`.
+  - MEV-boost block: the proposer receives the builder's payment. The payment first covers the block's priority fees (`tips`, capped at the payment); anything above that is `mev`.
+  - Both parts are never negative and add up to the EL reward. Builders often pay less than the block's priority fees (they keep a margin), so `mev` is the smaller part. As of Oct 2026: tips 0.07%, MEV 0.01%.
+
+**Scarcity**: annual change in the total stock of each asset, as a fraction.
+- ETH: supply change over the last 30 days (latest hourly supply vs. the start-of-day supply 30 days ago), annualized. Source: ultrasound.money.
+- Gold: above-ground stock at the end of the latest year vs. the end of the year before (World Gold Council: 216,265 t at end-2024, 219,891 t at end-2025, +1.68%). The values are hardcoded in `GOLD_STOCK_TONNES` and **need a manual update once a year** when the WGC publishes the next year-end figure.
+- US dollar: M2 money supply (FRED `M2SL`, monthly, seasonally adjusted), latest month vs. the same month a year earlier.
+
+**Collateral**: ETH-equivalent tokens deposited in DeFi on Ethereum + L2s with ETH as gas token (chains via `aliases_defillama` in `main_config`). Daily snapshot from DefiLlama, converted to ETH with the latest hourly ETH price. Categories are partitioned so nothing is counted twice:
+- `lending`: all ETH-equivalent tokens (ETH, WETH, LSTs, LRTs) in protocols of the DefiLlama category "Lending". This is DefiLlama TVL, i.e. supplied minus borrowed, which avoids inflating the number through looping.
+- `dex`: all ETH-equivalent tokens in protocols of the category "Dexs".
+- `liquid_staking`: ETH staked via protocols of the category "Liquid Staking" (Ethereum mainnet) **minus** the LST tokens already counted in lending and DEX. This is the liquid-staked ETH that is not deployed elsewhere.
+- Only protocols with ≥ $5M TVL on the selected chains are fetched (35 lending, 25 DEX as of Oct 2026).
+- Token classification: ETH/WETH = native. LSTs = the EIM `eth_derivatives` list plus wBETH, osETH, lsETH, ETHx and swETH. LRTs (ezETH, rsETH, rswETH, pufETH) count in lending/DEX but aren't subtracted from liquid staking.
+- Known small overlap: LRTs hold LSTs underneath (e.g. rsETH backed by stETH), so about $0.9B of LRT collateral in lending is also partly inside the liquid staking total.
+- Values as of 2026-10-15: 18.4M ETH ($43.6B) in total, 64% liquid staking, 34% lending, 1% DEX.
+- Stored in `eim_fact`: `collateral_lending_eth`, `collateral_liquid_staking_eth`, `collateral_dex_eth`.
+
+**ETH paid as gas**: daily sum of `fees_paid_eth` (and `fees_paid_usd`) from `fact_kpis` over all chains in `main_config` with `metadata_gas_token = 'ETH'`, `api_in_main` and deployment flag `PROD` (Ethereum + 17 L2s). `fees_paid_eth` exists for every chain, but for chains with another gas token it is only a currency conversion. Those chains are therefore excluded: Polygon PoS (POL), Mantle (MNT), Metis, Ronin, Gravity, Plume, Fraxtal, Celo (multiple gas tokens), and Starknet (ETH or STRK, which our data can't separate). The last 365 complete days are included. `chains` lists the chains with fees in the last 7 days.
+
+---
+
+## 4. Source reliability and fallbacks
 
 | Source | Used for | If unavailable |
 |---|---|---|
@@ -127,4 +160,6 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 | ultrasound.money | Supply (hourly + daily) | Task fails/retries; JSON tasks don't run, so the previous JSONs stay live |
 | Dune | Daily staked ETH, EL rewards, hourly staked fallback | Daily EL data retried on the next hourly run until yesterday is loaded |
 | World Bank | Population (stats) | Stats task fails; `kpis.json` is unaffected |
+| DefiLlama | Collateral | Collateral task fails/retries; previous `properties.json` stays live |
+| FRED | US dollar M2 | Properties task fails/retries; previous `properties.json` stays live |
 | Own `ethereum_blocks` | Burn | — |

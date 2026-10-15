@@ -20,7 +20,19 @@ SOURCES = {
     'ethsupply': {'name': 'ethsupply.fyi', 'url': 'https://ethsupply.fyi'},
     'growthepie': {'name': 'growthepie', 'url': 'https://www.growthepie.com'},
     'worldbank': {'name': 'World Bank', 'url': 'https://data.worldbank.org/indicator/SP.POP.TOTL'},
+    'defillama': {'name': 'DefiLlama', 'url': 'https://defillama.com'},
+    'wgc': {'name': 'World Gold Council', 'url': 'https://www.gold.org/goldhub/data/above-ground-stocks'},
+    'fred': {'name': 'FRED (Federal Reserve Bank of St. Louis)', 'url': 'https://fred.stlouisfed.org/series/M2SL'},
 }
+
+## above-ground gold stock in tonnes at year end (World Gold Council). Update once a year when WGC publishes the new year-end figure.
+GOLD_STOCK_TONNES = {2024: 216265, 2025: 219891}
+## US dollar money supply: M2 (monthly, seasonally adjusted) from FRED, no API key needed for the csv download
+USD_M2_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=M2SL'
+## window for the annualized ETH supply change in the scarcity comparison
+ETH_SUPPLY_CHANGE_DAYS = 30
+## days of history for the 'ETH paid as gas' timeseries
+GAS_PAID_DAYS = 365
 
 ## World Bank Population Estimates and Projections (source 40), mid-year (July 1) world population incl. projections
 WORLD_POPULATION_URL = 'https://api.worldbank.org/v2/country/WLD/indicator/SP.POP.TOTL?format=json&source=40&date=2020:2040&per_page=100'
@@ -74,7 +86,7 @@ class EthAssetJSONCreation():
             SELECT metric_key, "date", value
             FROM public.eim_fact
             WHERE origin_key = 'ethereum'
-                AND metric_key IN ('eth_supply_eth', 'eth_burned_eth', 'eth_staked_eth', 'staking_yield_cl', 'staking_yield_el')
+                AND metric_key IN ('eth_supply_eth', 'eth_burned_eth', 'eth_staked_eth', 'staking_yield_cl', 'staking_yield_el', 'staking_yield_tips', 'staking_yield_mev')
                 AND "date" >= current_date - interval '{days} days'
         """
         df = self.db_connector.execute_query(exec_string, load_df=True)
@@ -111,6 +123,8 @@ class EthAssetJSONCreation():
         df_d = pd.DataFrame({
             'cl_7d': df_daily['staking_yield_cl'].rolling(7, min_periods=1).mean(),
             'el_7d': df_daily['staking_yield_el'].rolling(7, min_periods=1).mean(),
+            'tips_7d': df_daily['staking_yield_tips'].rolling(7, min_periods=1).mean(),
+            'mev_7d': df_daily['staking_yield_mev'].rolling(7, min_periods=1).mean(),
         }).dropna(how='all')
         df_d = pd.merge_asof(pd.DataFrame(index=df.index), df_d, left_index=True, right_index=True, direction='backward')
 
@@ -118,6 +132,10 @@ class EthAssetJSONCreation():
         cl = cl_hourly.rolling(24, min_periods=1).mean().fillna(df_d['cl_7d'])
         df['staking_yield'] = cl + df_d['el_7d'].ffill()
         df['staked_share'] = df['eth_staked_eth'] / df['eth_supply_eth']
+        ## components, used for the yield breakdown (tips + mev = el)
+        df['staking_yield_cl_24h'] = cl
+        df['staking_yield_tips_7d'] = df_d['tips_7d'].ffill()
+        df['staking_yield_mev_7d'] = df_d['mev_7d'].ffill()
         return df
 
     ## ----------------- Bucketing --------------------
@@ -306,6 +324,130 @@ class EthAssetJSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/stats', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
         print('DONE -- ETH asset stats json export done')
+        return details_dict
+
+    ## ----------------- Properties ('ETH is 6 things at once' section) --------------------
+
+    ## current staking yield split into issuance (CL), tips and MEV; same total as staking_yield 'current' in kpis.json
+    def get_yield_breakdown(self, df_hourly:pd.DataFrame, end_hour:pd.Timestamp):
+        row = df_hourly.loc[:end_hour].ffill().iloc[-1]
+        issuance, tips, mev = float(row['staking_yield_cl_24h']), float(row['staking_yield_tips_7d']), float(row['staking_yield_mev_7d'])
+        return {
+            'name': 'Staking Yield Breakdown',
+            'unit': 'percent',
+            'total': issuance + tips + mev,
+            'breakdown': {'issuance': issuance, 'tips': tips, 'mev': mev},
+            'sources': [SOURCES['ethsupply'], SOURCES['growthepie']],
+        }
+
+    ## annual change of total stock: ETH (last 30 days annualized), gold (WGC year-end stocks), US dollar (M2 YoY)
+    def get_scarcity(self, df_hourly:pd.DataFrame, df_daily:pd.DataFrame, end_hour:pd.Timestamp):
+        s_now = self.value_at(df_hourly['eth_supply_eth'], end_hour)
+        then = pd.Timestamp(end_hour.date()) - pd.Timedelta(days=ETH_SUPPLY_CHANGE_DAYS)
+        s_then = df_daily['eth_supply_eth'].get(then)
+        eth_change = (s_now / s_then - 1) * (365 * 86400) / (end_hour - then).total_seconds()
+
+        years = sorted(GOLD_STOCK_TONNES)
+        gold_change = GOLD_STOCK_TONNES[years[-1]] / GOLD_STOCK_TONNES[years[-2]] - 1
+
+        csv = api_get_call(USD_M2_URL, sleeper=10, retries=5, as_json=False)
+        if not csv:
+            raise ValueError("No M2 data returned from FRED")
+        m2 = pd.read_csv(__import__('io').StringIO(csv if isinstance(csv, str) else csv.text))
+        m2.columns = ['date', 'value']
+        m2['date'] = pd.to_datetime(m2['date'])
+        m2 = m2.dropna().set_index('date')['value'].astype(float)
+        m2_latest = m2.index.max()
+        usd_change = m2.iloc[-1] / m2.get(m2_latest - pd.DateOffset(years=1)) - 1
+
+        return {
+            'name': 'Annual Change in Total Stock',
+            'unit': 'percent',
+            'assets': {
+                'eth': {'name': 'ETH', 'value': float(eth_change), 'as_of': end_hour.strftime('%Y-%m-%d %H:%M'),
+                        'method': f'ETH supply change over the last {ETH_SUPPLY_CHANGE_DAYS} days, annualized', 'sources': [SOURCES['ultrasound']]},
+                'gold': {'name': 'Gold', 'value': float(gold_change), 'as_of': str(years[-1]),
+                         'method': f'Above-ground gold stock, end of {years[-1]} vs. end of {years[-2]}', 'sources': [SOURCES['wgc']]},
+                'usd': {'name': 'US dollar', 'value': float(usd_change), 'as_of': m2_latest.strftime('%Y-%m'),
+                        'method': 'M2 money supply, year over year', 'sources': [SOURCES['fred']]},
+            },
+        }
+
+    ## ETH used as collateral (latest daily snapshot), partitioned into lending / liquid staking / DEX without overlap
+    def get_collateral(self, price_usd:float):
+        df = self.db_connector.execute_query("""
+            SELECT metric_key, "date", value
+            FROM public.eim_fact
+            WHERE origin_key = 'ethereum'
+                AND metric_key IN ('collateral_lending_eth', 'collateral_liquid_staking_eth', 'collateral_dex_eth')
+                AND "date" = (SELECT MAX("date") FROM public.eim_fact WHERE origin_key = 'ethereum' AND metric_key = 'collateral_lending_eth')
+        """, load_df=True)
+        values = {r['metric_key'].replace('collateral_', '').replace('_eth', ''): float(r['value']) for r in df.to_dict(orient='records')}
+        total = sum(values.values())
+        return {
+            'name': 'ETH Posted as Collateral',
+            'as_of': str(df['date'].max()),
+            'total_eth': total,
+            'total_usd': total * price_usd,
+            'breakdown': {k: {'eth': v, 'usd': v * price_usd, 'share': v / total} for k, v in sorted(values.items(), key=lambda kv: -kv[1])},
+            'sources': [SOURCES['defillama'], SOURCES['growthepie']],
+        }
+
+    ## daily ETH paid for network usage (fees) on Ethereum + L2s with ETH as gas token
+    def get_gas_paid(self):
+        from src.main_config import get_main_config
+        chains = [c.origin_key for c in get_main_config() if c.metadata_gas_token == 'ETH' and c.api_in_main and c.api_deployment_flag == 'PROD']
+        ok_string = "', '".join(chains)
+        df = self.db_connector.execute_query(f"""
+            SELECT "date", origin_key, metric_key, value
+            FROM public.fact_kpis
+            WHERE metric_key IN ('fees_paid_eth', 'fees_paid_usd')
+                AND origin_key IN ('{ok_string}')
+                AND "date" >= current_date - interval '{GAS_PAID_DAYS} days'
+                AND "date" < current_date
+        """, load_df=True)
+        df['date'] = pd.to_datetime(df['date'])
+        daily = df.pivot_table(index='date', columns='metric_key', values='value', aggfunc='sum').sort_index()
+        ## chains counted = chains with fees in the last 7 days
+        active = sorted(df[(df['metric_key'] == 'fees_paid_eth') & (df['date'] >= df['date'].max() - pd.Timedelta(days=6)) & (df['value'] > 0)]['origin_key'].unique())
+        unix = (daily.index - pd.Timestamp('1970-01-01')) // pd.Timedelta(milliseconds=1)
+        return {
+            'name': 'ETH Paid as Gas',
+            'unit': 'eth',
+            'granularity': 'daily',
+            'types': ['unix', 'eth', 'usd'],
+            'data': [[int(u), float(e), float(d)] for u, e, d in zip(unix, daily['fees_paid_eth'], daily['fees_paid_usd'])],
+            'chains': {'count_l1': int('ethereum' in active), 'count_l2': len([c for c in active if c != 'ethereum']), 'origin_keys': active},
+            'sources': [SOURCES['growthepie']],
+        }
+
+    def create_properties_json(self):
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        end_hour = pd.Timestamp(now).floor('h') - pd.Timedelta(hours=1)
+        end_day = pd.Timestamp(now.date()) - pd.Timedelta(days=1)
+        df_daily = self.prepare_daily(self.get_daily_data(), end_day)
+        df_hourly = self.prepare_hourly(self.get_hourly_data(), df_daily, end_hour)
+        price_usd = self.value_at(df_hourly['price_usd'], end_hour)
+
+        details_dict = {
+            'data': {
+                'yield_breakdown': self.get_yield_breakdown(df_hourly, end_hour),
+                'scarcity': self.get_scarcity(df_hourly, df_daily, end_hour),
+                'collateral': self.get_collateral(price_usd),
+                'gas_paid': self.get_gas_paid(),
+            },
+            'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        details_dict = fix_dict_nan(details_dict, 'eth_asset/properties')
+
+        if self.s3_bucket is None:
+            import os, json
+            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
+            with open(f'output/{self.api_version}/eth_asset/properties.json', 'w') as fp:
+                json.dump(details_dict, fp)
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/properties', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+        print('DONE -- ETH asset properties json export done')
         return details_dict
 
     def create_kpis_json(self):
