@@ -521,17 +521,8 @@ def sync(directory, engine, oli=None, *, dry_run=True, max_batches=100, verifier
                         f"({result['progress_pct']}%); {result['remaining_rows']:,} remaining.")
         if result["duplicates"]:
             message += f" {result['duplicates']:,} duplicate submissions excluded from the new count."
+        # Log only: Discord is reserved for blocked runs and warnings, not routine completions.
         LOG.info(message)
-        if notify:
-            try:
-                notify(message)
-            except Exception:
-                # Work is already committed. Do not restart ingestion merely
-                # because its completion message could not be delivered.
-                LOG.exception("VERA completion notification failed; sync itself completed")
-                result["completion_notification_sent"] = False
-            else:
-                result["completion_notification_sent"] = True
     return result
 
 

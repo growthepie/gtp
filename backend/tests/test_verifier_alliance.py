@@ -205,19 +205,21 @@ class VerifierAllianceTests(unittest.TestCase):
             sign.assert_not_called()
             with sqlite_connection(directory) as db:
                 self.assertEqual(db.execute("SELECT count(*) FROM files WHERE key LIKE '%verified_contracts%'").fetchone()[0], 0)
-            result = va.sync(directory, Mock(), client, dry_run=False, notify=notify)
+            with self.assertLogs(va.LOG, level="INFO") as logs:
+                result = va.sync(directory, Mock(), client, dry_run=False, notify=notify)
             self.assertEqual(result["attestations"], 1)
             self.assertEqual(result["submitted"], 1)
             self.assertEqual(result["overall_scanned"], 1)
             self.assertEqual(result["progress_pct"], 100.0)
-            notify.assert_called_once()
-            self.assertIn("1 new attestations", notify.call_args.args[0])
-            self.assertIn("Caught up", notify.call_args.args[0])
-            result = va.sync(directory, Mock(), client, dry_run=False, notify=notify)
+            self.assertIn("1 new attestations", logs.output[-1])
+            self.assertIn("Caught up", logs.output[-1])
+            with self.assertLogs(va.LOG, level="INFO") as logs:
+                result = va.sync(directory, Mock(), client, dry_run=False, notify=notify)
             self.assertEqual(result["scanned"], 0)
             self.assertEqual(result["overall_scanned"], 1)
             self.assertEqual(result["remaining_rows"], 0)
-            self.assertIn("0 new attestations", notify.call_args.args[0])
+            self.assertIn("0 new attestations", logs.output[-1])
+            notify.assert_not_called()
             client.api.post_bulk_attestations.assert_called_once()
 
     def test_overall_progress_resumes_across_bounded_runs(self):
@@ -307,9 +309,11 @@ class VerifierAllianceTests(unittest.TestCase):
     def test_awaiting_export_completion_message(self):
         stats = {"scanned": 5, "submitted": 1, "duplicates": 0, "bounded": False, "awaiting_export": "x"}
         notify = Mock()
-        with patch.object(va, "_sync", return_value=stats):
+        with patch.object(va, "_sync", return_value=stats), \
+                self.assertLogs(va.LOG, level="INFO") as logs:
             va.sync("unused", Mock(), Mock(), dry_run=False, notify=notify)
-        self.assertIn("wait for their dependencies in the next export", notify.call_args.args[0])
+        notify.assert_not_called()
+        self.assertIn("wait for their dependencies in the next export", logs.output[-1])
 
     def test_changed_tail_includes_late_lower_id_without_duplicate_submissions(self):
         version = ["v1"]
@@ -510,26 +514,17 @@ class VerifierAllianceTests(unittest.TestCase):
         notify.assert_called_once()
         self.assertIn("90 GB", notify.call_args.args[0])
 
-    def test_bounded_completion_reports_accepted_not_candidate_count(self):
+    def test_bounded_completion_logs_accepted_not_candidate_count_without_discord(self):
         stats = {"scanned": 500, "attestations": 20, "submitted": 7, "duplicates": 13, "bounded": True}
         notify = Mock()
-        with patch.object(va, "_sync", return_value=stats):
+        with patch.object(va, "_sync", return_value=stats), \
+                self.assertLogs(va.LOG, level="INFO") as logs:
             result = va.sync("unused", Mock(), Mock(), dry_run=False, notify=notify)
-        notify.assert_called_once()
-        message = notify.call_args.args[0]
+        notify.assert_not_called()
+        message = logs.output[-1]
         self.assertIn("7 new attestations", message)
         self.assertIn("13 duplicate submissions excluded", message)
         self.assertIn("more work remains", message)
-        self.assertTrue(result["completion_notification_sent"])
-
-    def test_completion_webhook_failure_does_not_retry_completed_ingestion(self):
-        stats = {"scanned": 500, "submitted": 7, "duplicates": 0, "bounded": False}
-        with patch.object(va, "_sync", return_value=stats) as run, \
-                self.assertLogs(va.LOG, level="ERROR"):
-            result = va.sync("unused", Mock(), Mock(), dry_run=False,
-                             notify=Mock(side_effect=RuntimeError("Discord offline")))
-        run.assert_called_once()
-        self.assertFalse(result["completion_notification_sent"])
         self.assertEqual(result["submitted"], 7)
 
     def test_failed_sync_never_sends_success_message(self):
