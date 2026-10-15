@@ -212,7 +212,8 @@ class EthAssetJSONCreation():
                         prev = df_daily[col].get(start) if df_daily.index.min() <= start else None
                         change = self.pct_change(current, prev)
 
-                unix = (s_buckets.index.tz_localize('UTC').astype('int64') // 10**6)
+                ## unix ms, independent of the datetime resolution (ns/us/s) of the index
+                unix = (s_buckets.index - pd.Timestamp('1970-01-01')) // pd.Timedelta(milliseconds=1)
                 data = [[int(u), None if pd.isna(v) else float(v)] for u, v in zip(unix, s_buckets.values)]
 
                 kpi_dict[kpi]['timeframes'][tf_key] = {
