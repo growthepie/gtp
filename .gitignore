@@ -60,3 +60,4 @@ backend/src/adapters/*.txt
 claude_output.json
 
 handoff.md
+docs/oli_growthepie_website_proposal.md
