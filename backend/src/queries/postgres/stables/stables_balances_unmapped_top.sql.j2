@@ -1,0 +1,26 @@
+{#
+    Addresses without an OLI owner_project, ranked by stablecoin balance (USD) on the latest measured date.
+    Use this as a labeling queue: highest-value unattributed addresses first.
+
+    Parameters:
+    - origin_key: chain
+    - limit: default = 100
+#}
+
+{% set limit = limit | default(100) %}
+
+SELECT
+    '0x' || encode(address, 'hex') AS address,
+    origin_key,
+    contract_name,
+    usage_category,
+    is_contract,
+    SUM(balance_usd) AS balance_usd,
+    string_agg(symbol, ', ' ORDER BY balance_usd DESC) AS tokens
+FROM public.vw_fact_stables_balances_v1
+WHERE origin_key = '{{ origin_key }}'
+  AND "date" = (SELECT MAX("date") FROM public.fact_stables_balances WHERE origin_key = '{{ origin_key }}')
+  AND owner_project IS NULL
+GROUP BY 1, 2, 3, 4, 5
+ORDER BY balance_usd DESC NULLS LAST
+LIMIT {{ limit }};
