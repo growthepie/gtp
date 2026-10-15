@@ -142,10 +142,38 @@ def etl():
         json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_properties_json()
 
+    @task()
+    def run_create_market_caps_json():
+        from src.db_connector import DbConnector
+        from src.api.eth_asset_json import EthAssetJSONCreation
+
+        db_connector = DbConnector()
+        json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        json_creator.create_market_caps_json()
+
+    ## independent of the other tasks (CoinGecko + Yahoo Finance, nothing stored in the DB)
+    run_create_market_caps_json()
+
     supply = run_eth_supply_hourly()
     staking = run_eth_staking()
     [supply, run_eth_burned(), staking] >> run_create_kpis_json()
     supply >> run_create_stats_json()
-    [supply, staking, run_eth_collateral()] >> run_create_properties_json()
+    @task()
+    def run_reference_data():
+        from datetime import datetime, timezone
+        from src.db_connector import DbConnector
+        from eim.adapters.adapter_reference_data import AdapterReferenceData
+
+        ## once a day is enough (WGC updates the gold stock quarterly)
+        if datetime.now(timezone.utc).hour != 6:
+            print("Reference data is only refreshed at 06:xx UTC, skipping.")
+            return
+
+        db_connector = DbConnector()
+        ad = AdapterReferenceData({}, db_connector)
+        df = ad.extract({'load_type': 'gold_stock'})
+        ad.load(df)
+
+    [supply, staking, run_eth_collateral(), run_reference_data()] >> run_create_properties_json()
 
 etl()

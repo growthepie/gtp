@@ -1,14 +1,15 @@
 # ETH Asset Page — Data Methodology
 
-Data behind the "ETH the asset" page. Three JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
+Data behind the "ETH the asset" page. Four JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
 
 | JSON | Content |
 |---|---|
 | `v1/eth_asset/kpis.json` | 5 KPI charts (timeseries per timeframe, current value, % change) |
 | `v1/eth_asset/stats.json` | Single values the frontend extrapolates per second (`total_wallets`, `eth_per_person`) |
 | `v1/eth_asset/properties.json` | "ETH is 6 things at once" section: yield breakdown, scarcity, collateral, ETH paid as gas |
+| `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
-Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
+Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
 
 ---
 
@@ -56,6 +57,7 @@ Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_js
 | Scarcity | ultrasound.money (ETH), World Gold Council (gold), FRED (US dollar) |
 | Collateral | DefiLlama, growthepie |
 | ETH paid as gas | growthepie |
+| Market caps | CoinGecko (crypto), CompaniesMarketCap (companies, gold, silver, platinum), EIA via Our World in Data + Yahoo Finance (oil) |
 
 **ETH price (USD)** — CoinGecko. Hourly in `fact_kpis_granular` (`price_usd`), daily in `fact_kpis`.
 
@@ -135,7 +137,7 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 
 **Scarcity**: annual change in the total stock of each asset, as a fraction.
 - ETH: supply change over the last 30 days (latest hourly supply vs. the start-of-day supply 30 days ago), annualized. Source: ultrasound.money.
-- Gold: above-ground stock at the end of the latest year vs. the end of the year before (World Gold Council: 216,265 t at end-2024, 219,891 t at end-2025, +1.68%). The values are hardcoded in `GOLD_STOCK_TONNES` and **need a manual update once a year** when the WGC publishes the next year-end figure.
+- Gold: World Gold Council above-ground stock. The figure ("Total above-ground stock (end-Q2 2026): 222,600 tonnes") is scraped daily at 06:00 UTC from gold.org by `AdapterReferenceData`. It's stored as `eim_fact.gold_stock_tonnes` (origin_key `gold`) at the end date of its period; WGC updates it quarterly. The annual change compares the latest stock with the latest stored value that is at least a year older (else the oldest), annualized. The year-end values for 2024 (216,265 t) and 2025 (219,891 t) were seeded once. Until mid-2027, the comparison is therefore 2026-06-30 vs. 2024-12-31 (+1.96%/yr); after that it is a clean year-over-year change. If the page layout changes, the scrape fails and the last stored value is used.
 - US dollar: M2 money supply (FRED `M2SL`, monthly, seasonally adjusted), latest month vs. the same month a year earlier.
 
 **Collateral**: ETH-equivalent tokens deposited in DeFi on Ethereum + L2s with ETH as gas token (chains via `aliases_defillama` in `main_config`). Daily snapshot from DefiLlama, converted to ETH with the latest hourly ETH price. Categories are partitioned so nothing is counted twice:
@@ -152,7 +154,24 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 
 ---
 
-## 4. Source reliability and fallbacks
+## 4. Market caps (`market_caps.json`)
+
+Current market cap in USD, refetched on every hourly run. Nothing is hardcoded, and nothing needs manual updates.
+
+- **Crypto**: ETH, BTC, USDT, USDC from CoinGecko `/coins/markets`.
+- **Companies**: the global top 10 by market cap from the CompaniesMarketCap CSV (`companiesmarketcap.com/?download=csv`, already in USD). New entrants appear automatically.
+- **Commodities**:
+  - Gold, silver, platinum: every commodity on the CompaniesMarketCap assets ranking (rows whose logo id ends in `.XM`). Their method is estimated above-ground stock × spot price.
+  - Oil, which CompaniesMarketCap doesn't list: world proved reserves (EIA via Our World in Data, latest year read at runtime, currently 2021: ~1,659B barrels) × Brent price (Yahoo Finance `BZ=F`). Most of this oil is still underground, which is why it dwarfs everything else (~$170T).
+- **ETH/BTC market cap ratio** (`eth_btc_ratio`): daily timeseries for the last 2,000 complete days (~5.5 years), values as of 00:00 UTC. `current` is the live ratio from CoinGecko. Our CoinGecko plan only serves 2 years of history, so the series is built from:
+  - ETH: `fact_kpis.market_cap_usd` (origin_key `ethereum`, collected daily from CoinGecko since 2015).
+  - BTC: Yahoo Finance `BTC-USD` daily close of the previous day × circulating supply from blockchain.com (`total-bitcoins` chart, interpolated to daily). Checked against CoinGecko over 2 years: identical on average, 0.16% standard deviation per day.
+- **Logos**: downloaded the first time an item appears and served from `api.growthepie.com/v1/eth_asset/logos/<key>.png`. Sources: CoinGecko for coins, CompaniesMarketCap (128px) for companies and metals, financialmodelingprep.com for oil. `key` is derived from the ticker (e.g. `nvda`, `2222_sr`), so a new company in the top 10 gets its logo on its first run.
+- If parsing the CompaniesMarketCap assets page breaks (page layout change), the task fails instead of publishing wrong numbers, and the previous JSON stays live.
+
+---
+
+## 5. Source reliability and fallbacks
 
 | Source | Used for | If unavailable |
 |---|---|---|
@@ -162,4 +181,6 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 | World Bank | Population (stats) | Stats task fails; `kpis.json` is unaffected |
 | DefiLlama | Collateral | Collateral task fails/retries; previous `properties.json` stays live |
 | FRED | US dollar M2 | Properties task fails/retries; previous `properties.json` stays live |
+| CoinGecko / CompaniesMarketCap / OWID / Yahoo Finance | Market caps | Market caps task fails/retries; previous `market_caps.json` stays live |
+| gold.org (scrape) | Gold stock for scarcity | Reference data task fails; scarcity keeps using the last stored gold stock |
 | Own `ethereum_blocks` | Burn | — |

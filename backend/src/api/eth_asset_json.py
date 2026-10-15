@@ -23,16 +23,38 @@ SOURCES = {
     'defillama': {'name': 'DefiLlama', 'url': 'https://defillama.com'},
     'wgc': {'name': 'World Gold Council', 'url': 'https://www.gold.org/goldhub/data/above-ground-stocks'},
     'fred': {'name': 'FRED (Federal Reserve Bank of St. Louis)', 'url': 'https://fred.stlouisfed.org/series/M2SL'},
+    'yahoo': {'name': 'Yahoo Finance', 'url': 'https://finance.yahoo.com'},
+    'companiesmarketcap': {'name': 'CompaniesMarketCap', 'url': 'https://companiesmarketcap.com'},
+    'blockchain_com': {'name': 'Blockchain.com', 'url': 'https://www.blockchain.com/explorer/charts/total-bitcoins'},
+    'eia': {'name': 'EIA via Our World in Data', 'url': 'https://ourworldindata.org/grapher/oil-proved-reserves'},
 }
 
-## above-ground gold stock in tonnes at year end (World Gold Council). Update once a year when WGC publishes the new year-end figure.
-GOLD_STOCK_TONNES = {2024: 216265, 2025: 219891}
 ## US dollar money supply: M2 (monthly, seasonally adjusted) from FRED, no API key needed for the csv download
 USD_M2_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=M2SL'
 ## window for the annualized ETH supply change in the scarcity comparison
 ETH_SUPPLY_CHANGE_DAYS = 30
 ## days of history for the 'ETH paid as gas' timeseries
 GAS_PAID_DAYS = 365
+
+## ----- 'How big is it really' (market caps) -----
+## everything is refetched on every run, nothing is hardcoded. Logos are downloaded once and served from our CDN at v1/eth_asset/logos/<key>.png
+CMC_BASE_URL = 'https://companiesmarketcap.com'
+CMC_COMPANIES_CSV_URL = 'https://companiesmarketcap.com/?download=csv'   ## global company ranking in USD
+CMC_ASSETS_URL = 'https://companiesmarketcap.com/assets-by-market-cap/'  ## all assets incl. commodities (gold, silver, platinum)
+CMC_LOGO_URL = 'https://companiesmarketcap.com/img/company-logos/128/{}.png'
+HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'}
+## crypto: CoinGecko id -> key (logo comes from CoinGecko)
+MCAP_CRYPTO = {'ethereum': 'eth', 'bitcoin': 'btc', 'tether': 'usdt', 'usd-coin': 'usdc'}
+MCAP_EQUITY_TOP_N = 10
+## ETH/BTC market cap ratio, daily history (~5.5 years). Our CoinGecko plan only serves 2 years of market_chart history, so:
+##   ETH: fact_kpis.market_cap_usd (CoinGecko, collected daily since 2015)
+##   BTC: Yahoo Finance BTC-USD daily close x circulating supply from blockchain.com (matches CoinGecko within ~0.2% on a typical day)
+ETH_BTC_RATIO_DAYS = 2000
+BTC_SUPPLY_URL = 'https://api.blockchain.info/charts/total-bitcoins?timespan=7years&format=json'
+## oil is not listed on companiesmarketcap: world proved reserves (EIA via Our World in Data, latest year read at runtime) x Brent price (Yahoo Finance)
+OIL_RESERVES_URL = 'https://ourworldindata.org/grapher/oil-proved-reserves.csv?useColumnShortNames=true'
+OIL_LOGO_URL = 'https://financialmodelingprep.com/image-stock/CLUSD.png'
+BARRELS_PER_M3 = 1 / 0.158987294928
 
 ## World Bank Population Estimates and Projections (source 40), mid-year (July 1) world population incl. projections
 WORLD_POPULATION_URL = 'https://api.worldbank.org/v2/country/WLD/indicator/SP.POP.TOTL?format=json&source=40&date=2020:2040&per_page=100'
@@ -347,8 +369,17 @@ class EthAssetJSONCreation():
         s_then = df_daily['eth_supply_eth'].get(then)
         eth_change = (s_now / s_then - 1) * (365 * 86400) / (end_hour - then).total_seconds()
 
-        years = sorted(GOLD_STOCK_TONNES)
-        gold_change = GOLD_STOCK_TONNES[years[-1]] / GOLD_STOCK_TONNES[years[-2]] - 1
+        ## gold: latest WGC above-ground stock vs. the latest value at least a year older (else the oldest), annualized
+        ## stocks are scraped daily from gold.org (AdapterReferenceData) and stored per period end in eim_fact
+        gold = self.db_connector.execute_query("""
+            SELECT "date", value FROM public.eim_fact WHERE origin_key = 'gold' AND metric_key = 'gold_stock_tonnes' ORDER BY 1
+        """, load_df=True)
+        gold['date'] = pd.to_datetime(gold['date'])
+        g_latest = gold.iloc[-1]
+        g_prev = gold[gold['date'] <= g_latest['date'] - pd.Timedelta(days=365)]
+        g_prev = g_prev.iloc[-1] if len(g_prev) > 0 else gold.iloc[0]
+        gold_days = (g_latest['date'] - g_prev['date']).days
+        gold_change = (g_latest['value'] / g_prev['value'] - 1) * 365 / gold_days
 
         csv = api_get_call(USD_M2_URL, sleeper=10, retries=5, as_json=False)
         if not csv:
@@ -366,8 +397,8 @@ class EthAssetJSONCreation():
             'assets': {
                 'eth': {'name': 'ETH', 'value': float(eth_change), 'as_of': end_hour.strftime('%Y-%m-%d %H:%M'),
                         'method': f'ETH supply change over the last {ETH_SUPPLY_CHANGE_DAYS} days, annualized', 'sources': [SOURCES['ultrasound']]},
-                'gold': {'name': 'Gold', 'value': float(gold_change), 'as_of': str(years[-1]),
-                         'method': f'Above-ground gold stock, end of {years[-1]} vs. end of {years[-2]}', 'sources': [SOURCES['wgc']]},
+                'gold': {'name': 'Gold', 'value': float(gold_change), 'as_of': g_latest['date'].strftime('%Y-%m-%d'),
+                         'method': f"Above-ground gold stock, {g_latest['date']:%Y-%m-%d} vs. {g_prev['date']:%Y-%m-%d}, annualized", 'sources': [SOURCES['wgc']]},
                 'usd': {'name': 'US dollar', 'value': float(usd_change), 'as_of': m2_latest.strftime('%Y-%m'),
                         'method': 'M2 money supply, year over year', 'sources': [SOURCES['fred']]},
             },
@@ -448,6 +479,162 @@ class EthAssetJSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/properties', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
         print('DONE -- ETH asset properties json export done')
+        return details_dict
+
+    ## ----------------- Market caps ('How big is it really' section) --------------------
+
+    def get_crypto_market_caps(self):
+        import os
+        ids = ','.join(MCAP_CRYPTO)
+        response_json = api_get_call(f'https://pro-api.coingecko.com/api/v3/coins/markets?vs_currency=usd&ids={ids}', sleeper=10, retries=5,
+                                     header={'x-cg-pro-api-key': os.getenv('COINGECKO_API')})
+        if not response_json:
+            raise ValueError("No market data returned from CoinGecko")
+        return [{
+            'key': MCAP_CRYPTO[c['id']], 'name': c['name'], 'category': 'crypto',
+            'market_cap_usd': float(c['market_cap']), 'logo_source_url': c['image'],
+            'sources': [SOURCES['coingecko']],
+        } for c in response_json]
+
+    ## daily ETH/BTC market cap ratio (complete days, values as of 00:00 UTC like CoinGecko), current = live ratio from /coins/markets
+    def get_eth_btc_ratio(self, crypto_items:list):
+        import yfinance as yf
+        today = pd.Timestamp(datetime.now(timezone.utc).date())
+        start = today - pd.Timedelta(days=ETH_BTC_RATIO_DAYS)
+
+        eth = self.db_connector.execute_query(f"""
+            SELECT "date", value FROM public.fact_kpis
+            WHERE origin_key = 'ethereum' AND metric_key = 'market_cap_usd' AND "date" >= '{start.date()}'
+        """, load_df=True)
+        eth = pd.Series(eth['value'].values, index=pd.to_datetime(eth['date']))
+
+        ## BTC close of day D-1 = value at 00:00 UTC of day D (CoinGecko convention)
+        btc_price = yf.Ticker('BTC-USD').history(period='7y', interval='1d')['Close']
+        btc_price.index = btc_price.index.tz_localize(None).normalize() + pd.Timedelta(days=1)
+        response_json = api_get_call(BTC_SUPPLY_URL, sleeper=10, retries=5)
+        if not response_json or not response_json.get('values'):
+            raise ValueError("No BTC supply returned from blockchain.com")
+        supply = pd.Series({pd.Timestamp(v['x'], unit='s').normalize(): v['y'] for v in response_json['values']})
+        supply = supply[~supply.index.duplicated(keep='last')].sort_index()
+        supply = supply.reindex(supply.index.union(btc_price.index)).interpolate(method='time').ffill()
+        btc = (btc_price * supply.reindex(btc_price.index)).dropna()
+
+        df = pd.DataFrame({'eth': eth, 'btc': btc}).dropna()
+        df = df[(df.index >= start) & (df.index < today) & (df['btc'] > 0)]
+        ratio = (df['eth'] / df['btc']).sort_index()
+
+        live = {i['key']: i['market_cap_usd'] for i in crypto_items}
+        unix = (ratio.index - pd.Timestamp('1970-01-01')) // pd.Timedelta(milliseconds=1)
+        return {
+            'name': 'ETH/BTC Market Cap Ratio',
+            'unit': 'ratio',
+            'granularity': 'daily',
+            'current': live['eth'] / live['btc'],
+            'types': ['unix', 'value'],
+            'data': [[int(u), float(v)] for u, v in zip(unix, ratio.values)],
+            'sources': [SOURCES['coingecko'], SOURCES['yahoo'], SOURCES['blockchain_com']],
+        }
+
+    ## top companies worldwide by market cap (USD) from the CompaniesMarketCap csv
+    def get_equity_market_caps(self):
+        import io, re, requests
+        r = requests.get(CMC_COMPANIES_CSV_URL, headers=HTTP_HEADERS, timeout=60)
+        r.raise_for_status()
+        df = pd.read_csv(io.StringIO(r.text))
+        df = df.sort_values('Rank').head(MCAP_EQUITY_TOP_N)
+        if len(df) < MCAP_EQUITY_TOP_N:
+            raise ValueError(f"Only {len(df)} companies returned from CompaniesMarketCap")
+        return [{
+            'key': re.sub(r'[^a-z0-9]+', '_', str(row['Symbol']).lower()).strip('_'), 'name': row['Name'], 'category': 'equity', 'ticker': row['Symbol'],
+            'country': row['country'], 'market_cap_usd': float(row['marketcap']), 'logo_source_url': CMC_LOGO_URL.format(row['Symbol']),
+            'sources': [SOURCES['companiesmarketcap']],
+        } for _, row in df.iterrows()]
+
+    ## commodities listed on the CompaniesMarketCap assets ranking (gold, silver, platinum) + oil (proved reserves x Brent)
+    def get_commodity_market_caps(self):
+        import io, re, requests
+        import yfinance as yf
+
+        html = requests.get(CMC_ASSETS_URL, headers=HTTP_HEADERS, timeout=60)
+        html.raise_for_status()
+        items = []
+        for row in re.findall(r'<tr.*?</tr>', html.text, re.S):
+            logo = re.search(r'src="/img/company-logos/64/([^"]+?)\.png"', row)
+            ## commodities have logo ids ending with .XM (crypto: .X)
+            if not logo or not logo.group(1).endswith('.XM'):
+                continue
+            cells = [c.strip() for c in re.sub(r'<[^>]+>', '|', row).split('|') if c.strip()]
+            ## cells: rank, name, symbol, market cap, price, ...
+            mcap = re.match(r'\$([\d.,]+)\s*([TBM])', cells[3])
+            mult = {'T': 1e12, 'B': 1e9, 'M': 1e6}[mcap.group(2)]
+            items.append({
+                'key': cells[1].lower(), 'name': cells[1], 'category': 'commodity',
+                'market_cap_usd': float(mcap.group(1).replace(',', '')) * mult, 'logo_source_url': CMC_LOGO_URL.format(logo.group(1)),
+                'method': 'Estimated above-ground stock x spot price', 'sources': [SOURCES['companiesmarketcap']],
+            })
+        if not any(i['key'] == 'gold' for i in items):
+            raise ValueError("Gold not found on CompaniesMarketCap assets ranking")
+
+        oil = api_get_call(OIL_RESERVES_URL, sleeper=10, retries=5, as_json=False)
+        oil = pd.read_csv(io.StringIO(oil if isinstance(oil, str) else oil.text))
+        oil = oil[oil['entity'] == 'World'].sort_values('year').iloc[-1]
+        oil_barrels = float(oil.iloc[-1]) * BARRELS_PER_M3
+        brent = float(yf.Ticker('BZ=F').fast_info.get('lastPrice'))
+        items.append({
+            'key': 'oil', 'name': 'Oil', 'category': 'commodity', 'market_cap_usd': oil_barrels * brent, 'logo_source_url': OIL_LOGO_URL,
+            'method': f"World proved reserves ({oil_barrels/1e9:,.0f}B barrels, {int(oil['year'])}) x Brent price", 'sources': [SOURCES['eia'], SOURCES['yahoo']],
+        })
+        return items
+
+    ## downloads missing logos once and serves them from our CDN, returns the public logo url
+    def ensure_logo(self, key:str, source_url:str):
+        import os, requests, tempfile
+        from src.misc.helper_functions import upload_image_to_cf_s3
+        s3_path = f'{self.api_version}/eth_asset/logos/{key}'
+        public_url = f'https://api.growthepie.com/{s3_path}.png'
+        if self.s3_bucket is None:
+            return public_url
+        if requests.head(public_url, timeout=20).status_code == 200:
+            return public_url
+        r = requests.get(source_url, headers=HTTP_HEADERS, timeout=30)
+        if r.status_code != 200 or not r.headers.get('content-type', '').startswith('image/png'):
+            print(f"...logo for {key} not available at {source_url}")
+            return None
+        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
+            f.write(r.content)
+        upload_image_to_cf_s3(self.s3_bucket, s3_path, f.name, self.cf_distribution_id, 'png', invalidate=False)
+        os.remove(f.name)
+        return public_url
+
+    def create_market_caps_json(self):
+        crypto = self.get_crypto_market_caps()
+        eth_btc_ratio = self.get_eth_btc_ratio(crypto)
+        items = crypto + self.get_equity_market_caps() + self.get_commodity_market_caps()
+        for item in items:
+            item['logo'] = self.ensure_logo(item['key'], item.pop('logo_source_url'))
+
+        eth = next(i for i in items if i['key'] == 'eth')
+        details_dict = {
+            'data': {
+                'eth': {'market_cap_usd': eth['market_cap_usd'], 'logo': eth['logo'], 'sources': eth['sources']},
+                'eth_btc_ratio': eth_btc_ratio,
+                'categories': {
+                    cat: sorted([i for i in items if i['category'] == cat], key=lambda x: -x['market_cap_usd'])
+                    for cat in ['crypto', 'commodity', 'equity']
+                },
+            },
+            'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        details_dict = fix_dict_nan(details_dict, 'eth_asset/market_caps')
+
+        if self.s3_bucket is None:
+            import os, json
+            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
+            with open(f'output/{self.api_version}/eth_asset/market_caps.json', 'w') as fp:
+                json.dump(details_dict, fp)
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/market_caps', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+        print('DONE -- ETH asset market caps json export done')
         return details_dict
 
     def create_kpis_json(self):
