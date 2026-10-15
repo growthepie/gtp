@@ -1,12 +1,13 @@
 # ETH Asset Page — Data Methodology
 
-Data behind the "ETH the asset" page. Four JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
+Data behind the "ETH the asset" page. Five JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
 
 | JSON | Content |
 |---|---|
 | `v1/eth_asset/kpis.json` | 5 KPI charts (timeseries per timeframe, current value, % change) |
 | `v1/eth_asset/stats.json` | Single values the frontend extrapolates per second (`total_wallets`, `eth_per_person`) |
 | `v1/eth_asset/properties.json` | "ETH is 6 things at once" section: yield breakdown, scarcity, collateral, ETH paid as gas |
+| `v1/eth_asset/productive_asset.json` | "Yield on the asset itself" comparison: ETH staking yield vs. central bank rates, dividends, gold, BTC, savings |
 | `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
 Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
@@ -54,6 +55,7 @@ Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_js
 | Total wallets | growthepie |
 | ETH per person | ultrasound.money, World Bank |
 | Yield breakdown | ethsupply.fyi, growthepie |
+| Yield comparison | ethsupply.fyi + growthepie (ETH), FRED (Fed, ECB, savings), Yahoo Finance (S&P 500 dividend) |
 | Scarcity | ultrasound.money (ETH), World Gold Council (gold), FRED (US dollar) |
 | Collateral | DefiLlama, growthepie |
 | ETH paid as gas | growthepie |
@@ -154,7 +156,19 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 
 ---
 
-## 4. Market caps (`market_caps.json`)
+## 4. Productive asset (`productive_asset.json`)
+
+**Yield comparison** (`data.yield_comparison`): The nominal annual yield each asset pays just for holding it, as fractions. Fetched on every run; nothing is hardcoded except the zeros, which hold by definition.
+- ETH staked: same value as `yield_breakdown.total` / `staking_yield.current` in `kpis.json`.
+- US central bank rate: FRED `DFF`, the effective federal funds rate (daily). This is the rate banks actually pay overnight, and it moves within the Fed's target range (3.75–4.00% as of Oct 2026).
+- ECB rate: FRED `ECBDFR`, the ECB deposit facility rate (daily), the ECB's main policy rate.
+- S&P 500 dividend: SPY (S&P 500 ETF) dividends of the last 12 months ÷ current price (Yahoo Finance). This is close to the index yield; SPY's 0.09% expense ratio lowers it slightly.
+- Gold, Bitcoin: 0. Neither pays anything for holding it.
+- Cash savings: FRED `SNDR`, the FDIC national average rate on US savings deposits (monthly).
+
+---
+
+## 5. Market caps (`market_caps.json`)
 
 Current market cap in USD, refetched on every hourly run. Nothing is hardcoded, and nothing needs manual updates.
 
@@ -171,7 +185,7 @@ Current market cap in USD, refetched on every hourly run. Nothing is hardcoded, 
 
 ---
 
-## 5. Source reliability and fallbacks
+## 6. Source reliability and fallbacks
 
 | Source | Used for | If unavailable |
 |---|---|---|
@@ -180,7 +194,7 @@ Current market cap in USD, refetched on every hourly run. Nothing is hardcoded, 
 | Dune | Daily staked ETH, EL rewards, hourly staked fallback | Daily EL data retried on the next hourly run until yesterday is loaded |
 | World Bank | Population (stats) | Stats task fails; `kpis.json` is unaffected |
 | DefiLlama | Collateral | Collateral task fails/retries; previous `properties.json` stays live |
-| FRED | US dollar M2 | Properties task fails/retries; previous `properties.json` stays live |
+| FRED | US dollar M2 (properties), Fed and ECB rates, savings rate (productive asset) | Affected task fails/retries; previous JSON stays live |
 | CoinGecko / CompaniesMarketCap / OWID / Yahoo Finance | Market caps | Market caps task fails/retries; previous `market_caps.json` stays live |
 | gold.org (scrape) | Gold stock for scarcity | Reference data task fails; scarcity keeps using the last stored gold stock |
 | Own `ethereum_blocks` | Burn | — |

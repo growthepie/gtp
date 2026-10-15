@@ -176,4 +176,15 @@ def etl():
 
     [supply, staking, run_eth_collateral(), run_reference_data()] >> run_create_properties_json()
 
+    @task()
+    def run_create_productive_asset_json():
+        from src.db_connector import DbConnector
+        from src.api.eth_asset_json import EthAssetJSONCreation
+
+        db_connector = DbConnector()
+        json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        json_creator.create_productive_asset_json()
+
+    [supply, staking] >> run_create_productive_asset_json()
+
 etl()

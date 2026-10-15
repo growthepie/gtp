@@ -23,14 +23,19 @@ SOURCES = {
     'defillama': {'name': 'DefiLlama', 'url': 'https://defillama.com'},
     'wgc': {'name': 'World Gold Council', 'url': 'https://www.gold.org/goldhub/data/above-ground-stocks'},
     'fred': {'name': 'FRED (Federal Reserve Bank of St. Louis)', 'url': 'https://fred.stlouisfed.org/series/M2SL'},
+    'fred_sndr': {'name': 'FRED / FDIC national deposit rates', 'url': 'https://fred.stlouisfed.org/series/SNDR'},
+    'fred_dff': {'name': 'FRED / Federal Reserve', 'url': 'https://fred.stlouisfed.org/series/DFF'},
+    'fred_ecbdfr': {'name': 'FRED / European Central Bank', 'url': 'https://fred.stlouisfed.org/series/ECBDFR'},
     'yahoo': {'name': 'Yahoo Finance', 'url': 'https://finance.yahoo.com'},
     'companiesmarketcap': {'name': 'CompaniesMarketCap', 'url': 'https://companiesmarketcap.com'},
     'blockchain_com': {'name': 'Blockchain.com', 'url': 'https://www.blockchain.com/explorer/charts/total-bitcoins'},
     'eia': {'name': 'EIA via Our World in Data', 'url': 'https://ourworldindata.org/grapher/oil-proved-reserves'},
 }
 
-## US dollar money supply: M2 (monthly, seasonally adjusted) from FRED, no API key needed for the csv download
-USD_M2_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=M2SL'
+## FRED csv download, no API key needed. M2SL: US dollar money supply (monthly),
+## SNDR: FDIC national average savings deposit rate (monthly, %), DFF: effective federal funds rate (daily, %),
+## ECBDFR: ECB deposit facility rate (daily, %)
+FRED_CSV_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={}'
 ## window for the annualized ETH supply change in the scarcity comparison
 ETH_SUPPLY_CHANGE_DAYS = 30
 ## days of history for the 'ETH paid as gas' timeseries
@@ -381,13 +386,7 @@ class EthAssetJSONCreation():
         gold_days = (g_latest['date'] - g_prev['date']).days
         gold_change = (g_latest['value'] / g_prev['value'] - 1) * 365 / gold_days
 
-        csv = api_get_call(USD_M2_URL, sleeper=10, retries=5, as_json=False)
-        if not csv:
-            raise ValueError("No M2 data returned from FRED")
-        m2 = pd.read_csv(__import__('io').StringIO(csv if isinstance(csv, str) else csv.text))
-        m2.columns = ['date', 'value']
-        m2['date'] = pd.to_datetime(m2['date'])
-        m2 = m2.dropna().set_index('date')['value'].astype(float)
+        m2 = self.get_fred_series('M2SL')
         m2_latest = m2.index.max()
         usd_change = m2.iloc[-1] / m2.get(m2_latest - pd.DateOffset(years=1)) - 1
 
@@ -403,6 +402,77 @@ class EthAssetJSONCreation():
                         'method': 'M2 money supply, year over year', 'sources': [SOURCES['fred']]},
             },
         }
+
+    ## FRED series as float Series indexed by date, empty observations (e.g. holidays) dropped
+    def get_fred_series(self, series_id:str):
+        import io
+        csv = api_get_call(FRED_CSV_URL.format(series_id), sleeper=10, retries=5, as_json=False)
+        if not csv:
+            raise ValueError(f"No data returned from FRED for {series_id}")
+        df = pd.read_csv(io.StringIO(csv if isinstance(csv, str) else csv.text))
+        df.columns = ['date', 'value']
+        df['date'] = pd.to_datetime(df['date'])
+        df['value'] = pd.to_numeric(df['value'], errors='coerce')
+        return df.dropna().set_index('date')['value'].sort_index()
+
+    ## yield an asset pays just for holding it (nominal, annual), as fractions
+    def get_yield_comparison(self, staking_yield:float):
+        import yfinance as yf
+        sndr = self.get_fred_series('SNDR')
+        dff = self.get_fred_series('DFF')
+        ecb = self.get_fred_series('ECBDFR')
+
+        ## S&P 500 dividend yield: SPY dividends of the last 12 months / current price
+        spy = yf.Ticker('SPY')
+        div = spy.dividends
+        div.index = div.index.tz_localize(None)
+        div_12m = div[div.index > pd.Timestamp(datetime.now(timezone.utc).replace(tzinfo=None)) - pd.Timedelta(days=365)].sum()
+        spy_yield = float(div_12m) / float(spy.fast_info.get('lastPrice'))
+
+        assets = [
+            {'key': 'eth_staked', 'name': 'ETH staked', 'value': staking_yield, 'as_of': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+             'method': 'Staking yield (issuance + tips + MEV), same as staking_yield in kpis.json', 'sources': [SOURCES['ethsupply'], SOURCES['growthepie']]},
+            {'key': 'fed_funds_rate', 'name': 'US central bank rate', 'value': float(dff.iloc[-1]) / 100, 'as_of': dff.index[-1].strftime('%Y-%m-%d'),
+             'method': 'Effective federal funds rate (Federal Reserve)', 'sources': [SOURCES['fred_dff']]},
+            {'key': 'ecb_rate', 'name': 'ECB rate', 'value': float(ecb.iloc[-1]) / 100, 'as_of': ecb.index[-1].strftime('%Y-%m-%d'),
+             'method': 'ECB deposit facility rate', 'sources': [SOURCES['fred_ecbdfr']]},
+            {'key': 'sp500_dividend', 'name': 'S&P 500 dividend', 'value': spy_yield, 'as_of': datetime.now(timezone.utc).strftime('%Y-%m-%d'),
+             'method': 'Dividends of the last 12 months / price of SPY (S&P 500 ETF)', 'sources': [SOURCES['yahoo']]},
+            {'key': 'gold', 'name': 'Gold', 'value': 0.0, 'as_of': None,
+             'method': 'Gold pays no yield for holding it', 'sources': []},
+            {'key': 'bitcoin', 'name': 'Bitcoin', 'value': 0.0, 'as_of': None,
+             'method': 'Bitcoin pays no yield for holding it (no native staking)', 'sources': []},
+            {'key': 'cash_savings', 'name': 'Cash savings', 'value': float(sndr.iloc[-1]) / 100, 'as_of': sndr.index[-1].strftime('%Y-%m'),
+             'method': 'FDIC national average rate on US savings deposits', 'sources': [SOURCES['fred_sndr']]},
+        ]
+        return {'name': 'Yield on the Asset Itself', 'unit': 'percent', 'assets': assets}
+
+    ## 'ETH as a productive asset' section: yield comparison with other assets
+    def create_productive_asset_json(self):
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        end_hour = pd.Timestamp(now).floor('h') - pd.Timedelta(hours=1)
+        end_day = pd.Timestamp(now.date()) - pd.Timedelta(days=1)
+        df_daily = self.prepare_daily(self.get_daily_data(), end_day)
+        df_hourly = self.prepare_hourly(self.get_hourly_data(), df_daily, end_hour)
+        staking_yield = self.get_yield_breakdown(df_hourly, end_hour)['total']
+
+        details_dict = {
+            'data': {
+                'yield_comparison': self.get_yield_comparison(staking_yield),
+            },
+            'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        details_dict = fix_dict_nan(details_dict, 'eth_asset/productive_asset')
+
+        if self.s3_bucket is None:
+            import os, json
+            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
+            with open(f'output/{self.api_version}/eth_asset/productive_asset.json', 'w') as fp:
+                json.dump(details_dict, fp)
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/productive_asset', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+        print('DONE -- ETH asset productive asset json export done')
+        return details_dict
 
     ## ETH used as collateral (latest daily snapshot), partitioned into lending / liquid staking / DEX without overlap
     def get_collateral(self, price_usd:float):
