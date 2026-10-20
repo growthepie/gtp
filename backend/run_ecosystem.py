@@ -60,6 +60,8 @@ async def run_backend():
         # Run all tasks concurrently
         # Re-read sys_rpc_config periodically; starts chains that had no RPCs at startup
         tasks.append(asyncio.create_task(backend.rpc_refresh_loop(), name="rpc_refresh"))
+        # Live onchain ETH/USD price (~2s, Base)
+        tasks.append(asyncio.create_task(backend.eth_price_loop(), name="eth_price"))
 
         await asyncio.gather(*tasks)
         
