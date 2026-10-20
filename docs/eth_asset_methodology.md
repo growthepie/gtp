@@ -13,6 +13,8 @@ Data behind the "ETH the asset" page. Eight JSONs, regenerated hourly (some once
 | `v1/eth_asset/today.json` | "Today in ETH": one AI-written card per day with a positive number from our data |
 | `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
+**Bundles (what the frontend fetches):** `v1/eth_asset/live.json` (hourly: kpis, stats, properties, productive_asset) and `v1/eth_asset/daily.json` (daily: purchasing_power, supply_flow, today, market_caps). The DAG task `run_create_bundles` (trigger rule `all_done`, end of every run) assembles them from the latest published section files on S3 (`create_bundle_json`, sections in `ETH_ASSET_BUNDLES`). `data.<section>` is the section file's `data`, and `sections_last_updated_utc` shows each section's freshness. A section that fails in a run keeps its previous version in the bundle. The single section files below are the build inputs and stay on S3; they're public only for the transition.
+
 Caching: the JSONs are uploaded **without CloudFront invalidations**. All of them use `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400` (`ETH_ASSET_CACHE_CONTROL`), so new data is visible on the API at the latest ~5 minutes after an upload. Logos are uploaded once and never invalidated.
 
 Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).

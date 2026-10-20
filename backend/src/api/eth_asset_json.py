@@ -1,3 +1,5 @@
+import os
+import json
 import pandas as pd
 from datetime import datetime, timezone
 
@@ -7,6 +9,13 @@ from src.misc.jinja_helper import execute_jinja_query
 ## ETH asset jsons are only updated by our scheduled jobs, so instead of a CloudFront invalidation per upload we rely on a short CDN cache:
 ## new data is visible at the latest 5 min (s-maxage) after an upload, browsers cache for 60s, stale copies are served for up to 1 day if S3 errors
 ETH_ASSET_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400"
+
+## Bundles served to the frontend (2 requests instead of 8), grouped by update frequency. They are assembled from the latest published
+## section files on S3, so a section that failed in this run keeps its previously published version (see sections_last_updated_utc).
+ETH_ASSET_BUNDLES = {
+    'live':  ['kpis', 'stats', 'properties', 'productive_asset'],               ## hourly
+    'daily': ['purchasing_power', 'supply_flow', 'today', 'market_caps'],       ## daily (07:35 UTC)
+}
 
 ## timeframes of the KPI charts on the ETH asset page
 ## hours: window length based on hourly data, days: window length based on daily data, months: calendar months incl. current (partial) month
@@ -1034,6 +1043,32 @@ class EthAssetJSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/market_caps', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset market caps json export done')
+        return details_dict
+
+    ## bundle = data of each section file as data.<section>, plus each section's last update
+    def create_bundle_json(self, bundle:str):
+        import boto3
+        s3 = boto3.client('s3', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
+        data, updated, missing = {}, {}, []
+        for section in ETH_ASSET_BUNDLES[bundle]:
+            try:
+                obj = s3.get_object(Bucket=self.s3_bucket, Key=f'{self.api_version}/eth_asset/{section}.json')
+                content = json.loads(obj['Body'].read())
+                data[section] = content['data']
+                updated[section] = content.get('last_updated_utc')
+            except Exception as e:
+                print(f"...section {section} not available for bundle {bundle}: {e}")
+                missing.append(section)
+        if not data:
+            raise ValueError(f"No sections available for bundle {bundle}")
+
+        details_dict = {
+            'data': data,
+            'sections_last_updated_utc': updated,
+            'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/{bundle}', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        print(f"DONE -- ETH asset bundle {bundle} export done ({len(data)} sections{', missing: ' + ', '.join(missing) if missing else ''})")
         return details_dict
 
     def create_kpis_json(self):

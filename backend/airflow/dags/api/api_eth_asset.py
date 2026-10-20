@@ -158,13 +158,15 @@ def etl():
         json_creator.create_market_caps_json()
 
     ## independent of the other tasks (CoinGecko + Yahoo Finance, nothing stored in the DB)
-    run_create_market_caps_json()
+    market_caps = run_create_market_caps_json()
 
     supply = run_eth_supply_hourly()
     staking = run_eth_staking()
     burned = run_eth_burned()
-    [supply, burned, staking] >> run_create_kpis_json()
-    supply >> run_create_stats_json()
+    kpis = run_create_kpis_json()
+    [supply, burned, staking] >> kpis
+    stats = run_create_stats_json()
+    supply >> stats
     @task()
     def run_reference_data():
         from datetime import datetime, timezone
@@ -181,7 +183,8 @@ def etl():
         df = ad.extract({'load_type': 'gold_stock'})
         ad.load(df)
 
-    [supply, staking, run_eth_collateral(), run_reference_data()] >> run_create_properties_json()
+    properties = run_create_properties_json()
+    [supply, staking, run_eth_collateral(), run_reference_data()] >> properties
 
     @task()
     def run_create_productive_asset_json():
@@ -192,7 +195,8 @@ def etl():
         json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
         json_creator.create_productive_asset_json()
 
-    [supply, staking] >> run_create_productive_asset_json()
+    productive_asset = run_create_productive_asset_json()
+    [supply, staking] >> productive_asset
 
     @task()
     def run_create_purchasing_power_json():
@@ -210,7 +214,7 @@ def etl():
         json_creator.create_purchasing_power_json()
 
     ## ETH price comes from metrics_coingecko_hourly (runs before this DAG), shop prices from FRED
-    run_create_purchasing_power_json()
+    purchasing_power = run_create_purchasing_power_json()
 
     @task()
     def run_create_supply_flow_json():
@@ -228,7 +232,8 @@ def etl():
         json_creator.create_supply_flow_json()
 
     ## needs yesterday's burn and CL rewards (rolled up in run_eth_burned / run_eth_staking)
-    [supply, burned, staking] >> run_create_supply_flow_json()
+    supply_flow = run_create_supply_flow_json()
+    [supply, burned, staking] >> supply_flow
 
     @task()
     def run_create_today_card():
@@ -244,6 +249,19 @@ def etl():
         db_connector = DbConnector()
         EthTodayCards(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version).run_daily()
 
-    [supply, burned, staking] >> run_create_today_card()
+    today_card = run_create_today_card()
+    [supply, burned, staking] >> today_card
+
+    @task(trigger_rule='all_done')
+    def run_create_bundles():
+        ## live.json + daily.json for the frontend, assembled from the latest section files (also if some sections failed)
+        from src.db_connector import DbConnector
+        from src.api.eth_asset_json import EthAssetJSONCreation
+
+        json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), None, api_version)
+        for bundle in ['live', 'daily']:
+            json_creator.create_bundle_json(bundle)
+
+    [kpis, stats, properties, productive_asset, purchasing_power, supply_flow, today_card, market_caps] >> run_create_bundles()
 
 etl()
