@@ -10,8 +10,8 @@ from src.misc.jinja_helper import execute_jinja_query
 ## new data is visible at the latest 5 min (s-maxage) after an upload, browsers cache for 60s, stale copies are served for up to 1 day if S3 errors
 ETH_ASSET_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400"
 
-## Bundles served to the frontend (2 requests instead of 8), grouped by update frequency. They are assembled from the latest published
-## section files on S3, so a section that failed in this run keeps its previously published version (see sections_last_updated_utc).
+## The only files published for the ETH asset page (plus logos), grouped by update frequency. Each section is created in its own DAG task and
+## handed to the bundle task via XCom; a section that failed in this run keeps its previously published data (see sections_last_updated_utc).
 ETH_ASSET_BUNDLES = {
     'live':  ['kpis', 'stats', 'properties', 'productive_asset'],               ## hourly
     'daily': ['purchasing_power', 'supply_flow', 'today', 'market_caps'],       ## daily (07:35 UTC)
@@ -51,6 +51,8 @@ SOURCES = {
     'companiesmarketcap': {'name': 'CompaniesMarketCap', 'url': 'https://companiesmarketcap.com'},
     'blockchain_com': {'name': 'Blockchain.com', 'url': 'https://www.blockchain.com/explorer/charts/total-bitcoins'},
     'eia': {'name': 'EIA via Our World in Data', 'url': 'https://ourworldindata.org/grapher/oil-proved-reserves'},
+    'beacon_chain': {'name': 'Ethereum beacon chain (consensus layer node)', 'url': 'https://ethereum.github.io/beacon-APIs/'},
+    'aave': {'name': 'Aave v3 Ethereum (onchain)', 'url': 'https://app.aave.com/markets/?marketName=proto_mainnet_v3'},
 }
 
 ## FRED csv download, no API key needed. M2SL: US dollar money supply (monthly),
@@ -61,6 +63,28 @@ FRED_CSV_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={}'
 ETH_SUPPLY_CHANGE_DAYS = 30
 ## days of history for the 'ETH paid as gas' timeseries
 GAS_PAID_DAYS = 365
+
+## ----- Stake / Lend / Borrow ('ETH is a productive asset' section) -----
+## validators & queues from a public beacon node (standard beacon API, ~20MB per run)
+BEACON_API_URLS = ['https://ethereum-beacon-api.publicnode.com']
+SECONDS_PER_EPOCH = 12 * 32
+## Electra churn (EIP-7251): min(256 ETH, max(128 ETH, total active balance / 65536)) per epoch, shared by entries and exits
+CHURN_LIMIT_QUOTIENT = 65536
+MIN_CHURN_ETH = 128
+MAX_ACTIVATION_EXIT_CHURN_ETH = 256
+## lending/borrowing: Aave v3 Ethereum core market, the largest ETH lending market (~3x SparkLend by ETH supplied per DefiLlama, Oct 2026)
+AAVE_POOL = '0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2'
+AAVE_WETH = ('WETH', '0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2', 18)
+AAVE_STABLES = [('USDC', '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48', 6), ('USDT', '0xdAC17F958D2ee523a2206206994597C13D831ec7', 6)]
+AAVE_POOL_ABI = [{'inputs': [{'name': 'asset', 'type': 'address'}], 'name': 'getReserveData', 'stateMutability': 'view', 'type': 'function', 'outputs': [{'type': 'tuple', 'components': [
+    {'name': 'configuration', 'type': 'uint256'}, {'name': 'liquidityIndex', 'type': 'uint128'}, {'name': 'currentLiquidityRate', 'type': 'uint128'},
+    {'name': 'variableBorrowIndex', 'type': 'uint128'}, {'name': 'currentVariableBorrowRate', 'type': 'uint128'}, {'name': 'currentStableBorrowRate', 'type': 'uint128'},
+    {'name': 'lastUpdateTimestamp', 'type': 'uint40'}, {'name': 'id', 'type': 'uint16'}, {'name': 'aTokenAddress', 'type': 'address'},
+    {'name': 'stableDebtTokenAddress', 'type': 'address'}, {'name': 'variableDebtTokenAddress', 'type': 'address'}, {'name': 'interestRateStrategyAddress', 'type': 'address'},
+    {'name': 'accruedToTreasury', 'type': 'uint128'}, {'name': 'unbacked', 'type': 'uint128'}, {'name': 'isolationModeTotalDebt', 'type': 'uint128'}]}]}]
+AAVE_TOTAL_SUPPLY_ABI = [{'inputs': [], 'name': 'totalSupply', 'outputs': [{'type': 'uint256'}], 'stateMutability': 'view', 'type': 'function'}]
+AAVE_RATE_STRATEGY_ABI = [{'inputs': [{'name': 'reserve', 'type': 'address'}], 'name': 'getInterestRateDataBps', 'stateMutability': 'view', 'type': 'function', 'outputs': [{'type': 'tuple', 'components': [
+    {'name': 'optimalUsageRatio', 'type': 'uint16'}, {'name': 'baseVariableBorrowRate', 'type': 'uint32'}, {'name': 'variableRateSlope1', 'type': 'uint32'}, {'name': 'variableRateSlope2', 'type': 'uint32'}]}]}]
 
 ## ----- 'How big is it really' (market caps) -----
 ## everything is refetched on every run, nothing is hardcoded. Logos are downloaded once and served from our CDN at v1/eth_asset/logos/<key>.png
@@ -159,6 +183,14 @@ ETH_ASSET_KPIS = {
 
 STOCK_COLS = ['price_usd', 'eth_supply_eth', 'eth_staked_eth']
 
+
+## section dicts are only published inside the live/daily bundles; locally (no S3 bucket) each section is also written to output/ for inspection
+def write_local_section(s3_bucket, api_version:str, section:str, details_dict:dict):
+    if s3_bucket is not None:
+        return
+    os.makedirs(f'output/{api_version}/eth_asset', exist_ok=True)
+    with open(f'output/{api_version}/eth_asset/{section}.json', 'w') as fp:
+        json.dump(details_dict, fp)
 
 class EthAssetJSONCreation():
     def __init__(self, s3_bucket, cf_distribution_id, db_connector, api_version='v1'):
@@ -421,13 +453,7 @@ class EthAssetJSONCreation():
         }
         details_dict = fix_dict_nan(details_dict, 'eth_asset/stats')
 
-        if self.s3_bucket is None:
-            import os, json
-            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
-            with open(f'output/{self.api_version}/eth_asset/stats.json', 'w') as fp:
-                json.dump(details_dict, fp)
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/stats', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        write_local_section(self.s3_bucket, self.api_version, 'stats', details_dict)
         print('DONE -- ETH asset stats json export done')
         return details_dict
 
@@ -525,7 +551,146 @@ class EthAssetJSONCreation():
         ]
         return {'name': 'Yield on the Asset Itself', 'unit': 'percent', 'assets': assets}
 
-    ## 'ETH as a productive asset' section: yield comparison with other assets
+    def get_beacon_data(self, path:str):
+        import requests
+        last_error = None
+        for url in BEACON_API_URLS:
+            try:
+                response = requests.get(f'{url}{path}', timeout=180)
+                response.raise_for_status()
+                return response.json()['data']
+            except Exception as e:
+                print(f"...beacon API {url}{path} failed: {e}")
+                last_error = e
+        raise last_error
+
+    ## active validators and entry/exit queue wait from the beacon state at head
+    def get_validator_queues(self, staked_eth:float):
+        slot = int(self.get_beacon_data('/eth/v1/beacon/headers/head')['header']['message']['slot'])
+        epoch = slot // 32
+        ## every active validator sits in exactly one committee per epoch
+        active_validators = sum(len(c['validators']) for c in self.get_beacon_data('/eth/v1/beacon/states/head/committees'))
+        ## exit queue: exit epochs are assigned when an exit is requested, the latest one assigned is where a new exit would start
+        exiting = self.get_beacon_data('/eth/v1/beacon/states/head/validators?status=active_exiting')
+        exiting_eth = sum(int(v['validator']['effective_balance']) for v in exiting) / 1e9
+        last_exit_epoch = max([int(v['validator']['exit_epoch']) for v in exiting], default=epoch)
+        exit_days = max(last_exit_epoch - epoch, 0) * SECONDS_PER_EPOCH / 86400
+        ## entry queue: pending deposits are processed with the same churn limit as exits
+        entering_eth = sum(int(d['amount']) for d in self.get_beacon_data('/eth/v1/beacon/states/head/pending_deposits')) / 1e9
+        churn_eth_per_day = min(MAX_ACTIVATION_EXIT_CHURN_ETH, max(MIN_CHURN_ETH, staked_eth / CHURN_LIMIT_QUOTIENT)) * 86400 / SECONDS_PER_EPOCH
+        return {
+            'active_validators': active_validators,
+            'entry_queue': {'eth': entering_eth, 'days': entering_eth / churn_eth_per_day},
+            'exit_queue': {'eth': exiting_eth, 'validators': len(exiting), 'days': exit_days},
+            'churn_limit_eth_per_day': churn_eth_per_day,
+            'slot': slot,
+        }
+
+    ## Aave v3 reserve state, rates are APRs (not compounded) as fractions
+    def get_aave_reserve(self, w3, asset:tuple):
+        name, address, decimals = asset
+        pool = w3.eth.contract(address=w3.to_checksum_address(AAVE_POOL), abi=AAVE_POOL_ABI)
+        r = pool.functions.getReserveData(w3.to_checksum_address(address)).call()
+        cfg = r[0]
+        supplied = w3.eth.contract(address=r[8], abi=AAVE_TOTAL_SUPPLY_ABI).functions.totalSupply().call() / 10**decimals
+        borrowed = w3.eth.contract(address=r[10], abi=AAVE_TOTAL_SUPPLY_ABI).functions.totalSupply().call() / 10**decimals
+        u_opt, base, slope1, slope2 = [x / 10000 for x in w3.eth.contract(address=r[11], abi=AAVE_RATE_STRATEGY_ABI).functions.getInterestRateDataBps(w3.to_checksum_address(address)).call()]
+        borrow_apr = r[4] / 1e27
+        utilisation = borrowed / supplied if supplied else 0.0
+
+        ## borrow rate = base + slope1 * U/U_opt below the kink, + slope2 * (U - U_opt)/(1 - U_opt) above it
+        ## components are scaled to the onchain rate (Aave's utilisation also counts unbacked/virtual balances, tiny differences)
+        utilisation_part = slope1 * min(utilisation / u_opt, 1)
+        above_kink_part = slope2 * max(utilisation - u_opt, 0) / (1 - u_opt)
+        model = base + utilisation_part + above_kink_part
+        scale = borrow_apr / model if model > 0 else 0
+        return {
+            'asset': name,
+            'supply_apr': r[2] / 1e27,
+            'borrow_apr': borrow_apr,
+            'borrow_apr_breakdown': {'base_rate': base * scale, 'utilisation': utilisation_part * scale, 'above_kink_premium': above_kink_part * scale},
+            'utilisation': utilisation,
+            'optimal_utilisation': u_opt,
+            'reserve_factor': ((cfg >> 64) & 0xFFFF) / 10000,
+            'max_ltv': (cfg & 0xFFFF) / 10000,
+            'liquidation_threshold': ((cfg >> 16) & 0xFFFF) / 10000,
+            'supplied': supplied,
+            'borrowed': borrowed,
+            'available_liquidity': supplied - borrowed,
+        }
+
+    def get_aave_reserves(self):
+        from web3 import Web3
+        rpcs = [self.db_connector.get_special_use_rpc('ethereum')] + self.db_connector.get_realtime_rpcs_for_chain('ethereum')
+        last_error = None
+        for rpc in [r for r in rpcs if r]:
+            try:
+                w3 = Web3(Web3.HTTPProvider(rpc, request_kwargs={'timeout': 30}))
+                return {a[0]: self.get_aave_reserve(w3, a) for a in [AAVE_WETH] + AAVE_STABLES}
+            except Exception as e:
+                print(f"...Aave read failed on {rpc[:40]}: {e}")
+                last_error = e
+        raise last_error
+
+    ## three things you can do with ETH: stake it, lend it, borrow against it
+    def get_productive_uses(self, df_hourly:pd.DataFrame, end_hour:pd.Timestamp, price_usd:float):
+        from src.misc.helper_functions import send_discord_message
+        yield_breakdown = self.get_yield_breakdown(df_hourly, end_hour)
+        staked = self.value_at(df_hourly['eth_staked_eth'], end_hour)
+        supply = self.value_at(df_hourly['eth_supply_eth'], end_hour)
+        try:
+            queues = self.get_validator_queues(staked)
+        except Exception as e:
+            print(f"Validator queue data failed: {e}")
+            send_discord_message(f"api_eth_asset: beacon API failed, productive_uses.stake validator/queue fields are null: {e}")
+            queues = {'active_validators': None, 'entry_queue': None, 'exit_queue': None, 'churn_limit_eth_per_day': None}
+
+        reserves = self.get_aave_reserves()
+        weth = reserves[AAVE_WETH[0]]
+        stables = [reserves[s[0]] for s in AAVE_STABLES]
+        ## stablecoin borrow rate: weighted by amount borrowed (USDC, USDT ~ $1)
+        total_borrowed = sum(s['borrowed'] for s in stables)
+        weighted = lambda f: sum(f(s) * s['borrowed'] for s in stables) / total_borrowed
+        lending_eth = self.get_collateral(price_usd)['breakdown'].get('lending', {}).get('eth')
+        market = {'name': 'Aave v3', 'chain': 'Ethereum', 'url': SOURCES['aave']['url']}
+
+        return {
+            'price_usd': price_usd,
+            'stake': {
+                'apr': yield_breakdown['total'],
+                'apr_breakdown': yield_breakdown['breakdown'],
+                'paid_in': 'ETH',
+                'total_staked_eth': staked,
+                'share_of_supply': staked / supply,
+                **queues,
+                'sources': [SOURCES['ethsupply'], SOURCES['growthepie'], SOURCES['beacon_chain']],
+            },
+            'lend': {
+                'apr': weth['supply_apr'],
+                'apr_breakdown': {'borrower_interest': weth['supply_apr']},
+                'borrow_apr': weth['borrow_apr'],
+                'utilisation': weth['utilisation'],
+                'reserve_factor': weth['reserve_factor'],
+                'market': market,
+                'market_supplied_eth': weth['supplied'],
+                'market_available_liquidity_eth': weth['available_liquidity'],
+                'lending_supplied_eth': lending_eth,
+                'sources': [SOURCES['aave'], SOURCES['defillama'], SOURCES['growthepie']],
+            },
+            'borrow': {
+                'apr': weighted(lambda s: s['borrow_apr']),
+                'apr_breakdown': {k: weighted(lambda s: s['borrow_apr_breakdown'][k]) for k in ['base_rate', 'utilisation', 'above_kink_premium']},
+                'stablecoins': {s['asset']: {k: s[k] for k in ['borrow_apr', 'borrow_apr_breakdown', 'utilisation', 'optimal_utilisation', 'borrowed']} for s in stables},
+                'max_ltv': weth['max_ltv'],
+                'liquidation_threshold': weth['liquidation_threshold'],
+                'market': market,
+                'eth_collateral_eth': lending_eth,
+                'eth_collateral_usd': lending_eth * price_usd if lending_eth else None,
+                'sources': [SOURCES['aave'], SOURCES['defillama'], SOURCES['growthepie']],
+            },
+        }
+
+    ## 'ETH as a productive asset' section: yield comparison with other assets + stake / lend / borrow
     def create_productive_asset_json(self):
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         end_hour = pd.Timestamp(now).floor('h') - pd.Timedelta(hours=1)
@@ -537,18 +702,13 @@ class EthAssetJSONCreation():
         details_dict = {
             'data': {
                 'yield_comparison': self.get_yield_comparison(staking_yield),
+                'productive_uses': self.get_productive_uses(df_hourly, end_hour, self.value_at(df_hourly['price_usd'], end_hour)),
             },
             'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
         }
         details_dict = fix_dict_nan(details_dict, 'eth_asset/productive_asset')
 
-        if self.s3_bucket is None:
-            import os, json
-            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
-            with open(f'output/{self.api_version}/eth_asset/productive_asset.json', 'w') as fp:
-                json.dump(details_dict, fp)
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/productive_asset', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        write_local_section(self.s3_bucket, self.api_version, 'productive_asset', details_dict)
         print('DONE -- ETH asset productive asset json export done')
         return details_dict
 
@@ -706,13 +866,7 @@ class EthAssetJSONCreation():
         }
         details_dict = fix_dict_nan(details_dict, 'eth_asset/purchasing_power')
 
-        if self.s3_bucket is None:
-            import os, json
-            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
-            with open(f'output/{self.api_version}/eth_asset/purchasing_power.json', 'w') as fp:
-                json.dump(details_dict, fp)
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/purchasing_power', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        write_local_section(self.s3_bucket, self.api_version, 'purchasing_power', details_dict)
         print('DONE -- ETH asset purchasing power json export done')
         return details_dict
 
@@ -802,13 +956,7 @@ class EthAssetJSONCreation():
         }
         details_dict = fix_dict_nan(details_dict, 'eth_asset/supply_flow')
 
-        if self.s3_bucket is None:
-            import os, json
-            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
-            with open(f'output/{self.api_version}/eth_asset/supply_flow.json', 'w') as fp:
-                json.dump(details_dict, fp)
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/supply_flow', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        write_local_section(self.s3_bucket, self.api_version, 'supply_flow', details_dict)
         print('DONE -- ETH asset supply flow json export done')
         return details_dict
 
@@ -879,13 +1027,7 @@ class EthAssetJSONCreation():
         }
         details_dict = fix_dict_nan(details_dict, 'eth_asset/properties')
 
-        if self.s3_bucket is None:
-            import os, json
-            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
-            with open(f'output/{self.api_version}/eth_asset/properties.json', 'w') as fp:
-                json.dump(details_dict, fp)
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/properties', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        write_local_section(self.s3_bucket, self.api_version, 'properties', details_dict)
         print('DONE -- ETH asset properties json export done')
         return details_dict
 
@@ -1035,32 +1177,35 @@ class EthAssetJSONCreation():
         }
         details_dict = fix_dict_nan(details_dict, 'eth_asset/market_caps')
 
-        if self.s3_bucket is None:
-            import os, json
-            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
-            with open(f'output/{self.api_version}/eth_asset/market_caps.json', 'w') as fp:
-                json.dump(details_dict, fp)
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/market_caps', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        write_local_section(self.s3_bucket, self.api_version, 'market_caps', details_dict)
         print('DONE -- ETH asset market caps json export done')
         return details_dict
 
-    ## bundle = data of each section file as data.<section>, plus each section's last update
-    def create_bundle_json(self, bundle:str):
-        import boto3
-        s3 = boto3.client('s3', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
-        data, updated, missing = {}, {}, []
+    ## bundle = data.<section> for each section created in this run (passed in by the DAG), plus each section's last update.
+    ## Sections that failed or weren't created in this run keep their data from the currently published bundle.
+    def create_bundle_json(self, bundle:str, sections:dict):
+        previous = {}
+        try:
+            import boto3
+            s3 = boto3.client('s3', aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'), aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'))
+            previous = json.loads(s3.get_object(Bucket=self.s3_bucket, Key=f'{self.api_version}/eth_asset/{bundle}.json')['Body'].read())
+        except Exception as e:
+            print(f"...no previously published {bundle} bundle available: {e}")
+
+        data, updated, reused = {}, {}, []
         for section in ETH_ASSET_BUNDLES[bundle]:
-            try:
-                obj = s3.get_object(Bucket=self.s3_bucket, Key=f'{self.api_version}/eth_asset/{section}.json')
-                content = json.loads(obj['Body'].read())
+            content = sections.get(section)
+            if content:
                 data[section] = content['data']
                 updated[section] = content.get('last_updated_utc')
-            except Exception as e:
-                print(f"...section {section} not available for bundle {bundle}: {e}")
-                missing.append(section)
-        if not data:
-            raise ValueError(f"No sections available for bundle {bundle}")
+            elif section in previous.get('data', {}):
+                data[section] = previous['data'][section]
+                updated[section] = previous.get('sections_last_updated_utc', {}).get(section)
+                reused.append(section)
+            else:
+                print(f"...section {section} not available for bundle {bundle}")
+        if not data or len(reused) == len(data):
+            raise ValueError(f"No new sections for bundle {bundle}")
 
         details_dict = {
             'data': data,
@@ -1068,7 +1213,7 @@ class EthAssetJSONCreation():
             'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
         }
         upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/{bundle}', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
-        print(f"DONE -- ETH asset bundle {bundle} export done ({len(data)} sections{', missing: ' + ', '.join(missing) if missing else ''})")
+        print(f"DONE -- ETH asset bundle {bundle} export done ({len(data)} sections{', reused from previous bundle: ' + ', '.join(reused) if reused else ''})")
         return details_dict
 
     def create_kpis_json(self):
@@ -1083,12 +1228,6 @@ class EthAssetJSONCreation():
         }
         details_dict = fix_dict_nan(details_dict, 'eth_asset/kpis')
 
-        if self.s3_bucket is None:
-            import os, json
-            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
-            with open(f'output/{self.api_version}/eth_asset/kpis.json', 'w') as fp:
-                json.dump(details_dict, fp)
-        else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/kpis', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
+        write_local_section(self.s3_bucket, self.api_version, 'kpis', details_dict)
         print('DONE -- ETH asset KPIs json export done')
         return details_dict

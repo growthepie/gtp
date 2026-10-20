@@ -1,27 +1,32 @@
 # ETH Asset Page — Data Methodology
 
-Data behind the "ETH the asset" page. Eight JSONs, regenerated hourly (some once a day, see each section) by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
+Data behind the "ETH the asset" page, built by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load). Only **two JSONs** are published:
 
-| JSON | Content |
+| JSON | Updated | Sections (`data.<section>`) |
+|---|---|---|
+| `v1/eth_asset/live.json` | hourly | `kpis`, `stats`, `properties`, `productive_asset` |
+| `v1/eth_asset/daily.json` | daily (07:35 UTC) | `purchasing_power`, `supply_flow`, `today`, `market_caps` |
+
+| Section | Content |
 |---|---|
-| `v1/eth_asset/kpis.json` | 5 KPI charts (timeseries per timeframe, current value, % change) |
-| `v1/eth_asset/stats.json` | Single values the frontend extrapolates per second (`total_wallets`, `eth_per_person`) |
-| `v1/eth_asset/properties.json` | "ETH is 6 things at once" section: yield breakdown, scarcity, collateral, ETH paid as gas |
-| `v1/eth_asset/productive_asset.json` | "Yield on the asset itself" comparison: ETH staking yield vs. central bank rates, dividends, gold, BTC, savings |
-| `v1/eth_asset/purchasing_power.json` | "What one ETH actually buys": everyday goods per ETH today vs. a year ago, and what changed it |
-| `v1/eth_asset/supply_flow.json` | "The supply, in one picture": weekly issuance (tap) vs. burn (drain) for last week and historical scenarios |
-| `v1/eth_asset/today.json` | "Today in ETH": one AI-written card per day with a positive number from our data |
-| `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
+| `kpis` | 5 KPI charts (timeseries per timeframe, current value, % change) |
+| `stats` | Single values the frontend extrapolates per second (`total_wallets`, `eth_per_person`) |
+| `properties` | "ETH is 6 things at once" section: yield breakdown, scarcity, collateral, ETH paid as gas |
+| `productive_asset` | "ETH is a productive asset": yield comparison vs. central bank rates, dividends, gold, BTC, savings, and stake / lend / borrow |
+| `purchasing_power` | "What one ETH actually buys": everyday goods per ETH today vs. a year ago, and what changed it |
+| `supply_flow` | "The supply, in one picture": weekly issuance (tap) vs. burn (drain) for last week and historical scenarios |
+| `today` | "Today in ETH": one AI-written card per day with a positive number from our data |
+| `market_caps` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
-**Bundles (what the frontend fetches):** `v1/eth_asset/live.json` (hourly: kpis, stats, properties, productive_asset) and `v1/eth_asset/daily.json` (daily: purchasing_power, supply_flow, today, market_caps). The DAG task `run_create_bundles` (trigger rule `all_done`, end of every run) assembles them from the latest published section files on S3 (`create_bundle_json`, sections in `ETH_ASSET_BUNDLES`). `data.<section>` is the section file's `data`, and `sections_last_updated_utc` shows each section's freshness. A section that fails in a run keeps its previous version in the bundle. The single section files below are the build inputs and stay on S3; they're public only for the transition.
+How the bundles are built: each section is created in its own DAG task, which returns the section dict (`{data, last_updated_utc}`, passed on via XCom, <100KB each) instead of uploading it. `run_create_live_bundle` and `run_create_daily_bundle` (trigger rule `all_done`) collect them and upload the bundle (`create_bundle_json`, sections in `ETH_ASSET_BUNDLES`). `sections_last_updated_utc` shows each section's freshness. A section that failed or was skipped keeps its data from the currently published bundle. The section headings below refer to these sections. Run locally (no S3 bucket), each section is also written to `output/v1/eth_asset/<section>.json`.
 
-Caching: the JSONs are uploaded **without CloudFront invalidations**. All of them use `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400` (`ETH_ASSET_CACHE_CONTROL`), so new data is visible on the API at the latest ~5 minutes after an upload. Logos are uploaded once and never invalidated.
+Caching: the bundles are uploaded **without CloudFront invalidations**. All of them use `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400` (`ETH_ASSET_CACHE_CONTROL`), so new data is visible on the API at the latest ~5 minutes after an upload. Logos are uploaded once and never invalidated.
 
 Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
 
 ---
 
-## 1. KPI charts (`kpis.json`)
+## 1. KPI charts (`live.json` → `kpis`)
 
 ### Timeframes
 
@@ -117,7 +122,7 @@ The daily Dune staking query only writes `eth_staked_eth`, `staking_rewards_el_e
 
 ---
 
-## 2. Stats (`stats.json`)
+## 2. Stats (`live.json` → `stats`)
 
 Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The frontend shows `value + (now − timestamp) × per_second_increase`.
 
@@ -135,9 +140,9 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 
 ---
 
-## 3. Properties (`properties.json`)
+## 3. Properties (`live.json` → `properties`)
 
-**Yield breakdown**: the current staking yield split into issuance, tips and MEV. `total` is identical to `staking_yield.current` in `kpis.json`.
+**Yield breakdown**: the current staking yield split into issuance, tips and MEV. `total` is identical to `staking_yield.current` in `kpis`.
 - `issuance`: CL yield, trailing 24h average of hourly ethsupply.fyi data (same as the hourly KPI).
 - `tips` and `mev`: 7-day average of daily EL rewards ÷ staked ETH, split per block (Dune query 8951204, daily since the Merge):
   - Locally built block: the proposer receives the priority fees. All of it counts as `tips`.
@@ -163,19 +168,44 @@ Each value comes with a `timestamp` (unix ms) and a `per_second_increase`. The f
 
 ---
 
-## 4. Productive asset (`productive_asset.json`)
+## 4. Productive asset (`live.json` → `productive_asset`)
 
 **Yield comparison** (`data.yield_comparison`): The nominal annual yield each asset pays just for holding it, as fractions. Fetched on every run; nothing is hardcoded except the zeros, which hold by definition.
-- ETH staked: same value as `yield_breakdown.total` / `staking_yield.current` in `kpis.json`.
+- ETH staked: same value as `yield_breakdown.total` / `staking_yield.current` in `kpis`.
 - US central bank rate: FRED `DFF`, the effective federal funds rate (daily). This is the rate banks actually pay overnight, and it moves within the Fed's target range (3.75–4.00% as of Oct 2026).
 - ECB rate: FRED `ECBDFR`, the ECB deposit facility rate (daily), the ECB's main policy rate.
 - S&P 500 dividend: SPY (S&P 500 ETF) dividends of the last 12 months ÷ current price (Yahoo Finance). This is close to the index yield; SPY's 0.09% expense ratio lowers it slightly.
 - Gold, Bitcoin: 0. Neither pays anything for holding it.
 - Cash savings: FRED `SNDR`, the FDIC national average rate on US savings deposits (monthly).
 
+**Stake / Lend / Borrow** (`data.productive_uses`): Refreshed hourly. All rates are APRs (simple, not compounded) as fractions.
+- **Stake**
+  - `apr` and `apr_breakdown`: identical to `properties.yield_breakdown` (issuance, tips, MEV).
+  - `total_staked_eth` and `share_of_supply`: the latest hourly values, the same as `staked_share` in `kpis`.
+  - `active_validators`: the number of validators in the current epoch's beacon committees. Every active validator is in exactly one committee per epoch. This number has fallen since Pectra because validators are consolidating into balances of up to 2,048 ETH.
+  - `exit_queue.days`: time from now until the latest exit epoch already assigned to an exiting validator. A new exit request would start there. After its exit epoch, a validator still waits about 27 hours (the withdrawability delay) plus the withdrawal sweep, and `days` does not include this.
+  - `entry_queue.days`: ETH in pending deposits ÷ the churn limit. Since Electra, the churn limit is min(256, max(128, staked ÷ 65,536)) ETH per epoch, which is currently 57,600 ETH/day.
+  - Source: a public beacon node via the standard beacon API (`publicnode.com`). If the node fails, these fields are `null` and a Discord alert is sent.
+- **Lend**
+  - The market is Aave v3 Ethereum (core). It is the largest ETH lending market: per DefiLlama in Oct 2026, it holds about 3× the ETH supplied to SparkLend, the next largest.
+  - Values are read onchain from the Pool contract. `apr` is the WETH supply rate, which is paid entirely by borrowers: supply APR ≈ borrow APR × utilisation × (1 − reserve factor).
+  - `market_available_liquidity_eth` = supplied − borrowed. This is the amount that can be withdrawn instantly.
+  - `lending_supplied_eth`: all ETH in lending markets on Ethereum and ETH-gas L2s. It is the same number as `properties.collateral.breakdown.lending`.
+- **Borrow**
+  - `apr`: the stablecoin variable borrow rate on Aave v3 Ethereum. It averages USDC and USDT, weighted by the amount borrowed.
+  - `apr_breakdown` follows Aave's rate curve:
+    - `base_rate`: the rate at 0% utilisation. This is currently 0 for USDC and USDT.
+    - `utilisation`: slope 1 × U ÷ U_optimal.
+    - `above_kink_premium`: the steep slope 2, which applies only above optimal utilisation.
+
+    The components are scaled to sum exactly to the onchain rate.
+  - `max_ltv` and `liquidation_threshold`: from WETH's reserve configuration (no e-mode, since e-mode only applies to ETH-correlated borrows).
+  - `eth_collateral_*`: ETH in lending markets, the same as `lend.lending_supplied_eth`.
+  - Source: Ethereum RPC from our `sys_rpc_config` (the special-use RPC first, then the realtime RPCs).
+
 ---
 
-## 5. Purchasing power (`purchasing_power.json`)
+## 5. Purchasing power (`daily.json` → `purchasing_power`)
 
 How many units of everyday goods 1 ETH buys today vs. a year ago, for 4 regions (`data.regions`: `us`, `euro_area`, `uk`, `japan`). Rebuilt **once a day** (07:00 UTC). Each region is computed in its local currency, and all items use the **same unit in every region**:
 
@@ -209,7 +239,7 @@ How many units of everyday goods 1 ETH buys today vs. a year ago, for 4 regions 
 
 ---
 
-## 6. Supply flow (`supply_flow.json`)
+## 6. Supply flow (`daily.json` → `supply_flow`)
 
 Inflation/burn explainer: weekly issuance to stakers (the tap) vs. burn (the drain). Rebuilt **once a day** (07:00 UTC), based on complete days only.
 
@@ -226,7 +256,7 @@ Inflation/burn explainer: weekly issuance to stakers (the tap) vs. burn (the dra
 
 ---
 
-## 7. Today in ETH (`today.json`)
+## 7. Today in ETH (`daily.json` → `today`)
 
 One new card per day (07:00 UTC) with one number, a headline and one sentence. Only **positive** ETH developments are shown. Code: `backend/src/api/eth_today_cards.py`, DAG task `run_create_today_card`.
 
@@ -244,13 +274,13 @@ One new card per day (07:00 UTC) with one number, a headline and one sentence. O
 5. **Positive-only pool**: Gemini only sees positive candidates, and metrics used in the last 7 cards are removed. Order of preference: (1) notable positive candidates, (2) mild positives (a 30d trend in the good direction with at least a modest move: |z| ≥ 0.3, and ≥ 0.05 percentage points for % metrics) plus 7-day wallet growth, (3) only if nothing else is left, a repeat.
 6. **Prompt**: pick the most interesting candidate, avoid metrics used in the last 7 days (it sees the last 14 cards), frame constructively but truthfully, use only the facts, numbers and dates as given, no hype, no causes or predictions.
 7. **Validation**: the chosen candidate must be in the pool, headline ≤ 60 and sentence ≤ 200 characters, and every number in the text must appear in that candidate's facts (time windows 1/7/24/30/365 and "L2"/"Layer 2" are allowed). If the AI fails or is rejected, a plain template card from the top positive candidate is used (`model: fallback`).
-8. **Output**: the value, unit and 30-day sparkline come from the candidate, never from the AI. Each card is stored in `public.eth_today_cards` (one row per day: date, candidate, headline, sentence, model, the AI's reasoning, full card as JSON). `today.json` serves the last 30 cards, newest first. Each new card is posted to Discord (`GTP_AI_WEBHOOK_URL`).
+8. **Output**: the value, unit and 30-day sparkline come from the candidate, never from the AI. Each card is stored in `public.eth_today_cards` (one row per day: date, candidate, headline, sentence, model, the AI's reasoning, full card as JSON). `today` serves the last 30 cards, newest first. Each new card is posted to Discord (`GTP_AI_WEBHOOK_URL`).
 
 Env vars: `GEMINI_API_KEY`, `GTP_AI_WEBHOOK_URL`.
 
 ---
 
-## 8. Market caps (`market_caps.json`)
+## 8. Market caps (`daily.json` → `market_caps`)
 
 Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardcoded, and nothing needs manual updates.
 
@@ -274,11 +304,11 @@ Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardco
 | ethsupply.fyi | Hourly staked ETH, CL rewards | Staked ETH falls back to Dune (lagging, effective balance); CL yield falls back to 7-day average of daily values; Discord alert |
 | ultrasound.money | Supply (hourly + daily) | Task fails/retries; JSON tasks don't run, so the previous JSONs stay live |
 | Dune | Daily staked ETH, EL rewards, hourly staked fallback | Daily EL data retried on the next hourly run until yesterday is loaded |
-| World Bank | Population (stats) | Stats task fails; `kpis.json` is unaffected |
-| DefiLlama | Collateral | Collateral task fails/retries; previous `properties.json` stays live |
+| World Bank | Population (stats) | Stats task fails; `kpis` is unaffected |
+| DefiLlama | Collateral | Collateral task fails/retries; previous `properties` section stays live |
 | FRED | US dollar M2 (properties), Fed and ECB rates, savings rate (productive asset), US shop prices and FX (purchasing power) |
-| Eurostat / INSEE / ONS / e-Stat | Regional shop prices (purchasing power) | Purchasing power task fails/retries; previous `purchasing_power.json` stays live | Affected task fails/retries; previous JSON stays live |
-| CoinGecko / CompaniesMarketCap / OWID / Yahoo Finance | Market caps | Market caps task fails/retries; previous `market_caps.json` stays live |
+| Eurostat / INSEE / ONS / e-Stat | Regional shop prices (purchasing power) | Purchasing power task fails/retries; previous `purchasing_power` section stays live | Affected task fails/retries; previous JSON stays live |
+| CoinGecko / CompaniesMarketCap / OWID / Yahoo Finance | Market caps | Market caps task fails/retries; previous `market_caps` section stays live |
 | Gemini | Today card text | Falls back to a template card from the top positive candidate |
 | gold.org (scrape) | Gold stock for scarcity | Reference data task fails; scarcity keeps using the last stored gold stock |
 | Own `ethereum_blocks` | Burn | — |
