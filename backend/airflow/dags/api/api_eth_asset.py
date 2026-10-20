@@ -230,4 +230,20 @@ def etl():
     ## needs yesterday's burn and CL rewards (rolled up in run_eth_burned / run_eth_staking)
     [supply, burned, staking] >> run_create_supply_flow_json()
 
+    @task()
+    def run_create_today_card():
+        from datetime import datetime, timezone
+        from src.db_connector import DbConnector
+        from src.api.eth_today_cards import EthTodayCards
+
+        ## one new card per day (Gemini picks the most interesting number from candidates computed on our data)
+        if datetime.now(timezone.utc).hour != 7:
+            print("Only run at 07:xx UTC, skipping.")
+            return
+
+        db_connector = DbConnector()
+        EthTodayCards(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version).run_daily()
+
+    [supply, burned, staking] >> run_create_today_card()
+
 etl()

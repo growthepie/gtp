@@ -1,6 +1,6 @@
 # ETH Asset Page — Data Methodology
 
-Data behind the "ETH the asset" page. Seven JSONs, regenerated hourly (some once a day, see each section) by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
+Data behind the "ETH the asset" page. Eight JSONs, regenerated hourly (some once a day, see each section) by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
 
 | JSON | Content |
 |---|---|
@@ -10,6 +10,7 @@ Data behind the "ETH the asset" page. Seven JSONs, regenerated hourly (some once
 | `v1/eth_asset/productive_asset.json` | "Yield on the asset itself" comparison: ETH staking yield vs. central bank rates, dividends, gold, BTC, savings |
 | `v1/eth_asset/purchasing_power.json` | "What one ETH actually buys": everyday goods per ETH today vs. a year ago, and what changed it |
 | `v1/eth_asset/supply_flow.json` | "The supply, in one picture": weekly issuance (tap) vs. burn (drain) for last week and historical scenarios |
+| `v1/eth_asset/today.json` | "Today in ETH": one AI-written card per day with a positive number from our data |
 | `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
 Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
@@ -221,7 +222,31 @@ Inflation/burn explainer: weekly issuance to stakers (the tap) vs. burn (the dra
 
 ---
 
-## 7. Market caps (`market_caps.json`)
+## 7. Today in ETH (`today.json`)
+
+One new card per day (07:00 UTC) with one number, a headline and one sentence. Only **positive** ETH developments are shown. Code: `backend/src/api/eth_today_cards.py`, DAG task `run_create_today_card`.
+
+**Principle:** numbers never come from the AI. Code computes candidate facts from our data; Gemini (`gemini-3.8-flash`, temperature 0.4, structured output) only picks one candidate and writes the text.
+
+1. **Candidates** (daily, complete days):
+   - ETH & staking: ETH price, net supply change (30d annualized), % staked, ETH staked, staking yield (7d avg), ETH burned per day, ETH/BTC market cap ratio.
+   - Ethereum + L2s: ETH paid as gas (Ethereum + ETH-gas L2s), median L2 transaction cost (txcount-weighted median of the chains' medians, daily and 30d avg), transactions per day (daily and 30d avg).
+   - Ethereum mainnet (`fact_kpis`, origin_key `ethereum`, history since 2015 where available): stablecoin supply (`stables_mcap`), throughput (`gas_per_second`), gas limit (`gas_limit`, an *event* metric: only a candidate if it moved ≥ 1% in the last 7 days), transactions (`txcount`), median transaction cost (`txcosts_median_usd`), daily active addresses (`daa`), active addresses over 30 days (`aa_last30d`), app fees (`app_fees_usd`). Contract deployments were left out on purpose: spikes are often automated mass deployments.
+   - Mainnet extras: active apps per day (distinct `owner_project` in `vw_apps_contract_level_materialized`), stablecoin share of mainnet transactions (7d rolling, `blockspace_fact_category_level` stablecoin ÷ total_usage).
+   - Milestones (only when a round number was crossed on the latest day): total wallets (every 1M; 5M/10M score higher), lifetime transactions (`lifetime_txcount`, every 100M; 500M multiples score higher), lifetime fees (`lifetime_fees_paid_eth`, every 10k ETH; 100k multiples score higher). Plus 7-day wallet growth (always positive, last resort).
+2. **Facts per candidate**: value, 1/7/30-day changes, "highest/lowest since …" records (previous higher/lower value ≥ 60 days ago), and the typical 7-day change over the last year when the move is unusual. Dates are written like "Aug 19, 2026".
+3. **Score**: how unusual the 7d/30d move is vs. the last year (z-score, capped at 4), plus a record bonus that only counts if the move behind it is in the same direction. Level metrics (ETH staked, 30d L2 cost, 30d transactions) get half the bonus for slow records in the good direction.
+4. **Sentiment**: each metric has a good direction (up: price, % staked, ETH staked, burn, gas paid, transactions, ETH/BTC, stablecoin supply, throughput, gas limit, active addresses, app fees, active apps, stablecoin share; down: L2 and mainnet transaction cost, net supply; neutral: staking yield). A candidate is `positive` if its notable move or record points in the good direction (score × 1.5).
+5. **Positive-only pool**: Gemini only sees positive candidates, and metrics used in the last 7 cards are removed. Order of preference: (1) notable positive candidates, (2) mild positives (a 30d trend in the good direction with at least a modest move: |z| ≥ 0.3, and ≥ 0.05 percentage points for % metrics) plus 7-day wallet growth, (3) only if nothing else is left, a repeat.
+6. **Prompt**: pick the most interesting candidate, avoid metrics used in the last 7 days (it sees the last 14 cards), frame constructively but truthfully, use only the facts, numbers and dates as given, no hype, no causes or predictions.
+7. **Validation**: the chosen candidate must be in the pool, headline ≤ 60 and sentence ≤ 200 characters, and every number in the text must appear in that candidate's facts (time windows 1/7/24/30/365 and "L2"/"Layer 2" are allowed). If the AI fails or is rejected, a plain template card from the top positive candidate is used (`model: fallback`).
+8. **Output**: the value, unit and 30-day sparkline come from the candidate, never from the AI. Each card is stored in `public.eth_today_cards` (one row per day: date, candidate, headline, sentence, model, the AI's reasoning, full card as JSON). `today.json` serves the last 30 cards, newest first. Each new card is posted to Discord (`GTP_AI_WEBHOOK_URL`).
+
+Env vars: `GEMINI_API_KEY`, `GTP_AI_WEBHOOK_URL`.
+
+---
+
+## 8. Market caps (`market_caps.json`)
 
 Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardcoded, and nothing needs manual updates.
 
@@ -238,7 +263,7 @@ Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardco
 
 ---
 
-## 8. Source reliability and fallbacks
+## 9. Source reliability and fallbacks
 
 | Source | Used for | If unavailable |
 |---|---|---|
@@ -250,5 +275,6 @@ Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardco
 | FRED | US dollar M2 (properties), Fed and ECB rates, savings rate (productive asset), US shop prices and FX (purchasing power) |
 | Eurostat / INSEE / ONS / e-Stat | Regional shop prices (purchasing power) | Purchasing power task fails/retries; previous `purchasing_power.json` stays live | Affected task fails/retries; previous JSON stays live |
 | CoinGecko / CompaniesMarketCap / OWID / Yahoo Finance | Market caps | Market caps task fails/retries; previous `market_caps.json` stays live |
+| Gemini | Today card text | Falls back to a template card from the top positive candidate |
 | gold.org (scrape) | Gold stock for scarcity | Reference data task fails; scarcity keeps using the last stored gold stock |
 | Own `ethereum_blocks` | Burn | — |
