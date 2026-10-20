@@ -82,3 +82,5 @@ backend/src/api/og_resources/metrics_data.json
 backend/src/oli/api/env-file.env
 vera/state/
 backend/script_vera_dry_run.py
+backend/src/api/og_resources/metrics_data.json
+backend/src/api/og_resources/metrics_data.json
