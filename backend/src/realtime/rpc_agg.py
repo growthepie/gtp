@@ -46,6 +46,21 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)  # For AUTH if enabled
 REDIS_STREAM_MAXLEN = 500
 RECEIPT_PARSE_LIMIT = 500  # Max number of receipts to parse per block for fee calculations; 0 = no limit
 
+# Live onchain ETH/USD price (Base). Primary: Aerodrome Slipstream WETH/USDC, cross-check: Uniswap v3 WETH/USDC 0.05%.
+# Both pools: token0 = WETH (18 decimals), token1 = native USDC (6 decimals) -> price = (sqrtPriceX96 / 2**96)**2 * 10**12 USDC per WETH.
+# RPCs: Base realtime RPCs from sys_rpc_config (same list as the Base TPS stream, refreshed every 30 min), public Base RPC as last fallback.
+ETH_PRICE_CHAIN = "base"
+ETH_PRICE_FALLBACK_RPC_URLS = ["https://mainnet.base.org"]
+ETH_PRICE_PRIMARY_POOL = "0x3fe04a59ebd38cf06080a6f60a98d124eb59392a"   # Aerodrome Slipstream WETH/USDC
+ETH_PRICE_CHECK_POOL = "0xd0b53d9277642d899df5c87a3966a349a798f224"     # Uniswap v3 WETH/USDC 0.05%
+ETH_PRICE_SLOT0_SELECTOR = "0x3850c7bd"   # slot0(), first return word is sqrtPriceX96 (Slipstream returns 6 words, Uniswap v3 7)
+ETH_PRICE_POLL_SECONDS = 2.0             # Base block time
+ETH_PRICE_CHECK_EVERY_SECONDS = 10        # cross-check pool is read less often
+ETH_PRICE_STREAM_MAXLEN = 100
+ETH_PRICE_STALE_SECONDS = 10              # no successful update for this long -> 'stale' flag
+ETH_PRICE_MAX_DEVIATION_PCT = 0.5         # deviation vs. cross-check pool that triggers a warning flag
+ETH_PRICE_SANITY_RANGE = (100, 100_000)   # reject obviously broken reads
+
 
 class ReceiptFetchFailed(Exception):
     """Raised when receipt fetching should trigger RPC failover."""
@@ -935,6 +950,100 @@ class RtBackend:
                 except Exception as e:
                     logger.error(f"Error updating CoinGecko prices: {str(e)}")
 
+    ## ----------------- Live onchain ETH price -----------------
+
+    async def _eth_call_slot0(self, rpc_url: str, pool: str) -> float:
+        """ETH/USD from a WETH/USDC pool's slot0() at the latest block."""
+        payload = {"jsonrpc": "2.0", "id": 1, "method": "eth_call",
+                   "params": [{"to": pool, "data": ETH_PRICE_SLOT0_SELECTOR}, "latest"]}
+        timeout = aiohttp.ClientTimeout(total=3)
+        async with self.http_session.post(rpc_url, json=payload, timeout=timeout) as response:
+            if response.status != 200:
+                raise RuntimeError(f"HTTP {response.status}")
+            data = await response.json()
+        if "error" in data:
+            raise RuntimeError(data["error"])
+        result = data.get("result") or "0x"
+        if len(result) < 66:
+            raise RuntimeError(f"unexpected slot0 result: {result[:80]}")
+        sqrt_price_x96 = int(result[2:66], 16)
+        price = (sqrt_price_x96 / 2**96) ** 2 * 10**12
+        if not (ETH_PRICE_SANITY_RANGE[0] <= price <= ETH_PRICE_SANITY_RANGE[1]):
+            raise RuntimeError(f"price out of sanity range: {price}")
+        return price
+
+    def _eth_price_rpc_urls(self) -> List[str]:
+        """Base realtime RPCs from sys_rpc_config (read on every call, so refreshes apply), then the public fallback."""
+        db_urls = list(self.RPC_ENDPOINTS.get(ETH_PRICE_CHAIN, {}).get("rpc_urls") or [])
+        return db_urls + [u for u in ETH_PRICE_FALLBACK_RPC_URLS if u not in db_urls]
+
+    async def eth_price_loop(self) -> None:
+        """Poll the onchain ETH/USD price every ~2 seconds and publish it to Redis (stream + latest)."""
+        if not self.http_session:
+            self.http_session = aiohttp.ClientSession()
+        rpc_index, last_ok, last_check = 0, 0.0, 0.0
+        check_price: Optional[float] = None
+        logger.info(f"Starting onchain ETH price loop (RPCs: {len(self._eth_price_rpc_urls())}, pool {ETH_PRICE_PRIMARY_POOL})")
+        while True:
+            started = time.time()
+            rpc_urls = self._eth_price_rpc_urls()
+            rpc_url = rpc_urls[rpc_index % len(rpc_urls)]
+            try:
+                price = await self._eth_call_slot0(rpc_url, ETH_PRICE_PRIMARY_POOL)
+                if started - last_check >= ETH_PRICE_CHECK_EVERY_SECONDS:
+                    try:
+                        check_price = await self._eth_call_slot0(rpc_url, ETH_PRICE_CHECK_POOL)
+                    except Exception as e:
+                        logger.warning(f"ETH price cross-check failed: {e}")
+                    last_check = started
+                last_ok = time.time()
+                deviation_pct = abs(price - check_price) / check_price * 100 if check_price else None
+                deviation_warning = deviation_pct is not None and deviation_pct > ETH_PRICE_MAX_DEVIATION_PCT
+                if deviation_warning:
+                    logger.warning(f"ETH price deviation {deviation_pct:.2f}% (aerodrome {price:.2f} vs uniswap {check_price:.2f})")
+                await self._publish_eth_price({
+                    "price": round(price, 4),
+                    "timestamp_ms": int(last_ok * 1000),
+                    "source": "aerodrome_slipstream_base",
+                    "check_price": round(check_price, 4) if check_price else None,
+                    "deviation_pct": round(deviation_pct, 4) if deviation_pct is not None else None,
+                    "deviation_warning": deviation_warning,
+                    "stale": False,
+                })
+            except Exception as e:
+                rpc_index += 1  # fail over to the next RPC
+                logger.warning(f"ETH price update failed on {rpc_url.split('?')[0]}: {e}")
+                if last_ok and time.time() - last_ok > ETH_PRICE_STALE_SECONDS:
+                    await self._mark_eth_price_stale(last_ok)
+            await asyncio.sleep(max(0.0, ETH_PRICE_POLL_SECONDS - (time.time() - started)))
+
+    async def _publish_eth_price(self, entry: Dict[str, Any]) -> None:
+        if not self.redis_client:
+            return
+        try:
+            payload = json.dumps(entry, separators=(",", ":"))
+            pipe = self.redis_client.pipeline()
+            pipe.xadd(RedisKeys.ETH_PRICE_STREAM, {"d": payload}, maxlen=ETH_PRICE_STREAM_MAXLEN, approximate=False)
+            pipe.set(RedisKeys.ETH_PRICE_LATEST, payload)
+            await pipe.execute()
+        except Exception as e:
+            logger.error(f"Failed to publish ETH price to Redis: {e}")
+
+    async def _mark_eth_price_stale(self, last_ok: float) -> None:
+        """Keep the last good price, but flag it as stale so consumers can react."""
+        if not self.redis_client:
+            return
+        try:
+            raw = await self.redis_client.get(RedisKeys.ETH_PRICE_LATEST)
+            if raw:
+                entry = json.loads(raw)
+                if not entry.get("stale"):
+                    entry["stale"] = True
+                    await self.redis_client.set(RedisKeys.ETH_PRICE_LATEST, json.dumps(entry, separators=(",", ":")))
+                    logger.error(f"ETH price is stale (no successful update for {time.time() - last_ok:.0f}s)")
+        except Exception as e:
+            logger.error(f"Failed to mark ETH price stale: {e}")
+
     async def publish_to_redis(self, chain_name: str, data: Dict[str, Any]) -> None:
         """Publish chain data to Redis stream."""
         if not self.redis_client:
@@ -1411,6 +1520,8 @@ async def main():
         # Run all tasks concurrently
         # Re-read sys_rpc_config periodically; starts chains that had no RPCs at startup
         tasks.append(asyncio.create_task(backend.rpc_refresh_loop(), name="rpc_refresh"))
+        # Live onchain ETH/USD price (~2s, Base)
+        tasks.append(asyncio.create_task(backend.eth_price_loop(), name="eth_price"))
 
         await asyncio.gather(*tasks)
         

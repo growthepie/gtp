@@ -7,6 +7,10 @@ class RedisKeys:
     TPS_HISTORY_24H = "global:tps:history_24h"
     ATH_HISTORY = "global:tps:ath_history"
 
+    # Live ETH/USD price (onchain, Base)
+    ETH_PRICE_STREAM = "eth:price"          # stream with the last ~100 prices
+    ETH_PRICE_LATEST = "eth:price:latest"   # json with the latest price and its status
+
     @staticmethod
     def chain_stream(chain_name: str) -> str:
         return f"chain:{chain_name}"

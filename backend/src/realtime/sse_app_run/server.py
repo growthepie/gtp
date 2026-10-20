@@ -111,6 +111,10 @@ class RedisSSEServer:
         self.chain_clients = {}  # Track clients per chain
         self.history_compressor = HistoryCompressor()
 
+        # Live onchain ETH price clients (written by rpc_agg.eth_price_loop)
+        self.eth_price_clients: Set[web.StreamResponse] = set()
+        self.eth_price_latest: Optional[Dict[str, Any]] = None
+
         # Liveness tracking for the background data_update_loop
         self.last_loop_tick_ms: Optional[int] = None
 
@@ -756,6 +760,93 @@ class RedisSSEServer:
                 logger.error(f"Error in data update loop: {str(e)}")
                 await asyncio.sleep(5)
                 
+    ## live ETH price (onchain, Base) methods
+    async def _get_eth_price_latest(self) -> Optional[Dict[str, Any]]:
+        raw = await self.redis_client.get(RedisKeys.ETH_PRICE_LATEST)
+        return json.loads(raw) if raw else None
+
+    async def _get_eth_price_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """Last prices (oldest first) as compact {price, timestamp_ms} entries."""
+        entries = await self.redis_client.xrevrange(RedisKeys.ETH_PRICE_STREAM, count=limit)
+        history = []
+        for _, fields in reversed(entries):
+            raw = fields.get("d") if isinstance(fields, dict) else None
+            if raw:
+                d = json.loads(raw)
+                history.append({"price": d.get("price"), "timestamp_ms": d.get("timestamp_ms")})
+        return history
+
+    async def eth_price_loop(self):
+        """Push every new ETH price (or a change of its stale flag) to the ETH price SSE clients."""
+        logger.info("Starting ETH price broadcast loop")
+        while True:
+            try:
+                latest = await self._get_eth_price_latest()
+                prev = self.eth_price_latest
+                changed = latest is not None and (prev is None or latest.get("timestamp_ms") != prev.get("timestamp_ms") or latest.get("stale") != prev.get("stale"))
+                if changed:
+                    self.eth_price_latest = latest
+                    if self.eth_price_clients:
+                        await self._broadcast_eth_price({"type": "update", "data": latest})
+                await asyncio.sleep(0.5)
+            except Exception as e:
+                logger.error(f"Error in ETH price loop: {str(e)}")
+                await asyncio.sleep(2)
+
+    async def _broadcast_eth_price(self, payload: Dict[str, Any]):
+        sse_message = f"data: {json.dumps(payload)}\n\n".encode('utf-8')
+        disconnected = set()
+        for client in self.eth_price_clients:
+            try:
+                await asyncio.wait_for(client.write(sse_message), timeout=self.config.client_write_timeout)
+            except Exception:
+                disconnected.add(client)
+        if disconnected:
+            self.eth_price_clients.difference_update(disconnected)
+            logger.info(f"Removed {len(disconnected)} ETH price clients. {len(self.eth_price_clients)} remaining.")
+
+    async def eth_price_sse_handler(self, request):
+        """SSE stream of the live onchain ETH/USD price (~1 update every 2 seconds)."""
+        total_connections = len(self.connected_clients) + len(self.eth_price_clients) + sum(len(c) for c in self.chain_clients.values())
+        if total_connections >= self.config.max_connections:
+            return web.Response(status=503, text="Too many connections")
+        response = web.StreamResponse()
+        response.headers.update({
+            'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive', 'X-Accel-Buffering': 'no'
+        })
+        client_ip = request.remote
+        logger.info(f"New ETH price SSE client connected from {client_ip}")
+        try:
+            await response.prepare(request)
+            self.eth_price_clients.add(response)
+            initial = {
+                "type": "initial",
+                "data": await self._get_eth_price_latest(),
+                "history": await self._get_eth_price_history(),
+            }
+            await response.write(f"data: {json.dumps(initial)}\n\n".encode('utf-8'))
+            while True:
+                await asyncio.sleep(self.config.heartbeat_interval)
+                try: await response.write(b": heartbeat\n\n")
+                except Exception: break
+        except (ConnectionResetError, ConnectionAbortedError):
+            logger.info(f"ETH price client {client_ip} disconnected")
+        finally:
+            self.eth_price_clients.discard(response)
+        return response
+
+    async def eth_price_api_handler(self, request):
+        """Latest live ETH price + recent history as plain JSON."""
+        try:
+            limit = max(1, min(int(request.query.get("limit", 100)), 100))
+        except ValueError:
+            limit = 100
+        return web.json_response({
+            "data": await self._get_eth_price_latest(),
+            "history": await self._get_eth_price_history(limit),
+        })
+
     ## chain sse methods
     async def chain_sse_handler(self, request):
         """Handle chain-specific SSE connection requests."""
@@ -1072,6 +1163,8 @@ async def create_app(server: RedisSSEServer):
         web.get("/api/history", server.history_handler),
         web.get("/api/chain/{chain_name}", server.chain_data_handler),
         web.get("/api/chain/{chain_name}/history", server.chain_history_handler),
+        web.get("/events/eth-price", server.eth_price_sse_handler),  # Live onchain ETH price SSE
+        web.get("/api/eth-price", server.eth_price_api_handler),
     ]
 
     for route in routes:
@@ -1090,6 +1183,7 @@ async def main():
         
         update_task = asyncio.create_task(server.data_update_loop())
         maintenance_task = asyncio.create_task(server.periodic_maintenance_loop())
+        eth_price_task = asyncio.create_task(server.eth_price_loop())
         
         logger.info(f"🚀 Starting SSE server on {config.server_host}:{config.server_port}")
         logger.info(f"📡 Global SSE endpoint: /events")
@@ -1099,6 +1193,7 @@ async def main():
         logger.info(f"📊 Global History: /api/history")
         logger.info(f"⛓️ Chain Data: /api/chain/{{chain_name}}")
         logger.info(f"📜 Chain History: /api/chain/{{chain_name}}/history")
+        logger.info(f"💲 ETH price SSE: /events/eth-price, API: /api/eth-price")
         
         runner = web.AppRunner(app)
         await runner.setup()
@@ -1113,6 +1208,7 @@ async def main():
             logger.info("🧹 Cleaning up...")
             update_task.cancel()
             maintenance_task.cancel()
+            eth_price_task.cancel()
             await server.close()
             await runner.cleanup()
             logger.info("✅ Shutdown complete")
