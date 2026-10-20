@@ -4,6 +4,10 @@ from datetime import datetime, timezone
 from src.misc.helper_functions import upload_json_to_cf_s3, fix_dict_nan, api_get_call
 from src.misc.jinja_helper import execute_jinja_query
 
+## ETH asset jsons are only updated by our scheduled jobs, so instead of a CloudFront invalidation per upload we rely on a short CDN cache:
+## new data is visible at the latest 5 min (s-maxage) after an upload, browsers cache for 60s, stale copies are served for up to 1 day if S3 errors
+ETH_ASSET_CACHE_CONTROL = "public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400"
+
 ## timeframes of the KPI charts on the ETH asset page
 ## hours: window length based on hourly data, days: window length based on daily data, months: calendar months incl. current (partial) month
 ETH_ASSET_TIMEFRAMES = {
@@ -414,7 +418,7 @@ class EthAssetJSONCreation():
             with open(f'output/{self.api_version}/eth_asset/stats.json', 'w') as fp:
                 json.dump(details_dict, fp)
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/stats', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/stats', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset stats json export done')
         return details_dict
 
@@ -535,7 +539,7 @@ class EthAssetJSONCreation():
             with open(f'output/{self.api_version}/eth_asset/productive_asset.json', 'w') as fp:
                 json.dump(details_dict, fp)
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/productive_asset', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/productive_asset', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset productive asset json export done')
         return details_dict
 
@@ -699,7 +703,7 @@ class EthAssetJSONCreation():
             with open(f'output/{self.api_version}/eth_asset/purchasing_power.json', 'w') as fp:
                 json.dump(details_dict, fp)
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/purchasing_power', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/purchasing_power', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset purchasing power json export done')
         return details_dict
 
@@ -795,7 +799,7 @@ class EthAssetJSONCreation():
             with open(f'output/{self.api_version}/eth_asset/supply_flow.json', 'w') as fp:
                 json.dump(details_dict, fp)
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/supply_flow', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/supply_flow', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset supply flow json export done')
         return details_dict
 
@@ -872,7 +876,7 @@ class EthAssetJSONCreation():
             with open(f'output/{self.api_version}/eth_asset/properties.json', 'w') as fp:
                 json.dump(details_dict, fp)
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/properties', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/properties', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset properties json export done')
         return details_dict
 
@@ -1028,7 +1032,7 @@ class EthAssetJSONCreation():
             with open(f'output/{self.api_version}/eth_asset/market_caps.json', 'w') as fp:
                 json.dump(details_dict, fp)
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/market_caps', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/market_caps', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset market caps json export done')
         return details_dict
 
@@ -1050,6 +1054,6 @@ class EthAssetJSONCreation():
             with open(f'output/{self.api_version}/eth_asset/kpis.json', 'w') as fp:
                 json.dump(details_dict, fp)
         else:
-            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/kpis', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/kpis', details_dict, self.cf_distribution_id, cache_control=ETH_ASSET_CACHE_CONTROL, invalidate=False)
         print('DONE -- ETH asset KPIs json export done')
         return details_dict

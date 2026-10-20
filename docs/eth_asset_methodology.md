@@ -13,6 +13,8 @@ Data behind the "ETH the asset" page. Eight JSONs, regenerated hourly (some once
 | `v1/eth_asset/today.json` | "Today in ETH": one AI-written card per day with a positive number from our data |
 | `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
+Caching: the JSONs are uploaded **without CloudFront invalidations**. All of them use `Cache-Control: public, max-age=60, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400` (`ETH_ASSET_CACHE_CONTROL`), so new data is visible on the API at the latest ~5 minutes after an upload. Logos are uploaded once and never invalidated.
+
 Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
 
 ---
