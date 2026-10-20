@@ -95,7 +95,7 @@ CMC_LOGO_URL = 'https://companiesmarketcap.com/img/company-logos/128/{}.png'
 HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'}
 ## crypto: CoinGecko id -> key (logo comes from CoinGecko)
 MCAP_CRYPTO = {'ethereum': 'eth', 'bitcoin': 'btc', 'tether': 'usdt', 'usd-coin': 'usdc'}
-MCAP_EQUITY_TOP_N = 10
+MCAP_EQUITY_TOP_N = 20
 ## ETH/BTC market cap ratio, daily history (~5.5 years). Our CoinGecko plan only serves 2 years of market_chart history, so:
 ##   ETH: fact_kpis.market_cap_usd (CoinGecko, collected daily since 2015)
 ##   BTC: Yahoo Finance BTC-USD daily close x circulating supply from blockchain.com (matches CoinGecko within ~0.2% on a typical day)
