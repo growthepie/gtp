@@ -117,6 +117,15 @@ INSEE_SERIES_URL = 'https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/{}'
 ONS_SERIES_URL = 'https://www.ons.gov.uk/generator?format=csv&uri=/economy/inflationandpriceindices/timeseries/{}/mm23'
 TROY_OZ_IN_GRAMS = 31.1034768
 
+## ----- 'The supply, in one picture' (issuance tap vs. burn drain) -----
+## scenarios = real historical 7-day windows:
+##   quiet = 10th percentile of weekly burn over the last year, busy = 90th percentile of weekly burn since the Merge
+##   (same PoS issuance regime as today), mania = highest weekly burn since London
+SUPPLY_FLOW_QUIET_QUANTILE = 0.1
+SUPPLY_FLOW_QUIET_LOOKBACK_DAYS = 365
+SUPPLY_FLOW_BUSY_QUANTILE = 0.9
+SUPPLY_FLOW_BUSY_SINCE = '2022-09-15'  ## the Merge
+
 ## World Bank Population Estimates and Projections (source 40), mid-year (July 1) world population incl. projections
 WORLD_POPULATION_URL = 'https://api.worldbank.org/v2/country/WLD/indicator/SP.POP.TOTL?format=json&source=40&date=2020:2040&per_page=100'
 ## window to derive per_second_increase of total wallets (7d is noticeably noisier due to HLL estimation error)
@@ -692,6 +701,102 @@ class EthAssetJSONCreation():
         else:
             upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/purchasing_power', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
         print('DONE -- ETH asset purchasing power json export done')
+        return details_dict
+
+    ## 'The supply, in one picture': weekly issuance to stakers (tap) vs. burn (drain) for last week and historical scenarios.
+    ## Issuance in scenarios is always today's (it depends on the amount staked, not on activity), burn comes from the scenario week.
+    def create_supply_flow_json(self):
+        import numpy as np
+        df = self.db_connector.execute_query("""
+            SELECT "date", metric_key, value FROM public.eim_fact
+            WHERE origin_key = 'ethereum' AND metric_key IN ('eth_burned_eth', 'staking_rewards_cl_eth') AND "date" >= '2021-08-05'
+        """, load_df=True)
+        df['date'] = pd.to_datetime(df['date'])
+        p = df.pivot_table(index='date', columns='metric_key', values='value', aggfunc='last').sort_index()
+        today = pd.Timestamp(datetime.now(timezone.utc).date())
+        p = p[p.index < today]
+
+        ## last week = last 7 complete days with both issuance and burn
+        last = p.dropna().tail(7)
+        issuance_week = float(last['staking_rewards_cl_eth'].sum())
+
+        ## supply level at the end of the last complete day (hourly supply at today 00:00 UTC, or the latest before);
+        ## daily water levels are reconstructed backwards from issuance - burn
+        supply = self.db_connector.execute_query(f"""
+            SELECT "timestamp", value FROM public.fact_kpis_granular
+            WHERE origin_key = 'ethereum' AND metric_key = 'eth_supply_eth' AND granularity = 'hourly' AND "timestamp" <= '{today}'
+            ORDER BY "timestamp" DESC LIMIT 1
+        """, load_df=True).iloc[0]
+        supply_now = float(supply['value'])
+        net_daily = last['staking_rewards_cl_eth'] - last['eth_burned_eth']
+        supply_end_of_day = supply_now - net_daily[::-1].cumsum()[::-1].shift(-1, fill_value=0)
+
+        ## scenario weeks from rolling 7-day burn
+        weekly_burn = p['eth_burned_eth'].rolling(7).sum().dropna()
+        ## real week whose burn is closest to the given quantile within the window
+        def week_closest_to(window, q):
+            end = (window - window.quantile(q)).abs().idxmin()
+            return end, float(window[end])
+        quiet_end, quiet_burn = week_closest_to(weekly_burn[weekly_burn.index >= weekly_burn.index.max() - pd.Timedelta(days=SUPPLY_FLOW_QUIET_LOOKBACK_DAYS)], SUPPLY_FLOW_QUIET_QUANTILE)
+        busy_end, busy_burn = week_closest_to(weekly_burn[weekly_burn.index >= pd.Timestamp(SUPPLY_FLOW_BUSY_SINCE) + pd.Timedelta(days=6)], SUPPLY_FLOW_BUSY_QUANTILE)
+        mania_end, mania_burn = weekly_burn.idxmax(), float(weekly_burn.max())
+
+        ## network demand slider: log scale, quiet week = 0, mania = 1
+        log_lo, log_hi = np.log(quiet_burn), np.log(mania_burn)
+        demand_level = lambda burn: float(min(max((np.log(max(burn, 1e-9)) - log_lo) / (log_hi - log_lo), 0), 1))
+
+        def scenario(key, name, burn, start, end, description, daily=None):
+            net = issuance_week - burn
+            out = {
+                'key': key, 'name': name,
+                'period': {'start': start.strftime('%Y-%m-%d'), 'end': end.strftime('%Y-%m-%d')},
+                'issued_per_week': issuance_week, 'burned_per_week': burn, 'net_per_week': net,
+                'net_annual_pct': net * 365 / 7 / supply_now,
+                'burned_share_of_issuance': burn / issuance_week,
+                'demand_level': demand_level(burn),
+                'description': description,
+            }
+            if daily is not None:
+                out['daily'] = daily
+            return out
+
+        unix = (last.index - pd.Timestamp('1970-01-01')) // pd.Timedelta(milliseconds=1)
+        daily = {
+            'types': ['unix', 'issued', 'burned', 'supply_end_of_day'],
+            'data': [[int(u), float(i), float(b), float(sv)] for u, i, b, sv in zip(unix, last['staking_rewards_cl_eth'], last['eth_burned_eth'], supply_end_of_day)],
+        }
+        last_issued, last_burned = float(last['staking_rewards_cl_eth'].sum()), float(last['eth_burned_eth'].sum())
+        scenarios = [
+            scenario('last_week', 'Last week', last_burned, last.index[0], last.index[-1], 'Actual issuance and burn of the last 7 complete days.', daily),
+            scenario('quiet_week', 'Quiet week', quiet_burn, quiet_end - pd.Timedelta(days=6), quiet_end,
+                     f'A real week with little network activity: {int(SUPPLY_FLOW_QUIET_QUANTILE*100)}th percentile of weekly burn over the last year, with today\'s issuance.'),
+            scenario('busy_week', 'Busy week', busy_burn, busy_end - pd.Timedelta(days=6), busy_end,
+                     f'A real week with high network activity: {int(SUPPLY_FLOW_BUSY_QUANTILE*100)}th percentile of weekly burn since the Merge (Sep 2022), with today\'s issuance.'),
+            scenario('mania', 'Mania', mania_burn, mania_end - pd.Timedelta(days=6), mania_end,
+                     "The highest weekly burn since EIP-1559 (Aug 2021), with today's issuance."),
+        ]
+        scenarios[0]['issued_per_week'] = last_issued  ## identical to issuance_week, kept explicit for last week
+
+        details_dict = {
+            'data': {
+                'supply': {'value': supply_now, 'as_of': pd.Timestamp(supply['timestamp']).strftime('%Y-%m-%d %H:%M')},
+                'break_even_burn_per_week': issuance_week,
+                'break_even_demand_level': demand_level(issuance_week),
+                'scenarios': scenarios,
+                'sources': [SOURCES['ethsupply'], SOURCES['growthepie'], SOURCES['ultrasound']],
+            },
+            'last_updated_utc': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S'),
+        }
+        details_dict = fix_dict_nan(details_dict, 'eth_asset/supply_flow')
+
+        if self.s3_bucket is None:
+            import os, json
+            os.makedirs(f'output/{self.api_version}/eth_asset', exist_ok=True)
+            with open(f'output/{self.api_version}/eth_asset/supply_flow.json', 'w') as fp:
+                json.dump(details_dict, fp)
+        else:
+            upload_json_to_cf_s3(self.s3_bucket, f'{self.api_version}/eth_asset/supply_flow', details_dict, self.cf_distribution_id, cache_control="public, max-age=60, s-maxage=900, stale-while-revalidate=60, stale-if-error=86400")
+        print('DONE -- ETH asset supply flow json export done')
         return details_dict
 
     ## ETH used as collateral (latest daily snapshot), partitioned into lending / liquid staking / DEX without overlap

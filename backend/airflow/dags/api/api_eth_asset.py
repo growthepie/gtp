@@ -162,7 +162,8 @@ def etl():
 
     supply = run_eth_supply_hourly()
     staking = run_eth_staking()
-    [supply, run_eth_burned(), staking] >> run_create_kpis_json()
+    burned = run_eth_burned()
+    [supply, burned, staking] >> run_create_kpis_json()
     supply >> run_create_stats_json()
     @task()
     def run_reference_data():
@@ -210,5 +211,23 @@ def etl():
 
     ## ETH price comes from metrics_coingecko_hourly (runs before this DAG), shop prices from FRED
     run_create_purchasing_power_json()
+
+    @task()
+    def run_create_supply_flow_json():
+        from datetime import datetime, timezone
+        from src.db_connector import DbConnector
+        from src.api.eth_asset_json import EthAssetJSONCreation
+
+        ## once a day is enough (based on complete days of issuance and burn)
+        if datetime.now(timezone.utc).hour != 7:
+            print("Only refreshed at 07:xx UTC, skipping.")
+            return
+
+        db_connector = DbConnector()
+        json_creator = EthAssetJSONCreation(os.getenv("S3_CF_BUCKET"), os.getenv("CF_DISTRIBUTION_ID"), db_connector, api_version)
+        json_creator.create_supply_flow_json()
+
+    ## needs yesterday's burn and CL rewards (rolled up in run_eth_burned / run_eth_staking)
+    [supply, burned, staking] >> run_create_supply_flow_json()
 
 etl()

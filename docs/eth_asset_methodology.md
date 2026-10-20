@@ -1,6 +1,6 @@
 # ETH Asset Page — Data Methodology
 
-Data behind the "ETH the asset" page. Six JSONs, all regenerated hourly by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
+Data behind the "ETH the asset" page. Seven JSONs, regenerated hourly (some once a day, see each section) by the Airflow DAG `api_eth_asset` (runs at `:35`, after the hourly CoinGecko price load):
 
 | JSON | Content |
 |---|---|
@@ -9,6 +9,7 @@ Data behind the "ETH the asset" page. Six JSONs, all regenerated hourly by the A
 | `v1/eth_asset/properties.json` | "ETH is 6 things at once" section: yield breakdown, scarcity, collateral, ETH paid as gas |
 | `v1/eth_asset/productive_asset.json` | "Yield on the asset itself" comparison: ETH staking yield vs. central bank rates, dividends, gold, BTC, savings |
 | `v1/eth_asset/purchasing_power.json` | "What one ETH actually buys": everyday goods per ETH today vs. a year ago, and what changed it |
+| `v1/eth_asset/supply_flow.json` | "The supply, in one picture": weekly issuance (tap) vs. burn (drain) for last week and historical scenarios |
 | `v1/eth_asset/market_caps.json` | "How big is it really" section: current market cap of ETH vs. top cryptos, commodities and companies |
 
 Code: `backend/airflow/dags/api/api_eth_asset.py`, `backend/src/api/eth_asset_json.py`, `backend/eim/adapters/adapter_eth_supply.py`, `backend/eim/adapters/adapter_eth_collateral.py`, `backend/eim/adapters/adapter_reference_data.py`, `backend/src/db_connector.py` (`get_eth_burned`, `get_eth_staking_cl_daily`).
@@ -203,7 +204,24 @@ How many units of everyday goods 1 ETH buys today vs. a year ago, for 4 regions 
 
 ---
 
-## 6. Market caps (`market_caps.json`)
+## 6. Supply flow (`supply_flow.json`)
+
+Inflation/burn explainer: weekly issuance to stakers (the tap) vs. burn (the drain). Rebuilt **once a day** (07:00 UTC), based on complete days only.
+
+- Issued = net CL rewards (issuance − consensus penalties, ethsupply.fyi, daily rollup of hourly data). Burned = base fee + blob fee burn (own `ethereum_blocks`). Same daily data as the KPIs, from `eim_fact`.
+- Scenarios (`data.scenarios`, in toggle order):
+  - `last_week`: actual issuance and burn of the last 7 complete days, plus `daily` (issued, burned, supply at end of day) for the time-lapse.
+  - `quiet_week`: the real 7-day window whose burn is closest to the 10th percentile of weekly burn over the last 365 days.
+  - `busy_week`: the real 7-day window whose burn is closest to the 90th percentile of weekly burn since the Merge (Sep 15, 2022), the same PoS issuance regime as today. Over the last year alone, even busy weeks burn so little (<1k ETH) that they'd look like quiet weeks; since the Merge, a busy week roughly offsets issuance.
+  - `mania`: the highest 7-day burn since EIP-1559 (Aug 2021), currently Jan 9–15, 2022 (~112k ETH).
+  - All scenarios use **today's** weekly issuance (last 7 days). Issuance depends on the amount staked, not on network activity, so only burn changes between scenarios. Mania's original week was before the Merge, so only its burn is used.
+- Per scenario: `issued_per_week`, `burned_per_week`, `net_per_week`, `net_annual_pct` (= net per week × 365/7 ÷ supply), `burned_share_of_issuance`, `period`, `description`.
+- `demand_level` places each scenario on the "network demand" slider, on a log scale of weekly burn: quiet week = 0, mania = 1. `break_even_burn_per_week` (= weekly issuance) and `break_even_demand_level` mark where supply stops growing (currently ~20.8k ETH/week, level ~0.75).
+- `supply`: hourly supply (ultrasound.money) at the end of the last complete day. The daily water levels of last week are reconstructed backwards from it with issued − burned, because the daily supply snapshots are not taken at consistent times.
+
+---
+
+## 7. Market caps (`market_caps.json`)
 
 Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardcoded, and nothing needs manual updates.
 
@@ -220,7 +238,7 @@ Current market cap in USD, rebuilt **once a day** (07:00 UTC). Nothing is hardco
 
 ---
 
-## 7. Source reliability and fallbacks
+## 8. Source reliability and fallbacks
 
 | Source | Used for | If unavailable |
 |---|---|---|
