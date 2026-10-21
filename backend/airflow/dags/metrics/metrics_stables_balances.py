@@ -31,17 +31,17 @@ def etl():
         # + Blockscout current top holders (first run + Mondays; needs BLOCKSCOUT_API_KEY_PRO, Polygon needs a higher plan)
         # 'dune_history' (yearly windows) is a manual one-time seed for chains without Blockscout access
         ad.extract({
-            'origin_keys': ['ethereum', 'polygon_pos', 'celo'],
+            'origin_keys': ['ethereum', 'polygon_pos', 'celo'], # target: ['*'] = all app metrics chains (minus starknet)
             'days': 30,
             'sources': ['activity', 'oli', 'dune', 'blockscout'],
             'top_n': 1000,
-            'oli_limit': 2000,
             'dune_top_n': 1000,
             'dune_days': 7,
             'dune_min_received_usd': 100_000,
             'blockscout_top_n': 1000,
             'blockscout_min_usd': 10_000,
             'blockscout_weekday': 0,
+            'prune_min_usd': 10_000,          # stop measuring candidates without OLI owner that stay below this
         })
 
     run_stables_balances()

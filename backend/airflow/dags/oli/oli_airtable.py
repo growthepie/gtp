@@ -169,9 +169,10 @@ def etl():
         df1 = db_connector.get_unlabelled_contracts('20', '180') # top 20 contracts per chain from last 3 months
         df2 = db_connector.get_unlabelled_contracts('20', '30') # top 20 contracts per chain from last month
         df3 = db_connector.get_unlabelled_contracts('20', '7') # top 20 contracts per chain from last week
+        df4 = db_connector.get_unlabelled_stables_holders(20) # top 20 addresses per chain by stablecoin balance (metrics_stables_balances), reason in _comment
 
-        # merge the all dataframes & reset index
-        df = pd.concat([df0, df1, df2, df3])
+        # merge the all dataframes & reset index (stablecoin holders first, so their _comment survives the dedup below)
+        df = pd.concat([df4, df0, df1, df2, df3])
         df = df.reset_index(drop=True)
 
         # remove duplicates
@@ -189,7 +190,16 @@ def etl():
             return str(addr)
 
         df['address'] = df.apply(normalize_address, axis=1)
-        
+        # dedup again: get_unlabelled_stables_holders returns hex strings, the other readers bytes
+        df = df.drop_duplicates(subset=['address', 'origin_key'])
+
+        # stablecoin balance (USD, latest measured day) for every address we track in metrics_stables_balances; empty otherwise
+        df_bal = db_connector.get_latest_stables_balances_usd()
+        df['_address_lower'] = df['address'].str.lower()
+        df = df.merge(df_bal.rename(columns={'address': '_address_lower'}), on=['_address_lower', 'origin_key'], how='left')
+        df['stablecoin_balance'] = df['stablecoin_balance'].round(0)
+        df = df.drop(columns=['_address_lower'])
+
         ## drop column caip2
         df = df.drop(columns=['caip2'])
 

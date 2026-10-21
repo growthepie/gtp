@@ -14,10 +14,12 @@ CREATE TABLE IF NOT EXISTS public.sys_stables_balances_candidates (
     measured_from       date,
     measured_to         date,
     last_full_scan      date,                   -- last date ALL mapped tokens were read; in between only held pairs are read
+    pruned_on           date,                   -- set when a small, unlabeled candidate stops being measured (see prune())
     PRIMARY KEY (origin_key, address)
 );
 -- added after the first deploy:
 ALTER TABLE public.sys_stables_balances_candidates ADD COLUMN IF NOT EXISTS last_full_scan date;
+ALTER TABLE public.sys_stables_balances_candidates ADD COLUMN IF NOT EXISTS pruned_on date;
 
 -- End-of-day stablecoin balance per address. Sparse: only non-zero balances are stored.
 CREATE TABLE IF NOT EXISTS public.fact_stables_balances (

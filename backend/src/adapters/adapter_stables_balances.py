@@ -87,7 +87,8 @@ class AdapterStablecoinBalances(AbstractAdapter):
 
         Args:
             extract_params (dict):
-            - origin_keys (list): chains to run for, e.g. ['ethereum', 'polygon_pos', 'celo']
+            - origin_keys (list): chains to run for, e.g. ['ethereum', 'polygon_pos', 'celo'].
+              ['*'] = every chain with app metrics (runs_aggregate_apps in main_config), except non-EVM chains.
             - days (int): measure balances for the last n days (excl. today). Default 30.
             - discover (bool): run discovery step. Default True.
             - sources (list): discovery sources, any of 'activity', 'oli', 'dune', 'blockscout', 'dune_history', 'dune_holders'.
@@ -98,7 +99,8 @@ class AdapterStablecoinBalances(AbstractAdapter):
               without Blockscout access (e.g. Polygon). 'dune_holders' (all-time net transfers) is a fallback only:
               ~60 credits on Ethereum and it times out on Polygon/Celo.
             - top_n (int): 'activity': top n most used addresses (by gas, txcount and daa). Default 1000.
-            - oli_limit (int): 'oli': max OLI labeled addresses (with owner_project), ranked by 30d txcount. Default 2000.
+            - oli_limit (int or None): 'oli': max OLI labeled addresses (with owner_project), ranked by 30d txcount.
+              Default None = all of them (the goal is daily balances for every address with an owner_project).
             - dune_top_n (int): 'dune': top n receivers per token. Default 1000.
             - dune_days (int): 'dune': lookback for received amounts. Default 7.
             - dune_min_received_usd (float): 'dune': min USD received per (address, token) within dune_days. Default 100k.
@@ -115,13 +117,28 @@ class AdapterStablecoinBalances(AbstractAdapter):
             - holders_min_supply_share (float): 'dune_holders': only tokens with at least this share of the chain's stablecoin supply. Default 0.01.
             - holders_min_usd (float): 'dune_holders': min approximate balance in USD. Default 100k.
             - holders_token_ids (list): 'dune_holders': rank holders of these token_ids instead of selecting by supply share.
+            - prune (bool): stop measuring small candidates after measurement (see prune()). Default True.
+            - prune_min_usd (float), prune_lookback_days (int), prune_min_measured_days (int): Defaults 10k, 30, 14.
         """
         days = extract_params.get('days', 30)
-        for origin_key in extract_params['origin_keys']:
+        origin_keys = extract_params['origin_keys']
+        if origin_keys == ['*']:
+            origin_keys = self.get_app_chains()
+            print(f"Running for app metrics chains: {origin_keys}")
+        for origin_key in origin_keys:
             if extract_params.get('discover', True):
                 self.discover(origin_key, extract_params)
             self.measure(origin_key, days=days)
+            if extract_params.get('prune', True):
+                self.prune(origin_key, extract_params.get('prune_min_usd', 10_000), extract_params.get('prune_lookback_days', 30), extract_params.get('prune_min_measured_days', 14))
             print(f"{origin_key}: done. eth_calls so far: {self.rpc_calls}")
+
+    # balances are read via Multicall3 / web3, which these chains don't support (Starknet needs its own path)
+    NON_EVM_CHAINS = {'starknet'}
+
+    def get_app_chains(self) -> list:
+        """ chains with app metrics enabled (runs_aggregate_apps), minus non-EVM chains """
+        return [c.origin_key for c in self._main_config() if c.runs_aggregate_apps and c.origin_key not in self.NON_EVM_CHAINS]
 
     def load(self, df):
         # measure() loads after every date so progress in sys_stables_balances_candidates stays consistent
@@ -142,7 +159,7 @@ class AdapterStablecoinBalances(AbstractAdapter):
         if 'activity' in sources:
             frames.append(self._discover_activity(origin_key, params.get('top_n', 1000)))
         if 'oli' in sources:
-            frames.append(self._discover_oli(origin_key, params.get('oli_limit', 2000)))
+            frames.append(self._discover_oli(origin_key, params.get('oli_limit')))
         if 'dune' in sources:
             frames.append(self._discover_dune(origin_key, params.get('dune_top_n', 1000), params.get('dune_days', 7), params.get('dune_min_received_usd', 100_000)))
         if 'blockscout' in sources and self._blockscout_due(origin_key, params.get('blockscout_weekday', 0)):
@@ -174,7 +191,48 @@ class AdapterStablecoinBalances(AbstractAdapter):
         merged['origin_key'] = origin_key
 
         self._upsert_candidates(merged[['origin_key', 'address', 'sources', 'first_discovered', 'last_discovered']])
-        print(f"{origin_key}: discovered {len(merged)} candidates ({n_new} new).")
+
+        # a pruned address found again by a balance-based source (or OLI) is measured again; its full scan is forced
+        # and the days it was skipped are backfilled by measure() (its measured range just continues)
+        pruned = set(existing.merge(self.get_candidates(origin_key)[['address', 'pruned_on']], on='address')
+                     .loc[lambda x: x['pruned_on'].notna(), 'address'])
+        revive = [a for a, src in zip(new['address'], new['source']) if a in pruned and src & self.UNPRUNE_SOURCES]
+        if revive:
+            self._upsert_candidates(pd.DataFrame({'origin_key': origin_key, 'address': revive, 'pruned_on': None, 'last_full_scan': None}))
+        print(f"{origin_key}: discovered {len(merged)} candidates ({n_new} new, {len(revive)} unpruned).")
+
+    # sources that say something about balances (or ownership): finding a pruned address again unprunes it
+    UNPRUNE_SOURCES = {'oli', 'dune', 'blockscout', 'dune_history', 'dune_holders'}
+
+    def prune(self, origin_key: str, min_usd: float = 10_000, lookback_days: int = 30, min_measured_days: int = 14):
+        """
+        Stop measuring candidates that don't matter: no OLI owner_project, measured for at least min_measured_days,
+        and a total stablecoin balance below min_usd on every day of the last lookback_days. Their history stays.
+        Addresses with an OLI owner_project are never pruned.
+        """
+        df = self.db_connector.execute_query(f"""
+            WITH daily AS (
+                SELECT address, "date", SUM(balance_usd) AS usd
+                FROM public.vw_fact_stables_balances_v1
+                WHERE origin_key = '{origin_key}' AND "date" >= current_date - interval '{int(lookback_days)} days'
+                GROUP BY 1, 2
+            ),
+            peak AS (SELECT address, MAX(usd) AS max_usd FROM daily GROUP BY 1)
+            SELECT '0x' || encode(c.address, 'hex') AS address
+            FROM public.sys_stables_balances_candidates c
+            LEFT JOIN peak p ON p.address = c.address
+            WHERE c.origin_key = '{origin_key}'
+              AND c.pruned_on IS NULL
+              AND c.measured_from <= current_date - interval '{int(min_measured_days)} days'
+              AND COALESCE(p.max_usd, 0) < {float(min_usd)}
+              AND NOT EXISTS (
+                  SELECT 1 FROM public.vw_oli_label_pool_gold_pivoted_v2 l
+                  WHERE l.address = c.address AND l.origin_key = c.origin_key AND l.owner_project IS NOT NULL
+              )
+        """, load_df=True)
+        if not df.empty:
+            self._upsert_candidates(pd.DataFrame({'origin_key': origin_key, 'address': df['address'], 'pruned_on': date.today()}))
+        print(f"{origin_key}: pruned {len(df)} candidates (no OLI owner, < ${min_usd:,.0f} on every day of the last {lookback_days} days).")
 
     def _discover_activity(self, origin_key: str, top_n: int, days: int = 30) -> pd.DataFrame:
         # most used addresses by gas, txcount or daa (union of the three rankings)
@@ -182,7 +240,7 @@ class AdapterStablecoinBalances(AbstractAdapter):
         print(f"{origin_key}: 'activity' found {len(df)} addresses.")
         return pd.DataFrame({'address': df['address'].apply(self._to_hex), 'source': 'activity'})
 
-    def _discover_oli(self, origin_key: str, oli_limit: int, days: int = 30) -> pd.DataFrame:
+    def _discover_oli(self, origin_key: str, oli_limit: int = None, days: int = 30) -> pd.DataFrame:
         # addresses mapped to an application in OLI, most active first
         query = f"""
             SELECT l.address
@@ -195,7 +253,7 @@ class AdapterStablecoinBalances(AbstractAdapter):
             ) a USING (address)
             WHERE l.origin_key = '{origin_key}' AND l.owner_project IS NOT NULL
             ORDER BY a.txcount DESC NULLS LAST
-            LIMIT {int(oli_limit)}
+            {f'LIMIT {int(oli_limit)}' if oli_limit else ''}
         """
         df = self.db_connector.execute_query(query, load_df=True)
         print(f"{origin_key}: 'oli' found {len(df)} addresses.")
@@ -376,6 +434,7 @@ class AdapterStablecoinBalances(AbstractAdapter):
         tokens = self._get_tokens(origin_key)
         token_by_id = {t['token_id']: t for t in tokens}
         cand = self.get_candidates(origin_key)
+        cand = cand[cand['pruned_on'].isna()]
         if cand.empty or not tokens:
             print(f"{origin_key}: nothing to measure (candidates: {len(cand)}, tokens: {len(tokens)}).")
             return
@@ -524,7 +583,7 @@ class AdapterStablecoinBalances(AbstractAdapter):
     def get_candidates(self, origin_key: str) -> pd.DataFrame:
         query = f"""
             SELECT '0x' || encode(address, 'hex') AS address, sources, first_discovered, last_discovered,
-                   measured_from, measured_to, last_full_scan
+                   measured_from, measured_to, last_full_scan, pruned_on
             FROM public.sys_stables_balances_candidates
             WHERE origin_key = '{origin_key}'
         """
