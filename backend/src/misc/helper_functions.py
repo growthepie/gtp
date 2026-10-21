@@ -643,7 +643,20 @@ def fix_dict_nan(test_dict, dict_name, send_notification=True):
 
 
 ## S3 functions
+
+## Deferred CloudFront invalidations: DAGs that upload many files call defer_cloudfront_invalidations() at the start of each task,
+## so empty_cloudfront_cache() only logs the path instead of creating an invalidation (each path is billed). A final task then
+## invalidates once with a wildcard (e.g. '/v1/*', billed as 1 path). Off by default; the env var only lives in the task's process.
+CF_DEFER_INVALIDATIONS_ENV = 'CF_DEFER_INVALIDATIONS'
+
+def defer_cloudfront_invalidations():
+        os.environ[CF_DEFER_INVALIDATIONS_ENV] = '1'
+        print("CloudFront invalidations are deferred for this task (one wildcard invalidation at the end of the DAG).")
+
 def empty_cloudfront_cache(distribution_id, path):
+        if os.getenv(CF_DEFER_INVALIDATIONS_ENV) == '1':
+            print("Deferred invalidation for path: " + path)
+            return None
         cf = boto3.client(
             "cloudfront",
             aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),

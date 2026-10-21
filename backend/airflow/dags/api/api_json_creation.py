@@ -24,6 +24,8 @@ api_version = "v1"
 def etl():
     @task()
     def run_create_various():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.json_creation import JSONCreation
         from src.misc.helper_functions import send_discord_message
@@ -71,6 +73,8 @@ def etl():
         
     @task()
     def run_create_eco_overview():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.json_creation import JSONCreation
         db_connector = DbConnector()
@@ -80,6 +84,8 @@ def etl():
 
     @task()
     def run_create_app_level_jsons():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.json_creation import JSONCreation
         db_connector = DbConnector()
@@ -92,6 +98,8 @@ def etl():
 
     @task()
     def run_create_labels():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.json_creation import JSONCreation
         db_connector = DbConnector()
@@ -106,6 +114,8 @@ def etl():
 
     @task()
     def run_oli_s3_export():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.json_creation import JSONCreation
         db_connector = DbConnector()
@@ -116,6 +126,8 @@ def etl():
 
     @task()
     def run_create_blockspace_overview():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.blockspace_json_creation import BlockspaceJSONCreation
         db_connector = DbConnector()
@@ -125,6 +137,8 @@ def etl():
 
     @task()
     def run_create_blockspace_category_comparison():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.blockspace_json_creation import BlockspaceJSONCreation
         db_connector = DbConnector()
@@ -134,6 +148,8 @@ def etl():
 
     @task()
     def run_create_chain_blockspace():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.blockspace_json_creation import BlockspaceJSONCreation
         db_connector = DbConnector()
@@ -143,6 +159,8 @@ def etl():
 
     @task()
     def run_create_eim():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         from src.db_connector import DbConnector
         from src.api.json_creation import JSONCreation
         db_connector = DbConnector()
@@ -153,26 +171,29 @@ def etl():
         json_creator.create_eth_supply_json(df)
         json_creator.create_eth_holders_json()
 
-    ## Main 
-    run_create_various()
+    @task(trigger_rule='all_done')
+    def run_invalidate_cloudfront():
+        ## one wildcard invalidation (billed as 1 path) instead of one per uploaded file; runs even if some tasks failed
+        from src.misc.helper_functions import empty_cloudfront_cache
+        empty_cloudfront_cache(os.getenv("CF_DISTRIBUTION_ID"), f'/{api_version}/*')
 
-    ## Eco Overview
-    run_create_eco_overview()
-
-    ## Blockspace
-    run_create_blockspace_overview()
-    run_create_blockspace_category_comparison()
-    run_create_chain_blockspace()
-
-    ## App Level
-    run_create_app_level_jsons()
-
-    ## Labels
-    run_create_labels()
-
-    ## OLI
-    run_oli_s3_export()
-
-    ## Misc
-    run_create_eim()
+    uploads = [
+        ## Main
+        run_create_various(),
+        ## Eco Overview
+        run_create_eco_overview(),
+        ## Blockspace
+        run_create_blockspace_overview(),
+        run_create_blockspace_category_comparison(),
+        run_create_chain_blockspace(),
+        ## App Level
+        run_create_app_level_jsons(),
+        ## Labels
+        run_create_labels(),
+        ## OLI
+        run_oli_s3_export(),
+        ## Misc
+        run_create_eim(),
+    ]
+    uploads >> run_invalidate_cloudfront()
 etl()

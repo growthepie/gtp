@@ -1,3 +1,7 @@
+import csv
+import time
+import tempfile
+import requests
 import pandas as pd
 from datetime import datetime
 
@@ -7,6 +11,7 @@ from src.misc.helper_functions import print_init, print_load, print_extract, sen
 from dune_client.client import DuneClient
 from dune_client.query import QueryBase
 from dune_client.types import QueryParameter
+from dune_client.models import ExecutionState
 
 class AdapterDune(AbstractAdapter):
     def __init__(self, adapter_params:dict, db_connector):
@@ -46,7 +51,7 @@ class AdapterDune(AbstractAdapter):
         for query in self.queries:
             try:
                 print(f"...start loading {query.name} with query_id: {query.query_id} and params: {query.params}")
-                df = self.client.refresh_into_dataframe(query, performance=self.query_speed)
+                df = self.refresh_into_dataframe_paginated(query)
                 print(f"...finished loading {query.name}. Loaded {df.shape[0]} rows")
             except Exception as e:
                 print(f"Error loading {query.name}: {e}")
@@ -108,7 +113,83 @@ class AdapterDune(AbstractAdapter):
         
         
     ## ----------------- Helper functions --------------------
-    
+
+    def refresh_into_dataframe_paginated(self, query:QueryBase, ping_frequency:int=5):
+        """
+        Executes a Dune query, waits for completion and downloads the CSV result page by page.
+        Replaces DuneClient.refresh_into_dataframe: for large results (>~300MB) Dune's unpaginated
+        CSV endpoint returns HTTP 200 with an error text body, which pandas parses as 0 rows.
+        """
+        job_id = self.client.execute(query, performance=self.query_speed).execution_id
+        status = self.client.get_status(job_id)
+        while status.state not in ExecutionState.terminal_states():
+            time.sleep(ping_frequency)
+            status = self.client.get_status(job_id)
+        if status.state != ExecutionState.COMPLETED:
+            raise Exception(f"Dune execution {job_id} for query {query.query_id} ended in state {status.state.value}")
+        return self.get_result_dataframe_paginated(job_id, status.result_metadata)
+
+    def get_result_dataframe_paginated(self, job_id:str, result_metadata=None, page_size:int=10000, max_retries:int=5):
+        """
+        Downloads the CSV result of a finished execution in pages and parses it once (so dtypes are inferred over the full result).
+        Page size is halved whenever Dune rejects a page as too large (HTTP 412) and grows back after successful pages.
+        """
+        if result_metadata is None:
+            result_metadata = self.client.get_status(job_id).result_metadata
+        expected_columns = result_metadata.column_names
+        expected_rows = result_metadata.total_row_count
+
+        url = self.client._route_url(f"/execution/{job_id}/results/csv")
+        headers = self.client.default_headers()
+        limit, offset, retries, pages = page_size, 0, 0, 0
+
+        with tempfile.TemporaryFile(mode='w+', encoding='utf-8', newline='') as f:
+            header_written = False
+            while True:
+                try:
+                    response = requests.get(url, headers=headers, params={'limit': limit, 'offset': offset}, timeout=300)
+                except requests.RequestException as e:
+                    response, error = None, e
+                if response is None or response.status_code == 429 or response.status_code >= 500:
+                    retries += 1
+                    if retries > max_retries:
+                        raise Exception(f"Dune execution {job_id}: failed to download page at offset {offset}: {response.text if response is not None else error}")
+                    time.sleep(2 ** retries)
+                    continue
+                retries = 0
+
+                header, _, body = response.text.partition('\n')
+                header_ok = response.status_code == 200 and next(csv.reader([header.rstrip('\r')]), []) == expected_columns
+                # 412 = page too large; a 200 with a non-CSV body (e.g. "### An unexpected error occurred ###") is treated the same
+                if response.status_code == 412 or (response.status_code == 200 and not header_ok):
+                    if limit == 1:
+                        raise Exception(f"Dune execution {job_id}: cannot download row at offset {offset}: {response.text[:200]}")
+                    limit = max(1, limit // 2)
+                    continue
+                response.raise_for_status()
+
+                if not header_written:
+                    f.write(header + '\n')
+                    header_written = True
+                if body and not body.endswith('\n'):
+                    body += '\n'
+                f.write(body)
+                pages += 1
+
+                next_offset = response.headers.get('x-dune-next-offset')
+                if next_offset is None:
+                    break
+                offset = int(next_offset)
+                limit = min(page_size, limit * 2)
+
+            f.seek(0)
+            df = pd.read_csv(f)
+
+        if df.shape[0] != expected_rows:
+            raise Exception(f"Dune execution {job_id}: downloaded {df.shape[0]} rows but expected {expected_rows}")
+        print(f"...downloaded {df.shape[0]} rows in {pages} pages for execution {job_id}")
+        return df
+
     def prepare_df_metric_daily(self, df):
         # unpivot df only if not already in the correct format
         if 'metric_key' not in df.columns and 'value' not in df.columns:

@@ -60,3 +60,27 @@ backend/src/adapters/*.txt
 claude_output.json
 
 handoff.md
+docs/oli_growthepie_website_proposal.md
+
+output/v1/og_images/
+backend/airflow/simple_auth_manager_passwords.json.generated
+backend/script_archive_delete_uops.py
+backend/script_bq_aa_apps.py
+backend/script_contract_hll_backfill.py
+backend/script_dune_backfill_aa.py
+backend/script_hll_backfill.py
+backend/temp_img.jpeg
+backend/temp_img.jpg
+backend/temp_img.png
+backend/temp_img.svg
+backend/temp_img.webp
+backend/celo_fee_cache.json
+backend/src/api/og_resources/metrics_data.json
+backend/src/api/og_resources/quick-bites/celo-report_full.webp
+backend/src/api/og_resources/quick-bites/celo-report.webp
+backend/src/api/og_resources/metrics_data.json
+backend/src/oli/api/env-file.env
+vera/state/
+backend/script_vera_dry_run.py
+backend/src/api/og_resources/metrics_data.json
+backend/src/api/og_resources/metrics_data.json

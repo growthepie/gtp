@@ -2936,3 +2936,69 @@ class DbConnector:
                 '''
                 df = pd.read_sql(exec_string, self.engine.connect())
                 return df
+
+        # ETH burned (EIP-1559 base fee + EIP-4844 blob fee) per hour or per day, aggregated from ethereum_blocks (starts at Dencun, 2024-03-13).
+        # Only complete hours/days are returned. Returns df ready for fact_kpis_granular (hourly) or eim_fact (daily).
+        def get_eth_burned(self, granularity:str='hourly', hours:int=48):
+                if granularity == 'hourly':
+                        time_col = "date_trunc('hour', \"timestamp\")"
+                        time_end = "date_trunc('hour', now() at time zone 'utc')"
+                elif granularity == 'daily':
+                        time_col = "block_date"
+                        time_end = "date_trunc('day', now() at time zone 'utc')"
+                else:
+                        raise ValueError("granularity must be 'hourly' or 'daily'")
+
+                exec_string = f'''
+                        SELECT
+                                {time_col} AS ts,
+                                SUM(
+                                        base_fee_per_gas::NUMERIC * gas_used
+                                        + COALESCE(blob_base_fee, 0)::NUMERIC * COALESCE(blob_gas_used, 0)
+                                ) / 1e18 AS value
+                        FROM public.ethereum_blocks
+                        WHERE "timestamp" >= {time_end} - INTERVAL '{hours} hours'
+                                AND "timestamp" < {time_end}
+                        GROUP BY 1
+                        ORDER BY 1
+                '''
+                df = pd.read_sql(text(exec_string), self.engine.connect())
+                df['value'] = df['value'].astype(float)
+                df['metric_key'] = 'eth_burned_eth'
+                df['origin_key'] = 'ethereum'
+
+                if granularity == 'hourly':
+                        df['granularity'] = 'hourly'
+                        df = df.rename(columns={'ts': 'timestamp'}).set_index(['metric_key', 'origin_key', 'timestamp', 'granularity'])
+                else:
+                        df = df.rename(columns={'ts': 'date'}).set_index(['metric_key', 'origin_key', 'date'])
+                return df
+
+        # Daily net CL staking rewards & yield, aggregated from hourly data in fact_kpis_granular (source: ethsupply.fyi).
+        # Only complete days (all 24 hours present) are returned. Yield = daily rewards * 365 / avg staked ETH of the day.
+        def get_eth_staking_cl_daily(self, days:int=3):
+                exec_string = f'''
+                        WITH h AS (
+                                SELECT
+                                        date_trunc('day', "timestamp")::date AS date,
+                                        metric_key,
+                                        SUM(value) AS value_sum,
+                                        AVG(value) AS value_avg,
+                                        COUNT(*) AS hours
+                                FROM public.fact_kpis_granular
+                                WHERE origin_key = 'ethereum'
+                                        AND granularity = 'hourly'
+                                        AND metric_key IN ('staking_rewards_cl_eth', 'eth_staked_eth')
+                                        AND "timestamp" >= date_trunc('day', now() at time zone 'utc') - INTERVAL '{days} days'
+                                        AND "timestamp" < date_trunc('day', now() at time zone 'utc')
+                                GROUP BY 1,2
+                        )
+                        SELECT r.date, r.value_sum AS staking_rewards_cl_eth, r.value_sum * 365 / s.value_avg AS staking_yield_cl
+                        FROM h r
+                        JOIN h s ON s.date = r.date AND s.metric_key = 'eth_staked_eth'
+                        WHERE r.metric_key = 'staking_rewards_cl_eth' AND r.hours = 24
+                '''
+                df = pd.read_sql(text(exec_string), self.engine.connect())
+                df = df.melt(id_vars=['date'], var_name='metric_key', value_name='value')
+                df['origin_key'] = 'ethereum'
+                return df.set_index(['metric_key', 'origin_key', 'date'])

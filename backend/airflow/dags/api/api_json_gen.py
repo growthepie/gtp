@@ -22,6 +22,8 @@ api_version = "v1"
 def run():
     @task(execution_timeout=timedelta(minutes=30))
     def run_create_metrics_per_chain_jsons_daily():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         import os
         from src.api.json_gen import JsonGen
         from src.db_connector import DbConnector
@@ -34,6 +36,8 @@ def run():
         
     @task(execution_timeout=timedelta(minutes=30))
     def run_create_chain_overview_jsons():    
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         import os
         from src.api.json_gen import JsonGen
         from src.db_connector import DbConnector
@@ -45,6 +49,8 @@ def run():
     
     @task(execution_timeout=timedelta(minutes=30))
     def run_create_chain_user_insights_jsons():    
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         import os
         from src.api.json_gen import JsonGen
         from src.db_connector import DbConnector
@@ -56,6 +62,8 @@ def run():
         
     @task(execution_timeout=timedelta(minutes=30))
     def run_create_treemap_json():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         import os
         from src.api.json_gen import JsonGen
         from src.db_connector import DbConnector
@@ -67,6 +75,8 @@ def run():
         
     @task(execution_timeout=timedelta(minutes=30))
     def run_create_temp_megaeth_apps_json():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         import os
         from src.api.json_gen import JsonGen
         from src.db_connector import DbConnector
@@ -78,6 +88,8 @@ def run():
 
     @task(execution_timeout=timedelta(minutes=30))
     def run_create_contract_owner_project_mappings_json():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         import os
         from src.api.json_gen import JsonGen
         from src.db_connector import DbConnector
@@ -89,6 +101,8 @@ def run():
 
     @task(execution_timeout=timedelta(minutes=30))
     def run_create_seo_jsons():
+        from src.misc.helper_functions import defer_cloudfront_invalidations
+        defer_cloudfront_invalidations()
         import os
         from src.api.json_gen import JsonGen
         from src.db_connector import DbConnector
@@ -110,13 +124,23 @@ def run():
     #     json_gen.create_ecosystem_builders_json()
         
     
-    run_create_metrics_per_chain_jsons_daily()
-    run_create_chain_overview_jsons()
-    #run_create_chain_user_insights_jsons()
-    #run_create_ecosystem_jsons()
-    run_create_treemap_json()
-    run_create_temp_megaeth_apps_json()
-    run_create_contract_owner_project_mappings_json()
-    run_create_seo_jsons()
-    
+    @task(trigger_rule='all_done')
+    def run_invalidate_cloudfront():
+        ## one wildcard invalidation (billed as 1 path) instead of one per uploaded file; runs even if some tasks failed
+        import os
+        from src.misc.helper_functions import empty_cloudfront_cache
+        empty_cloudfront_cache(os.getenv("CF_DISTRIBUTION_ID"), f'/{api_version}/*')
+
+    uploads = [
+        run_create_metrics_per_chain_jsons_daily(),
+        run_create_chain_overview_jsons(),
+        #run_create_chain_user_insights_jsons(),
+        #run_create_ecosystem_jsons(),
+        run_create_treemap_json(),
+        run_create_temp_megaeth_apps_json(),
+        run_create_contract_owner_project_mappings_json(),
+        run_create_seo_jsons(),
+    ]
+    uploads >> run_invalidate_cloudfront()
+
 run()

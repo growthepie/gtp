@@ -20,6 +20,7 @@ WITH filtered_labels AS (
     AND attester != decode('C139d50144Ee873c8577d682628E045dECe6040E', 'hex') -- growthepie.automatic
     AND attester != decode('aDbf2b56995b57525Aa9a45df19091a2C5a2A970', 'hex') -- OLI_automated_labeler
     AND attester != decode('ab81887E560e7C7b5993cE45D1c584d7FC22e898', 'hex') -- OLI_automated_labeler_trading
+    AND attester != decode('f2d1ec252d947e265d5f9565ec32b902af6838b0', 'hex') -- gtp auto (Verifier Alliance sync)
     AND chain_id IN (SELECT caip2 FROM sys_main_conf)
     AND tag_id IN ('contract_name', 'owner_project', 'usage_category')
     AND NULLIF(BTRIM(tag_value), '') IS NOT NULL
