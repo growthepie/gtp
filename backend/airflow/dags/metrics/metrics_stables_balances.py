@@ -32,7 +32,7 @@ def etl():
         # 'dune_history' (yearly windows) is a manual one-time seed for chains without Blockscout access
         ad.extract({
             'origin_keys': ['ethereum', 'polygon_pos', 'celo'], # target: ['*'] = all app metrics chains (minus starknet)
-            'days': 30,
+            'days': 21,
             'sources': ['activity', 'oli', 'dune', 'blockscout'],
             'top_n': 1000,
             'dune_top_n': 1000,
