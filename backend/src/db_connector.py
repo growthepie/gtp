@@ -2851,6 +2851,92 @@ class DbConnector:
                                 connection.execute(text(exec_string))
                 print(f"HLL hashes of native transfer senders for {chain} and {hours} hours loaded into fact_active_addresses_contract_hourly_hll.")
 
+        ## Airtable: top unlabelled addresses (no OLI owner_project) per chain by stablecoin balance, same shape as get_unlabelled_contracts
+        def get_unlabelled_stables_holders(self, number_of_addresses=20, activity_days=30):
+                number_of_addresses = int(number_of_addresses)
+                exec_string = f'''
+                        WITH latest AS (
+                                SELECT origin_key, MAX("date") AS "date"
+                                FROM public.fact_stables_balances
+                                GROUP BY 1
+                        ),
+                        holders AS (
+                                SELECT
+                                        b.address,
+                                        b.origin_key,
+                                        MAX(b.contract_name) AS contract_name,
+                                        MAX(b.usage_category) AS usage_category,
+                                        SUM(b.balance_usd) AS balance_usd,
+                                        string_agg(b.symbol, ', ' ORDER BY b.balance_usd DESC NULLS LAST) AS tokens
+                                FROM public.vw_fact_stables_balances_v1 b
+                                JOIN latest l ON l.origin_key = b.origin_key AND l."date" = b."date"
+                                WHERE b.owner_project IS NULL
+                                        -- same exclusion as get_unlabelled_contracts: addresses the automated labeler already attested
+                                        AND NOT EXISTS (
+                                                SELECT 1 FROM public.labels lbl
+                                                JOIN sys_main_conf smc2 ON lbl.chain_id = smc2.caip2
+                                                WHERE lbl.address = '0x' || encode(b.address, 'hex')
+                                                  AND smc2.origin_key = b.origin_key
+                                                  AND lbl.attester IN (
+                                                        decode('aDbf2b56995b57525Aa9a45df19091a2C5a2A970', 'hex'),
+                                                        decode('ab81887E560e7C7b5993cE45D1c584d7FC22e898', 'hex')
+                                                  )
+                                        )
+                                GROUP BY 1, 2
+                        ),
+                        ranked AS (
+                                SELECT *, ROW_NUMBER() OVER (PARTITION BY origin_key ORDER BY balance_usd DESC NULLS LAST) AS rn
+                                FROM holders
+                        ),
+                        activity AS (
+                                SELECT address, origin_key, SUM(gas_fees_eth) AS gas_eth, SUM(txcount) AS txcount, ROUND(AVG(daa)) AS avg_daa, AVG(success_rate) AS avg_success
+                                FROM public.blockspace_fact_contract_level
+                                WHERE "date" >= current_date - interval '{int(activity_days)} days'
+                                GROUP BY 1, 2
+                        )
+                        SELECT
+                                '0x' || encode(r.address, 'hex') AS address,
+                                r.origin_key,
+                                smc.caip2,
+                                'Stablecoins held: $' || to_char(r.balance_usd, 'FM999,999,999,999') || ' (' || r.tokens || ')' AS _comment,
+                                r.contract_name,
+                                NULL::boolean AS is_proxy,
+                                NULL::text AS owner_project,
+                                r.usage_category,
+                                a.gas_eth,
+                                a.txcount,
+                                a.avg_daa,
+                                a.avg_success,
+                                NULL::float AS rel_cost
+                        FROM ranked r
+                        LEFT JOIN activity a ON a.address = r.address AND a.origin_key = r.origin_key
+                        JOIN sys_main_conf smc ON smc.origin_key = r.origin_key AND smc.caip2 IS NOT NULL
+                        WHERE r.rn <= {number_of_addresses}
+                        ORDER BY r.origin_key, r.rn
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                df['day_range'] = int(activity_days)
+                return df
+
+        ## Airtable: USD value of stablecoins per address on each chain's latest measured day (metrics_stables_balances)
+        def get_latest_stables_balances_usd(self):
+                exec_string = '''
+                        WITH latest AS (
+                                SELECT origin_key, MAX("date") AS "date"
+                                FROM public.fact_stables_balances
+                                GROUP BY 1
+                        )
+                        SELECT
+                                '0x' || encode(b.address, 'hex') AS address,
+                                b.origin_key,
+                                SUM(b.balance_usd) AS stablecoin_balance
+                        FROM public.vw_fact_stables_balances_v1 b
+                        JOIN latest l ON l.origin_key = b.origin_key AND l."date" = b."date"
+                        GROUP BY 1, 2
+                '''
+                df = pd.read_sql(exec_string, self.engine.connect())
+                return df
+
         # ETH burned (EIP-1559 base fee + EIP-4844 blob fee) per hour or per day, aggregated from ethereum_blocks (starts at Dencun, 2024-03-13).
         # Only complete hours/days are returned. Returns df ready for fact_kpis_granular (hourly) or eim_fact (daily).
         def get_eth_burned(self, granularity:str='hourly', hours:int=48):

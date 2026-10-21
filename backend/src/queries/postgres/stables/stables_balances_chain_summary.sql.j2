@@ -1,0 +1,41 @@
+{#
+    Daily stablecoin value held by tracked addresses per chain, vs. the chain's stablecoin supply.
+
+    Note: "tracked" = candidates in sys_stables_balances_candidates. Totals step up when
+    discovery adds new addresses (their history is backfilled, but only as far as `days` of the run).
+
+    Parameters:
+    - origin_keys: list of chains
+    - days: default = 30
+#}
+
+{% set days = days | default(30) %}
+
+WITH held AS (
+    SELECT
+        "date",
+        origin_key,
+        SUM(balance_usd) AS held_tracked_usd,
+        SUM(balance_usd) FILTER (WHERE owner_project IS NOT NULL) AS held_by_apps_usd,
+        COUNT(DISTINCT address) AS addresses_with_balance,
+        COUNT(DISTINCT owner_project) AS apps_with_balance
+    FROM public.vw_fact_stables_balances_v1
+    WHERE "date" >= current_date - interval '{{ days }} days'
+      AND origin_key IN ('{{ origin_keys | join("', '") }}')
+    GROUP BY 1, 2
+),
+supply AS (
+    SELECT "date", origin_key, SUM(value_usd) AS stables_mcap_usd
+    FROM public.vw_fact_stables_mcap_v2
+    WHERE "date" >= current_date - interval '{{ days }} days'
+      AND origin_key IN ('{{ origin_keys | join("', '") }}')
+    GROUP BY 1, 2
+)
+SELECT
+    h.*,
+    s.stables_mcap_usd,
+    h.held_tracked_usd / NULLIF(s.stables_mcap_usd, 0) AS share_tracked,
+    h.held_by_apps_usd / NULLIF(s.stables_mcap_usd, 0) AS share_in_apps
+FROM held h
+LEFT JOIN supply s USING ("date", origin_key)
+ORDER BY origin_key, "date" DESC;

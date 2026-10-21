@@ -426,7 +426,43 @@ FIAT_CURRENCY_CONFIG = {
         "coingecko_forex_id": "amd",
         "vs_currency": "usd",
         "description": "Armenian Dram"
-    }
+    },
+    # not on CoinGecko's exchange_rates: rates come from the GitHub currency API fallback
+    "ghs": {
+        "name": "Ghanaian Cedi",
+        "symbol": "GHS",
+        "coingecko_forex_id": "ghs",
+        "vs_currency": "usd",
+        "description": "Ghanaian Cedi"
+    },
+    "bob": {
+        "name": "Bolivian Boliviano",
+        "symbol": "BOB",
+        "coingecko_forex_id": "bob",
+        "vs_currency": "usd",
+        "description": "Bolivian Boliviano"
+    },
+    "pyg": {
+        "name": "Paraguayan Guarani",
+        "symbol": "PYG",
+        "coingecko_forex_id": "pyg",
+        "vs_currency": "usd",
+        "description": "Paraguayan Guarani"
+    },
+    "uyu": {
+        "name": "Uruguayan Peso",
+        "symbol": "UYU",
+        "coingecko_forex_id": "uyu",
+        "vs_currency": "usd",
+        "description": "Uruguayan Peso"
+    },
+    "ves": {
+        "name": "Venezuelan Bolivar",
+        "symbol": "VES",
+        "coingecko_forex_id": "ves",
+        "vs_currency": "usd",
+        "description": "Venezuelan Bolivar Soberano"
+    },
 }
 
 # Exchange rate API endpoints
