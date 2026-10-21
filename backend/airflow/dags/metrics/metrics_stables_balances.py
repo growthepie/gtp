@@ -27,11 +27,11 @@ def etl():
         db_connector = DbConnector()
         ad = AdapterStablecoinBalances({}, db_connector)
 
-        # trial scope: 3 chains; discovery = most used addresses + OLI labeled apps + Dune top receivers of the last 7 days (daily)
+        # all app metrics chains; discovery = most used addresses + OLI labeled apps + Dune top receivers of the last 7 days (daily)
         # + Blockscout current top holders (first run + Mondays; needs BLOCKSCOUT_API_KEY_PRO, Polygon needs a higher plan)
         # 'dune_history' (yearly windows) is a manual one-time seed for chains without Blockscout access
         ad.extract({
-            'origin_keys': ['ethereum', 'polygon_pos', 'celo'], # target: ['*'] = all app metrics chains (minus starknet)
+            'origin_keys': ['*'], # all app metrics chains (runs_aggregate_apps, minus starknet)
             'days': 21,
             'sources': ['activity', 'oli', 'dune', 'blockscout'],
             'top_n': 1000,

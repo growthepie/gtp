@@ -173,15 +173,24 @@ def etl():
         from src.db_connector import DbConnector
         from eim.adapters.adapter_reference_data import AdapterReferenceData
 
-        ## once a day is enough (WGC updates the gold stock quarterly)
+        ## once a day is enough (WGC updates the gold stock quarterly, FRED M2 monthly)
         if datetime.now(timezone.utc).hour != 6:
             print("Reference data is only refreshed at 06:xx UTC, skipping.")
             return
 
         db_connector = DbConnector()
         ad = AdapterReferenceData({}, db_connector)
-        df = ad.extract({'load_type': 'gold_stock'})
-        ad.load(df)
+        ## load each source independently, one failing source shouldn't block the other
+        failed = []
+        for load_type in ['gold_stock', 'm2']:
+            try:
+                df = ad.extract({'load_type': load_type})
+                ad.load(df)
+            except Exception as e:
+                print(f"Reference data {load_type} failed: {e}")
+                failed.append(load_type)
+        if failed:
+            raise Exception(f"Reference data failed for {failed}")
 
     properties = run_create_properties_json()
     [supply, staking, run_eth_collateral(), run_reference_data()] >> properties

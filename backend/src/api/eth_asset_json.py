@@ -55,7 +55,7 @@ SOURCES = {
     'aave': {'name': 'Aave v3 Ethereum (onchain)', 'url': 'https://app.aave.com/markets/?marketName=proto_mainnet_v3'},
 }
 
-## FRED csv download, no API key needed. M2SL: US dollar money supply (monthly),
+## FRED csv download, no API key needed (M2SL is loaded into eim_fact by AdapterReferenceData),
 ## SNDR: FDIC national average savings deposit rate (monthly, %), DFF: effective federal funds rate (daily, %),
 ## ECBDFR: ECB deposit facility rate (daily, %)
 FRED_CSV_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={}'
@@ -490,7 +490,13 @@ class EthAssetJSONCreation():
         gold_days = (g_latest['date'] - g_prev['date']).days
         gold_change = (g_latest['value'] / g_prev['value'] - 1) * 365 / gold_days
 
-        m2 = self.get_fred_series('M2SL')
+        ## M2 is loaded daily from FRED into eim_fact (AdapterReferenceData), monthly values per month start
+        m2 = self.db_connector.execute_query("""
+            SELECT "date", value FROM public.eim_fact WHERE origin_key = 'usd' AND metric_key = 'm2_usd' ORDER BY 1
+        """, load_df=True)
+        if m2.empty:
+            raise ValueError("No M2 data in eim_fact, run AdapterReferenceData with load_type 'm2'")
+        m2 = pd.Series(m2['value'].values, index=pd.to_datetime(m2['date']))
         m2_latest = m2.index.max()
         usd_change = m2.iloc[-1] / m2.get(m2_latest - pd.DateOffset(years=1)) - 1
 
