@@ -87,7 +87,8 @@ class BlockspaceJSONCreation():
                 bs_scl."date" ASC
         """
 
-        df = pd.read_sql(exec, self.db_connector.engine.connect())
+        with self.db_connector.engine.connect() as conn:
+            df = pd.read_sql(exec, conn)
 
         # date to datetime column in UTC
         df['date'] = pd.to_datetime(df['date']).dt.tz_localize('UTC')
@@ -155,7 +156,8 @@ class BlockspaceJSONCreation():
                 2 ASC
         """
 
-        df = pd.read_sql(exec, self.db_connector.engine.connect())
+        with self.db_connector.engine.connect() as conn:
+            df = pd.read_sql(exec, conn)
 
         # fill NaN values with 0
         self._fillna_numeric(df)
@@ -180,7 +182,8 @@ class BlockspaceJSONCreation():
                 {where_origin_key}
             GROUP BY 1
         """
-        df = pd.read_sql(exec, self.db_connector.engine.connect())
+        with self.db_connector.engine.connect() as conn:
+            df = pd.read_sql(exec, conn)
 
         # fill NaN values with 0
         self._fillna_numeric(df)
@@ -189,7 +192,8 @@ class BlockspaceJSONCreation():
 
     def get_category_mapping(self):
         exec_string = "SELECT * FROM vw_oli_category_mapping"
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        with self.db_connector.engine.connect() as conn:
+            df = pd.read_sql(exec_string, conn)
         return df
     
     ##### FILE HANDLERS #####

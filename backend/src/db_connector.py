@@ -219,13 +219,15 @@ class DbConnector:
                 
         def get_stages_dict(self):
                 exec_string = "SELECT origin_key, l2beat_stage FROM sys_main_conf WHERE l2beat_stage IS NOT NULL"
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 stages_dict = df.set_index("origin_key").to_dict()["l2beat_stage"]
                 return stages_dict
         
         def get_maturity_dict(self):
                 exec_string = "SELECT origin_key, maturity FROM sys_main_conf WHERE maturity IS NOT NULL"
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 maturity_dict = df.set_index("origin_key").to_dict()["maturity"]
                 return maturity_dict
                 
@@ -305,7 +307,8 @@ class DbConnector:
                                 {ok_string}
                                 AND date >= date_trunc('day',now()) - interval '{days} days'
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
 
         def get_eth_exported(self, days):
@@ -315,7 +318,8 @@ class DbConnector:
                         where metric_key like 'eth_exported_%%'
                         AND date >= date_trunc('day', current_date - interval '{days}' day)
                         """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_holders_raw_balances(self, days):
@@ -325,7 +329,8 @@ class DbConnector:
                         where metric_key like 'balance_%%'
                         AND date >= date_trunc('day', current_date - interval '{days}' day)
                         """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_holders_with_balances(self):
@@ -351,7 +356,8 @@ class DbConnector:
                         WHERE rn = 1
                         GROUP BY 1,2,3,4
                 """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df       
 
         """
@@ -399,7 +405,8 @@ class DbConnector:
                                 AND date < date_trunc('day', now())
                         GROUP BY 1,2
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_da_metrics_in_eth(self, days, origin_keys = None):
@@ -422,7 +429,8 @@ class DbConnector:
                         GROUP BY 1,2
 
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_fdv_in_usd(self, days, origin_keys = None):               
@@ -453,7 +461,8 @@ class DbConnector:
                         FROM tmp
                         WHERE price_usd > 0 and total_supply > 0
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_values_in_eth(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
@@ -493,7 +502,8 @@ class DbConnector:
                                 {ok_string}
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_values_in_usd(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
@@ -541,7 +551,8 @@ class DbConnector:
                                 AND tkd.date < date_trunc('day', NOW()) 
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_values_in_usd_hourly(self, metric_keys, days, origin_keys = None): ## also make sure to add new metrics in adapter_sql
@@ -591,7 +602,8 @@ class DbConnector:
                                 AND tkd.timestamp >= date_trunc('hour',now()) - interval '{days} days'
                                 AND tkd.granularity = 'hourly'
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_values_in_usd_eim(self, metric_keys, days, origin_keys = None):
@@ -625,7 +637,8 @@ class DbConnector:
                                 {ok_string}
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_values_in_usd_eim_holders(self, metric_keys, days, holder_keys = None):
@@ -658,7 +671,8 @@ class DbConnector:
                                 {ok_string}
                                 AND tkd.date >= date_trunc('day',now()) - interval '{days} days'
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         """
@@ -694,7 +708,8 @@ class DbConnector:
                         WHERE date >= date_trunc('day',now()) - interval '{days} days'
 
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
                 
         def get_metric_sources(self, metric_id:str, origin_keys:list):
@@ -715,7 +730,8 @@ class DbConnector:
                         # print (exec_string)
                 
 
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df['source'].to_list()
         
         ## Unique sender and addresses
@@ -1281,7 +1297,8 @@ class DbConnector:
                                 and empty_input = true
                         group by 1
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
          # This function is used to get the inscriptions per chain. The data will be loaded into fact_sub_category_level table        
@@ -1335,7 +1352,8 @@ class DbConnector:
                                 )
                         group by 1
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         # This function is used to get the contract_deployment daily aggregate per chain. The data will be loaded into fact_sub_category_level table
@@ -1390,7 +1408,8 @@ class DbConnector:
                         group by 1
                 '''
                 #print(exec_string)
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         # This function is used to get the total blockspace fees per day for a specific chain. The data will be loaded into fact_sub_category_level table.
@@ -1437,7 +1456,8 @@ class DbConnector:
                                 and tx_fee > 0 -- no point in counting txs with 0 fees (most likely system tx)
                         group by 1
                         '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_blockspace_total_starknet(self, days):
@@ -1456,7 +1476,8 @@ class DbConnector:
                                 and "date" >= DATE_TRUNC('day', NOW() - INTERVAL '{days} days')
                         group by 1
                         '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         # This function is used to aggregate the blockspace data from contract_level, map it to categories, and then it will be loaded into the sub_category level table. The data will be loaded into fact_sub_category_level table
@@ -1480,7 +1501,8 @@ class DbConnector:
                                 and bl.usage_category <> 'contract_deployment'
                         group by 1,2,3
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         # This function is used to calculate the unlabeled blockspace data for a specific chain. The data will be loaded into fact_sub_category_level table
@@ -1523,7 +1545,8 @@ class DbConnector:
                         from total_usage t
                         left join labeled_usage l on t.date = l.date
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         
@@ -1609,7 +1632,8 @@ class DbConnector:
                 '''
                 # print(main_category)
                 # print(exec_string)
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
 
@@ -1703,7 +1727,8 @@ class DbConnector:
                         left join prev p on tc.address = p.address and tc.origin_key = p.origin_key
                 '''
 
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
 
                 return df
                 
@@ -1791,7 +1816,8 @@ class DbConnector:
                 '''
                 # print(main_category)
                 # print(exec_string)
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         # function to return the most used contracts by chain (used for blockscout adapter)
@@ -1818,7 +1844,8 @@ class DbConnector:
                         FROM ranked_contracts rc
                         WHERE row_num_gas <= {str(number_of_contracts)} or row_num_txcount <= {str(number_of_contracts)} or row_num_daa <= {str(number_of_contracts)}
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
 
         ### Sys Chains functions
@@ -1924,7 +1951,8 @@ class DbConnector:
                                         ON ood.token_coingecko_api_id = cg.id
                                 WHERE active = true
                                 """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
 
                 if add_category:
                         exec_string = """
@@ -1973,7 +2001,8 @@ class DbConnector:
                         left join sub_cats sc using (owner_project)
                         WHERE row_num = 1
                         """
-                        df_categories = pd.read_sql(exec_string, self.engine.connect())
+                        with self.engine.connect() as conn:
+                                df_categories = pd.read_sql(exec_string, conn)
                         df = df.merge(df_categories, on='name', how='left')
 
                 return df
@@ -1988,7 +2017,8 @@ class DbConnector:
                         FROM public.oli_oss_directory
                         WHERE active = True;
                         """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
 
         def deactivate_projects(self, names:list):
@@ -2017,7 +2047,8 @@ class DbConnector:
                                 and ip.name IS NULL
                         ORDER BY tag_value ASC
                 """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         ## This function is used for our Airtable setup - it returns all rows from the gold table that match with an owner_project
@@ -2032,7 +2063,8 @@ class DbConnector:
                                 AND tag_value = '{owner_project}'
                         );
                 """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 df['address'] = '\\x' + df['address'].apply(lambda x: x.hex())
                 df['attester'] = '\\x' + df['attester'].apply(lambda x: x.hex())
                 return df
@@ -2059,7 +2091,8 @@ class DbConnector:
                                 AND l.chain_id = '{chain_id}'
                                 AND l.attester = decode('{attester}', 'hex');
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 df['address'] = df['address'].str.replace('0x', '\\x')
                 df['attester'] = '\\x' + df['attester'].apply(lambda x: x.hex())
                 return df
@@ -2087,7 +2120,8 @@ class DbConnector:
                         FROM with_max_time
                         WHERE time < max_time;
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
 
 
@@ -2182,7 +2216,8 @@ class DbConnector:
                         WHERE row_num_gas <= {str(int(number_of_contracts/2))} OR row_num_daa <= {str(int(number_of_contracts/2))}
                         ORDER BY origin_key, row_num_gas, row_num_daa
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 df['day_range'] = int(days)
                 return df
 
@@ -2307,7 +2342,8 @@ class DbConnector:
                         WHERE rc.rn <= 10
                         ORDER BY rc.origin_key, rc.rn
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 df['day_range'] = int(days)
                 return df
 
@@ -2337,7 +2373,8 @@ class DbConnector:
                         WHERE owner_project IS NOT NULL
                         """
 
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
 
         # ── contract_label_features / contract_label_review ──────────────────
@@ -2480,7 +2517,8 @@ class DbConnector:
                         limit {limit}
                 """
 
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_labels_export_df(self, limit=50000, origin_keys=None, incl_aggregation=True):
@@ -2515,7 +2553,8 @@ class DbConnector:
                         order by sum(txcount) desc
                         limit {limit}
                 """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_labels_export_gold_table(self):
@@ -2549,7 +2588,8 @@ class DbConnector:
                         FROM public.vw_oli_label_pool_gold_v2
                         GROUP BY 1, 2
                 """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         ## OLI Label Pool functions
@@ -2558,7 +2598,8 @@ class DbConnector:
                 SELECT MAX({column_name}) AS max_value
                 FROM public.{table_name};
                 """
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df['max_value'][0]
 
         def get_labels_page_sparkline(self, limit=100, origin_keys=None):
@@ -2591,7 +2632,8 @@ class DbConnector:
                         group by 1,2,3
                 """
 
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
         
         def get_special_use_rpc(self, origin_key:str, check_realtime:bool = False):
@@ -2914,7 +2956,8 @@ class DbConnector:
                         WHERE r.rn <= {number_of_addresses}
                         ORDER BY r.origin_key, r.rn
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 df['day_range'] = int(activity_days)
                 return df
 
@@ -2934,7 +2977,8 @@ class DbConnector:
                         JOIN latest l ON l.origin_key = b.origin_key AND l."date" = b."date"
                         GROUP BY 1, 2
                 '''
-                df = pd.read_sql(exec_string, self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(exec_string, conn)
                 return df
 
         # ETH burned (EIP-1559 base fee + EIP-4844 blob fee) per hour or per day, aggregated from ethereum_blocks (starts at Dencun, 2024-03-13).
@@ -2962,7 +3006,8 @@ class DbConnector:
                         GROUP BY 1
                         ORDER BY 1
                 '''
-                df = pd.read_sql(text(exec_string), self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(text(exec_string), conn)
                 df['value'] = df['value'].astype(float)
                 df['metric_key'] = 'eth_burned_eth'
                 df['origin_key'] = 'ethereum'
@@ -2998,7 +3043,8 @@ class DbConnector:
                         JOIN h s ON s.date = r.date AND s.metric_key = 'eth_staked_eth'
                         WHERE r.metric_key = 'staking_rewards_cl_eth' AND r.hours = 24
                 '''
-                df = pd.read_sql(text(exec_string), self.engine.connect())
+                with self.engine.connect() as conn:
+                        df = pd.read_sql(text(exec_string), conn)
                 df = df.melt(id_vars=['date'], var_name='metric_key', value_name='value')
                 df['origin_key'] = 'ethereum'
                 return df.set_index(['metric_key', 'origin_key', 'date'])

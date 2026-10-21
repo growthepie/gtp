@@ -252,7 +252,8 @@ class AdapterSQL(AbstractAdapter):
 
                 print(f"...executing query: {query.metric_key} - {query.origin_key} with {query.query_parameters}")
                 query.sql = query.template.render(query.query_parameters)
-                df = pd.read_sql(query.sql, self.db_connector.engine.connect())
+                with self.db_connector.engine.connect() as conn:
+                    df = pd.read_sql(query.sql, conn)
                 
                 if query.run_hourly == True:
                     ## for hourly queries, add column 'granularity' with value 'hourly'
@@ -571,7 +572,8 @@ class AdapterSQL(AbstractAdapter):
                                     and  block_timestamp < {timestamp_end}                
                                 GROUP BY 1,2,3,4
                             """
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
@@ -606,7 +608,8 @@ class AdapterSQL(AbstractAdapter):
                                 FROM median_tx z
                                 {additional_join}
                             """
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
@@ -641,7 +644,8 @@ class AdapterSQL(AbstractAdapter):
                                 FROM median_tx z
                                 {additional_join}
                             """
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
@@ -676,7 +680,8 @@ class AdapterSQL(AbstractAdapter):
                                 FROM median_tx z
                                 {additional_join}
                             """
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
@@ -718,7 +723,8 @@ class AdapterSQL(AbstractAdapter):
                                 {additional_join}
                             """
 
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
@@ -762,7 +768,8 @@ class AdapterSQL(AbstractAdapter):
                                 FROM median_tx z
                                 {additional_join}
                             """
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
                     
@@ -781,7 +788,8 @@ class AdapterSQL(AbstractAdapter):
                                         and block_timestamp < {timestamp_end}                  
                                     GROUP BY 1,2,3,4
                             """
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)
 
@@ -808,6 +816,7 @@ class AdapterSQL(AbstractAdapter):
                                         and  block_timestamp < {timestamp_end} 
                                     GROUP BY 1,2,3,4
                             """
-                            df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+                            with self.db_connector.engine.connect() as conn:
+                                df = pd.read_sql(exec_string, conn)
                             df.set_index(['origin_key', 'metric_key', 'timestamp', 'granularity'], inplace=True)
                             self.db_connector.upsert_table('fact_kpis_granular', df)

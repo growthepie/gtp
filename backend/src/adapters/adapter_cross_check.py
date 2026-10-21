@@ -141,7 +141,8 @@ class AdapterCrossCheck(AbstractAdapter):
         FROM temp
         """
 
-        df = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        with self.db_connector.engine.connect() as conn:
+            df = pd.read_sql(exec_string, conn)
 
         for index, row in df.iterrows():
             if row['origin_key'] == 'rhino':
@@ -194,7 +195,8 @@ class AdapterCrossCheck(AbstractAdapter):
             where block_timestamp >= current_date - interval '{days} days' and block_timestamp < current_date
             group by 1
         """
-        df_our_db = pd.read_sql(exec_string, self.db_connector.engine.connect())
+        with self.db_connector.engine.connect() as conn:
+            df_our_db = pd.read_sql(exec_string, conn)
         df_our_db['day'] = df_our_db['day'].dt.date
 
         ## merge
