@@ -9,8 +9,10 @@ from src.misc.helper_functions import print_init, print_load, print_extract
 HTTP_HEADERS = {'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'}
 ## World Gold Council: page text contains e.g. "Total above-ground stock (end-Q2 2026): 222,600 tonnes" (updated quarterly)
 WGC_GOLD_STOCK_URL = 'https://www.gold.org/goldhub/data/how-much-gold'
-## FRED csv download (no API key), M2SL: US dollar M2 money supply in billions USD (monthly, revised retroactively)
-FRED_M2_CSV_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id=M2SL'
+## FRED csv download (no API key), cosd: first observation date
+FRED_CSV_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={}&cosd={}'
+## years of history loaded per run (the ETH asset page compares against a year ago at most), past values get revised by FRED
+FRED_HISTORY_YEARS = 3
 
 class AdapterReferenceData(AbstractAdapter):
     """
@@ -25,14 +27,15 @@ class AdapterReferenceData(AbstractAdapter):
 
     """
     load_params require the following fields:
-        load_type:str - 'gold_stock' or 'm2'
+        load_type:str - 'gold_stock' or 'fred'
+        series:list - FRED series ids (only for load_type 'fred')
     """
     def extract(self, load_params:dict):
         self.load_type = load_params['load_type']
         if self.load_type == 'gold_stock':
             df = self.extract_gold_stock()
-        elif self.load_type == 'm2':
-            df = self.extract_m2()
+        elif self.load_type == 'fred':
+            df = self.extract_fred(load_params['series'])
         else:
             raise ValueError(f"load_type {self.load_type} not supported for this adapter")
         print_extract(self.name, load_params, df.shape)
@@ -61,20 +64,26 @@ class AdapterReferenceData(AbstractAdapter):
         df = pd.DataFrame([{'metric_key': 'gold_stock_tonnes', 'origin_key': 'gold', 'date': date, 'value': tonnes}])
         return df.set_index(['metric_key', 'origin_key', 'date'])
 
-    ## full US dollar M2 history in USD, stored per month start (FRED convention), whole series upserted because FRED revises past months
-    def extract_m2(self):
-        r = requests.get(FRED_M2_CSV_URL, headers=HTTP_HEADERS, timeout=60)
-        r.raise_for_status()
-        ## FRED serves an HTML maintenance page with HTTP 200 during outages
-        if not r.text.startswith('observation_date'):
-            raise ValueError(f"FRED returned no csv for M2SL (maintenance?): {r.text[:100]!r}")
-        df = pd.read_csv(io.StringIO(r.text))
-        df.columns = ['date', 'value']
-        df['date'] = pd.to_datetime(df['date']).dt.date
-        df['value'] = pd.to_numeric(df['value'], errors='coerce') * 1e9
-        df = df.dropna()
-        print(f"...{self.name} - M2 {df['value'].iloc[-1]/1e12:,.2f}T USD at {df['date'].iloc[-1]} ({len(df)} months)")
+    ## FRED series as raw values, stored with origin_key 'fred' and the lowercased series id as metric_key, empty observations (e.g. holidays) dropped
+    def extract_fred(self, series:list):
+        start = (pd.Timestamp.now(tz='UTC').normalize() - pd.DateOffset(years=FRED_HISTORY_YEARS)).date()
+        dfs = []
+        for series_id in series:
+            ## no browser User-Agent: FRED's bot protection drops python requests that pretend to be a browser
+            r = requests.get(FRED_CSV_URL.format(series_id, start), timeout=60)
+            r.raise_for_status()
+            ## FRED serves an HTML maintenance page with HTTP 200 during outages
+            if not r.text.startswith('observation_date'):
+                raise ValueError(f"FRED returned no csv for {series_id} (maintenance?): {r.text[:100]!r}")
+            df = pd.read_csv(io.StringIO(r.text))
+            df.columns = ['date', 'value']
+            df['date'] = pd.to_datetime(df['date']).dt.date
+            df['value'] = pd.to_numeric(df['value'], errors='coerce')
+            df = df.dropna()
+            print(f"...{self.name} - FRED {series_id}: {df['value'].iloc[-1]} at {df['date'].iloc[-1]} ({len(df)} rows)")
+            df['metric_key'] = series_id.lower()
+            dfs.append(df)
 
-        df['metric_key'] = 'm2_usd'
-        df['origin_key'] = 'usd'
+        df = pd.concat(dfs)
+        df['origin_key'] = 'fred'
         return df.set_index(['metric_key', 'origin_key', 'date'])

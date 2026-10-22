@@ -172,8 +172,9 @@ def etl():
         from datetime import datetime, timezone
         from src.db_connector import DbConnector
         from eim.adapters.adapter_reference_data import AdapterReferenceData
+        from src.api.eth_asset_json import FRED_SERIES
 
-        ## once a day is enough (WGC updates the gold stock quarterly, FRED M2 monthly)
+        ## once a day is enough (WGC updates the gold stock quarterly, FRED series daily to monthly)
         if datetime.now(timezone.utc).hour != 6:
             print("Reference data is only refreshed at 06:xx UTC, skipping.")
             return
@@ -182,25 +183,28 @@ def etl():
         ad = AdapterReferenceData({}, db_connector)
         ## load each source independently, one failing source shouldn't block the other
         failed = []
-        for load_type in ['gold_stock', 'm2']:
+        for load_params in [{'load_type': 'gold_stock'}, {'load_type': 'fred', 'series': FRED_SERIES}]:
             try:
-                df = ad.extract({'load_type': load_type})
+                df = ad.extract(load_params)
                 ad.load(df)
             except Exception as e:
-                print(f"Reference data {load_type} failed: {e}")
-                failed.append(load_type)
+                print(f"Reference data {load_params['load_type']} failed: {e}")
+                failed.append(load_params['load_type'])
 
-        ## M2 is monthly and stored in eim_fact, a failed refresh only matters once the stored data gets stale (FRED blocks our server from time to time)
-        if 'm2' in failed:
+        ## FRED series are stored in eim_fact and only read from there, a failed refresh only matters once the stored data gets stale
+        if 'fred' in failed:
             import pandas as pd
             from src.misc.helper_functions import send_discord_message
-            failed.remove('m2')
-            last_month = db_connector.execute_query("SELECT MAX(date) AS d FROM eim_fact WHERE metric_key = 'm2_usd' AND origin_key = 'usd'", load_df=True)['d'].iloc[0]
-            ## age counted from the end of the latest month (FRED stores monthly values at the month start)
-            if last_month is None or pd.Timestamp(last_month) + pd.DateOffset(months=1) < pd.Timestamp(datetime.now(timezone.utc).date()) - pd.DateOffset(months=3):
-                send_discord_message(f"api_eth_asset: FRED M2 refresh failed and the latest stored M2 month is {last_month} (>3 months old), the USD scarcity value on the ETH asset page is stale.")
+            failed.remove('fred')
+            df = db_connector.execute_query("SELECT metric_key, MAX(date) AS d FROM eim_fact WHERE origin_key = 'fred' GROUP BY 1", load_df=True)
+            last_dates = {series_id: df.set_index('metric_key')['d'].get(series_id.lower()) for series_id in FRED_SERIES}
+            ## age counted from the end of the latest month (FRED stores monthly values at the month start), generous for daily series
+            cutoff = pd.Timestamp(datetime.now(timezone.utc).date()) - pd.DateOffset(months=3)
+            stale = {s: d for s, d in last_dates.items() if d is None or pd.Timestamp(d) + pd.DateOffset(months=1) < cutoff}
+            if stale:
+                send_discord_message(f"api_eth_asset: FRED refresh failed and these series are >3 months old in eim_fact (latest date): {stale}, ETH asset page values based on them are stale.")
             else:
-                print(f"M2 refresh failed, latest stored month {last_month} is recent enough, ignoring.")
+                print("FRED refresh failed, stored series are recent enough, ignoring.")
 
         if failed:
             raise Exception(f"Reference data failed for {failed}")

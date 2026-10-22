@@ -55,10 +55,10 @@ SOURCES = {
     'aave': {'name': 'Aave v3 Ethereum (onchain)', 'url': 'https://app.aave.com/markets/?marketName=proto_mainnet_v3'},
 }
 
-## FRED csv download, no API key needed (M2SL is loaded into eim_fact by AdapterReferenceData),
+## FRED series are loaded daily into eim_fact by AdapterReferenceData (see FRED_SERIES). M2SL: US dollar money supply (monthly, bn USD),
 ## SNDR: FDIC national average savings deposit rate (monthly, %), DFF: effective federal funds rate (daily, %),
 ## ECBDFR: ECB deposit facility rate (daily, %)
-FRED_CSV_URL = 'https://fred.stlouisfed.org/graph/fredgraph.csv?id={}'
+FRED_RATE_SERIES = ['M2SL', 'SNDR', 'DFF', 'ECBDFR']
 ## window for the annualized ETH supply change in the scarcity comparison
 ETH_SUPPLY_CHANGE_DAYS = 30
 ## days of history for the 'ETH paid as gas' timeseries
@@ -147,6 +147,9 @@ PURCHASING_POWER_REGIONS = {
 PURCHASING_POWER_ITEM_NAMES = {'bread': 'Bread', 'eggs': 'Eggs', 'coffee': 'Coffee', 'fuel': 'Fuel', 'gold': 'Gold'}
 ## FX from FRED (daily): USD per unit of local currency (JPY is quoted the other way round and inverted)
 FX_SERIES = {'EUR': ('DEXUSEU', False), 'GBP': ('DEXUSUK', False), 'JPY': ('DEXJPUS', True)}
+## all FRED series used on the ETH asset page
+FRED_SERIES = FRED_RATE_SERIES + [s for s, _ in FX_SERIES.values()] + \
+    [c['series'] for r in PURCHASING_POWER_REGIONS.values() for c in r['items'].values() if c['method'] == 'fred']
 ESTAT_RETAIL_PRICE_TABLE = '0003421913'   ## Retail Price Survey, major items by city (monthly)
 ESTAT_TOKYO_AREA = '13100'                ## Tokyo 23 wards
 EUROSTAT_HICP_URL = 'https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_minr?format=JSON&geo=EA&unit=I25&coicop18={}'
@@ -490,13 +493,7 @@ class EthAssetJSONCreation():
         gold_days = (g_latest['date'] - g_prev['date']).days
         gold_change = (g_latest['value'] / g_prev['value'] - 1) * 365 / gold_days
 
-        ## M2 is loaded daily from FRED into eim_fact (AdapterReferenceData), monthly values per month start
-        m2 = self.db_connector.execute_query("""
-            SELECT "date", value FROM public.eim_fact WHERE origin_key = 'usd' AND metric_key = 'm2_usd' ORDER BY 1
-        """, load_df=True)
-        if m2.empty:
-            raise ValueError("No M2 data in eim_fact, run AdapterReferenceData with load_type 'm2'")
-        m2 = pd.Series(m2['value'].values, index=pd.to_datetime(m2['date']))
+        m2 = self.get_fred_series('M2SL')
         m2_latest = m2.index.max()
         usd_change = m2.iloc[-1] / m2.get(m2_latest - pd.DateOffset(years=1)) - 1
 
@@ -513,17 +510,14 @@ class EthAssetJSONCreation():
             },
         }
 
-    ## FRED series as float Series indexed by date, empty observations (e.g. holidays) dropped
+    ## FRED series as float Series indexed by date, loaded daily into eim_fact by AdapterReferenceData (load_type 'fred')
     def get_fred_series(self, series_id:str):
-        import io
-        csv = api_get_call(FRED_CSV_URL.format(series_id), sleeper=10, retries=5, as_json=False)
-        if not csv:
-            raise ValueError(f"No data returned from FRED for {series_id}")
-        df = pd.read_csv(io.StringIO(csv if isinstance(csv, str) else csv.text))
-        df.columns = ['date', 'value']
-        df['date'] = pd.to_datetime(df['date'])
-        df['value'] = pd.to_numeric(df['value'], errors='coerce')
-        return df.dropna().set_index('date')['value'].sort_index()
+        df = self.db_connector.execute_query(f"""
+            SELECT "date", value FROM public.eim_fact WHERE origin_key = 'fred' AND metric_key = '{series_id.lower()}' ORDER BY 1
+        """, load_df=True)
+        if df.empty:
+            raise ValueError(f"No FRED {series_id} data in eim_fact, run AdapterReferenceData with load_type 'fred'")
+        return pd.Series(df['value'].astype(float).values, index=pd.to_datetime(df['date']))
 
     ## yield an asset pays just for holding it (nominal, annual), as fractions
     def get_yield_comparison(self, staking_yield:float):
