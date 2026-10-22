@@ -189,6 +189,19 @@ def etl():
             except Exception as e:
                 print(f"Reference data {load_type} failed: {e}")
                 failed.append(load_type)
+
+        ## M2 is monthly and stored in eim_fact, a failed refresh only matters once the stored data gets stale (FRED blocks our server from time to time)
+        if 'm2' in failed:
+            import pandas as pd
+            from src.misc.helper_functions import send_discord_message
+            failed.remove('m2')
+            last_month = db_connector.execute_query("SELECT MAX(date) AS d FROM eim_fact WHERE metric_key = 'm2_usd' AND origin_key = 'usd'", load_df=True)['d'].iloc[0]
+            ## age counted from the end of the latest month (FRED stores monthly values at the month start)
+            if last_month is None or pd.Timestamp(last_month) + pd.DateOffset(months=1) < pd.Timestamp(datetime.now(timezone.utc).date()) - pd.DateOffset(months=3):
+                send_discord_message(f"api_eth_asset: FRED M2 refresh failed and the latest stored M2 month is {last_month} (>3 months old), the USD scarcity value on the ETH asset page is stale.")
+            else:
+                print(f"M2 refresh failed, latest stored month {last_month} is recent enough, ignoring.")
+
         if failed:
             raise Exception(f"Reference data failed for {failed}")
 
